@@ -46,6 +46,7 @@ export class Hub {
     ws.on('message', (raw) => this.onMessage(c, raw.toString()));
     ws.on('close', () => {
       this.clients.delete(c);
+      if (c.role === 'player') this.scheduleBroadcast();
       if (c.deviceIds.size) this.controllers.disconnectAll(c.deviceIds);
     });
     ws.on('error', () => {});
@@ -76,8 +77,9 @@ export class Hub {
     let profiles = {};
     if (s) {
       profiles = this.games.profilesFor(s);
-      host = projectState(s, 'host', profiles);
-      pub = projectState(s, 'public', profiles);
+      const online = [...new Set([...this.clients].filter((c) => c.role === 'player' && c.profileId).map((c) => c.profileId!))];
+      host = { ...projectState(s, 'host', profiles), online };
+      pub = { ...projectState(s, 'public', profiles), online };
     }
     for (const c of this.clients) {
       if (!c.role) continue;
@@ -143,7 +145,8 @@ export class Hub {
         c.trusted = sess?.kind === 'host';
       }
       this.send(c, { t: 'welcome', role: c.role, profileId: c.profileId, trustedDevice: c.trusted, serverTime: Date.now() });
-      this.broadcastTo(c);
+      if (c.role === 'player') this.scheduleBroadcast();
+      else this.broadcastTo(c);
       if (c.trusted) this.send(c, { t: 'controllers', list: this.controllers.list(), listening: this.controllers.listening });
       return;
     }

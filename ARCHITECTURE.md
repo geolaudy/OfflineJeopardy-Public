@@ -1,0 +1,130 @@
+# OfflineJeopardy — Architecture
+
+## Overview
+
+```
+ ┌──────────────────────── Windows PC (Electron app) ────────────────────────┐
+ │  Electron main (src/electron/main.ts)                                      │
+ │   ├─ starts the local game server in-process (src/server/app.ts)           │
+ │   ├─ main window  → http://127.0.0.1:<port>/desk   (dashboard + Joy-Con     │
+ │   │                  reader via WebHID / Gamepad API)                       │
+ │   └─ board window → http://127.0.0.1:<port>/board  (TV, fullscreen, any     │
+ │                      display; keyboard buzzers)                             │
+ │                                                                            │
+ │  Local game server (Fastify, 0.0.0.0:3000..3010)                           │
+ │   ├─ REST  /api/*      profiles, PIN auth, boards, games, teams, stats      │
+ │   ├─ WS    /ws         live state (role projections), buzzes, controllers   │
+ │   ├─ static            built React app (dist/web)                           │
+ │   ├─ /media/*          uploaded profile pictures + clue media               │
+ │   ├─ GameManager       authoritative game state + timers + persistence     │
+ │   │    └─ engine/      PURE engine: state machine, scoring, wagers,         │
+ │   │                    buzzer arbitration, undo, projections                │
+ │   ├─ ControllerRegistry  devices, edge/debounce filter, press-to-assign    │
+ │   └─ SQLite (node:sqlite, WAL) + media folder in the data directory        │
+ └────────────────────────────────────────────────────────────────────────────┘
+        ▲ Wi-Fi / Ethernet (LAN only, no internet)
+        │
+  iPad Safari  → /host  (host controller; paired with a 6-digit host code)
+  Phones       → /join  (single public QR code: profiles, PIN, buzzer, stats)
+  Other TVs    → /board (public projection only)
+```
+
+## Source layout
+
+| Path | Purpose |
+|---|---|
+| `src/shared/game.ts` | Domain model (boards, rules, competitors, bindings, events, state). |
+| `src/shared/actions.ts` | Host action contract (zod-validated). |
+| `src/shared/views.ts` | Role projections sent to clients (`GameView`, `PlayerContext`). |
+| `src/shared/protocol.ts` | WebSocket message contract, controller events. |
+| `src/shared/boardIO.ts`, `boardUtils.ts`, `sampleBoards.ts` | Board import/export/validation, example board. |
+| `src/server/engine/engine.ts` | Pure reducer `applyAction(state, action, {now,newId})`. |
+| `src/server/engine/buzzer.ts` | `InputFilter` (edge-trigger + debounce) and `resolveInput` (device → competitor/profile). |
+| `src/server/engine/projection.ts` | `projectState(state, role)` – removes secrets per role. |
+| `src/server/gameManager.ts` | Current game, dispatch → persist → broadcast, timers, crash recovery. |
+| `src/server/hub.ts` | WebSocket hub: hello/auth, routing, per-role broadcast. |
+| `src/server/controllers.ts` | Physical controller registry, mapping, assignment-by-press. |
+| `src/server/app.ts` | Fastify app: all REST routes, static hosting, startup. |
+| `src/server/db/db.ts` | SQLite open, migrations, transactions, settings, audit log. |
+| `src/server/repos.ts` | Profiles, teams, boards, games, history snapshots. |
+| `src/server/stats.ts` | Statistics + history derived from events. |
+| `src/server/auth.ts` | scrypt PIN hashing, sessions, lockouts, rate limiter, pairing code. |
+| `src/server/images.ts` | sharp-based image validation/resizing; media sniffing; safe paths. |
+| `src/web/pages/board` | Public TV board. |
+| `src/web/pages/host` | iPad host controller (picker, setup, live, final, results). |
+| `src/web/pages/join` | Phone player portal (profiles, PIN, buzzer, stats, history, profile). |
+| `src/web/pages/desk` | Desktop dashboard (connect, library, editor, players, teams, buzzers, history, settings, help). |
+| `src/web/lib/inputBridge.ts` | Joy-Con (WebHID) / gamepad / keyboard reader → server. |
+| `src/electron/` | Electron main + preload. |
+| `tests/unit`, `tests/integration`, `tests/e2e` | Vitest unit, Vitest+real server integration, Playwright E2E. |
+
+## Identity model (separate entities, stable ids)
+
+- **Profile** (`profiles.id`, UUID): a person. Name/nickname/picture/color/avatar can change freely.
+- **Team** (`teams.id`, UUID): a saved group of profiles, reusable across games.
+- **Controller** (`controllers.id`, e.g. `joycon:<bluetooth MAC>`, `kb:KeyA`, `gamepad:…`, `phone:<profileId>`): an input device only. Never an identity.
+- **Competitor** (per game): the scoring entity — a solo player or a team. Game points belong to competitors.
+- **Binding** (per game): controller → profile, or controller → team (shared buzzer).
+- **Game participants** (`game_participants`): the profile→competitor/team membership *as it was in that game* (historical membership).
+
+## Game engine
+
+`applyAction(state, action, ctx)` is pure and deterministic. It returns the next state plus the
+touched events. Every outcome is a `GameplayEvent` (`buzz`, `answer`, `wager`, `score_adjust`,
+`attribution_correction`, `undo`, …) with `scoreDelta` (applies to the competitor) and
+`contributionDelta` (statistics only, applies to the attributed profile).
+
+- **Scores are derived** from non-voided events (`scoresOf(events)`), never stored separately → no drift, no double counting.
+- **Undo** restores a snapshot of gameplay fields and *voids* (not deletes) every event after it, recording an `undo` event — a full audit trail.
+- **Attribution correction** voids the original answer event and appends a replacement with the new profile (same `scoreDelta`), linked by `correctsEventId`.
+- **Team scoring**: a team answer creates one event: team `scoreDelta = ±value`; the answering member gets `contributionDelta = ±value` only if identified. Shared-buzzer answers default to team-only (`profileId = null`).
+
+### Phases
+`lobby → board ⇄ clue → … → final(category → wagers → clue → reveal → done) → ended`.
+Daily Wager clues have a `wager` stage (question hidden from public) before the `question` stage.
+
+### Buzzer arbitration (one path for all devices)
+1. Device layer reports raw button edges (Joy-Con via WebHID, gamepads, keyboard) or a phone sends `buzz`.
+2. `ControllerRegistry` applies `InputFilter` (edge-triggered; held buttons never repeat; debounce per controller) and the button mapping.
+3. `resolveInput` maps the device to a competitor (+ profile when identifiable). Phones of shared-buzzer team members are rejected; shared teams buzz only via their team-bound device.
+4. The engine `buzz` action: first valid buzz while `open` wins; later buzzes are queued as `late`; buzzes while locked are `early` (optional lockout penalty); competitors that already attempted are blocked (team-aware, with optional `teamRetry: otherMembers`).
+5. The server processes messages sequentially, so simultaneous presses are resolved deterministically by arrival order at the server. Client timestamps are never trusted.
+
+### Timers
+Server-authoritative `{durationMs, remainingMs, startedAt, running}`. Clients render using a
+ping-estimated clock offset. The GameManager schedules `timerExpire`; buzz-timer expiry locks buzzers.
+
+### Role projections
+`projectState` builds `host` / `public` / `player` views. Public/player views never contain
+unrevealed answers, host notes, Daily Wager locations, hidden Final wagers/answers, the event log
+or undo data. Answers are removed on the server — not hidden with CSS.
+
+## Persistence
+
+- SQLite via Node's built-in `node:sqlite` (identical in Node 24 and Electron 44, no native rebuilds), WAL mode, foreign keys on, numbered migrations (`schema_migrations`).
+- Every dispatch persists the game state (`games.state_json`, without events) and the touched events (`gameplay_events`) in **one transaction**.
+- At game creation the board is snapshotted into the state and into `game_clues` (historical clue snapshots). At start and end, `game_competitors`, `game_participants` and `game_controller_assignments` are written.
+- **Crash recovery**: the current game id is stored in settings; on startup the game is reloaded, running timers are paused and open buzzers are locked.
+- Backup = `VACUUM INTO` download; restore = verified upload applied on next start (previous DB kept as `pre-restore-*.db`).
+
+## Security
+
+- Host: 6-digit pairing code shown only on the desktop app → long-lived host session token (sliding expiry). Loopback requests may obtain a host session (configurable: Settings → Advanced).
+- Profiles: 4-digit PIN, scrypt (N=16384,r=8,p=1, 16-byte salt). 5 failures → 30 s lockout, doubling every 5 failures up to 15 min; per-IP sliding-window rate limiting; host-assisted reset revokes sessions.
+- Sessions: random 256-bit bearer tokens; only SHA-256 hashes stored.
+- WebSocket: every message zod-validated; host actions require a host session; controller input accepted only from trusted (host-token) clients; per-connection flood limits.
+- Uploads: size limits, content sniffing via sharp/magic bytes, re-encoding to WebP, strict filename whitelist, path-traversal-safe media serving.
+- QR codes contain only plain URLs.
+
+## Networking
+
+The server binds `0.0.0.0` on the first free port in 3000–3010. `/api/info` lists LAN IPv4
+addresses (virtual adapters de-prioritised); the host can pick the interface used for QR codes.
+The NSIS installer adds a Windows Firewall rule for private networks.
+
+## Joy-Con input
+
+See RESEARCH_NOTES.md. The desktop window reads Nintendo HID devices (vendor 0x057E) with WebHID,
+switches them to the standard full input report (0x30), reads the Bluetooth MAC (subcommand 0x02)
+for a stable controller id, and forwards button edges over the WebSocket. Electron grants WebHID
+permission for Nintendo devices automatically.

@@ -9,6 +9,8 @@ import { InputFilter } from './engine/buzzer.js';
 export interface ControllerHandlers {
   onPress: (p: { controllerId: string; kind: InputKind; label: string; button: string; at: number }) => void;
   onAssign: (p: { controllerId: string; kind: InputKind; label: string; target: BindingTarget }) => void;
+  /** Current game's debounce rule (ms). */
+  debounceMs?: () => number;
 }
 
 export class ControllerRegistry {
@@ -72,6 +74,7 @@ export class ControllerRegistry {
       d = this.upsert(ev.controllerId, kind, ev.label ?? defaultLabel(kind, ev.controllerId), ev.side ?? null);
       this.onChange();
     }
+    this.filter.debounceMs = this.handlers.debounceMs?.() ?? 120;
     const buzzButton = isBuzzButton(d.buzzButtons, ev.button);
     if (!this.filter.accept({ controllerId: ev.controllerId, kind: d.kind, button: ev.button, pressed: ev.pressed, at }, buzzButton || !!this.listening)) return;
     d.lastButton = ev.button;

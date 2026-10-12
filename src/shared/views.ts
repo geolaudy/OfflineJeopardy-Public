@@ -101,6 +101,7 @@ export interface GameView {
   startedAt: number | null;
   endedAt: number | null;
   profiles: Record<Id, ProfilePublic>;
+  online?: Id[]; // profiles with a connected phone/portal
   // host only
   undoLabel?: string | null;
   events?: GameplayEvent[];

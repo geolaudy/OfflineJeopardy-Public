@@ -70,6 +70,7 @@ export async function startServer(opts: ServerOptions) {
       const res = games.dispatch({ type: 'bindController', controllerId: p.controllerId, kind: p.kind as 'joycon' | 'keyboard' | 'gamepad', label: p.label, target: p.target });
       if (!res.ok) hub.sendControllers();
     },
+    debounceMs: () => games.current?.rules.buzzDebounceMs ?? 120,
   });
   const hub = new Hub(db, games, controllers);
   games.recover();

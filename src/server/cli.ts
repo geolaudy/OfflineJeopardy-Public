@@ -1,4 +1,5 @@
 // Standalone server entry (development, tests, headless hosting).
+import fs from 'node:fs';
 import path from 'node:path';
 import { startServer } from './app.js';
 
@@ -6,6 +7,7 @@ const args = new Map(process.argv.slice(2).map((a) => a.replace(/^--/, '').split
 const dataDir = args.get('data') ?? process.env.OJ_DATA_DIR ?? path.resolve('data');
 const port = Number(args.get('port') ?? process.env.OJ_PORT ?? 3000);
 const webDir = args.get('web') ?? path.resolve('dist/web');
+if (args.has('fresh')) fs.rmSync(dataDir, { recursive: true, force: true }); // tests: start from an empty database
 
 const server = await startServer({ dataDir, port, webDir, logger: args.has('verbose') });
 console.log(`OfflineJeopardy server on ${server.url} (data: ${dataDir})`);

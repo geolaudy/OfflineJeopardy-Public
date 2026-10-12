@@ -15,7 +15,9 @@ import {
   findClue,
   scoresOf,
   timerRemaining,
+  TEAM_COLORS,
 } from '../../shared/game.js';
+export { TEAM_COLORS };
 
 export interface EngineCtx {
   now: number;
@@ -26,7 +28,6 @@ export type EngineResult =
   | { ok: true; state: GameState; touchedEvents: GameplayEvent[]; ignored?: boolean; info?: string }
   | { ok: false; error: string };
 
-export const TEAM_COLORS = ['#2563eb', '#dc2626', '#16a34a', '#d97706', '#7c3aed', '#db2777', '#0891b2', '#65a30d'];
 
 const UNDOABLE = new Set([
   'selectClue',

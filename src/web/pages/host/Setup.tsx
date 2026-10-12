@@ -1,0 +1,369 @@
+// Pre-game setup on the host controller: players, teams, per-team buzzer modes, controllers.
+import { useState } from 'react';
+import type { GameView } from '../../../shared/views';
+import { act } from '../../lib/socket';
+import { hostApi } from '../../lib/api';
+import { attempt, useProfiles, useTeams } from '../../lib/hooks';
+import { ActionButton, Avatar, Button, Card, ColorPicker, Field, Modal, QrImage, inputCls, toast, cx } from '../../components/ui';
+import { AvatarPicker, ProfileCreateForm } from '../../components/ProfileForm';
+import ControllersPanel, { AssignListener } from '../../components/ControllersPanel';
+import { profileName } from '../../lib/view';
+import { TEAM_AVATARS, avatarEmoji, PLAYER_COLORS } from '../../lib/avatars';
+import { TEAM_COLORS } from '../../../shared/game';
+
+const run = async (a: Parameters<typeof act>[0]) => {
+  const r = await act(a);
+  if (!r.ok) toast(r.error ?? 'Failed', 'error');
+  return r.ok;
+};
+
+export default function Setup({ g }: { g: GameView }) {
+  const [tab, setTab] = useState<'players' | 'buzzers'>('players');
+  const ready = g.competitors.length > 0 && g.competitors.every((c) => c.memberIds.length > 0);
+  return (
+    <div className="mx-auto max-w-5xl space-y-4 p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex rounded-xl bg-white p-1 shadow-sm" role="tablist">
+          {(['players', 'buzzers'] as const).map((t) => (
+            <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={cx('min-h-11 rounded-lg px-5 font-semibold', tab === t ? 'bg-blue-700 text-white' : 'text-slate-700')}>
+              {t === 'players' ? (g.mode === 'team' ? '1. Teams' : '1. Players') : '2. Buzzers'}
+            </button>
+          ))}
+        </div>
+        <div className="flex-1" />
+        <ActionButton size="lg" variant="success" disabled={!ready} onAction={() => run({ type: 'startGame' })} data-testid="start-game">
+          ▶ Start game
+        </ActionButton>
+      </div>
+      {tab === 'players' ? g.mode === 'team' ? <TeamSetup g={g} /> : <SoloSetup g={g} /> : <ControllersPanel g={g} />}
+      <AssignListener g={g} />
+    </div>
+  );
+}
+
+function JoinHint() {
+  return (
+    <Card className="flex items-center gap-4">
+      <QrImage target="join" className="h-24 w-24 shrink-0" />
+      <p className="text-sm text-slate-600">
+        Players can join by scanning the QR code on the TV with their phone, signing in to their profile and tapping <b>Join game</b>. You can also add them here.
+      </p>
+    </Card>
+  );
+}
+
+function PendingList({ g }: { g: GameView }) {
+  const pending = g.unassigned.filter((u) => u.pending);
+  if (!pending.length) return null;
+  return (
+    <Card className="border-amber-300 bg-amber-50">
+      <h3 className="mb-2 font-bold">Waiting for approval</h3>
+      {pending.map((u) => (
+        <div key={u.profileId} className="flex items-center gap-3 py-1">
+          <Avatar profile={g.profiles[u.profileId]} size={32} />
+          <span className="flex-1 font-semibold">{profileName(g.profiles[u.profileId])}</span>
+          <Button size="sm" variant="success" onClick={() => run({ type: 'approvePlayer', profileId: u.profileId })}>
+            Approve
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => run({ type: 'removeParticipant', profileId: u.profileId })}>
+            Decline
+          </Button>
+        </div>
+      ))}
+    </Card>
+  );
+}
+
+function AddPlayerModal({ open, onClose, onPick, exclude }: { open: boolean; onClose: () => void; onPick: (profileId: string) => Promise<unknown>; exclude: string[] }) {
+  const profiles = useProfiles();
+  const [q, setQ] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const list = (profiles.data ?? []).filter((p) => !exclude.includes(p.id) && p.name.toLowerCase().includes(q.toLowerCase()));
+  return (
+    <Modal open={open} onClose={onClose} title={creating ? 'New player profile' : 'Add a player'} wide>
+      {creating ? (
+        <ProfileCreateForm
+          busy={busy}
+          onSubmit={async (p) => {
+            setBusy(true);
+            const created = await attempt(() => hostApi<{ id: string }>('POST', '/api/admin/profiles', p));
+            setBusy(false);
+            if (created) {
+              await onPick(created.id);
+              setCreating(false);
+              onClose();
+            }
+          }}
+        />
+      ) : (
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            <input className={inputCls} placeholder="Search players" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search players" />
+            <Button variant="secondary" onClick={() => setCreating(true)}>
+              + New
+            </Button>
+          </div>
+          <div className="grid max-h-[50vh] grid-cols-2 gap-2 overflow-auto sm:grid-cols-3">
+            {list.map((p) => (
+              <button
+                key={p.id}
+                className="flex items-center gap-2 rounded-xl border border-slate-200 p-2 text-left hover:bg-slate-50"
+                onClick={async () => {
+                  await onPick(p.id);
+                }}
+              >
+                <Avatar profile={p} size={36} />
+                <span className="truncate font-semibold">{profileName(p)}</span>
+              </button>
+            ))}
+            {!list.length && <p className="col-span-full text-slate-500">No more players. Create a new profile.</p>}
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+function SoloSetup({ g }: { g: GameView }) {
+  const [adding, setAdding] = useState(false);
+  return (
+    <div className="space-y-4">
+      <JoinHint />
+      <PendingList g={g} />
+      <Card>
+        <div className="mb-3 flex items-center">
+          <h3 className="flex-1 text-lg font-bold">Players ({g.competitors.length})</h3>
+          <Button onClick={() => setAdding(true)}>+ Add player</Button>
+        </div>
+        <ul className="grid gap-2 sm:grid-cols-2">
+          {g.competitors.map((c) => (
+            <li key={c.id} className="flex items-center gap-3 rounded-xl bg-slate-50 p-2" data-testid="setup-player">
+              <Avatar profile={g.profiles[c.profileId!]} size={40} />
+              <span className="flex-1 font-semibold">{profileName(g.profiles[c.profileId!])}</span>
+              <span className={cx('text-xs', g.online?.includes(c.profileId!) ? 'text-green-700' : 'text-slate-400')}>{g.online?.includes(c.profileId!) ? '● phone' : '○'}</span>
+              <Button size="sm" variant="ghost" onClick={() => run({ type: 'removeCompetitor', competitorId: c.id })} aria-label={`Remove ${profileName(g.profiles[c.profileId!])}`}>
+                ✕
+              </Button>
+            </li>
+          ))}
+        </ul>
+        {!g.competitors.length && <p className="text-slate-500">No players yet.</p>}
+      </Card>
+      <AddPlayerModal open={adding} onClose={() => setAdding(false)} exclude={g.competitors.flatMap((c) => c.memberIds)} onPick={(id) => run({ type: 'addPlayer', profileId: id })} />
+    </div>
+  );
+}
+
+function TeamSetup({ g }: { g: GameView }) {
+  const saved = useTeams();
+  const [editing, setEditing] = useState<null | { competitorId?: string }>(null);
+  const [addingTo, setAddingTo] = useState<string | null>(null);
+  const inGame = g.competitors.flatMap((c) => c.memberIds);
+  const unassigned = g.unassigned.filter((u) => !u.pending);
+  const availableSaved = (saved.data ?? []).filter((t) => !g.competitors.some((c) => c.teamId === t.id));
+
+  return (
+    <div className="space-y-4">
+      <JoinHint />
+      <PendingList g={g} />
+      {unassigned.length > 0 && (
+        <Card>
+          <h3 className="mb-2 font-bold">Players without a team</h3>
+          <div className="flex flex-wrap gap-2">
+            {unassigned.map((u) => (
+              <div key={u.profileId} className="flex items-center gap-2 rounded-full bg-slate-100 py-1 pr-1 pl-1">
+                <Avatar profile={g.profiles[u.profileId]} size={28} />
+                <span className="font-semibold">{profileName(g.profiles[u.profileId])}</span>
+                <select
+                  className="rounded-full border border-slate-300 bg-white px-2 py-1 text-sm"
+                  value=""
+                  onChange={(e) => e.target.value && run({ type: 'assignMember', profileId: u.profileId, competitorId: e.target.value })}
+                  aria-label={`Choose team for ${profileName(g.profiles[u.profileId])}`}
+                >
+                  <option value="">Choose team…</option>
+                  {g.competitors.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+      <div className="grid gap-4 md:grid-cols-2">
+        {g.competitors.map((c) => (
+          <Card key={c.id} className="space-y-3" >
+            <div className="flex items-center gap-3" data-testid="team-card">
+              <span className="flex h-12 w-12 items-center justify-center rounded-full text-2xl" style={{ background: c.color }}>
+                {avatarEmoji(c.avatar)}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-lg font-bold">{c.name}</div>
+                <div className="text-xs text-slate-500">{c.memberIds.length} players</div>
+              </div>
+              <Button size="sm" variant="ghost" onClick={() => setEditing({ competitorId: c.id })}>
+                Edit
+              </Button>
+            </div>
+            <div>
+              <div className="mb-1 text-sm font-semibold text-slate-600">Buzzer mode</div>
+              <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label={`${c.name} buzzer mode`}>
+                {(['individual', 'shared'] as const).map((m) => (
+                  <button
+                    key={m}
+                    role="radio"
+                    aria-checked={c.buzzerMode === m}
+                    onClick={() => run({ type: 'updateCompetitor', competitorId: c.id, buzzerMode: m })}
+                    className={cx('min-h-12 rounded-xl border-2 px-2 text-sm font-semibold', c.buzzerMode === m ? 'border-blue-700 bg-blue-50 text-blue-900' : 'border-slate-200')}
+                  >
+                    {m === 'individual' ? '🙋 Each player buzzes' : '🔔 One shared buzzer'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <ul className="space-y-1">
+              {c.memberIds.map((m) => (
+                <li key={m} className="flex items-center gap-2 rounded-lg bg-slate-50 p-1.5">
+                  <Avatar profile={g.profiles[m]} size={28} />
+                  <span className="flex-1 font-semibold">{profileName(g.profiles[m])}</span>
+                  <select
+                    className="rounded-lg border border-slate-300 bg-white px-1 py-1 text-sm"
+                    value={c.id}
+                    onChange={(e) => run({ type: 'assignMember', profileId: m, competitorId: e.target.value || null })}
+                    aria-label={`Move ${profileName(g.profiles[m])}`}
+                  >
+                    {g.competitors.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.id === c.id ? 'On this team' : `Move to ${o.name}`}
+                      </option>
+                    ))}
+                    <option value="">Remove from team</option>
+                  </select>
+                </li>
+              ))}
+            </ul>
+            <Button size="sm" variant="secondary" onClick={() => setAddingTo(c.id)}>
+              + Add player
+            </Button>
+          </Card>
+        ))}
+        <Card className="flex flex-col justify-center gap-2 border-dashed">
+          <Button size="lg" onClick={() => setEditing({})}>
+            + New team
+          </Button>
+          {availableSaved.length > 0 && (
+            <div>
+              <p className="mt-2 mb-1 text-sm font-semibold text-slate-600">Saved teams</p>
+              <div className="flex flex-wrap gap-2">
+                {availableSaved.map((t) => (
+                  <ActionButton
+                    key={t.id}
+                    size="sm"
+                    variant="secondary"
+                    onAction={() =>
+                      run({ type: 'addTeam', teamId: t.id, name: t.name, color: t.color, avatar: t.avatar, buzzerMode: t.buzzerMode, memberIds: t.memberIds.filter((m) => !inGame.includes(m)) })
+                    }
+                  >
+                    {avatarEmoji(t.avatar)} {t.name}
+                  </ActionButton>
+                ))}
+              </div>
+            </div>
+          )}
+        </Card>
+      </div>
+      {editing && (
+        <TeamEditor
+          g={g}
+          competitorId={editing.competitorId}
+          onClose={() => {
+            setEditing(null);
+            void saved.reload();
+          }}
+        />
+      )}
+      <AddPlayerModal
+        open={!!addingTo}
+        onClose={() => setAddingTo(null)}
+        exclude={inGame}
+        onPick={async (id) => {
+          if (!g.unassigned.some((u) => u.profileId === id)) await run({ type: 'addPlayer', profileId: id });
+          await run({ type: 'assignMember', profileId: id, competitorId: addingTo });
+        }}
+      />
+    </div>
+  );
+}
+
+/** Create or edit a team. Teams are saved to the database (stable ids) for future games. */
+function TeamEditor({ g, competitorId, onClose }: { g: GameView; competitorId?: string; onClose: () => void }) {
+  const existing = g.competitors.find((c) => c.id === competitorId);
+  const [name, setName] = useState(existing?.name ?? `Team ${g.competitors.length + 1}`);
+  const [color, setColor] = useState(existing?.color ?? TEAM_COLORS[g.competitors.length % TEAM_COLORS.length]);
+  const [avatar, setAvatar] = useState(existing?.avatar ?? 'shield');
+  const [mode, setMode] = useState<'individual' | 'shared'>(existing?.buzzerMode ?? 'individual');
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    setBusy(true);
+    try {
+      if (existing) {
+        await run({ type: 'updateCompetitor', competitorId: existing.id, name: name.trim(), color, avatar, buzzerMode: mode });
+        if (existing.teamId)
+          await attempt(() => hostApi('PUT', `/api/teams/${existing.teamId}`, { name: name.trim(), color, avatar, buzzerMode: mode, memberIds: existing.memberIds }));
+      } else {
+        const t = await attempt(() => hostApi<{ id: string }>('POST', '/api/teams', { name: name.trim(), color, avatar, buzzerMode: mode, memberIds: [] }));
+        if (t) await run({ type: 'addTeam', teamId: t.id, name: name.trim(), color, avatar, buzzerMode: mode, memberIds: [] });
+      }
+      onClose();
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Modal open onClose={onClose} title={existing ? 'Edit team' : 'New team'} wide>
+      <div className="space-y-4">
+        <Field label="Team name">
+          <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} maxLength={40} />
+        </Field>
+        <Field label="Team logo">
+          <AvatarPicker value={avatar} onChange={setAvatar} list={TEAM_AVATARS.slice(0, 20)} />
+        </Field>
+        <Field label="Team color">
+          <ColorPicker value={color} onChange={setColor} colors={[...TEAM_COLORS, ...PLAYER_COLORS.slice(8)]} />
+        </Field>
+        <Field label="Buzzer mode" hint="Each team chooses independently.">
+          <div className="grid grid-cols-2 gap-2">
+            {(['individual', 'shared'] as const).map((m) => (
+              <Button key={m} variant={mode === m ? 'primary' : 'secondary'} onClick={() => setMode(m)}>
+                {m === 'individual' ? 'Each player buzzes' : 'One shared buzzer'}
+              </Button>
+            ))}
+          </div>
+        </Field>
+        <div className="flex justify-between gap-2">
+          {existing ? (
+            <Button
+              variant="danger"
+              onClick={async () => {
+                if (confirm(`Remove ${existing.name} from this game? Players go back to "without a team".`)) {
+                  await run({ type: 'removeCompetitor', competitorId: existing.id });
+                  onClose();
+                }
+              }}
+            >
+              Remove from game
+            </Button>
+          ) : (
+            <span />
+          )}
+          <Button size="lg" onClick={save} busy={busy} disabled={!name.trim()}>
+            Save team
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
