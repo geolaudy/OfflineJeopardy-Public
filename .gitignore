@@ -1,0 +1,13 @@
+node_modules/
+dist/
+release/
+data/
+*.db
+*.db-wal
+*.db-shm
+test-results/
+playwright-report/
+.vite/
+coverage/
+*.log
+.claude/settings.local.json

@@ -1,0 +1,362 @@
+import { describe, expect, it } from 'vitest';
+import { applyAction, createGame, type EngineCtx } from '../../src/server/engine/engine';
+import { InputFilter, resolveInput } from '../../src/server/engine/buzzer';
+import { projectState, playerContext } from '../../src/server/engine/projection';
+import { DEFAULT_RULES, rulesFromPreset, scoresOf, type GameState } from '../../src/shared/game';
+import type { EngineAction } from '../../src/shared/actions';
+import { SAMPLE_BOARD } from '../../src/shared/sampleBoards';
+
+let clock = 1_000_000;
+let ids = 0;
+const ctx = (): EngineCtx => ({ now: clock, newId: () => `id${++ids}` });
+
+function run(s: GameState, ...actions: EngineAction[]): GameState {
+  for (const a of actions) {
+    const r = applyAction(s, a, ctx());
+    if (!r.ok) throw new Error(`${a.type}: ${r.error}`);
+    s = r.state;
+  }
+  return s;
+}
+function tryRun(s: GameState, a: EngineAction) {
+  return applyAction(s, a, ctx());
+}
+
+function soloGame(players = ['alex', 'jordan', 'sam']) {
+  let s = createGame({ id: 'g1', title: 'T', boardId: 'b1', board: SAMPLE_BOARD, mode: 'solo', rules: { ...DEFAULT_RULES }, now: clock });
+  for (const p of players) s = run(s, { type: 'addPlayer', profileId: p });
+  return s;
+}
+const cid = (s: GameState, profileId: string) => s.competitors.find((c) => c.memberIds.includes(profileId))!.id;
+const buzz = (s: GameState, profileId: string) => {
+  const res = resolveInput(s, { controllerId: `phone:${profileId}`, profileId });
+  if (!res.ok) throw new Error(res.reason);
+  return run(s, { type: 'buzz', competitorId: res.competitorId, profileId: res.profileId, controllerId: `phone:${profileId}`, sourceKind: 'phone' });
+};
+
+function teamGame() {
+  let s = createGame({ id: 'g2', title: 'Teams', boardId: 'b1', board: SAMPLE_BOARD, mode: 'team', rules: { ...DEFAULT_RULES }, now: clock });
+  s = run(
+    s,
+    { type: 'addTeam', name: 'Wizards', color: '#2563eb', buzzerMode: 'individual', memberIds: ['alex', 'jordan'], teamId: 'tw' },
+    { type: 'addTeam', name: 'Dragons', color: '#dc2626', buzzerMode: 'shared', memberIds: ['taylor', 'sam'], teamId: 'td' },
+  );
+  const wiz = s.competitors[0].id;
+  const dra = s.competitors[1].id;
+  s = run(
+    s,
+    { type: 'bindController', controllerId: 'jc-L-1', kind: 'joycon', label: 'Joy-Con (L)', target: { kind: 'profile', profileId: 'alex' } },
+    { type: 'bindController', controllerId: 'jc-R-1', kind: 'joycon', label: 'Joy-Con (R)', target: { kind: 'profile', profileId: 'jordan' } },
+    { type: 'bindController', controllerId: 'jc-L-2', kind: 'joycon', label: 'Joy-Con (L)', target: { kind: 'competitor', competitorId: dra } },
+  );
+  return { s, wiz, dra };
+}
+const press = (s: GameState, controllerId: string) => {
+  const res = resolveInput(s, { controllerId });
+  if (!res.ok) return { s, res };
+  const r = applyAction(s, { type: 'buzz', competitorId: res.competitorId, profileId: res.profileId, controllerId, sourceKind: 'joycon' }, ctx());
+  if (!r.ok) throw new Error(r.error);
+  return { s: r.state, res, info: r.info };
+};
+
+describe('game flow and scoring', () => {
+  it('requires competitors before starting', () => {
+    const s = createGame({ id: 'g', title: 'T', boardId: null, board: SAMPLE_BOARD, mode: 'solo', rules: DEFAULT_RULES, now: clock });
+    expect(tryRun(s, { type: 'startGame' })).toMatchObject({ ok: false });
+  });
+
+  it('plays a clue: first buzz wins, correct answer awards points and control', () => {
+    let s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_2' }, { type: 'unlockBuzzers' });
+    clock += 300;
+    s = buzz(s, 'jordan');
+    s = buzz(s, 'alex'); // late
+    expect(s.buzzer.winner?.competitorId).toBe(cid(s, 'jordan'));
+    expect(s.buzzer.winner?.reactionMs).toBe(300);
+    expect(s.buzzer.queue.map((q) => q.competitorId)).toEqual([cid(s, 'alex')]);
+    s = run(s, { type: 'judge', result: 'correct' });
+    expect(scoresOf(s.events)).toEqual({ [cid(s, 'jordan')]: 400 });
+    expect(s.controlCompetitorId).toBe(cid(s, 'jordan'));
+    expect(s.clue?.resolved).toBe(true);
+    expect(s.clue?.answerRevealed).toBe(true);
+    s = run(s, { type: 'closeClue' });
+    expect(s.phase).toBe('board');
+    expect(s.usedClueIds).toContain('hist_2');
+    expect(tryRun(s, { type: 'selectClue', clueId: 'hist_2' }).ok).toBe(false);
+  });
+
+  it('incorrect answers deduct (negative scores allowed) and reopen for others only', () => {
+    let s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'geo_1' }, { type: 'unlockBuzzers' });
+    s = buzz(s, 'alex');
+    s = run(s, { type: 'judge', result: 'incorrect' });
+    expect(scoresOf(s.events)[cid(s, 'alex')]).toBe(-200);
+    expect(s.buzzer.status).toBe('open');
+    // alex cannot buzz again on this clue
+    const r = applyAction(s, { type: 'buzz', competitorId: cid(s, 'alex'), profileId: 'alex', controllerId: 'phone:alex', sourceKind: 'phone' }, ctx());
+    expect(r.ok && r.ignored && r.info).toBe('already-answered');
+    s = buzz(s, 'sam');
+    expect(s.buzzer.winner?.competitorId).toBe(cid(s, 'sam'));
+  });
+
+  it('classroom preset does not deduct for incorrect answers', () => {
+    let s = soloGame();
+    s = run(s, { type: 'updateRules', rules: rulesFromPreset('classroom') }, { type: 'startGame' }, { type: 'selectClue', clueId: 'geo_1' }, { type: 'unlockBuzzers' });
+    s = buzz(s, 'alex');
+    s = run(s, { type: 'judge', result: 'incorrect' });
+    expect(scoresOf(s.events)[cid(s, 'alex')] ?? 0).toBe(0);
+  });
+
+  it('early buzzes are recorded and optionally locked out', () => {
+    let s = soloGame();
+    s = run(s, { type: 'updateRules', rules: { ...DEFAULT_RULES, earlyBuzzLockoutMs: 500 } }, { type: 'startGame' }, { type: 'selectClue', clueId: 'geo_2' });
+    s = buzz(s, 'alex'); // early - buzzers locked
+    expect(s.buzzer.winner).toBeNull();
+    expect(s.events.at(-1)).toMatchObject({ type: 'buzz', result: 'early' });
+    s = run(s, { type: 'unlockBuzzers' });
+    clock += 100;
+    s = buzz(s, 'alex'); // still locked out
+    expect(s.buzzer.winner).toBeNull();
+    s = buzz(s, 'sam');
+    expect(s.buzzer.winner?.competitorId).toBe(cid(s, 'sam'));
+    clock += 1000;
+  });
+
+  it('manual adjustments, undo voids events and restores state', () => {
+    let s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'unlockBuzzers' });
+    s = buzz(s, 'alex');
+    s = run(s, { type: 'judge', result: 'correct' });
+    expect(scoresOf(s.events)[cid(s, 'alex')]).toBe(200);
+    s = run(s, { type: 'undo' });
+    expect(scoresOf(s.events)[cid(s, 'alex')] ?? 0).toBe(0);
+    expect(s.buzzer.winner?.competitorId).toBe(cid(s, 'alex')); // back to the buzzed state
+    expect(s.events.filter((e) => e.type === 'answer')[0].voided).toBe(true);
+    s = run(s, { type: 'judge', result: 'incorrect' });
+    s = run(s, { type: 'adjustScore', competitorId: cid(s, 'jordan'), delta: 500, note: 'bonus' });
+    expect(scoresOf(s.events)).toMatchObject({ [cid(s, 'alex')]: -200, [cid(s, 'jordan')]: 500 });
+  });
+
+  it('pauses and resumes timers with the game', () => {
+    let s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'unlockBuzzers' });
+    expect(s.timer).toMatchObject({ kind: 'buzz', running: true, durationMs: 10_000 });
+    clock += 4000;
+    s = run(s, { type: 'pauseGame' });
+    expect(s.timer).toMatchObject({ running: false, remainingMs: 6000 });
+    clock += 60_000;
+    s = run(s, { type: 'resumeGame' });
+    clock += 6000;
+    s = run(s, { type: 'timerExpire' });
+    expect(s.timer?.expired).toBe(true);
+    expect(s.buzzer.status).toBe('locked'); // buzz timer expiry locks buzzers
+  });
+
+  it('ignores early timer expiry', () => {
+    let s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'timerStart', kind: 'custom', seconds: 5 });
+    clock += 1000;
+    const r = tryRun(s, { type: 'timerExpire' });
+    expect(r.ok && r.ignored).toBe(true);
+  });
+});
+
+describe('wagers', () => {
+  it('daily wager validates bounds and scores the wager amount', () => {
+    let s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'sci_4' });
+    expect(s.clue?.isDailyWager).toBe(true);
+    expect(s.clue?.stage).toBe('wager');
+    const alex = cid(s, 'alex');
+    expect(tryRun(s, { type: 'setDailyWager', competitorId: alex, amount: 1001 }).ok).toBe(false); // max = max(score 0, round max 1000)
+    expect(tryRun(s, { type: 'setDailyWager', competitorId: alex, amount: 1 }).ok).toBe(false);
+    expect(tryRun(s, { type: 'unlockBuzzers' }).ok).toBe(false);
+    s = run(s, { type: 'setDailyWager', competitorId: alex, amount: 1000 }, { type: 'judge', result: 'incorrect' });
+    expect(scoresOf(s.events)[alex]).toBe(-1000);
+  });
+
+  it('public projection hides the daily wager question until the wager is set', () => {
+    let s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'sci_4' });
+    expect(projectState(s, 'public', {}).clue?.question).toBeNull();
+    expect(projectState(s, 'host', {}).clue?.question).toBeTruthy();
+    s = run(s, { type: 'setDailyWager', competitorId: cid(s, 'alex'), amount: 500 });
+    expect(projectState(s, 'public', {}).clue?.question).toBeTruthy();
+  });
+
+  it('final wager: eligibility, hidden wagers, adjudication and winner', () => {
+    let s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_5' }, { type: 'unlockBuzzers' });
+    s = buzz(s, 'alex');
+    s = run(s, { type: 'judge', result: 'correct' }, { type: 'closeClue' }, { type: 'selectClue', clueId: 'geo_3' }, { type: 'unlockBuzzers' });
+    s = buzz(s, 'jordan');
+    s = run(s, { type: 'judge', result: 'correct' }, { type: 'closeClue' }, { type: 'startFinal' });
+    const alex = cid(s, 'alex');
+    const jordan = cid(s, 'jordan');
+    expect(s.final?.entries.map((e) => e.competitorId)).toEqual([alex, jordan]); // sam has 0 -> ineligible
+    s = run(s, { type: 'finalNext' });
+    expect(tryRun(s, { type: 'setFinalWager', competitorId: jordan, amount: 601 }).ok).toBe(false);
+    s = run(s, { type: 'setFinalWager', competitorId: alex, amount: 1000 }, { type: 'setFinalWager', competitorId: jordan, amount: 600 });
+    const pub = projectState(s, 'public', {});
+    expect(pub.final?.entries.every((e) => e.wager === null && e.hasWager)).toBe(true);
+    expect(pub.final?.question).toBeNull();
+    s = run(s, { type: 'finalNext' });
+    expect(projectState(s, 'public', {}).final?.question).toBeTruthy();
+    expect(projectState(s, 'public', {}).final?.answer).toBeNull();
+    s = run(s, { type: 'setFinalAnswer', competitorId: alex, answer: 'Vienna' }, { type: 'setFinalAnswer', competitorId: jordan, answer: 'Budapest' });
+    s = run(s, { type: 'finalNext' });
+    expect(projectState(s, 'public', {}).final?.entries[0].answer).toBeNull();
+    s = run(s, { type: 'judgeFinal', competitorId: alex, correct: false });
+    expect(projectState(s, 'public', {}).final?.entries[0].answer).toBe('Vienna');
+    expect(tryRun(s, { type: 'finalNext' }).ok).toBe(false); // jordan not judged
+    s = run(s, { type: 'judgeFinal', competitorId: jordan, correct: true }, { type: 'finalNext' }, { type: 'endGame' });
+    expect(scoresOf(s.events)).toMatchObject({ [alex]: 0, [jordan]: 1200 });
+    expect(s.results?.[0]).toMatchObject({ competitorId: jordan, placement: 1, isWinner: true });
+    expect(s.phase).toBe('ended');
+  });
+
+  it('ties share first place', () => {
+    let s = run(soloGame(['a', 'b']), { type: 'startGame' }, { type: 'endGame' });
+    expect(s.results?.filter((r) => r.isWinner)).toHaveLength(2);
+  });
+});
+
+describe('teams, buzzers and attribution', () => {
+  it('individual-mode team buzz records team and individual; scoring goes to team only', () => {
+    let { s, wiz } = teamGame();
+    s = run(s, { type: 'startGame' }, { type: 'selectClue', clueId: 'tech_3' }, { type: 'unlockBuzzers' });
+    ({ s } = press(s, 'jc-L-1')); // alex
+    expect(s.buzzer.winner).toMatchObject({ competitorId: wiz, profileId: 'alex', controllerId: 'jc-L-1', sourceKind: 'joycon' });
+    s = run(s, { type: 'judge', result: 'correct' });
+    const ans = s.events.find((e) => e.type === 'answer')!;
+    expect(ans).toMatchObject({ competitorId: wiz, profileId: 'alex', scoreDelta: 600, contributionDelta: 600 });
+    expect(scoresOf(s.events)).toEqual({ [wiz]: 600 }); // exactly 600, no extra points for alex
+    const host = projectState(s, 'host', {});
+    expect(host.contributions).toEqual({ alex: 600 });
+  });
+
+  it('incorrect answer: team loses value, only the answering member is charged', () => {
+    let { s, wiz } = teamGame();
+    s = run(s, { type: 'startGame' }, { type: 'selectClue', clueId: 'tech_2' }, { type: 'unlockBuzzers' });
+    ({ s } = press(s, 'jc-L-1'));
+    s = run(s, { type: 'judge', result: 'incorrect' });
+    expect(scoresOf(s.events)[wiz]).toBe(-400);
+    expect(projectState(s, 'host', {}).contributions).toEqual({ alex: -400 });
+  });
+
+  it('team-aware arbitration: teammates cannot steal or re-buzz, other team can after incorrect', () => {
+    let { s, wiz, dra } = teamGame();
+    s = run(s, { type: 'startGame' }, { type: 'selectClue', clueId: 'tech_1' }, { type: 'unlockBuzzers' });
+    ({ s } = press(s, 'jc-L-1'));
+    let r = press(s, 'jc-R-1'); // jordan, same team
+    expect(r.s.buzzer.winner?.profileId).toBe('alex');
+    expect(r.s.buzzer.queue).toHaveLength(0);
+    s = run(r.s, { type: 'judge', result: 'incorrect' });
+    r = press(s, 'jc-R-1'); // jordan: team already used its attempt (default rule)
+    expect(r.info).toBe('already-answered');
+    r = press(r.s, 'jc-L-2'); // dragons shared buzzer
+    expect(r.s.buzzer.winner).toMatchObject({ competitorId: dra, profileId: null });
+  });
+
+  it('teamRetry=otherMembers lets a different teammate try after a miss', () => {
+    let { s, wiz } = teamGame();
+    s = run(s, { type: 'updateRules', rules: { ...DEFAULT_RULES, teamRetry: 'otherMembers' } }, { type: 'startGame' }, { type: 'selectClue', clueId: 'tech_1' }, { type: 'unlockBuzzers' });
+    ({ s } = press(s, 'jc-L-1'));
+    s = run(s, { type: 'judge', result: 'incorrect' });
+    let r = press(s, 'jc-L-1');
+    expect(r.info).toBe('already-answered');
+    r = press(r.s, 'jc-R-1');
+    expect(r.s.buzzer.winner).toMatchObject({ competitorId: wiz, profileId: 'jordan' });
+  });
+
+  it('shared buzzer: team-only by default, host can attribute, and correct later with audit trail', () => {
+    let { s, dra } = teamGame();
+    s = run(s, { type: 'startGame' }, { type: 'selectClue', clueId: 'food_2' }, { type: 'unlockBuzzers' });
+    ({ s } = press(s, 'jc-L-2'));
+    s = run(s, { type: 'judge', result: 'correct' }); // Team Only / Unknown
+    const ans = s.events.find((e) => e.type === 'answer')!;
+    expect(ans).toMatchObject({ competitorId: dra, profileId: null, scoreDelta: 400, contributionDelta: 0 });
+    expect(projectState(s, 'host', {}).contributions).toEqual({});
+    s = run(s, { type: 'correctAttribution', eventId: ans.id, profileId: 'taylor' });
+    expect(scoresOf(s.events)[dra]).toBe(400); // unchanged — no double counting
+    expect(projectState(s, 'host', {}).contributions).toEqual({ taylor: 400 });
+    const orig = s.events.find((e) => e.id === ans.id)!;
+    expect(orig.voided).toBe(true);
+    expect(s.events.some((e) => e.type === 'attribution_correction' && e.correctsEventId === ans.id)).toBe(true);
+    expect(tryRun(s, { type: 'correctAttribution', eventId: s.events.at(-1)!.id, profileId: 'alex' }).ok).toBe(false); // alex not on dragons
+  });
+
+  it('host chooses the answering member of a shared team at judgement time', () => {
+    let { s, dra } = teamGame();
+    s = run(s, { type: 'startGame' }, { type: 'selectClue', clueId: 'food_1' }, { type: 'unlockBuzzers' });
+    ({ s } = press(s, 'jc-L-2'));
+    s = run(s, { type: 'judge', result: 'correct', profileId: 'sam' });
+    expect(s.events.find((e) => e.type === 'answer')).toMatchObject({ competitorId: dra, profileId: 'sam', contributionDelta: 200 });
+  });
+
+  it('phones of shared-team members and unbound controllers cannot buzz', () => {
+    const { s } = teamGame();
+    expect(resolveInput(s, { controllerId: 'phone:taylor', profileId: 'taylor' })).toMatchObject({ ok: false, reason: 'shared-team-device' });
+    expect(resolveInput(s, { controllerId: 'jc-unknown' })).toMatchObject({ ok: false, reason: 'unassigned' });
+    expect(resolveInput(s, { controllerId: 'phone:alex', profileId: 'alex' })).toMatchObject({ ok: true, profileId: 'alex' });
+    expect(playerContext(s, 'taylor', clock).sharedTeam).toBe(true);
+  });
+
+  it('per-team buzzer mode is independent', () => {
+    let { s, wiz, dra } = teamGame();
+    s = run(s, { type: 'updateCompetitor', competitorId: wiz, buzzerMode: 'shared' });
+    expect(s.competitors.find((c) => c.id === dra)!.buzzerMode).toBe('shared');
+    s = run(s, { type: 'updateCompetitor', competitorId: dra, buzzerMode: 'individual' });
+    expect(s.competitors.find((c) => c.id === wiz)!.buzzerMode).toBe('shared');
+    expect(s.competitors.find((c) => c.id === dra)!.buzzerMode).toBe('individual');
+  });
+
+  it('mixed devices (Joy-Con vs phone) share one arbitration', () => {
+    let { s, wiz } = teamGame();
+    s = run(s, { type: 'startGame' }, { type: 'selectClue', clueId: 'tech_1' }, { type: 'unlockBuzzers' });
+    s = buzz(s, 'jordan'); // jordan via phone
+    const r = press(s, 'jc-L-2'); // dragons joy-con second
+    expect(r.s.buzzer.winner).toMatchObject({ competitorId: wiz, profileId: 'jordan', sourceKind: 'phone' });
+    expect(r.s.buzzer.queue).toHaveLength(1);
+  });
+
+  it('team wagers affect the team score once, attribution optional', () => {
+    let { s, wiz } = teamGame();
+    s = run(s, { type: 'startGame' }, { type: 'selectClue', clueId: 'sci_4' }, { type: 'setDailyWager', competitorId: wiz, amount: 800 }, { type: 'judge', result: 'correct' });
+    expect(scoresOf(s.events)[wiz]).toBe(800);
+    expect(projectState(s, 'host', {}).contributions).toEqual({});
+  });
+
+  it('a player can be on only one team per game; membership moves are tracked', () => {
+    let { s, wiz, dra } = teamGame();
+    expect(tryRun(s, { type: 'addTeam', name: 'X', color: '#000000', buzzerMode: 'individual', memberIds: ['alex'] }).ok).toBe(false);
+    s = run(s, { type: 'assignMember', profileId: 'alex', competitorId: dra });
+    expect(s.competitors.find((c) => c.id === wiz)!.memberIds).toEqual(['jordan']);
+    expect(s.competitors.find((c) => c.id === dra)!.memberIds).toContain('alex');
+  });
+});
+
+describe('input filter (debounce / held buttons)', () => {
+  it('is edge-triggered and debounced per controller', () => {
+    const f = new InputFilter(100);
+    const ev = (pressed: boolean, at: number, button = 'A', controllerId = 'c1') => ({ controllerId, kind: 'joycon' as const, button, pressed, at });
+    expect(f.accept(ev(true, 0))).toBe(true);
+    expect(f.accept(ev(true, 10))).toBe(false); // held - repeated report
+    expect(f.accept(ev(true, 500))).toBe(false); // still held
+    expect(f.accept(ev(false, 510))).toBe(false);
+    expect(f.accept(ev(true, 550))).toBe(true);
+    expect(f.accept(ev(false, 560))).toBe(false);
+    expect(f.accept(ev(true, 600))).toBe(false); // bounce within 100ms
+    expect(f.accept(ev(true, 600, 'A', 'c2'))).toBe(true); // other controller unaffected
+  });
+});
+
+describe('projections never leak secrets', () => {
+  it('public and player views exclude answers, notes, daily wager locations and undo data', () => {
+    let s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_1' });
+    for (const role of ['public', 'player'] as const) {
+      const v = projectState(s, role, {});
+      const json = JSON.stringify(v);
+      expect(json).not.toContain('The Inca');
+      expect(json).not.toContain('Budapest');
+      expect(json).not.toContain('"dailyWager":');
+      expect(v.events).toBeUndefined();
+      expect(v.clue?.question).toContain('Machu Picchu');
+    }
+    expect(JSON.stringify(projectState(s, 'host', {}))).toContain('The Inca');
+    s = run(s, { type: 'revealAnswer' });
+    expect(projectState(s, 'public', {}).clue?.answer).toBe('The Inca');
+  });
+});
