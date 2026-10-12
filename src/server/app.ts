@@ -1,0 +1,770 @@
+// Local game server: Fastify HTTP API + WebSocket hub + static web app.
+import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify';
+import fastifyWebsocket from '@fastify/websocket';
+import fastifyStatic from '@fastify/static';
+import fastifyMultipart from '@fastify/multipart';
+import fs from 'node:fs';
+import path from 'node:path';
+import { z } from 'zod';
+import QRCode from 'qrcode';
+import { audit, getSetting, integrityCheck, openDatabase, schemaVersion, setSetting, type DB } from './db/db.js';
+import {
+  createSession,
+  deleteProfileSessions,
+  deleteSession,
+  hashPin,
+  lockoutMs,
+  newPairingCode,
+  PIN_RE,
+  RateLimiter,
+  readSession,
+  tokenHash,
+  verifyPin,
+  type Session,
+} from './auth.js';
+import * as repo from './repos.js';
+import { GameManager } from './gameManager.js';
+import { ControllerRegistry } from './controllers.js';
+import { Hub } from './hub.js';
+import { lanAddresses, pickAddress } from './network.js';
+import { ImageError, MAX_UPLOAD_BYTES, processClueImage, processProfilePicture, safeJoin, sniffMedia } from './images.js';
+import * as stats from './stats.js';
+import { rulesFromPreset, RULE_PRESETS } from '../shared/game.js';
+import { rulesSchema } from '../shared/actions.js';
+import { boardContentSchema, exportBoardCsv, exportBoardJson, importBoardCsv, importBoardJson } from '../shared/boardIO.js';
+import { reassignIds, validateBoard } from '../shared/boardUtils.js';
+import { SAMPLE_BOARD, SAMPLE_BOARD_TITLE } from '../shared/sampleBoards.js';
+
+export const APP_VERSION = '0.1.0';
+
+export interface ServerOptions {
+  dataDir: string;
+  port?: number; // 0 = random (tests)
+  host?: string; // bind address
+  webDir?: string | null; // built web app
+  logger?: boolean;
+  seed?: boolean;
+}
+
+const COLOR = z.string().regex(/^#[0-9a-fA-F]{6}$/);
+const NAME = z.string().trim().min(1).max(30);
+const AVATAR = z.string().regex(/^[a-z0-9-]{1,24}$/);
+
+export async function startServer(opts: ServerOptions) {
+  const dataDir = path.resolve(opts.dataDir);
+  const mediaDir = path.join(dataDir, 'media');
+  const profileMediaDir = path.join(mediaDir, 'profiles');
+  const clueMediaDir = path.join(mediaDir, 'clues');
+  fs.mkdirSync(profileMediaDir, { recursive: true });
+  fs.mkdirSync(clueMediaDir, { recursive: true });
+
+  const dbFile = path.join(dataDir, 'offlinejeopardy.db');
+  applyPendingRestore(dataDir, dbFile);
+  const db = openDatabase(dbFile);
+  if (opts.seed !== false) seed(db);
+
+  const games = new GameManager(db);
+  const controllers = new ControllerRegistry(db, {
+    onPress: (p) => games.buzz({ controllerId: p.controllerId, kind: p.kind }),
+    onAssign: (p) => {
+      const res = games.dispatch({ type: 'bindController', controllerId: p.controllerId, kind: p.kind as 'joycon' | 'keyboard' | 'gamepad', label: p.label, target: p.target });
+      if (!res.ok) hub.sendControllers();
+    },
+  });
+  const hub = new Hub(db, games, controllers);
+  games.recover();
+
+  let pairingCode = newPairingCode();
+  const pinLimiter = new RateLimiter(20, 60_000);
+  const hostLimiter = new RateLimiter(10, 60_000);
+
+  const app = Fastify({ logger: opts.logger ?? false, bodyLimit: 5 * 1024 * 1024, trustProxy: false });
+  await app.register(fastifyWebsocket, { options: { maxPayload: 64 * 1024 } });
+  await app.register(fastifyMultipart, { limits: { fileSize: MAX_UPLOAD_BYTES * 5, files: 1, fields: 10 } });
+
+  // ---------- auth helpers ----------
+  const bearer = (req: FastifyRequest) => {
+    const h = req.headers.authorization;
+    return h?.startsWith('Bearer ') ? h.slice(7) : undefined;
+  };
+  const sessionOf = (req: FastifyRequest): Session | null => readSession(db, bearer(req));
+  const isLoopback = (req: FastifyRequest) => ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress ?? '');
+  function requireHost(req: FastifyRequest, reply: FastifyReply): boolean {
+    if (sessionOf(req)?.kind === 'host') return true;
+    reply.code(401).send({ error: 'Host sign-in required' });
+    return false;
+  }
+  function requireProfile(req: FastifyRequest, reply: FastifyReply): repo.ProfileRow | null {
+    const s = sessionOf(req);
+    const p = s?.kind === 'profile' && s.profileId ? repo.getProfile(db, s.profileId) : undefined;
+    if (!p) {
+      reply.code(401).send({ error: 'Please sign in to your profile' });
+      return null;
+    }
+    return p;
+  }
+  const bad = (reply: FastifyReply, error: string, code = 400) => reply.code(code).send({ error });
+  const parse = <T>(schema: z.ZodType<T>, body: unknown, reply: FastifyReply): T | null => {
+    const r = schema.safeParse(body);
+    if (!r.success) {
+      bad(reply, r.error.issues.map((i) => `${i.path.join('.') || 'input'}: ${i.message}`).join('; '));
+      return null;
+    }
+    return r.data;
+  };
+
+  // ---------- websocket ----------
+  app.get('/ws', { websocket: true }, (socket) => hub.attach(socket));
+
+  // ---------- info / QR ----------
+  const baseUrl = () => {
+    const addr = pickAddress(getSetting<string | null>(db, 'preferredAddress', null));
+    const port = (app.server.address() as { port: number } | null)?.port ?? opts.port;
+    return `http://${addr}:${port}`;
+  };
+  app.get('/api/info', async () => {
+    const base = baseUrl();
+    const g = games.current;
+    return {
+      name: 'OfflineJeopardy',
+      version: APP_VERSION,
+      addresses: lanAddresses(),
+      baseUrl: base,
+      urls: { join: `${base}/join`, host: `${base}/host`, board: `${base}/board` },
+      game: g ? { id: g.id, title: g.title, phase: g.phase, mode: g.mode } : null,
+      clients: hub.size,
+    };
+  });
+  app.get('/api/qr', async (req, reply) => {
+    const q = req.query as { target?: string };
+    const target = q.target === 'host' ? 'host' : q.target === 'board' ? 'board' : 'join';
+    // QR codes only ever contain plain URLs — never credentials.
+    const svg = await QRCode.toString(`${baseUrl()}/${target}`, { type: 'svg', margin: 1, errorCorrectionLevel: 'M' });
+    reply.header('content-type', 'image/svg+xml').header('cache-control', 'no-store').send(svg);
+  });
+
+  // ---------- host auth ----------
+  app.post('/api/host/login', async (req, reply) => {
+    const wait = hostLimiter.check(req.ip);
+    if (wait) return bad(reply, `Too many attempts. Try again in ${Math.ceil(wait / 1000)}s.`, 429);
+    const body = parse(z.object({ code: z.string().regex(/^\d{6}$/), label: z.string().max(60).optional() }), req.body, reply);
+    if (!body) return;
+    if (body.code !== pairingCode) return bad(reply, 'Incorrect host code', 401);
+    audit(db, 'host', 'host.login', { ip: req.ip });
+    return { token: createSession(db, 'host', null, body.label ?? 'Host device') };
+  });
+  app.post('/api/host/local-login', async (req, reply) => {
+    if (!isLoopback(req) || !getSetting(db, 'trustLocalhost', true)) return bad(reply, 'Only available on the game computer', 403);
+    return { token: createSession(db, 'host', null, 'This computer') };
+  });
+  app.get('/api/host/check', async (req) => ({ host: sessionOf(req)?.kind === 'host' }));
+  app.post('/api/host/logout', async (req) => {
+    const t = bearer(req);
+    if (t) deleteSession(db, t);
+    return { ok: true };
+  });
+  app.get('/api/host/pairing-code', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    return { code: pairingCode };
+  });
+  app.post('/api/host/pairing-code', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    pairingCode = newPairingCode();
+    return { code: pairingCode };
+  });
+  app.post('/api/host/revoke-devices', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    db.prepare(`DELETE FROM sessions WHERE kind = 'host' AND token_hash <> ?`).run(tokenHash(bearer(req)!));
+    pairingCode = newPairingCode();
+    return { ok: true };
+  });
+
+  // ---------- profiles (public) ----------
+  app.get('/api/profiles', async () => repo.listProfiles(db).map(repo.toPublic));
+
+  const createProfileSchema = z.object({ name: NAME, nickname: z.string().trim().max(30).optional(), color: COLOR, avatar: AVATAR, pin: z.string().regex(PIN_RE) });
+  app.post('/api/profiles', async (req, reply) => {
+    const wait = pinLimiter.check(`create:${req.ip}`);
+    if (wait) return bad(reply, 'Too many requests, slow down', 429);
+    const body = parse(createProfileSchema, req.body, reply);
+    if (!body) return;
+    const p = repo.insertProfile(db, { name: body.name, nickname: body.nickname, color: body.color, avatar: body.avatar, pinHash: hashPin(body.pin) });
+    const token = createSession(db, 'profile', p.id, 'Player device');
+    hub.profilesChanged();
+    return { token, profile: repo.toPrivate(p) };
+  });
+
+  app.post('/api/profiles/:id/login', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const wait = pinLimiter.check(`pin:${req.ip}`);
+    if (wait) return reply.code(429).send({ error: `Too many attempts. Try again in ${Math.ceil(wait / 1000)}s.`, retryAfterMs: wait });
+    const body = parse(z.object({ pin: z.string().regex(PIN_RE, 'PIN must be 4 digits') }), req.body, reply);
+    if (!body) return;
+    const p = repo.getProfile(db, id);
+    if (!p) return bad(reply, 'Profile not found', 404);
+    const now = Date.now();
+    if (p.locked_until > now)
+      return reply.code(429).send({ error: `Too many wrong PINs. Try again in ${Math.ceil((p.locked_until - now) / 1000)}s or ask the host.`, retryAfterMs: p.locked_until - now });
+    if (!verifyPin(body.pin, p.pin_hash)) {
+      const fails = p.failed_attempts + 1;
+      const lock = lockoutMs(fails);
+      db.prepare('UPDATE profiles SET failed_attempts = ?, locked_until = ? WHERE id = ?').run(fails, lock ? now + lock : 0, id);
+      return reply.code(401).send({ error: lock ? `Wrong PIN. Locked for ${Math.ceil(lock / 1000)}s.` : 'Wrong PIN', retryAfterMs: lock || undefined });
+    }
+    db.prepare('UPDATE profiles SET failed_attempts = 0, locked_until = 0 WHERE id = ?').run(id);
+    return { token: createSession(db, 'profile', id, 'Player device'), profile: repo.toPrivate(p) };
+  });
+
+  // ---------- my profile ----------
+  app.get('/api/me', async (req, reply) => {
+    const p = requireProfile(req, reply);
+    if (!p) return;
+    return repo.toPrivate(p);
+  });
+  const patchMeSchema = z.object({
+    name: NAME.optional(),
+    nickname: z.string().trim().max(30).optional(),
+    color: COLOR.optional(),
+    avatar: AVATAR.optional(),
+    preferredBuzzer: z.enum(['phone', 'joycon', 'keyboard', 'gamepad']).optional(),
+    preferredButton: z.string().max(20).optional(),
+    preferredSide: z.enum(['any', 'L', 'R']).optional(),
+    preferredKey: z.string().max(20).nullable().optional(),
+    statsPrivate: z.boolean().optional(),
+  });
+  app.patch('/api/me', async (req, reply) => {
+    const p = requireProfile(req, reply);
+    if (!p) return;
+    const body = parse(patchMeSchema, req.body, reply);
+    if (!body) return;
+    repo.updateProfile(db, p.id, body);
+    hub.profilesChanged();
+    return repo.toPrivate(repo.getProfile(db, p.id)!);
+  });
+  app.post('/api/me/picture', async (req, reply) => {
+    const p = requireProfile(req, reply);
+    if (!p) return;
+    return uploadPicture(req, reply, p);
+  });
+  app.delete('/api/me/picture', async (req, reply) => {
+    const p = requireProfile(req, reply);
+    if (!p) return;
+    removePictureFile(p.picture_file);
+    repo.updateProfile(db, p.id, { pictureFile: null });
+    hub.profilesChanged();
+    return repo.toPrivate(repo.getProfile(db, p.id)!);
+  });
+  app.post('/api/me/pin', async (req, reply) => {
+    const p = requireProfile(req, reply);
+    if (!p) return;
+    const body = parse(z.object({ currentPin: z.string().regex(PIN_RE), newPin: z.string().regex(PIN_RE) }), req.body, reply);
+    if (!body) return;
+    if (pinLimiter.check(`pin:${req.ip}`)) return bad(reply, 'Too many attempts', 429);
+    if (!verifyPin(body.currentPin, p.pin_hash)) return bad(reply, 'Current PIN is incorrect', 401);
+    repo.updateProfile(db, p.id, { pinHash: hashPin(body.newPin) });
+    return { ok: true };
+  });
+  app.post('/api/me/logout', async (req) => {
+    const t = bearer(req);
+    if (t) deleteSession(db, t);
+    return { ok: true };
+  });
+  app.post('/api/me/logout-all', async (req, reply) => {
+    const p = requireProfile(req, reply);
+    if (!p) return;
+    deleteProfileSessions(db, p.id);
+    return { ok: true };
+  });
+  app.delete('/api/me', async (req, reply) => {
+    const p = requireProfile(req, reply);
+    if (!p) return;
+    const body = parse(z.object({ pin: z.string().regex(PIN_RE) }), req.body, reply);
+    if (!body) return;
+    if (!verifyPin(body.pin, p.pin_hash)) return bad(reply, 'PIN is incorrect', 401);
+    removePictureFile(p.picture_file);
+    repo.softDeleteProfile(db, p.id);
+    hub.profilesChanged();
+    return { ok: true };
+  });
+  app.get('/api/me/stats', async (req, reply) => {
+    const p = requireProfile(req, reply);
+    if (!p) return;
+    return stats.profileStats(db, p.id);
+  });
+  app.get('/api/me/history', async (req, reply) => {
+    const p = requireProfile(req, reply);
+    if (!p) return;
+    return stats.profileHistory(db, p.id);
+  });
+  app.get('/api/me/export', async (req, reply) => {
+    const p = requireProfile(req, reply);
+    if (!p) return;
+    reply.header('content-disposition', `attachment; filename="profile-${repo.toPublic(p).name.replace(/[^a-z0-9]/gi, '_')}.json"`);
+    return { format: 'offline-jeopardy-profile', version: 1, profile: repo.toPrivate(p), stats: stats.profileStats(db, p.id), history: stats.profileHistory(db, p.id) };
+  });
+
+  async function uploadPicture(req: FastifyRequest, reply: FastifyReply, p: repo.ProfileRow) {
+    let file;
+    try {
+      file = await req.file();
+    } catch {
+      return bad(reply, 'Upload failed');
+    }
+    if (!file) return bad(reply, 'No file uploaded');
+    let buf: Buffer;
+    try {
+      buf = await file.toBuffer();
+    } catch {
+      return bad(reply, 'Image is too large (max 10 MB)', 413);
+    }
+    const f = file.fields as Record<string, { value?: string } | undefined>;
+    const crop = ['cropX', 'cropY', 'cropW', 'cropH'].every((k) => f[k]?.value != null)
+      ? { x: +f.cropX!.value!, y: +f.cropY!.value!, w: +f.cropW!.value!, h: +f.cropH!.value! }
+      : undefined;
+    if (crop && Object.values(crop).some((v) => !Number.isFinite(v) || v < 0 || v > 1)) return bad(reply, 'Invalid crop');
+    try {
+      const name = await processProfilePicture(buf, profileMediaDir, p.id, crop);
+      removePictureFile(p.picture_file);
+      repo.updateProfile(db, p.id, { pictureFile: name });
+    } catch (e) {
+      if (e instanceof ImageError) return bad(reply, e.message);
+      throw e;
+    }
+    hub.profilesChanged();
+    return repo.toPrivate(repo.getProfile(db, p.id)!);
+  }
+  function removePictureFile(file: string | null) {
+    if (!file) return;
+    const full = safeJoin(profileMediaDir, file);
+    if (full) fs.rm(full, { force: true }, () => {});
+  }
+
+  // ---------- host: profile administration ----------
+  app.get('/api/admin/profiles', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    return repo.listProfiles(db).map((p) => ({ ...repo.toPrivate(p), locked: p.locked_until > Date.now() }));
+  });
+  app.post('/api/admin/profiles', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const body = parse(createProfileSchema, req.body, reply);
+    if (!body) return;
+    const p = repo.insertProfile(db, { name: body.name, nickname: body.nickname, color: body.color, avatar: body.avatar, pinHash: hashPin(body.pin) });
+    audit(db, 'host', 'profile.create', { id: p.id });
+    hub.profilesChanged();
+    return repo.toPrivate(p);
+  });
+  app.patch('/api/admin/profiles/:id', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const { id } = req.params as { id: string };
+    if (!repo.getProfile(db, id)) return bad(reply, 'Profile not found', 404);
+    const body = parse(patchMeSchema, req.body, reply);
+    if (!body) return;
+    repo.updateProfile(db, id, body);
+    audit(db, 'host', 'profile.update', { id, fields: Object.keys(body) });
+    hub.profilesChanged();
+    return repo.toPrivate(repo.getProfile(db, id)!);
+  });
+  app.post('/api/admin/profiles/:id/picture', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const p = repo.getProfile(db, (req.params as { id: string }).id);
+    if (!p) return bad(reply, 'Profile not found', 404);
+    return uploadPicture(req, reply, p);
+  });
+  app.post('/api/admin/profiles/:id/reset-pin', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const { id } = req.params as { id: string };
+    const body = parse(z.object({ pin: z.string().regex(PIN_RE) }), req.body, reply);
+    if (!body) return;
+    if (!repo.getProfile(db, id)) return bad(reply, 'Profile not found', 404);
+    repo.updateProfile(db, id, { pinHash: hashPin(body.pin) });
+    db.prepare('UPDATE profiles SET failed_attempts = 0, locked_until = 0 WHERE id = ?').run(id);
+    deleteProfileSessions(db, id);
+    hub.dropProfile(id);
+    audit(db, 'host', 'profile.resetPin', { id });
+    return { ok: true };
+  });
+  app.delete('/api/admin/profiles/:id', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const { id } = req.params as { id: string };
+    const p = repo.getProfile(db, id);
+    if (!p) return bad(reply, 'Profile not found', 404);
+    removePictureFile(p.picture_file);
+    repo.softDeleteProfile(db, id);
+    hub.dropProfile(id);
+    audit(db, 'host', 'profile.delete', { id });
+    hub.profilesChanged();
+    return { ok: true };
+  });
+
+  // ---------- teams ----------
+  const teamSchema = z.object({
+    name: z.string().trim().min(1).max(40),
+    color: COLOR,
+    avatar: AVATAR.default('shield'),
+    buzzerMode: z.enum(['individual', 'shared']),
+    memberIds: z.array(z.string()).max(50),
+    archived: z.boolean().optional(),
+  });
+  app.get('/api/teams', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    return repo.listTeams(db, (req.query as { archived?: string }).archived === '1');
+  });
+  app.post('/api/teams', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const body = parse(teamSchema, req.body, reply);
+    if (!body) return;
+    for (const m of body.memberIds) if (!repo.getProfile(db, m)) return bad(reply, 'Unknown player in team');
+    return repo.saveTeam(db, body);
+  });
+  app.put('/api/teams/:id', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const { id } = req.params as { id: string };
+    if (!repo.getTeam(db, id)) return bad(reply, 'Team not found', 404);
+    const body = parse(teamSchema, req.body, reply);
+    if (!body) return;
+    for (const m of body.memberIds) if (!repo.getProfile(db, m)) return bad(reply, 'Unknown player in team');
+    return repo.saveTeam(db, { ...body, id });
+  });
+  app.delete('/api/teams/:id', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    repo.deleteTeam(db, (req.params as { id: string }).id);
+    return { ok: true };
+  });
+
+  // ---------- boards ----------
+  const boardSaveSchema = z.object({
+    title: z.string().trim().min(1).max(120),
+    description: z.string().max(2000).default(''),
+    tags: z.array(z.string().trim().min(1).max(40)).max(30).default([]),
+    folder: z.string().trim().max(60).default(''),
+    favorite: z.boolean().default(false),
+    archived: z.boolean().default(false),
+    isTemplate: z.boolean().default(false),
+    content: boardContentSchema,
+    version: z.boolean().default(false), // manual save creates a version-history entry
+  });
+  app.get('/api/boards', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    return repo.listBoards(db);
+  });
+  app.get('/api/boards/:id', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const b = repo.getBoard(db, (req.params as { id: string }).id);
+    return b ?? bad(reply, 'Board not found', 404);
+  });
+  app.post('/api/boards', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const body = parse(boardSaveSchema, req.body, reply);
+    if (!body) return;
+    const { version, ...b } = body;
+    return repo.saveBoard(db, b, { version: true });
+  });
+  app.put('/api/boards/:id', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const { id } = req.params as { id: string };
+    if (!repo.getBoard(db, id)) return bad(reply, 'Board not found', 404);
+    const body = parse(boardSaveSchema, req.body, reply);
+    if (!body) return;
+    const { version, ...b } = body;
+    return { board: repo.saveBoard(db, { ...b, id }, { version }), issues: validateBoard(b.content) };
+  });
+  app.patch('/api/boards/:id', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const { id } = req.params as { id: string };
+    const b = repo.getBoard(db, id);
+    if (!b) return bad(reply, 'Board not found', 404);
+    const body = parse(z.object({ title: z.string().trim().min(1).max(120).optional(), favorite: z.boolean().optional(), archived: z.boolean().optional(), folder: z.string().max(60).optional(), tags: z.array(z.string().max(40)).max(30).optional() }), req.body, reply);
+    if (!body) return;
+    return repo.saveBoard(db, { ...b, ...body });
+  });
+  app.post('/api/boards/:id/duplicate', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const b = repo.getBoard(db, (req.params as { id: string }).id);
+    if (!b) return bad(reply, 'Board not found', 404);
+    return repo.saveBoard(db, { title: `${b.title} (copy)`, description: b.description, tags: b.tags, folder: b.folder, content: reassignIds(b.content) }, { version: true });
+  });
+  app.delete('/api/boards/:id', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    repo.deleteBoard(db, (req.params as { id: string }).id);
+    return { ok: true };
+  });
+  app.get('/api/boards/:id/versions', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    return repo.listBoardVersions(db, (req.params as { id: string }).id);
+  });
+  app.post('/api/boards/:id/versions/:vid/restore', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const { id, vid } = req.params as { id: string; vid: string };
+    const b = repo.getBoard(db, id);
+    const v = repo.getBoardVersion(db, id, Number(vid));
+    if (!b || !v) return bad(reply, 'Version not found', 404);
+    return repo.saveBoard(db, { ...b, title: v.title, content: v.content }, { version: true });
+  });
+  app.get('/api/boards/:id/export', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const b = repo.getBoard(db, (req.params as { id: string }).id);
+    if (!b) return bad(reply, 'Board not found', 404);
+    const fmt = (req.query as { format?: string }).format === 'csv' ? 'csv' : 'json';
+    const safe = b.title.replace(/[^a-z0-9 _-]/gi, '').trim() || 'board';
+    reply.header('content-disposition', `attachment; filename="${safe}.${fmt}"`);
+    if (fmt === 'csv') return reply.type('text/csv; charset=utf-8').send(exportBoardCsv(b.content));
+    return reply.type('application/json').send(exportBoardJson(b));
+  });
+  app.post('/api/boards/import', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const body = parse(z.object({ format: z.enum(['csv', 'json']), text: z.string().max(4_000_000), title: z.string().max(120).optional(), preview: z.boolean().default(false) }), req.body, reply);
+    if (!body) return;
+    const r: ReturnType<typeof importBoardJson> = body.format === 'csv' ? importBoardCsv(body.text) : importBoardJson(body.text);
+    const title: string = body.title?.trim() || r.title || 'Imported board';
+    const existing = repo.listBoards(db).some((b) => b.title.toLowerCase() === title.toLowerCase());
+    const warnings = [...r.warnings, ...(existing ? [`A board named "${title}" already exists — the import will be saved as a separate board.`] : [])];
+    if (body.preview || !r.content) return { ...r, warnings, title, saved: null };
+    const saved = repo.saveBoard(db, { title, description: r.description ?? '', tags: r.tags ?? [], content: reassignIds(r.content) }, { version: true });
+    return { ...r, warnings, title, saved: { id: saved.id } };
+  });
+
+  // ---------- media for clues ----------
+  app.post('/api/media', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const file = await req.file().catch(() => undefined);
+    if (!file) return bad(reply, 'No file uploaded');
+    const buf = await file.toBuffer().catch(() => null);
+    if (!buf) return bad(reply, 'File is too large', 413);
+    const id = repo.newId();
+    try {
+      const av = sniffMedia(buf);
+      let out: { file: string; mime: string; kind: 'image' | 'audio' | 'video' };
+      if (av) {
+        const name = `${id}.${av.ext}`;
+        fs.writeFileSync(path.join(clueMediaDir, name), buf);
+        out = { file: name, mime: av.mime, kind: av.kind };
+      } else {
+        const img = await processClueImage(buf, clueMediaDir);
+        out = { ...img, kind: 'image' };
+      }
+      db.prepare('INSERT INTO media (id, kind, file, mime, size, original_name, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(id, out.kind, out.file, out.mime, buf.length, file.filename.slice(0, 200), Date.now());
+      return { id, kind: out.kind, url: `/media/clues/${out.file}` };
+    } catch (e) {
+      if (e instanceof ImageError) return bad(reply, e.message);
+      throw e;
+    }
+  });
+  app.get('/media/:dir/:file', async (req, reply) => {
+    const { dir, file } = req.params as { dir: string; file: string };
+    const base = dir === 'profiles' ? profileMediaDir : dir === 'clues' ? clueMediaDir : null;
+    const full = base ? safeJoin(base, file) : null;
+    if (!full || !fs.existsSync(full)) return reply.code(404).send({ error: 'Not found' });
+    const ext = path.extname(full).slice(1).toLowerCase();
+    const types: Record<string, string> = { webp: 'image/webp', gif: 'image/gif', mp3: 'audio/mpeg', ogg: 'audio/ogg', wav: 'audio/wav', m4a: 'audio/mp4', mp4: 'video/mp4', webm: 'video/webm' };
+    reply.header('cache-control', 'public, max-age=31536000, immutable').header('x-content-type-options', 'nosniff');
+    return reply.type(types[ext] ?? 'application/octet-stream').send(fs.createReadStream(full));
+  });
+
+  // ---------- games ----------
+  app.get('/api/games', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    return { current: games.current?.id ?? null, games: repo.listGames(db, ['setup', 'active']), presets: RULE_PRESETS };
+  });
+  app.post('/api/games', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const body = parse(
+      z.object({ boardId: z.string(), title: z.string().trim().max(120).optional(), mode: z.enum(['solo', 'team']), preset: z.string().max(32).default('classic'), rules: rulesSchema.optional() }),
+      req.body,
+      reply,
+    );
+    if (!body) return;
+    const b = repo.getBoard(db, body.boardId);
+    if (!b) return bad(reply, 'Board not found', 404);
+    const errors = validateBoard(b.content).filter((i) => i.level === 'error');
+    if (errors.length) return bad(reply, errors.map((e) => e.message).join(' '));
+    const s = games.create({ title: body.title || b.title, boardId: b.id, board: structuredClone(b.content), mode: body.mode, rules: body.rules ?? rulesFromPreset(body.preset) });
+    return { id: s.id };
+  });
+  app.post('/api/games/:id/load', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const s = games.load((req.params as { id: string }).id);
+    return s ? { id: s.id } : bad(reply, 'Game not found', 404);
+  });
+  app.post('/api/games/close', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    games.unload();
+    return { ok: true };
+  });
+  app.post('/api/games/save', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    // Every action is already saved transactionally; this forces a checkpoint for peace of mind.
+    if (games.current) repo.persistGame(db, games.current, []);
+    db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+    return { ok: true, savedAt: Date.now() };
+  });
+  app.delete('/api/games/:id', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const { id } = req.params as { id: string };
+    if (games.current?.id === id) games.unload();
+    db.prepare(`UPDATE games SET status = 'abandoned', updated_at = ? WHERE id = ? AND status <> 'completed'`).run(Date.now(), id);
+    return { ok: true };
+  });
+  app.get('/api/games/:id/export', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const s = repo.loadGame(db, (req.params as { id: string }).id);
+    if (!s) return bad(reply, 'Game not found', 404);
+    reply.header('content-disposition', `attachment; filename="save-${s.id.slice(0, 8)}.json"`);
+    const { undoStack: _u, ...rest } = s;
+    return { format: 'offline-jeopardy-save', version: 1, state: rest };
+  });
+
+  // ---------- statistics & history ----------
+  app.get('/api/stats/profiles/:id', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const s = sessionOf(req);
+    const p = repo.getProfile(db, id);
+    if (!p) return bad(reply, 'Profile not found', 404);
+    const own = s?.kind === 'profile' && s.profileId === id;
+    if (!own && s?.kind !== 'host' && (p.stats_private || !s)) return bad(reply, 'These statistics are private', 403);
+    return { profile: repo.toPublic(p), stats: stats.profileStats(db, id) };
+  });
+  app.get('/api/stats/teams/:id', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const t = repo.getTeam(db, (req.params as { id: string }).id);
+    if (!t) return bad(reply, 'Team not found', 404);
+    return { team: t, stats: stats.teamStats(db, t.id) };
+  });
+  app.get('/api/stats/leaderboard', async (req, reply) => {
+    const s = sessionOf(req);
+    if (!s) return bad(reply, 'Sign in to view the leaderboard', 401);
+    if (s.kind !== 'host' && !getSetting(db, 'publicLeaderboard', true)) return bad(reply, 'The host has turned off the leaderboard', 403);
+    return stats.leaderboard(db);
+  });
+  app.get('/api/history', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    return stats.listHistory(db);
+  });
+  app.get('/api/history/:id', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const s = sessionOf(req);
+    const allowed = s?.kind === 'host' || (s?.kind === 'profile' && s.profileId && stats.isParticipant(db, id, s.profileId));
+    if (!allowed) return bad(reply, 'You can only view games you played', 403);
+    const d = stats.gameDetail(db, id);
+    return d ?? bad(reply, 'Game not found', 404);
+  });
+
+  // ---------- settings & maintenance ----------
+  const settingsSchema = z.object({
+    preferredAddress: z.string().max(60).nullable().optional(),
+    trustLocalhost: z.boolean().optional(),
+    publicLeaderboard: z.boolean().optional(),
+    theme: z.string().max(40).optional(),
+    boardTheme: z.string().max(40).optional(),
+    sound: z.boolean().optional(),
+    volume: z.number().min(0).max(1).optional(),
+    reducedMotion: z.boolean().optional(),
+    keyboardBuzzers: z.boolean().optional(),
+  });
+  const SETTING_DEFAULTS = { preferredAddress: null, trustLocalhost: true, publicLeaderboard: true, theme: 'classic', boardTheme: 'classic', sound: true, volume: 0.7, reducedMotion: false, keyboardBuzzers: true };
+  const readSettings = () => Object.fromEntries(Object.entries(SETTING_DEFAULTS).map(([k, v]) => [k, getSetting(db, k, v)]));
+  app.get('/api/settings/public', async () => {
+    const s = readSettings();
+    return { theme: s.boardTheme, sound: s.sound, volume: s.volume, reducedMotion: s.reducedMotion };
+  });
+  app.get('/api/settings', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    return readSettings();
+  });
+  app.put('/api/settings', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const body = parse(settingsSchema, req.body, reply);
+    if (!body) return;
+    for (const [k, v] of Object.entries(body)) if (v !== undefined) setSetting(db, k, v);
+    hub.profilesChanged(); // nudges clients to refetch public settings
+    return readSettings();
+  });
+  app.get('/api/admin/diagnostics', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    return { integrity: integrityCheck(db), schemaVersion: schemaVersion(db), dataDir, clients: hub.size, addresses: lanAddresses(), version: APP_VERSION };
+  });
+  app.get('/api/admin/backup', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const tmp = path.join(dataDir, `backup-${Date.now()}.db`);
+    db.exec(`VACUUM INTO '${tmp.replace(/'/g, "''")}'`);
+    const buf = fs.readFileSync(tmp);
+    fs.rmSync(tmp, { force: true });
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+    reply.header('content-disposition', `attachment; filename="offlinejeopardy-backup-${stamp}.db"`);
+    return reply.type('application/octet-stream').send(buf);
+  });
+  app.post('/api/admin/restore', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const file = await req.file().catch(() => undefined);
+    if (!file) return bad(reply, 'No file uploaded');
+    const buf = await file.toBuffer().catch(() => null);
+    if (!buf || buf.subarray(0, 16).toString('latin1') !== 'SQLite format 3\u0000') return bad(reply, 'That is not an OfflineJeopardy backup file');
+    const pending = path.join(dataDir, 'restore-pending.db');
+    fs.writeFileSync(pending, buf);
+    try {
+      const test = openDatabase(pending);
+      const ok = integrityCheck(test) === 'ok' && !!test.prepare(`SELECT name FROM sqlite_master WHERE name = 'profiles'`).get();
+      test.close();
+      if (!ok) throw new Error('bad');
+    } catch {
+      fs.rmSync(pending, { force: true });
+      return bad(reply, 'The backup file is damaged or not compatible');
+    }
+    audit(db, 'host', 'db.restoreScheduled');
+    return { ok: true, message: 'Backup verified. Restart OfflineJeopardy to finish restoring.' };
+  });
+
+  // ---------- static web app ----------
+  const webDir = opts.webDir;
+  if (webDir && fs.existsSync(webDir)) {
+    await app.register(fastifyStatic, { root: webDir, prefix: '/', wildcard: false, index: false });
+    const indexHtml = fs.readFileSync(path.join(webDir, 'index.html'), 'utf8');
+    app.setNotFoundHandler((req, reply) => {
+      if (req.url.startsWith('/api/') || req.url.startsWith('/media/') || req.url === '/ws') return reply.code(404).send({ error: 'Not found' });
+      reply.type('text/html').header('cache-control', 'no-cache').send(indexHtml);
+    });
+  }
+
+  app.addHook('onSend', async (_req, reply, payload) => {
+    reply.header('x-content-type-options', 'nosniff');
+    reply.header('referrer-policy', 'no-referrer');
+    return payload;
+  });
+
+  await app.listen({ port: opts.port ?? 3000, host: opts.host ?? '0.0.0.0' });
+  const port = (app.server.address() as { port: number }).port;
+
+  return {
+    app,
+    db,
+    games,
+    controllers,
+    hub,
+    port,
+    url: `http://127.0.0.1:${port}`,
+    get pairingCode() {
+      return pairingCode;
+    },
+    async close() {
+      games.dispose();
+      hub.closeAll();
+      await app.close();
+      db.close();
+    },
+  };
+}
+
+export type RunningServer = Awaited<ReturnType<typeof startServer>>;
+
+function applyPendingRestore(dataDir: string, dbFile: string) {
+  const pending = path.join(dataDir, 'restore-pending.db');
+  if (!fs.existsSync(pending)) return;
+  if (fs.existsSync(dbFile)) fs.copyFileSync(dbFile, path.join(dataDir, `pre-restore-${Date.now()}.db`));
+  for (const ext of ['', '-wal', '-shm']) fs.rmSync(dbFile + ext, { force: true });
+  fs.renameSync(pending, dbFile);
+}
+
+function seed(db: DB) {
+  if (getSetting(db, 'seeded', false)) return;
+  repo.saveBoard(db, { title: SAMPLE_BOARD_TITLE, description: 'A ready-to-play example board with two rounds and a Final.', tags: ['example'], content: SAMPLE_BOARD }, { version: true });
+  setSetting(db, 'seeded', true);
+}

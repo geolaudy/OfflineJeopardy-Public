@@ -22,7 +22,8 @@ export class InputFilter {
   private lastPress = new Map<string, number>();
   constructor(public debounceMs = 120) {}
 
-  accept(ev: RawButtonEvent): boolean {
+  /** `debounce=false` tracks held state only (used for buttons that never buzz). */
+  accept(ev: RawButtonEvent, debounce = true): boolean {
     let set = this.down.get(ev.controllerId);
     if (!set) this.down.set(ev.controllerId, (set = new Set()));
     if (!ev.pressed) {
@@ -31,6 +32,7 @@ export class InputFilter {
     }
     if (set.has(ev.button)) return false; // held / repeated report
     set.add(ev.button);
+    if (!debounce) return true;
     const last = this.lastPress.get(ev.controllerId);
     if (last !== undefined && ev.at - last < this.debounceMs) return false;
     this.lastPress.set(ev.controllerId, ev.at);
