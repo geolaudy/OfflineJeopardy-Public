@@ -51,10 +51,10 @@ export function ProfileCreateForm({ onSubmit, busy, submitLabel = 'Create profil
       <Field label="Your name">
         <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} maxLength={30} autoComplete="nickname" placeholder="e.g. Alex" name="name" />
       </Field>
-      <Field label="Avatar">
+      <Field label="Avatar" group>
         <AvatarPicker value={avatar} onChange={setAvatar} />
       </Field>
-      <Field label="Color">
+      <Field label="Color" group>
         <ColorPicker value={color} onChange={setColor} />
       </Field>
       <div className="grid grid-cols-2 gap-3">

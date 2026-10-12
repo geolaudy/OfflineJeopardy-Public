@@ -6,7 +6,7 @@
 | K2 | iPad | Host UI tested in Playwright WebKit with an iPad descriptor, **not on a real iPad**. | Validate in Safari on a real iPad (touch, audio unlock, rotation). |
 | K3 | Packaging | Installer/portable exe are **unsigned** → Windows SmartScreen warning. The NSIS firewall rule hasn't been exercised on a clean machine. | Click "More info → Run anyway"; allow on private networks when Windows asks. |
 | K4 | Packaging | electron-builder's WASM icon converter fails on this dev machine ("WebAssembly.Memory(): could not allocate memory"); we ship a pre-built `build/icon.ico` (`node scripts/make-icon.mjs`). | None for users. |
-| K5 | Editor | Board library/editor UI built by a subagent; type-checked and bundled but not yet exercised in a browser test. | Next E2E task. |
+| K5 | Editor | Library import and clue editing are E2E-tested; drag-and-drop, version restore, duplicate/archive and media upload in the editor are not yet browser-tested. | Next E2E task. |
 | K6 | Backup | Backups contain the database only, not uploaded pictures/media. | Copy the data folder (Settings → Open data folder) for a full backup. |
 | K7 | Media | Board JSON export references media URLs but does not package media files. | Game-package export with media is NOT STARTED (L9). |
 | K8 | Images | HEIC images are not decoded by the bundled sharp build. | iOS Safari normally converts to JPEG on upload. |

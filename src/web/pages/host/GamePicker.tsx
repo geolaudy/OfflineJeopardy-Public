@@ -69,7 +69,7 @@ export default function GamePicker() {
       <section>
         <h2 className="mb-3 text-xl font-bold">New game</h2>
         <Card className="space-y-4">
-          <Field label="Board">
+          <Field label="Board" group>
             <div className="max-h-64 space-y-2 overflow-auto">
               {list.map((b) => (
                 <button
@@ -93,7 +93,7 @@ export default function GamePicker() {
           <Field label="Game title (optional)">
             <input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} placeholder={selected?.title ?? ''} maxLength={120} />
           </Field>
-          <Field label="Play as">
+          <Field label="Play as" group>
             <div className="grid grid-cols-2 gap-2">
               {(['solo', 'team'] as const).map((m) => (
                 <Button key={m} variant={mode === m ? 'primary' : 'secondary'} size="lg" onClick={() => setMode(m)}>

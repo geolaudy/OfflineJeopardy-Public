@@ -328,13 +328,13 @@ function TeamEditor({ g, competitorId, onClose }: { g: GameView; competitorId?: 
         <Field label="Team name">
           <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} maxLength={40} />
         </Field>
-        <Field label="Team logo">
+        <Field label="Team logo" group>
           <AvatarPicker value={avatar} onChange={setAvatar} list={TEAM_AVATARS.slice(0, 20)} />
         </Field>
-        <Field label="Team color">
+        <Field label="Team color" group>
           <ColorPicker value={color} onChange={setColor} colors={[...TEAM_COLORS, ...PLAYER_COLORS.slice(8)]} />
         </Field>
-        <Field label="Buzzer mode" hint="Each team chooses independently.">
+        <Field label="Buzzer mode" group hint="Each team chooses independently.">
           <div className="grid grid-cols-2 gap-2">
             {(['individual', 'shared'] as const).map((m) => (
               <Button key={m} variant={mode === m ? 'primary' : 'secondary'} onClick={() => setMode(m)}>

@@ -21,6 +21,8 @@ interface LiveState {
   lastInput: { controllerId: string; button: string; at: number } | null;
   profilesVersion: number;
   lastBuzz: { ok: boolean; info?: string; at: number } | null;
+  /** True once the first state snapshot has arrived on this connection. */
+  ready: boolean;
 }
 
 export const useLive = create<LiveState>(() => ({
@@ -36,6 +38,7 @@ export const useLive = create<LiveState>(() => ({
   lastInput: null,
   profilesVersion: 0,
   lastBuzz: null,
+  ready: false,
 }));
 
 let ws: WebSocket | null = null;
@@ -105,7 +108,7 @@ function handle(m: ServerMessage) {
       useLive.setState({ status: 'open', role: m.role, profileId: m.profileId, trustedDevice: m.trustedDevice });
       break;
     case 'state':
-      useLive.setState({ game: m.game, me: m.me ?? null });
+      useLive.setState({ game: m.game, me: m.me ?? null, ready: true });
       break;
     case 'pong': {
       const now = Date.now();

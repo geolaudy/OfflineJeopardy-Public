@@ -99,13 +99,13 @@ function TeamForm({ team, onClose }: { team: Partial<TeamRecord>; onClose: () =>
         <Field label="Name">
           <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} maxLength={40} />
         </Field>
-        <Field label="Logo">
+        <Field label="Logo" group>
           <AvatarPicker value={avatar} onChange={setAvatar} list={TEAM_AVATARS.slice(0, 20)} />
         </Field>
-        <Field label="Color">
+        <Field label="Color" group>
           <ColorPicker value={color} onChange={setColor} colors={TEAM_COLORS} />
         </Field>
-        <Field label="Buzzer mode">
+        <Field label="Buzzer mode" group>
           <div className="grid grid-cols-2 gap-2">
             {(['individual', 'shared'] as const).map((m) => (
               <Button key={m} variant={mode === m ? 'primary' : 'secondary'} onClick={() => setMode(m)}>
@@ -114,7 +114,7 @@ function TeamForm({ team, onClose }: { team: Partial<TeamRecord>; onClose: () =>
             ))}
           </div>
         </Field>
-        <Field label={`Players (${members.length})`}>
+        <Field label={`Players (${members.length})`} group>
           <div className="grid max-h-56 grid-cols-2 gap-1 overflow-auto sm:grid-cols-3">
             {(profiles.data ?? []).map((p) => (
               <label key={p.id} className={cx('flex min-h-11 items-center gap-2 rounded-lg border px-2', members.includes(p.id) ? 'border-blue-600 bg-blue-50' : 'border-slate-200')}>

@@ -137,10 +137,10 @@ function EditProfile({ p, onClose }: { p: AdminProfile; onClose: () => void }) {
             <input className={inputCls} value={nickname} onChange={(e) => setNickname(e.target.value)} maxLength={30} />
           </Field>
         </div>
-        <Field label="Avatar">
+        <Field label="Avatar" group>
           <AvatarPicker value={avatar} onChange={setAvatar} />
         </Field>
-        <Field label="Color">
+        <Field label="Color" group>
           <ColorPicker value={color} onChange={setColor} />
         </Field>
         <Button

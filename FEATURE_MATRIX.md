@@ -1,8 +1,8 @@
 # Feature Matrix
 
 Statuses: NOT STARTED · IN PROGRESS · IMPLEMENTED (code exists, no automated test) · TESTED (relevant automated tests pass) · BLOCKED.
-Test keys: **U** = `tests/unit/engine.test.ts` · **I** = `tests/integration/server.test.ts` · **E** = `tests/e2e/game.spec.ts` (Playwright: Chromium TV/Android, WebKit iPad/iPhone).
-Last full run: 2026-10-12 — U 25/25, I 13/13, E 3/3 passing.
+Test keys: **U** = `tests/unit/engine.test.ts` · **I** = `tests/integration/server.test.ts` · **E** = `tests/e2e/game.spec.ts`, **E2** = `tests/e2e/teams-editor.spec.ts` (Playwright: Chromium TV/desktop/Android, WebKit iPad/iPhone).
+Last full run: 2026-10-12 — U 25/25, I 13/13, E2E 4/4 passing.
 
 ## Core architecture & desktop
 
@@ -27,7 +27,7 @@ Last full run: 2026-10-12 — U 25/25, I 13/13, E 3/3 passing.
 | B3 | Timers (synced countdown) | P0 | TESTED | BoardPage TimerBar, lib/view.useTimer | E (visible), U | — |
 | B4 | Scores, team scores + members, buzzer winner banner | P0 | TESTED | BoardPage | E | — |
 | B5 | Daily Wager transition (clue hidden until wager locked) | P0 | TESTED | BoardPage ClueScreen | U, E | — |
-| B6 | Final Wager screens (category, wager status, clue, reveal) | P0 | IMPLEMENTED | BoardPage FinalScreen | U (engine/projection) | No E2E of Final UI |
+| B6 | Final Wager screens (category, wager status, clue, reveal) | P0 | TESTED | BoardPage FinalScreen | U, E2 | — |
 | B7 | Winner announcement / results | P0 | TESTED | BoardPage Results | E | — |
 | B8 | Fullscreen, secondary-monitor placement | P1 | IMPLEMENTED | BoardPage, electron openBoardWindow | — | Multi-monitor untested |
 | B9 | Join QR show/hide; lobby screen with large QR | P0 | TESTED | BoardPage, /api/qr | I (QR svg), E (lobby) | — |
@@ -44,9 +44,9 @@ Last full run: 2026-10-12 — U 25/25, I 13/13, E 3/3 passing.
 | H5 | Timer start / pause / resume / reset | P0 | TESTED (engine) / IMPLEMENTED (UI) | Live.tsx TimerControls | U | UI buttons not E2E-tested |
 | H6 | Correct / incorrect, award/deduct points, undo | P0 | TESTED | Live.tsx | E, U, I | — |
 | H7 | Skip / restore clue, rounds, board control | P1 | TESTED (engine) / IMPLEMENTED (UI) | Live.tsx | U | — |
-| H8 | Manage players & teams, per-team buzzer mode | P0 | TESTED (engine/API) / IMPLEMENTED (UI) | host/Setup.tsx | U, I | Team setup UI not E2E-tested |
-| H9 | Controller assignment by button press | P0 | TESTED (server) / IMPLEMENTED (UI) | ControllersPanel.tsx, controllers.ts | I | — |
-| H10 | Daily Wager & Final control | P0 | TESTED (DW E2E) / IMPLEMENTED (Final UI) | Live.tsx, FinalControl.tsx | E, U | — |
+| H8 | Manage players & teams, per-team buzzer mode | P0 | TESTED | host/Setup.tsx | U, I, E2 | — |
+| H9 | Controller assignment by button press | P0 | TESTED | ControllersPanel.tsx, controllers.ts | I, E2 (keyboard key) | Joy-Con path simulated only |
+| H10 | Daily Wager & Final control | P0 | TESTED | Live.tsx, FinalControl.tsx | E, E2, U | — |
 | H11 | Save / resume / switch / end games | P0 | TESTED | GamePicker.tsx, app.ts | I, E (end) | — |
 | H12 | Event history + audited attribution correction | P1 | TESTED (engine) / IMPLEMENTED (UI) | EventLog.tsx | U | — |
 | H13 | Rules & timers settings, presets (Classic, Classroom, Speed, Team Battle, Casual) | P1 | TESTED (engine) / IMPLEMENTED (UI) | RulesEditor.tsx, shared/game.ts | U | — |
@@ -69,7 +69,7 @@ Last full run: 2026-10-12 — U 25/25, I 13/13, E 3/3 passing.
 | P10 | Buzzer preferences (device, Joy-Con side/button, key) | P1 | IMPLEMENTED | ProfileTab.tsx | — | Preferences are informational; not auto-applied |
 | P11 | Join current game (self-join or host approval) | P0 | TESTED | engine playerJoin, PlayTab.tsx | E, I | — |
 | P12 | Phone buzzer, status feedback, vibration | P0 | TESTED | PlayTab.tsx | E | — |
-| P13 | Final wager/answer from phone | P0 | IMPLEMENTED | PlayTab FinalForm, hub | U (engine) | No E2E |
+| P13 | Final wager/answer from phone | P0 | TESTED | PlayTab FinalForm, hub | U, E2 | — |
 | P14 | Personal stats dashboard (solo vs team separated) | P0 | TESTED (API) / TESTED (renders) | stats.ts, StatsView.tsx | I, E | — |
 | P15 | Game history + per-game detail (clue by clue) | P0 | TESTED | stats.ts, StatsView.tsx | I, E | — |
 | P16 | Profile export, delete (soft), stats privacy | P1 | IMPLEMENTED | app.ts | — | Profile import not implemented |
@@ -86,7 +86,7 @@ Last full run: 2026-10-12 — U 25/25, I 13/13, E 3/3 passing.
 | Z5 | Team-aware arbitration, configurable team retry | P0 | TESTED | engine.ts | U | — |
 | Z6 | Disconnection handling (devices marked disconnected; others keep working) | P0 | TESTED | controllers.ts, hub.ts | I | — |
 | Z7 | Joy-Con detection/recognition via WebHID (L/R, MAC id), button mapping, identify lights | P0 | IMPLEMENTED | web/lib/inputBridge.ts, electron/main.ts | I (simulated input only) | **Not verified with real Joy-Cons** (KNOWN_ISSUES K1) |
-| Z8 | Keyboard buzzers (TV window) | P1 | TESTED (server, simulated) / IMPLEMENTED (capture) | inputBridge.ts | I | — |
+| Z8 | Keyboard buzzers (TV window) | P1 | TESTED | inputBridge.ts | I, E2 | — |
 | Z9 | Other gamepads (Gamepad API) | P2 | IMPLEMENTED | inputBridge.ts | — | — |
 | Z10 | Mixed-device buzzing in one game | P0 | TESTED | — | U, I | — |
 | Z11 | Buzzer delay settings / latency diagnostics | P2 | IN PROGRESS | reactionMs recorded | U | No diagnostics UI |
@@ -112,7 +112,7 @@ Last full run: 2026-10-12 — U 25/25, I 13/13, E 3/3 passing.
 
 | ID | Feature | Pri | Status | Source | Tests | Limitations |
 |---|---|---|---|---|---|---|
-| L1 | Board CRUD, duplicate, delete, rename, version history | P0 | TESTED (API) / IMPLEMENTED (UI) | repos.ts, desk/Library.tsx, desk/BoardEditor.tsx | I | Editor/library UI not browser-tested yet |
+| L1 | Board CRUD, duplicate, delete, rename, version history | P0 | TESTED (API; UI import→edit→save) | repos.ts, desk/Library.tsx, desk/BoardEditor.tsx | I, E2 | Duplicate/archive/version UI not browser-tested |
 | L2 | Configurable categories (fewer/more than 6), rows, values, DW flags, Final | P0 | IMPLEMENTED | BoardEditor.tsx | — | — |
 | L3 | Drag-and-drop category reordering, clue moves | P1 | IMPLEMENTED | BoardEditor.tsx | — | — |
 | L4 | Autosave drafts + manual save | P1 | IMPLEMENTED | BoardEditor.tsx | — | — |

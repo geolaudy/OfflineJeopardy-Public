@@ -67,7 +67,21 @@ export function Card({ children, className }: { children: ReactNode; className?:
   return <div className={cx('rounded-2xl border border-slate-200 bg-white p-4 shadow-sm', className)}>{children}</div>;
 }
 
-export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+let fieldSeq = 0;
+/** Labelled form field. Use `group` when the field holds several controls (button groups, pickers):
+ *  a <label> would otherwise name only its first control. */
+export function Field({ label, hint, children, group }: { label: string; hint?: string; children: ReactNode; group?: boolean }) {
+  const [id] = useState(() => `field-${++fieldSeq}`);
+  if (group)
+    return (
+      <div role="group" aria-labelledby={id}>
+        <span id={id} className="mb-1 block text-sm font-semibold text-slate-700">
+          {label}
+        </span>
+        {children}
+        {hint ? <span className="mt-1 block text-xs text-slate-500">{hint}</span> : null}
+      </div>
+    );
   return (
     <label className="block">
       <span className="mb-1 block text-sm font-semibold text-slate-700">{label}</span>

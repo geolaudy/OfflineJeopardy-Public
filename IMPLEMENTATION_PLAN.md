@@ -21,7 +21,7 @@ Order follows CLAUDE.md §31. ✅ done · 🔶 partial · ⬜ not started.
 
 ## Next tasks (priority order)
 
-1. E2E tests: board editor & library (create board, edit clue, import CSV, start game with it), team game setup UI with a shared buzzer + keyboard assignment, Final Wager UI end-to-end incl. phone wagers/answers.
+1. ✅ (done) E2E for import/edit, team setup with shared keyboard buzzer, Final via phones. Remaining: editor drag-and-drop/versions/media E2E.
 2. Real-hardware validation session: pair 2+ Joy-Cons on Windows, verify detection/MAC ids/assign/buzz/reconnect; fix offsets if needed. Real iPad Safari pass.
 3. Game-package export/import with media (zip), backup including media.
 4. Theme editor (custom colors/fonts/background/logo) + theme import/export.

@@ -84,10 +84,10 @@ export default function ProfileTab({ me, setMe, signOut }: { me: Me; setMe: (m: 
         <Field label="Nickname (shown on the scoreboard)" hint="Optional">
           <input className={inputCls} value={nickname} onChange={(e) => setNickname(e.target.value)} maxLength={30} aria-label="Nickname" />
         </Field>
-        <Field label="Avatar" hint={me.pictureUrl ? 'Your photo is shown instead of the avatar.' : undefined}>
+        <Field label="Avatar" group hint={me.pictureUrl ? 'Your photo is shown instead of the avatar.' : undefined}>
           <AvatarPicker value={avatar} onChange={setAvatar} />
         </Field>
-        <Field label="Color">
+        <Field label="Color" group>
           <ColorPicker value={color} onChange={setColor} />
         </Field>
         <Button size="lg" className="w-full" disabled={!dirty || !name.trim()} busy={busy} onClick={save} data-testid="save-profile">

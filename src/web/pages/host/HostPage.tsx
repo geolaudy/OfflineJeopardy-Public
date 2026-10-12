@@ -112,6 +112,7 @@ function HostLogin({ onDone }: { onDone: () => void }) {
 function HostShell() {
   const game = useLive((s) => s.game);
   const status = useLive((s) => s.status);
+  const ready = useLive((s) => s.ready);
   const [menu, setMenu] = useState(false);
   const [log, setLog] = useState(false);
   const [rules, setRules] = useState(false);
@@ -152,7 +153,7 @@ function HostShell() {
         )}
       </header>
       <main className="min-h-0 flex-1 overflow-auto">
-        {!game ? <GamePicker /> : game.phase === 'lobby' ? <Setup g={game} /> : game.phase === 'ended' ? <Results g={game} /> : <Live g={game} run={run} />}
+        {!ready ? <div className="p-6 text-center text-slate-500">Connecting to the game computer…</div> : !game ? <GamePicker /> : game.phase === 'lobby' ? <Setup g={game} /> : game.phase === 'ended' ? <Results g={game} /> : <Live g={game} run={run} />}
       </main>
       {game && (
         <Modal open={menu} onClose={() => setMenu(false)} title="Game menu">
