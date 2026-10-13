@@ -106,7 +106,7 @@ Last full run: 2026-10-12 (session 3) — Vitest 73/73, Playwright 12/12 passing
 | T8 | Category performance (no merging of different names) | P1 | TESTED | stats.ts | I | Only case/whitespace normalisation, no alias UI |
 | T9 | Leaderboard (respects privacy; solo/team/contribution separated) | P2 | TESTED | stats.leaderboard, join/Leaderboard.tsx | I2, E | — |
 | T10 | Player comparison / head-to-head | P3 | NOT STARTED | — | — | — |
-| T11 | Automatic team balancing | P3 | NOT STARTED | — | — | — |
+| T11 | Automatic team balancing | P3 | TESTED | shared/teamBalance.ts (rating with priors from accuracy and wins; snake draft + improving swaps; seeded shuffle), GET /api/stats/ratings (host only; practice games excluded), host/Setup.tsx BalanceTeams (team count, shuffle, preview with team strength, create) | U = tests/unit/teamBalance.test.ts, E = tests/e2e/balance.spec.ts | Individual ratings are not shown (only team strength) |
 
 ## Boards, library, import/export
 

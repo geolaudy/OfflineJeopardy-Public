@@ -11,7 +11,8 @@ import BuzzCheckPanel from '../../components/BuzzCheckPanel';
 import { competitorAvatar, competitorName, profileName } from '../../lib/view';
 import { TEAM_AVATARS, avatarEmoji, PLAYER_COLORS } from '../../lib/avatars';
 import { BOT_LEVELS, BOT_NAMES, TEAM_COLORS, type BotLevel } from '../../../shared/game';
-import { Play, RefreshCw, FlaskConical, Bot, X, Hand, BellRing, SlidersHorizontal, User, Users } from 'lucide-react';
+import { Play, RefreshCw, FlaskConical, Bot, X, Hand, BellRing, SlidersHorizontal, User, Users, Scale, Shuffle } from 'lucide-react';
+import { BALANCED_TEAM_NAMES, balanceTeams } from '../../../shared/teamBalance';
 import RulesEditor from './RulesEditor';
 
 const run = async (a: Parameters<typeof act>[0]) => {
@@ -271,6 +272,7 @@ function TeamSetup({ g }: { g: GameView }) {
     <div className="space-y-4">
       <JoinHint g={g} />
       <PendingList g={g} />
+      <BalanceTeams g={g} people={unassigned.map((u) => u.profileId)} />
       {unassigned.length > 0 && (
         <Card>
           <h3 className="mb-2 font-bold">Players without a team</h3>
@@ -545,6 +547,103 @@ function LobbyControls({ g }: { g: GameView }) {
         </Button>
       </div>
       <RulesEditor open={rulesOpen} onClose={() => setRulesOpen(false)} g={g} run={async (a) => ({ ok: await run(a) })} />
+    </Card>
+  );
+}
+
+/** Automatic team balancing (T11): split the players without a team into evenly matched teams. */
+function BalanceTeams({ g, people }: { g: GameView; people: string[] }) {
+  const [open, setOpen] = useState(false);
+  const [count, setCount] = useState(2);
+  const [seed, setSeed] = useState(1);
+  const [ratings, setRatings] = useState<{ id: string; rating: number; games: number }[] | null>(null);
+  const key = people.join(',');
+  useEffect(() => {
+    if (!open) return;
+    setRatings(null);
+    void attempt(() => hostApi<{ id: string; rating: number; games: number }[]>('GET', `/api/stats/ratings?ids=${encodeURIComponent(key)}`)).then((r) => r && setRatings(r));
+  }, [open, key]);
+  const maxTeams = Math.max(2, Math.min(8, Math.floor(people.length / 2))); // at least two per team
+  const teams = ratings ? balanceTeams(ratings, Math.min(count, ratings.length), seed) : [];
+  const used = new Set(g.competitors.map((c) => c.name));
+  const names = BALANCED_TEAM_NAMES.filter((n) => !used.has(n));
+  const create = async () => {
+    for (const [i, t] of teams.entries()) {
+      if (!t.length) continue;
+      const ok = await run({ type: 'addTeam', name: names[i] ?? `Team ${g.competitors.length + i + 1}`, color: TEAM_COLORS[(g.competitors.length + i) % TEAM_COLORS.length], avatar: TEAM_AVATARS[(g.competitors.length + i) % 8].id, buzzerMode: 'individual', memberIds: t.map((p) => p.id) });
+      if (!ok) return;
+    }
+    setOpen(false);
+    toast(`${teams.filter((t) => t.length).length} balanced teams created`, 'success');
+  };
+  if (people.length < 2) return null;
+  return (
+    <Card className="space-y-3" data-testid="balance-teams">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="min-w-0 flex-[1_1_14rem]">
+          <h3 className="font-bold">Make balanced teams</h3>
+          <p className="text-sm text-slate-600">Splits the {people.length} players without a team into evenly matched teams, based on their past games. New players count as average.</p>
+        </div>
+        {!open && (
+          <Button variant="secondary" onClick={() => setOpen(true)} data-testid="balance-open">
+            <Scale size={18} aria-hidden /> Balance teams
+          </Button>
+        )}
+      </div>
+      {open && (
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-semibold text-slate-600">Teams</span>
+            {Array.from({ length: maxTeams - 1 }, (_, i) => i + 2)
+              .filter((n) => n <= people.length)
+              .map((n) => (
+                <button key={n} onClick={() => setCount(n)} aria-pressed={count === n} className={cx('h-11 w-11 rounded-xl font-bold', count === n ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-700')} data-testid={`balance-count-${n}`}>
+                  {n}
+                </button>
+              ))}
+            <div className="flex-1" />
+            <Button variant="ghost" onClick={() => setSeed((s) => s + 1)} disabled={!ratings} data-testid="balance-shuffle">
+              <Shuffle size={18} aria-hidden /> Shuffle
+            </Button>
+          </div>
+          {!ratings ? (
+            <p className="text-sm text-slate-500">Looking at past games…</p>
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-2" data-testid="balance-preview">
+              {teams.map((t, i) => {
+                const avg = t.length ? t.reduce((s, p) => s + p.rating, 0) / t.length : 0;
+                return (
+                  <div key={i} className="rounded-xl border-2 p-3" style={{ borderColor: TEAM_COLORS[(g.competitors.length + i) % TEAM_COLORS.length] }}>
+                    <div className="flex items-center gap-2">
+                      <span className="min-w-0 flex-1 truncate font-bold">{names[i] ?? `Team ${i + 1}`}</span>
+                      <span className="text-xs text-slate-500">{t.length} players</span>
+                    </div>
+                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100" title="Team strength" aria-label={`Team strength ${Math.round(avg)} of 100`}>
+                      <div className="h-full rounded-full bg-blue-600" style={{ width: `${Math.round(avg)}%` }} />
+                    </div>
+                    <ul className="mt-2 flex flex-wrap gap-1.5">
+                      {t.map((p) => (
+                        <li key={p.id} className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 py-0.5 pr-2 pl-0.5 text-sm">
+                          <Avatar profile={g.profiles[p.id]} size={22} />
+                          {profileName(g.profiles[p.id])}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <ActionButton disabled={!ratings} onAction={create} data-testid="balance-create">
+              Create these teams
+            </ActionButton>
+          </div>
+        </>
+      )}
     </Card>
   );
 }

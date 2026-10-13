@@ -33,6 +33,7 @@ import { createZip, isZip, readZip, ZipError, type ZipEntry } from './zip.js';
 import { registerImportRoutes } from './importRoutes.js';
 import { LobbyManager } from './lobby.js';
 import { INTRO_STEP_MS, normalizeTvFx, SOUND_CUES, tvFxSchema } from '../shared/tvFx.js';
+import { ratingOf } from '../shared/teamBalance.js';
 import { normalizeRules, rulesFromPreset, RULE_PRESETS } from '../shared/game.js';
 import { customThemeSchema, isPreset, newThemeData, type ThemeFile } from '../shared/themes.js';
 import { rulesSchema } from '../shared/actions.js';
@@ -812,6 +813,19 @@ export async function startServer(opts: ServerOptions) {
     const t = repo.getTeam(db, (req.params as { id: string }).id);
     if (!t) return bad(reply, 'Team not found', 404);
     return { team: t, stats: stats.teamStats(db, t.id) };
+  });
+  // Team balancing (T11): a skill estimate per player from their history (host only).
+  app.get('/api/stats/ratings', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const ids = String((req.query as { ids?: string }).ids ?? '')
+      .split(',')
+      .filter((x) => /^[A-Za-z0-9_-]{1,64}$/.test(x))
+      .slice(0, 200);
+    return ids.map((id) => {
+      const c = stats.profileStats(db, id).combined;
+      const rec = { games: c.gamesPlayed, wins: c.wins, correct: c.correct, incorrect: c.incorrect };
+      return { id, rating: ratingOf(rec), games: rec.games };
+    });
   });
   app.get('/api/stats/leaderboard', async (req, reply) => {
     const s = sessionOf(req);

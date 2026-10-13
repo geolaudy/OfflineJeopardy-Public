@@ -28,7 +28,7 @@ test('practice game: computer opponent, answer hidden until revealed, buzzers op
   await tv.goto(`${BASE}/board`);
   const pc = await (await cr.newContext({ viewport: { width: 1366, height: 900 } })).newPage();
   await pc.goto(`${BASE}/host`);
-  await pc.getByRole('button', { name: /Starter Trivia Night/ }).click(); // don't depend on which board is newest
+  await pc.getByRole('button', { name: /^Starter Trivia Night/ }).first().click(); // don't depend on which board is newest
   await pc.getByTestId('practice-toggle').check();
   await pc.getByRole('button', { name: 'Open lobby' }).click();
   await expect(pc.getByTestId('practice-note')).toBeVisible();
