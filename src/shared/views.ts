@@ -99,6 +99,7 @@ export interface GameView {
   final: FinalView | null;
   timer: TimerState | null;
   intro: IntroState | null;
+  practice: boolean;
   showJoinQr: boolean;
   results: GameResult[] | null;
   startedAt: number | null;

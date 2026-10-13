@@ -661,7 +661,7 @@ export async function startServer(opts: ServerOptions) {
   app.post('/api/games', async (req, reply) => {
     if (!requireHost(req, reply)) return;
     const body = parse(
-      z.object({ boardId: z.string(), title: z.string().trim().max(120).optional(), mode: z.enum(['solo', 'team']), preset: z.string().max(32).default('classic'), rules: rulesSchema.optional() }),
+      z.object({ boardId: z.string(), title: z.string().trim().max(120).optional(), mode: z.enum(['solo', 'team']), preset: z.string().max(32).default('classic'), rules: rulesSchema.optional(), practice: z.boolean().default(false) }),
       req.body,
       reply,
     );
@@ -670,7 +670,7 @@ export async function startServer(opts: ServerOptions) {
     if (!b) return bad(reply, 'Board not found', 404);
     const errors = validateBoard(b.content).filter((i) => i.level === 'error');
     if (errors.length) return bad(reply, errors.map((e) => e.message).join(' '));
-    const s = games.create({ title: body.title || b.title, boardId: b.id, board: structuredClone(b.content), mode: body.mode, rules: body.rules ? normalizeRules(body.rules) : rulesFromPreset(body.preset) });
+    const s = games.create({ title: body.title || b.title, boardId: b.id, board: structuredClone(b.content), mode: body.mode, rules: body.rules ? normalizeRules(body.rules) : rulesFromPreset(body.preset), practice: body.practice });
     return { id: s.id };
   });
   app.post('/api/games/:id/load', async (req, reply) => {
@@ -720,7 +720,7 @@ export async function startServer(opts: ServerOptions) {
     const history = (stats.profileHistory(db, id) as Record<string, unknown>[]).slice(0, 25).map((h) => ({
       id: h.id, title: h.title, mode: h.mode, endedAt: h.endedAt, competitorName: h.competitorName, kind: h.kind,
       finalScore: h.finalScore, placement: h.placement, isWinner: h.isWinner, competitorCount: h.competitorCount, winners: h.winners,
-      correct: h.correct, incorrect: h.incorrect,
+      correct: h.correct, incorrect: h.incorrect, practice: h.practice,
     }));
     return { profile: repo.toPublic(p), own, stats: stats.profileStats(db, id), history };
   });

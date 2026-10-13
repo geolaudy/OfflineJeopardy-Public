@@ -29,6 +29,7 @@ export default function GamePicker() {
   const [mode, setMode] = useState<'solo' | 'team'>('solo');
   const [preset, setPreset] = useState('classic');
   const [title, setTitle] = useState('');
+  const [practice, setPractice] = useState(false);
   const list = (boards.data ?? []).filter((b) => !b.archived).sort((a, b) => Number(b.favorite) - Number(a.favorite));
   const selected = list.find((b) => b.id === (boardId ?? list[0]?.id));
 
@@ -111,11 +112,20 @@ export default function GamePicker() {
               ))}
             </select>
           </Field>
+          {mode === 'solo' && (
+            <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl bg-violet-50 px-3 py-2">
+              <input type="checkbox" className="h-6 w-6 accent-violet-700" checked={practice} onChange={(e) => setPractice(e.target.checked)} data-testid="practice-toggle" />
+              <span>
+                <span className="block font-semibold">🧪 Practice game</span>
+                <span className="block text-xs text-slate-600">Not counted in statistics. Buzzers open by themselves; add computer opponents to play alone.</span>
+              </span>
+            </label>
+          )}
           <ActionButton
             size="xl"
             className="w-full"
             disabled={!selected}
-            onAction={() => attempt(() => hostApi('POST', '/api/games', { boardId: selected!.id, mode, preset, title: title.trim() || undefined }))}
+            onAction={() => attempt(() => hostApi('POST', '/api/games', { boardId: selected!.id, mode, preset, title: title.trim() || undefined, practice: mode === 'solo' && practice }))}
           >
             Create game
           </ActionButton>

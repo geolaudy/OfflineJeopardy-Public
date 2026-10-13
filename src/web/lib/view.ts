@@ -10,12 +10,14 @@ export function profileName(p?: ProfilePublic | null) {
 
 export function competitorName(c: CompetitorView | undefined, g: GameView) {
   if (!c) return '';
+  if (c.bot) return c.name;
   if (c.kind === 'player') return profileName(g.profiles[c.profileId!]);
   return c.name;
 }
 
 export function competitorColor(c: CompetitorView | undefined, g: GameView) {
   if (!c) return '#64748b';
+  if (c.bot) return c.color;
   if (c.kind === 'player') return g.profiles[c.profileId!]?.color ?? c.color;
   return c.color;
 }
@@ -23,6 +25,7 @@ export function competitorColor(c: CompetitorView | undefined, g: GameView) {
 /** Avatar-ish descriptor for a competitor: players use their profile, teams their logo. */
 export function competitorAvatar(c: CompetitorView | undefined, g: GameView): Pick<ProfilePublic, 'name' | 'color' | 'avatar' | 'pictureUrl'> {
   if (!c) return { name: '', color: '#64748b', avatar: 'shield', pictureUrl: null };
+  if (c.bot) return { name: c.name, color: c.color, avatar: 'robot', pictureUrl: null };
   if (c.kind === 'player') {
     const p = g.profiles[c.profileId!];
     return { name: profileName(p), color: p?.color ?? c.color, avatar: p?.avatar ?? 'fox', pictureUrl: p?.pictureUrl ?? null };

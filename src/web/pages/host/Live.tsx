@@ -194,6 +194,45 @@ function BoardTools({ g, run, onDevices }: { g: GameView; run: Run; onDevices: (
   );
 }
 
+/** The private answer. In practice games the host is usually playing too, so it stays hidden until
+ *  revealed (one tap to peek). */
+function HostAnswer({ g }: { g: GameView }) {
+  const clue = g.clue!;
+  const [peek, setPeek] = useState(false);
+  useEffect(() => setPeek(false), [clue.clueId]);
+  const hidden = g.practice && !clue.answerRevealed && !peek;
+  return (
+    <div className="rounded-xl border-2 border-green-600 bg-green-50 p-3">
+      <div className="text-xs font-bold tracking-wide text-green-800 uppercase">{g.practice ? 'Answer' : 'Answer (only you can see this)'}</div>
+      {hidden ? (
+        <button className="mt-1 min-h-11 rounded-lg bg-white px-3 font-semibold text-green-900 ring-1 ring-green-600" onClick={() => setPeek(true)} data-testid="peek-answer">
+          🙈 Hidden while you play — tap to peek
+        </button>
+      ) : (
+        <div className="text-2xl font-black text-green-900" data-testid="host-answer">
+          {clue.answer}
+        </div>
+      )}
+      {clue.notes && !hidden && <div className="mt-1 text-sm text-slate-700">📝 {clue.notes}</div>}
+    </div>
+  );
+}
+
+/** Buzz on behalf of a player (playing practice on this device, or a player whose buzzer failed). */
+function BuzzFor({ g, run }: { g: GameView; run: Run }) {
+  const humans = g.competitors.filter((c) => !c.bot && !g.buzzer.attemptedCompetitors.includes(c.id));
+  if (!humans.length) return null;
+  return (
+    <div className={cx('flex flex-wrap gap-2', g.practice && 'rounded-xl bg-red-50 p-2')}>
+      {humans.map((c) => (
+        <ActionButton key={c.id} size={g.practice ? 'xl' : 'sm'} variant={g.practice ? 'danger' : 'ghost'} className={g.practice ? 'flex-1' : ''} onAction={() => run({ type: 'hostBuzz', competitorId: c.id })} data-testid="buzz-for">
+          🔔 {g.practice ? `Buzz — ${competitorName(c, g)}` : `Buzz for ${competitorName(c, g)}`}
+        </ActionButton>
+      ))}
+    </div>
+  );
+}
+
 /** Category introduction on the TV: start / next / auto / skip / replay. */
 function IntroControls({ g, run }: { g: GameView; run: Run }) {
   const intro = g.intro;
@@ -308,13 +347,7 @@ function CluePanel({ g, run }: { g: GameView; run: Run }) {
         <span className="text-xl font-black text-blue-800">{clue.isDailyWager ? `Daily Wager${clue.wager ? ` · ${clue.wager.amount}` : ''}` : clue.value}</span>
       </div>
       <p className="text-xl leading-snug">{clue.question}</p>
-      <div className="rounded-xl border-2 border-green-600 bg-green-50 p-3">
-        <div className="text-xs font-bold tracking-wide text-green-800 uppercase">Answer (only you can see this)</div>
-        <div className="text-2xl font-black text-green-900" data-testid="host-answer">
-          {clue.answer}
-        </div>
-        {clue.notes && <div className="mt-1 text-sm text-slate-700">📝 {clue.notes}</div>}
-      </div>
+      <HostAnswer g={g} />
 
       {clue.isDailyWager && clue.stage === 'wager' ? (
         <DailyWagerForm g={g} run={run} />
@@ -337,6 +370,7 @@ function CluePanel({ g, run }: { g: GameView; run: Run }) {
             </div>
           )}
           {g.buzzer.status === 'open' && !winner && <p className="rounded-xl bg-green-100 p-2 text-center font-semibold text-green-900">Buzzers are open…</p>}
+          {g.buzzer.status === 'open' && !winner && <BuzzFor g={g} run={run} />}
           {responder && !clue.resolved && (
             <div className="space-y-3 rounded-xl bg-yellow-50 p-3 ring-2 ring-yellow-400">
               <div className="flex items-center gap-3">

@@ -221,6 +221,12 @@ CREATE TABLE themes (
 );
 `,
   },
+  {
+    // Additive: existing games are regular (counted) games.
+    version: 3,
+    name: 'practice games',
+    sql: `ALTER TABLE games ADD COLUMN practice INTEGER NOT NULL DEFAULT 0;`,
+  },
 ];
 
 export function openDatabase(file: string): DB {

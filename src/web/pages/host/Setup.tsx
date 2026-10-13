@@ -1,5 +1,5 @@
 // Pre-game setup on the host controller: players, teams, per-team buzzer modes, controllers.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { GameView } from '../../../shared/views';
 import { act } from '../../lib/socket';
 import { hostApi } from '../../lib/api';
@@ -7,9 +7,9 @@ import { attempt, useProfiles, useTeams } from '../../lib/hooks';
 import { ActionButton, Avatar, Button, Card, ColorPicker, Field, Modal, QrImage, inputCls, toast, cx } from '../../components/ui';
 import { AvatarPicker, ProfileCreateForm } from '../../components/ProfileForm';
 import ControllersPanel, { AssignListener } from '../../components/ControllersPanel';
-import { profileName } from '../../lib/view';
+import { competitorAvatar, competitorName, profileName } from '../../lib/view';
 import { TEAM_AVATARS, avatarEmoji, PLAYER_COLORS } from '../../lib/avatars';
-import { TEAM_COLORS } from '../../../shared/game';
+import { BOT_LEVELS, BOT_NAMES, TEAM_COLORS, type BotLevel } from '../../../shared/game';
 
 const run = async (a: Parameters<typeof act>[0]) => {
   const r = await act(a);
@@ -19,7 +19,7 @@ const run = async (a: Parameters<typeof act>[0]) => {
 
 export default function Setup({ g }: { g: GameView }) {
   const [tab, setTab] = useState<'players' | 'buzzers'>('players');
-  const ready = g.competitors.length > 0 && g.competitors.every((c) => c.memberIds.length > 0);
+  const ready = g.competitors.length > 0 && g.competitors.every((c) => !!c.bot || c.memberIds.length > 0) && g.competitors.some((c) => !c.bot);
   return (
     <div className="mx-auto max-w-5xl space-y-4 p-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -127,31 +127,101 @@ function AddPlayerModal({ open, onClose, onPick, exclude }: { open: boolean; onC
 
 function SoloSetup({ g }: { g: GameView }) {
   const [adding, setAdding] = useState(false);
+  const [addingBot, setAddingBot] = useState(false);
   return (
     <div className="space-y-4">
       <JoinHint />
       <PendingList g={g} />
+      {g.practice && (
+        <p className="rounded-xl bg-violet-50 p-3 text-sm text-violet-900" data-testid="practice-note">
+          🧪 <b>Practice game</b> — it is saved in history but does not count in statistics or the leaderboard. The buzzers open automatically after each question.
+        </p>
+      )}
       <Card>
-        <div className="mb-3 flex items-center">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
           <h3 className="flex-1 text-lg font-bold">Players ({g.competitors.length})</h3>
+          <Button variant="secondary" onClick={() => setAddingBot(true)} data-testid="add-bot">
+            🤖 Computer opponent
+          </Button>
           <Button onClick={() => setAdding(true)}>+ Add player</Button>
         </div>
         <ul className="grid gap-2 sm:grid-cols-2">
-          {g.competitors.map((c) => (
-            <li key={c.id} className="flex items-center gap-3 rounded-xl bg-slate-50 p-2" data-testid="setup-player">
-              <Avatar profile={g.profiles[c.profileId!]} size={40} />
-              <span className="flex-1 font-semibold">{profileName(g.profiles[c.profileId!])}</span>
-              <span className={cx('text-xs', g.online?.includes(c.profileId!) ? 'text-green-700' : 'text-slate-400')}>{g.online?.includes(c.profileId!) ? '● phone' : '○'}</span>
-              <Button size="sm" variant="ghost" onClick={() => run({ type: 'removeCompetitor', competitorId: c.id })} aria-label={`Remove ${profileName(g.profiles[c.profileId!])}`}>
-                ✕
-              </Button>
-            </li>
-          ))}
+          {g.competitors.map((c) => {
+            const name = competitorName(c, g);
+            return (
+              <li key={c.id} className="flex items-center gap-3 rounded-xl bg-slate-50 p-2" data-testid={c.bot ? 'setup-bot' : 'setup-player'}>
+                <Avatar profile={competitorAvatar(c, g)} size={40} />
+                <span className="min-w-0 flex-1 truncate font-semibold">{name}</span>
+                {c.bot ? (
+                  <select
+                    className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm"
+                    value={c.bot}
+                    onChange={(e) => run({ type: 'updateCompetitor', competitorId: c.id, botLevel: e.target.value as BotLevel })}
+                    aria-label={`${name} difficulty`}
+                  >
+                    {Object.entries(BOT_LEVELS).map(([k, v]) => (
+                      <option key={k} value={k}>
+                        {v.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className={cx('text-xs', g.online?.includes(c.profileId!) ? 'text-green-700' : 'text-slate-400')}>{g.online?.includes(c.profileId!) ? '● phone' : '○'}</span>
+                )}
+                <Button size="sm" variant="ghost" onClick={() => run({ type: 'removeCompetitor', competitorId: c.id })} aria-label={`Remove ${name}`}>
+                  ✕
+                </Button>
+              </li>
+            );
+          })}
         </ul>
         {!g.competitors.length && <p className="text-slate-500">No players yet.</p>}
       </Card>
       <AddPlayerModal open={adding} onClose={() => setAdding(false)} exclude={g.competitors.flatMap((c) => c.memberIds)} onPick={(id) => run({ type: 'addPlayer', profileId: id })} />
+      <AddBotModal open={addingBot} onClose={() => setAddingBot(false)} g={g} />
     </div>
+  );
+}
+
+function AddBotModal({ open, onClose, g }: { open: boolean; onClose: () => void; g: GameView }) {
+  const taken = new Set(g.competitors.filter((c) => c.bot).map((c) => c.name.toLowerCase()));
+  const suggestion = BOT_NAMES.find((n) => !taken.has(n.toLowerCase())) ?? `Computer ${taken.size + 1}`;
+  const [name, setName] = useState(suggestion);
+  const [level, setLevel] = useState<BotLevel>('medium');
+  useEffect(() => {
+    if (open) setName(suggestion);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+  return (
+    <Modal open={open} onClose={onClose} title="Add a computer opponent">
+      <div className="space-y-4">
+        <p className="text-sm text-slate-600">Computer opponents buzz in, answer, wager and play the Final by themselves — great for practice or a small group. They never buzz early, and their results are not saved to any player profile.</p>
+        <Field label="Name">
+          <input className={inputCls} value={name} maxLength={40} onChange={(e) => setName(e.target.value)} aria-label="Computer opponent name" />
+        </Field>
+        <Field label="Difficulty" group>
+          <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Difficulty">
+            {(Object.entries(BOT_LEVELS) as [BotLevel, (typeof BOT_LEVELS)[BotLevel]][]).map(([k, v]) => (
+              <button key={k} type="button" role="radio" aria-checked={level === k} onClick={() => setLevel(k)} className={cx('min-h-16 rounded-xl border-2 px-3 py-2 text-left', level === k ? 'border-blue-700 bg-blue-50' : 'border-slate-200')}>
+                <span className="block font-semibold">{v.label}</span>
+                <span className="block text-xs text-slate-500">{v.description}</span>
+              </button>
+            ))}
+          </div>
+        </Field>
+        <ActionButton
+          size="lg"
+          className="w-full"
+          disabled={!name.trim()}
+          onAction={async () => {
+            if (await run({ type: 'addBot', name: name.trim(), level })) onClose();
+          }}
+          data-testid="confirm-add-bot"
+        >
+          Add {name.trim() || 'opponent'}
+        </ActionButton>
+      </div>
+    </Modal>
   );
 }
 

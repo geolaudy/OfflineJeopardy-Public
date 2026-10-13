@@ -58,6 +58,7 @@ function demoGame(view: PreviewView): GameView {
     final: null,
     timer: null,
     intro: view === 'intro' ? { roundIndex: 0, step: 0, auto: false } : view === 'title' ? { roundIndex: 0, step: -1, auto: false } : null,
+    practice: false,
     showJoinQr: false,
     results: null,
     startedAt: null,

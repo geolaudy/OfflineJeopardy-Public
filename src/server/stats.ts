@@ -4,6 +4,8 @@
 import type { DB } from './db/db.js';
 
 const COMPLETED = `g.status = 'completed'`;
+/** Games that count in statistics: completed and not marked as practice. */
+const COUNTED = `g.status = 'completed' AND g.practice = 0`;
 
 interface AnswerAgg {
   correct: number;
@@ -72,7 +74,7 @@ export function profileStats(db: DB, profileId: string) {
     .prepare(
       `SELECT gc.kind, gc.final_score, gc.is_winner FROM game_participants gp
        JOIN game_competitors gc ON gc.game_id = gp.game_id AND gc.competitor_id = gp.competitor_id
-       JOIN games g ON g.id = gp.game_id WHERE gp.profile_id = ? AND ${COMPLETED}`,
+       JOIN games g ON g.id = gp.game_id WHERE gp.profile_id = ? AND ${COUNTED}`,
     )
     .all(profileId) as { kind: string; final_score: number | null; is_winner: number | null }[];
 
@@ -83,7 +85,7 @@ export function profileStats(db: DB, profileId: string) {
        FROM gameplay_events e JOIN games g ON g.id = e.game_id
        JOIN game_competitors gc ON gc.game_id = e.game_id AND gc.competitor_id = e.competitor_id
        LEFT JOIN game_clues c ON c.game_id = e.game_id AND c.clue_id = e.clue_id
-       WHERE e.type = 'answer' AND e.voided = 0 AND e.profile_id = ? AND ${COMPLETED}`,
+       WHERE e.type = 'answer' AND e.voided = 0 AND e.profile_id = ? AND ${COUNTED}`,
     )
     .all(profileId) as { kind: string; result: string; score_delta: number; contribution_delta: number; wager: number | null; note: string | null; category: string | null }[];
 
@@ -91,7 +93,7 @@ export function profileStats(db: DB, profileId: string) {
     .prepare(
       `SELECT gc.kind, e.result, e.reaction_ms, e.score_delta FROM gameplay_events e JOIN games g ON g.id = e.game_id
        JOIN game_competitors gc ON gc.game_id = e.game_id AND gc.competitor_id = e.competitor_id
-       WHERE e.type = 'buzz' AND e.voided = 0 AND e.profile_id = ? AND ${COMPLETED}`,
+       WHERE e.type = 'buzz' AND e.voided = 0 AND e.profile_id = ? AND ${COUNTED}`,
     )
     .all(profileId) as { kind: string; result: string; reaction_ms: number | null; score_delta: number }[];
 
@@ -154,20 +156,20 @@ export function profileStats(db: DB, profileId: string) {
 
 export function teamStats(db: DB, teamId: string) {
   const games = db
-    .prepare(`SELECT gc.game_id, gc.competitor_id, gc.final_score, gc.is_winner FROM game_competitors gc JOIN games g ON g.id = gc.game_id WHERE gc.team_id = ? AND ${COMPLETED}`)
+    .prepare(`SELECT gc.game_id, gc.competitor_id, gc.final_score, gc.is_winner FROM game_competitors gc JOIN games g ON g.id = gc.game_id WHERE gc.team_id = ? AND ${COUNTED}`)
     .all(teamId) as { game_id: string; competitor_id: string; final_score: number | null; is_winner: number | null }[];
   const answers = db
     .prepare(
       `SELECT e.result, e.score_delta, e.wager, e.note, e.profile_id, c.category_name AS category FROM gameplay_events e
        JOIN game_competitors gc ON gc.game_id = e.game_id AND gc.competitor_id = e.competitor_id
        JOIN games g ON g.id = e.game_id LEFT JOIN game_clues c ON c.game_id = e.game_id AND c.clue_id = e.clue_id
-       WHERE gc.team_id = ? AND e.type = 'answer' AND e.voided = 0 AND ${COMPLETED}`,
+       WHERE gc.team_id = ? AND e.type = 'answer' AND e.voided = 0 AND ${COUNTED}`,
     )
     .all(teamId) as { result: string; score_delta: number; wager: number | null; note: string | null; profile_id: string | null; category: string | null }[];
   const buzzes = db
     .prepare(
       `SELECT e.result, e.reaction_ms FROM gameplay_events e JOIN game_competitors gc ON gc.game_id = e.game_id AND gc.competitor_id = e.competitor_id
-       JOIN games g ON g.id = e.game_id WHERE gc.team_id = ? AND e.type = 'buzz' AND e.voided = 0 AND ${COMPLETED}`,
+       JOIN games g ON g.id = e.game_id WHERE gc.team_id = ? AND e.type = 'buzz' AND e.voided = 0 AND ${COUNTED}`,
     )
     .all(teamId) as { result: string; reaction_ms: number | null }[];
   const wagers = answers.filter((a) => a.wager != null);
@@ -194,7 +196,7 @@ export function teamStats(db: DB, teamId: string) {
 export function profileHistory(db: DB, profileId: string) {
   const rows = db
     .prepare(
-      `SELECT g.id, g.title, g.mode, g.started_at AS startedAt, g.ended_at AS endedAt, gc.name_snapshot AS competitorName, gc.kind,
+      `SELECT g.id, g.title, g.mode, g.practice, g.started_at AS startedAt, g.ended_at AS endedAt, gc.name_snapshot AS competitorName, gc.kind,
          gc.final_score AS finalScore, gc.placement, gc.is_winner AS isWinner,
          (SELECT COUNT(*) FROM game_competitors x WHERE x.game_id = g.id) AS competitorCount,
          (SELECT GROUP_CONCAT(x.name_snapshot, ', ') FROM game_competitors x WHERE x.game_id = g.id AND x.is_winner = 1) AS winners,
@@ -205,13 +207,13 @@ export function profileHistory(db: DB, profileId: string) {
        WHERE gp.profile_id = ? AND ${COMPLETED} ORDER BY g.ended_at DESC`,
     )
     .all(profileId) as Record<string, unknown>[];
-  return rows.map((r) => ({ ...r, isWinner: !!r.isWinner, durationMs: r.endedAt && r.startedAt ? (r.endedAt as number) - (r.startedAt as number) : null }));
+  return rows.map((r) => ({ ...r, practice: !!r.practice, isWinner: !!r.isWinner, durationMs: r.endedAt && r.startedAt ? (r.endedAt as number) - (r.startedAt as number) : null }));
 }
 
 export function listHistory(db: DB) {
   return db
     .prepare(
-      `SELECT g.id, g.title, g.mode, g.started_at AS startedAt, g.ended_at AS endedAt,
+      `SELECT g.id, g.title, g.mode, g.practice, g.started_at AS startedAt, g.ended_at AS endedAt,
          (SELECT GROUP_CONCAT(x.name_snapshot, ', ') FROM game_competitors x WHERE x.game_id = g.id AND x.is_winner = 1) AS winners,
          (SELECT COUNT(*) FROM game_competitors x WHERE x.game_id = g.id) AS competitorCount
        FROM games g WHERE ${COMPLETED} ORDER BY g.ended_at DESC`,

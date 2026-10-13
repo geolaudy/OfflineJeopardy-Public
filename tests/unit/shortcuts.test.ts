@@ -29,7 +29,9 @@ describe('host keyboard shortcuts (H15)', () => {
     s = run(s, { type: 'unlockBuzzers' });
     expect(shortcutAction(' ', false, host(s))).toEqual({ type: 'lockBuzzers' });
     expect(shortcutAction('E', false, host(s))).toEqual({ type: 'endAnswering', clueId: 'hist_1' });
+    expect(shortcutAction('b', false, host(s))).toEqual({ type: 'hostBuzz', competitorId: s.competitors[0].id });
     s = run(s, { type: 'buzz', competitorId: s.competitors[0].id, profileId: 'a', controllerId: 'phone:a', sourceKind: 'phone' });
+    expect(shortcutAction('b', false, host(s))).toBeNull(); // someone already buzzed
     expect(shortcutAction('C', false, host(s))).toEqual({ type: 'judge', result: 'correct' });
     expect(shortcutAction('x', false, host(s))).toEqual({ type: 'judge', result: 'incorrect' });
     s = run(s, { type: 'judge', result: 'correct' });

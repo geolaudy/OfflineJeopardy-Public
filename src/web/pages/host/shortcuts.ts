@@ -6,6 +6,7 @@ import type { HostAction } from '../../../shared/actions';
 
 export const HOST_SHORTCUTS: [string, string][] = [
   ['Space', 'Unlock / lock buzzers'],
+  ['B', 'Buzz (single player)'],
   ['C', 'Correct'],
   ['X', 'Incorrect'],
   ['E', 'Nobody knows (end answering)'],
@@ -32,6 +33,11 @@ export function shortcutAction(key: string, ctrl: boolean, g: GameView): HostAct
       return judgeable && !(g.competitors.find((c) => c.id === g.buzzer.winner?.competitorId)?.buzzerMode === 'shared') ? { type: 'judge', result: 'correct' } : null;
     case 'x':
       return judgeable && !(g.competitors.find((c) => c.id === g.buzzer.winner?.competitorId)?.buzzerMode === 'shared') ? { type: 'judge', result: 'incorrect' } : null;
+    case 'b': {
+      // Single-player: buzz for the one human player (computer opponents buzz on their own).
+      const humans = g.competitors.filter((c) => !c.bot && !g.buzzer.attemptedCompetitors.includes(c.id));
+      return g.buzzer.status === 'open' && !g.buzzer.winner && humans.length === 1 ? { type: 'hostBuzz', competitorId: humans[0].id } : null;
+    }
     case 'e':
       return !clue.isDailyWager && !clue.answeringEnded && !g.buzzer.winner ? { type: 'endAnswering', clueId: clue.clueId } : null;
     case 'r':

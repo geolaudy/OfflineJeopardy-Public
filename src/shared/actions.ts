@@ -49,6 +49,9 @@ export const hostActionSchema = z.discriminatedUnion('type', [
     memberIds: z.array(id).max(50),
   }),
   z.object({ type: z.literal('removeCompetitor'), competitorId: id }),
+  z.object({ type: z.literal('addBot'), name, level: z.enum(['easy', 'medium', 'hard', 'expert']), color: color.optional() }),
+  // The host buzzes on behalf of a competitor (single-player practice, or a player whose device failed).
+  z.object({ type: z.literal('hostBuzz'), competitorId: id }),
   z.object({
     type: z.literal('updateCompetitor'),
     competitorId: id,
@@ -56,6 +59,7 @@ export const hostActionSchema = z.discriminatedUnion('type', [
     color: color.optional(),
     avatar: z.string().max(64).optional(),
     buzzerMode: z.enum(['individual', 'shared']).optional(),
+    botLevel: z.enum(['easy', 'medium', 'hard', 'expert']).optional(),
   }),
   z.object({ type: z.literal('assignMember'), profileId: id, competitorId: id.nullable() }),
   z.object({ type: z.literal('approvePlayer'), profileId: id }),
@@ -136,7 +140,7 @@ export type SystemAction =
       competitorId: string;
       profileId: string | null;
       controllerId: string;
-      sourceKind: 'joycon' | 'phone' | 'keyboard' | 'gamepad' | 'host';
+      sourceKind: 'joycon' | 'phone' | 'keyboard' | 'gamepad' | 'host' | 'bot';
     }
   | { type: 'timerExpire' }
   | { type: 'playerJoin'; profileId: string };

@@ -426,6 +426,48 @@ describe('boards: import, export, versions', () => {
   });
 });
 
+describe('computer opponents and practice games (O3)', () => {
+  it('a practice game vs a computer opponent is kept in history but not counted in statistics', async () => {
+    const s = await start();
+    const host = await hostToken(s);
+    const alex = await createProfile(s, 'Alex');
+    const boardId = await sampleBoardId(s, host);
+    s.games.bots.speed = 0.02; // fast-forward the computer players
+    s.games.bots.random = () => 0; // always knows, fastest
+    await api(s, 'POST', '/api/games', { boardId, mode: 'solo', practice: true }, host);
+    const h = await client(s, 'host', host);
+    await h.act({ type: 'addPlayer', profileId: alex.id });
+    await h.act({ type: 'addBot', name: 'Robo Rita', level: 'expert' });
+    expect(h.state!.practice).toBe(true);
+    await h.act({ type: 'updateRules', rules: { ...h.state!.rules, categoryIntro: false } });
+    await h.act({ type: 'startGame' });
+    const botId = h.state!.competitors.find((c) => c.bot)!.id;
+    // Practice auto-opens the buzzers; the bot buzzes and answers by itself.
+    await h.act({ type: 'selectClue', clueId: 'hist_1' });
+    await h.waitState((g) => (g?.competitors.find((c) => c.id === botId)?.score ?? 0) === 200, 5000);
+    // The human (host on the same device) buzzes for themselves on the next clue.
+    s.games.bots.random = () => 0.99; // the bot doesn't know this one
+    await h.act({ type: 'closeClue' });
+    await h.act({ type: 'selectClue', clueId: 'hist_2' });
+    await h.waitState((g) => g?.buzzer.status === 'open', 5000);
+    const alexC = h.state!.competitors.find((c) => c.profileId === alex.id)!;
+    await h.act({ type: 'hostBuzz', competitorId: alexC.id });
+    expect(h.state!.buzzer.winner).toMatchObject({ competitorId: alexC.id, sourceKind: 'host' });
+    await h.act({ type: 'judge', result: 'correct' });
+    await h.act({ type: 'endGame' });
+
+    const hist = (await api(s, 'GET', '/api/me/history', undefined, alex.token)).data;
+    expect(hist).toHaveLength(1);
+    expect(hist[0]).toMatchObject({ practice: true, finalScore: 400 });
+    const detail = (await api(s, 'GET', `/api/history/${hist[0].id}`, undefined, alex.token)).data;
+    expect(detail.competitors.map((c: { name: string }) => c.name).sort()).toEqual(['Alex', 'Robo Rita (computer)']);
+    const st = (await api(s, 'GET', '/api/me/stats', undefined, alex.token)).data;
+    expect(st.combined.gamesPlayed).toBe(0); // practice is not counted
+    const lb = (await api(s, 'GET', '/api/stats/leaderboard', undefined, alex.token)).data;
+    expect(lb.find((r: { id: string }) => r.id === alex.id).solo.games).toBe(0);
+  });
+});
+
 describe('custom TV themes (O5)', () => {
   it('creates, validates, selects, exports/imports (with images) and deletes themes; DB migrates additively', async () => {
     const s = await start();
@@ -469,7 +511,7 @@ describe('custom TV themes (O5)', () => {
     await api(s, 'DELETE', `/api/themes/${t.id}`, undefined, host);
     expect((await api(s, 'GET', '/api/settings/public')).data).toMatchObject({ theme: 'classic', custom: null });
     const { schemaVersion } = await import('../../src/server/db/db');
-    expect(schemaVersion(s.db)).toBe(2);
+    expect(schemaVersion(s.db)).toBe(3);
   });
 });
 

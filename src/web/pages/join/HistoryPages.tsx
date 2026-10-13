@@ -24,6 +24,7 @@ interface HistoryRow {
   winners: string | null;
   correct: number;
   incorrect: number;
+  practice?: boolean;
 }
 
 export function HistoryPage({ me: _me }: { me: Me }) {
@@ -37,6 +38,7 @@ export function HistoryPage({ me: _me }: { me: Me }) {
           <Link to={`/join/history/${r.id}`} className="block rounded-2xl bg-white p-3 shadow-sm active:bg-slate-50" data-testid="history-row">
             <div className="flex items-center gap-2">
               <span className="min-w-0 flex-1 truncate font-bold">{r.title}</span>
+              {r.practice && <span className="rounded-full bg-violet-100 px-2 text-xs font-bold text-violet-800">PRACTICE</span>}
               {r.isWinner && <span className="rounded-full bg-yellow-300 px-2 text-xs font-bold">WON</span>}
               <span aria-hidden className="text-slate-400">
                 ›

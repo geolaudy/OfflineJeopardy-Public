@@ -145,6 +145,7 @@ export function HistoryList({ rows, as, highlightProfile }: { rows: any[]; as: '
             <button onClick={() => setOpen(r.id)} className="w-full rounded-xl border border-slate-200 bg-white p-3 text-left hover:bg-slate-50" data-testid="history-row">
               <div className="flex items-center gap-2">
                 <span className="flex-1 truncate font-semibold">{r.title}</span>
+                {r.practice && <span className="rounded-full bg-violet-100 px-2 text-xs font-bold text-violet-800">PRACTICE</span>}
                 {r.isWinner && <span className="rounded-full bg-yellow-300 px-2 text-xs font-bold">WON</span>}
               </div>
               <div className="text-sm text-slate-500">

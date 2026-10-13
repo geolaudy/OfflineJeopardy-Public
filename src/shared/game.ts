@@ -184,9 +184,20 @@ export interface Competitor {
   avatar?: string;
   buzzerMode: BuzzerMode;
   memberIds: Id[]; // profile ids (historical membership for this game)
+  /** Computer opponent (solo games): no profile; name/colour live on the competitor. */
+  bot?: BotLevel;
 }
 
-export type InputKind = 'joycon' | 'phone' | 'keyboard' | 'gamepad' | 'host';
+export type InputKind = 'joycon' | 'phone' | 'keyboard' | 'gamepad' | 'host' | 'bot';
+
+export type BotLevel = 'easy' | 'medium' | 'hard' | 'expert';
+export const BOT_LEVELS: Record<BotLevel, { label: string; description: string }> = {
+  easy: { label: 'Easy', description: 'Knows about a third of the answers and buzzes slowly.' },
+  medium: { label: 'Medium', description: 'Knows about half of the answers; average reactions.' },
+  hard: { label: 'Hard', description: 'Knows most answers and buzzes fast.' },
+  expert: { label: 'Expert', description: 'Rarely misses and is very quick on the buzzer.' },
+};
+export const BOT_NAMES = ['Robo Rita', 'Byte Bert', 'Quizbot Quinn', 'Circuit Cleo', 'Professor Pixel', 'Data Dana', 'Gizmo Gus', 'Turing Tess'];
 
 export type BindingTarget = { kind: 'profile'; profileId: Id } | { kind: 'competitor'; competitorId: Id };
 
@@ -360,6 +371,8 @@ export interface GameState {
   events: GameplayEvent[];
   seq: number;
   showJoinQr: boolean;
+  /** Practice game: playable and kept in history, but not counted in statistics or leaderboards. */
+  practice: boolean;
   createdAt: number;
   startedAt: number | null;
   endedAt: number | null;

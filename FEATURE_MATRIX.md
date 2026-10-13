@@ -2,7 +2,7 @@
 
 Statuses: NOT STARTED · IN PROGRESS · IMPLEMENTED (code exists, no automated test) · TESTED (relevant automated tests pass) · BLOCKED.
 Test keys: **U** = `tests/unit/engine.test.ts` · **I** = `tests/integration/server.test.ts` · **E** = `tests/e2e/game.spec.ts`, **E2** = `tests/e2e/teams-editor.spec.ts` (Playwright: Chromium TV/desktop/Android, WebKit iPad/iPhone).
-Last full run: 2026-10-12 (session 3) — Vitest 65/65, Playwright 10/10 passing. **L** = tests/e2e/library.spec.ts, **T** = tests/e2e/themes.spec.ts.
+Last full run: 2026-10-12 (session 3) — Vitest 71/71, Playwright 11/11 passing. **L** = tests/e2e/library.spec.ts, **T** = tests/e2e/themes.spec.ts, **P** = tests/e2e/practice.spec.ts.
 
 ## Core architecture & desktop
 
@@ -129,7 +129,7 @@ Last full run: 2026-10-12 (session 3) — Vitest 65/65, Playwright 10/10 passing
 |---|---|---|---|---|
 | O1 | Offline operation (no external requests) | P0 | TESTED | E (request interception across all pages) |
 | O2 | LAN address detection + interface choice + troubleshooting | P0 | IMPLEMENTED | desk/Connect.tsx, network.ts |
-| O3 | Single-player vs computer opponents, practice mode | P2 | NOT STARTED | |
+| O3 | Single-player vs computer opponents (4 difficulties: knowledge, reaction time, risk, wager style; buzz/answer/Daily Wager/Final automatically, never early), practice mode (not counted in stats, auto-opening buzzers, answer hidden from the playing host, B = buzz) | P2 | TESTED | server/bots.ts, engine addBot/hostBuzz, migration v3 (games.practice), stats COUNTED filter, host Setup/GamePicker/Live — tests: tests/unit/bots.test.ts, I (practice excluded from stats, bot history snapshot), P = tests/e2e/practice.spec.ts. Bots are solo-mode only; the host still picks clues for them |
 | O4 | Shared-screen local multiplayer (keyboard buzzers on one PC) | P1 | IMPLEMENTED | keyboard buzzers + host on same PC |
 | O5 | Theme editor (colors, offline font stacks, text sizes, corners, shadows, value prefix, background image + dim, logo), live preview (real TV page in iframe), import/export (.ojtheme.json with embedded, re-validated images), live TV update | P2 | TESTED | shared/themes.ts, db migration v2, repos.ts, app.ts /api/themes*, board/common.tsx + Preview.tsx, desk/Themes.tsx — tests: I (CRUD, auth, URL whitelist, import re-validation, TV resolution, migration), T = tests/e2e/themes.spec.ts. Not customizable yet: sound effects, transition/reveal effects, timer/scoreboard layout |
 | O6 | Workspaces & roles | P3 | NOT STARTED | |

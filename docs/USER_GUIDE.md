@@ -30,6 +30,9 @@
 - Players who tick "Keep my statistics private" are hidden from the leaderboard and their stats page shows as private.
 - Edits to name, nickname, photo, avatar and color appear on the TV instantly.
 
+## Playing alone or with computer opponents
+Create a game with **Individuals** and tick **🧪 Practice game** (not counted in statistics). In setup, add yourself and one or more **🤖 Computer opponents** (Easy, Medium, Hard, Expert). On the PC the host screen is your game controller: tap a clue, the buzzers open by themselves after a moment, press **B** (or the big Buzz button) to buzz in, say your answer, then mark yourself Correct/Incorrect — the answer stays hidden until then. Computer opponents buzz, answer, wager and play the Final on their own. You can also add computer opponents to a normal solo game.
+
 ## TV themes
 Dashboard → **TV themes**: pick one of the 8 built-in looks, or **Customize…** one — colors, fonts, text sizes, corners, shadows, what appears before values ($, €, nothing…), a background image and a logo. The preview shows the real TV screen; **Save & use on TV** switches the TV immediately. Share themes with **Export** / **Import theme…** (.ojtheme.json, pictures included).
 

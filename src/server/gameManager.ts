@@ -11,6 +11,7 @@ import { resolveInput } from './engine/buzzer.js';
 import { getSetting, setSetting } from './db/db.js';
 import { loadGame, newId, persistGame, profilesByIds, recordParticipants, snapshotClues } from './repos.js';
 import type { ProfilePublic } from '../shared/views.js';
+import { BotDriver } from './bots.js';
 
 export class GameManager {
   current: GameState | null = null;
@@ -21,6 +22,11 @@ export class GameManager {
   introStepMs = 3500;
   onChange: () => void = () => {};
   clock: () => number = () => Date.now();
+
+  /** Computer opponents and practice auto-pilot. */
+  readonly bots = new BotDriver((a) => {
+    if (this.current) this.dispatch(a, 'bot');
+  });
 
   constructor(private db: DB) {}
 
@@ -43,6 +49,7 @@ export class GameManager {
     s.buzzer.lockouts = {};
     this.current = s;
     persistGame(this.db, s, []);
+    this.bots.sync(s);
   }
 
   profilesFor(s: GameState | null): Record<string, ProfilePublic> {
@@ -53,7 +60,7 @@ export class GameManager {
     return profilesByIds(this.db, [...ids]);
   }
 
-  create(opts: { title: string; boardId: string | null; board: BoardContent; mode: 'solo' | 'team'; rules: GameRules }) {
+  create(opts: { title: string; boardId: string | null; board: BoardContent; mode: 'solo' | 'team'; rules: GameRules; practice?: boolean }) {
     const s = createGame({ id: newId(), now: this.clock(), ...opts });
     persistGame(this.db, s, []);
     snapshotClues(this.db, s);
@@ -78,6 +85,7 @@ export class GameManager {
     setSetting(this.db, 'currentGameId', s?.id ?? null);
     this.scheduleTimer();
     this.scheduleIntro();
+    this.bots.sync(this.current);
     this.onChange();
   }
 
@@ -104,6 +112,7 @@ export class GameManager {
     this.scheduleTimer();
     if (action.type === 'buzz' || action.type === 'unlockBuzzers' || action.type === 'undo') this.scheduleLockoutRefresh();
     if (action.type === 'startIntro' || action.type === 'introNext' || action.type === 'introSkip' || action.type === 'undo') this.scheduleIntro();
+    this.bots.sync(this.current);
     this.onChange();
     return res;
   }
@@ -158,6 +167,7 @@ export class GameManager {
   }
 
   dispose() {
+    this.bots.stop();
     for (const h of [this.timerHandle, this.lockoutHandle, this.introHandle]) if (h) clearTimeout(h);
     this.timerHandle = this.lockoutHandle = this.introHandle = null;
     this.onChange = () => {};

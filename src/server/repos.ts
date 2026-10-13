@@ -333,11 +333,11 @@ export function persistGame(db: DB, s: GameState, touched: GameplayEvent[], stat
   const now = Date.now();
   tx(db, () => {
     db.prepare(
-      `INSERT INTO games (id, board_id, title, mode, status, state_json, created_at, updated_at, started_at, ended_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO games (id, board_id, title, mode, status, state_json, created_at, updated_at, started_at, ended_at, practice)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET title = excluded.title, status = excluded.status, state_json = excluded.state_json,
-       updated_at = excluded.updated_at, started_at = excluded.started_at, ended_at = excluded.ended_at`,
-    ).run(s.id, s.boardId && getBoardExists(db, s.boardId) ? s.boardId : null, s.title, s.mode, statusOverride ?? gameStatus(s), JSON.stringify(rest), s.createdAt, now, s.startedAt, s.endedAt);
+       updated_at = excluded.updated_at, started_at = excluded.started_at, ended_at = excluded.ended_at, practice = excluded.practice`,
+    ).run(s.id, s.boardId && getBoardExists(db, s.boardId) ? s.boardId : null, s.title, s.mode, statusOverride ?? gameStatus(s), JSON.stringify(rest), s.createdAt, now, s.startedAt, s.endedAt, s.practice ? 1 : 0);
     const up = db.prepare(
       `INSERT INTO gameplay_events (id, game_id, seq, type, at, clue_id, round_index, competitor_id, team_id, profile_id, controller_id, source_kind,
          result, score_delta, contribution_delta, wager, reaction_ms, note, corrects_event_id, voided, voided_by)
@@ -444,8 +444,8 @@ export function recordParticipants(db: DB, s: GameState, profiles: Record<string
     for (const c of s.competitors) {
       const res = s.results?.find((r) => r.competitorId === c.id);
       const teamId = c.teamId && teamExists.get(c.teamId) ? c.teamId : null;
-      const name = c.kind === 'player' ? profiles[c.profileId!]?.name ?? 'Player' : c.name;
-      insC.run(s.id, c.id, c.kind, teamId, c.kind === 'player' ? c.profileId! : null, name, c.color, c.buzzerMode, res?.score ?? null, res?.placement ?? null, res ? (res.isWinner ? 1 : 0) : null);
+      const name = c.bot ? `${c.name} (computer)` : c.kind === 'player' ? profiles[c.profileId!]?.name ?? 'Player' : c.name;
+      insC.run(s.id, c.id, c.kind, teamId, c.kind === 'player' ? (c.profileId ?? null) : null, name, c.color, c.buzzerMode, res?.score ?? null, res?.placement ?? null, res ? (res.isWinner ? 1 : 0) : null);
       for (const pid of c.memberIds) insP.run(s.id, pid, c.id, teamId, profiles[pid]?.name ?? 'Player');
     }
     const insA = db.prepare(

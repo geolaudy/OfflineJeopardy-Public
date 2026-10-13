@@ -79,6 +79,7 @@ export function normalizeState(s: GameState): GameState {
   if (!Array.isArray(s.buzzer.early)) s.buzzer.early = [];
   if (s.clue && typeof s.clue.answeringEnded !== 'boolean') s.clue.answeringEnded = s.clue.resolved;
   if (s.intro === undefined) s.intro = null;
+  if (typeof s.practice !== 'boolean') s.practice = false;
   return s;
 }
 
@@ -90,6 +91,7 @@ export function createGame(opts: {
   mode: 'solo' | 'team';
   rules: GameRules;
   now: number;
+  practice?: boolean;
 }): GameState {
   return {
     id: opts.id,
@@ -114,6 +116,7 @@ export function createGame(opts: {
     events: [],
     seq: 0,
     showJoinQr: true,
+    practice: !!opts.practice,
     createdAt: opts.now,
     startedAt: null,
     endedAt: null,
@@ -340,6 +343,28 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       });
       return;
     }
+    case 'addBot': {
+      if (s.mode !== 'solo') fail('Computer opponents play in individual (solo) games');
+      if (s.competitors.filter((c) => c.bot).length >= 5) fail('Up to 5 computer opponents per game');
+      if (s.competitors.some((c) => c.bot && c.name.toLowerCase() === a.name.trim().toLowerCase())) fail('Give each computer opponent a different name');
+      s.competitors.push({
+        id: ctx.newId(),
+        kind: 'player',
+        name: a.name.trim(),
+        color: a.color ?? TEAM_COLORS[(s.competitors.length + 3) % TEAM_COLORS.length],
+        avatar: 'robot',
+        buzzerMode: 'individual',
+        memberIds: [],
+        bot: a.level,
+      });
+      return;
+    }
+    case 'hostBuzz': {
+      const c = competitorOf(s, a.competitorId);
+      // Same arbitration as every device; the host is the input source.
+      const pid = c.kind === 'player' ? (c.profileId ?? null) : null;
+      return handleBuzz(tx, { type: 'buzz', competitorId: c.id, profileId: pid, controllerId: `host:${c.id}`, sourceKind: 'host' });
+    }
     case 'removeCompetitor': {
       const c = competitorOf(s, a.competitorId);
       if (s.phase !== 'lobby' && s.events.some((e) => e.competitorId === c.id && !e.voided && e.scoreDelta))
@@ -358,6 +383,10 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       if (a.buzzerMode !== undefined) {
         if (c.kind !== 'team') fail('Only teams have a buzzer mode');
         c.buzzerMode = a.buzzerMode;
+      }
+      if (a.botLevel !== undefined) {
+        if (!c.bot) fail('Only computer opponents have a difficulty');
+        c.bot = a.botLevel;
       }
       return;
     }
@@ -707,7 +736,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
     case 'adjustScore': {
       const c = competitorOf(s, a.competitorId);
       if (a.delta === 0) fail('Enter a non-zero amount');
-      const pid = a.profileId ? attribution(c, a.profileId, null) : c.kind === 'player' ? c.profileId! : null;
+      const pid = a.profileId ? attribution(c, a.profileId, null) : c.kind === 'player' ? (c.profileId ?? null) : null;
       emit(tx, {
         type: 'score_adjust',
         competitorId: c.id,
