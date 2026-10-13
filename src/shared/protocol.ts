@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { BindingTarget, InputKind } from './game.js';
 import type { GameView, PlayerContext } from './views.js';
 import { presentRequestSchema, type PresentationState, type PublicLobby } from './presentation.js';
+import type { BuzzCheckView, ConnectionRow } from './buzzCheck.js';
 
 export const ControllerEventSchema = z.discriminatedUnion('type', [
   z.object({
@@ -37,7 +38,10 @@ export const ClientMessageSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('join'), code: z.string().max(12).optional() }),
   z.object({ t: z.literal('finalWager'), amount: z.number().int() }),
   z.object({ t: z.literal('finalAnswer'), answer: z.string().max(200) }),
-  z.object({ t: z.literal('ping'), c: z.number() }),
+  // rtt: the client's last measured round trip (ms), for connection diagnostics.
+  z.object({ t: z.literal('ping'), c: z.number(), rtt: z.number().min(0).max(60_000).optional() }),
+  // Host: run a buzzer check (Z11), or refresh the connection list.
+  z.object({ t: z.literal('buzzCheck'), action: z.enum(['start', 'stop', 'refresh']) }),
   z.object({ t: z.literal('controller'), ev: ControllerEventSchema }),
   z.object({ t: z.literal('assignListen'), target: target.nullable(), label: z.string().max(60).optional() }),
   z.object({ t: z.literal('controllerConfig'), controllerId: z.string(), label: z.string().max(60).optional(), buzzButtons: z.string().max(200).optional() }),
@@ -67,6 +71,10 @@ export type ServerMessage =
   | { t: 'result'; id?: number; ok: boolean; error?: string; info?: string }
   | { t: 'controllers'; list: ControllerInfo[]; listening: { target: BindingTarget; label?: string } | null }
   | { t: 'controllerInput'; controllerId: string; button: string; at: number }
+  /** Hosts: the buzzer check and phone connection quality. */
+  | { t: 'buzzCheck'; view: BuzzCheckView | null; connections: ConnectionRow[] }
+  /** Players: only whether a check runs and whether this phone already pressed. */
+  | { t: 'buzzCheckMine'; active: boolean; endsAt: number; pressed: boolean }
   /** To the window reading this controller: play feedback (lights / vibration). */
   | { t: 'controllerFx'; controllerId: string; fx: 'identify' | 'test' | 'buzzWin' | 'early' }
   | { t: 'buzzResult'; ok: boolean; info?: string }

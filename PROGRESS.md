@@ -27,8 +27,9 @@
 - **UX pass part 2:** live game on iPhone SE/13 and iPad Mini, editor on iPad portrait. One header bar on phones during a game (navigation + TV switch in the game bar; icon-only Pause/Menu; distinct ⋮ game menu), short buzzer labels, wrapping editor category controls. Tests: Vitest 110/110, Playwright 19/19.
 - Tagged **v0.4.0**.
 - **Real hardware verified by the user (2026-10-13):** host pairing by scanning the lobby QR with a real iPad, the host app on a real iPad, and real Joy-Cons on Windows all work (KNOWN_ISSUES K1, K2, K19 resolved; FEATURE_MATRIX H1, H9, Z7, R2-2, R2-3 updated).
-- **Joy-Con feedback (Z12):** vibration when a Joy-Con buzzes in first (one pulse) or too early (two taps), Identify (lights + pulse) and Vibrate test buttons. Fixed: Identify did nothing when pressed on the iPad (it ran locally) — controller feedback is now routed by the server to the window that reads the Joy-Con. Setting on the Buzzers page. Rumble not yet felt on hardware (K25). Tests: Vitest 115/115.
-- **Next:** latency diagnostics (Z11), team balancing (T11), tournament/series mode (O8), head-to-head comparison (T10).
+- **Joy-Con feedback (Z12):** vibration when a Joy-Con buzzes in first (one pulse) or too early (two taps), Identify (lights + pulse) and Vibrate test buttons. Fixed: Identify did nothing when pressed on the iPad (it ran locally) — controller feedback is now routed by the server to the window that reads the Joy-Con. Setting on the Buzzers page. Rumble not yet felt on hardware (K25). Tests: Vitest 114/114.
+- **Buzzer check + connection quality (Z11):** Buzzers page / lobby Buzzers tab: start a 20-second check; phones show a TEST button; every phone, Joy-Con and key that presses is listed in order (+ms after the first) with each phone's round-trip delay (Good/OK/Slow) and who has not pressed yet; presses never reach the game. Phones connected are listed with their delay at any time; slow phones get a tip. Tests: Vitest 115/115, Playwright 20/20.
+- **Next:** team balancing (T11), tournament/series mode (O8), head-to-head comparison (T10).
 
 ## Session 3 — 2026-10-12 (roadmap continuation, auto-push workflow)
 

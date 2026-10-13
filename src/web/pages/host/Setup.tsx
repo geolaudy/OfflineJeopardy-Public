@@ -7,6 +7,7 @@ import { attempt, useProfiles, useTeams } from '../../lib/hooks';
 import { ActionButton, Avatar, Button, Card, ColorPicker, Field, Modal, QrImage, inputCls, toast, cx } from '../../components/ui';
 import { AvatarPicker, ProfileCreateForm } from '../../components/ProfileForm';
 import ControllersPanel, { AssignListener } from '../../components/ControllersPanel';
+import BuzzCheckPanel from '../../components/BuzzCheckPanel';
 import { competitorAvatar, competitorName, profileName } from '../../lib/view';
 import { TEAM_AVATARS, avatarEmoji, PLAYER_COLORS } from '../../lib/avatars';
 import { BOT_LEVELS, BOT_NAMES, TEAM_COLORS, type BotLevel } from '../../../shared/game';
@@ -38,7 +39,18 @@ export default function Setup({ g }: { g: GameView }) {
           <Play size={20} aria-hidden /> Start game
         </ActionButton>
       </div>
-      {tab === 'players' ? g.mode === 'team' ? <TeamSetup g={g} /> : <SoloSetup g={g} /> : <ControllersPanel g={g} />}
+      {tab === 'players' ? (
+        g.mode === 'team' ? (
+          <TeamSetup g={g} />
+        ) : (
+          <SoloSetup g={g} />
+        )
+      ) : (
+        <>
+          <BuzzCheckPanel />
+          <ControllersPanel g={g} />
+        </>
+      )}
       <AssignListener g={g} />
     </div>
   );

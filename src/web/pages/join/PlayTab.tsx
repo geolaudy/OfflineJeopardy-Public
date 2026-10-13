@@ -24,6 +24,7 @@ export default function PlayTab({ me }: { me: Me }) {
   const g = useLive((s) => s.game);
   const ctx = useLive((s) => s.me);
   const lastBuzz = useLive((s) => s.lastBuzz);
+  const myCheck = useLive((s) => s.myCheck);
   const [pressed, setPressed] = useState(false);
   const [, force] = useState(0);
   // Re-render once when the "Too early" flash should disappear.
@@ -33,6 +34,7 @@ export default function PlayTab({ me }: { me: Me }) {
     return () => clearTimeout(t);
   }, [lastBuzz]);
 
+  if (myCheck?.active) return <BuzzCheckCard pressed={myCheck.pressed} />;
   if (!g) return <Idle text="No game is running right now. Stay on this page — it updates automatically when the host starts one." />;
   if (g.phase === 'ended') {
     const mine = g.competitors.find((c) => c.memberIds.includes(me.id));
@@ -252,4 +254,27 @@ function JoinForm({ needsCode }: { needsCode: boolean }) {
 
 function Idle({ text }: { text: string }) {
   return <div className="rounded-2xl bg-white p-6 text-center text-lg text-slate-700 shadow-sm">{text}</div>;
+}
+
+/** Buzzer check (Z11): press once so the host can see this phone works. Never affects the game. */
+function BuzzCheckCard({ pressed }: { pressed: boolean }) {
+  const rtt = useLive((s) => s.rtt);
+  return (
+    <div className="space-y-4 text-center" data-testid="phone-buzz-check">
+      <p className="text-lg font-semibold">Buzzer check</p>
+      <p className="text-slate-600">{pressed ? 'Got it — the host can see your buzzer works.' : 'The host is checking everyone’s buzzer. Press it once.'}</p>
+      <button
+        onClick={() => {
+          unlockAudio();
+          navigator.vibrate?.(40);
+          send({ t: 'buzz' });
+        }}
+        className={cx('mx-auto flex aspect-square w-[min(70vw,18rem)] items-center justify-center rounded-full text-3xl font-black select-none', pressed ? 'bg-green-600 text-white' : 'bg-red-600 text-white shadow-[0_10px_0_#7f1d1d] active:translate-y-2 active:shadow-none')}
+        data-testid="phone-buzz-check-button"
+      >
+        {pressed ? 'OK!' : 'TEST'}
+      </button>
+      {rtt != null && <p className="text-sm text-slate-500">Connection delay: {Math.round(rtt)} ms</p>}
+    </div>
+  );
 }

@@ -11,6 +11,9 @@ import { playerContext, projectState } from './engine/projection.js';
 import { getProfile } from './repos.js';
 import type { GameView } from '../shared/views.js';
 import type { LobbyManager } from './lobby.js';
+import { BuzzCheck } from './buzzCheck.js';
+import { rttQuality, type BuzzCheckExpected, type ConnectionRow } from '../shared/buzzCheck.js';
+import type { InputKind } from '../shared/game.js';
 
 interface Client {
   ws: WebSocket;
@@ -23,6 +26,7 @@ interface Client {
   msgCount: number;
   msgWindow: number;
   joinFails: number[]; // timestamps of wrong room codes (rate limiting)
+  rtt: number | null; // last round trip the client reported
 }
 
 export class Hub {
@@ -31,6 +35,7 @@ export class Hub {
   private closed = false;
 
   lobby: LobbyManager | null = null;
+  readonly check = new BuzzCheck();
 
   constructor(
     private db: DB,
@@ -43,6 +48,58 @@ export class Hub {
     };
     controllers.onChange = () => this.sendControllers();
     controllers.onInput = (controllerId, button, at) => this.toHosts({ t: 'controllerInput', controllerId, button, at });
+    this.check.onChange = () => this.sendBuzzCheck();
+  }
+
+  // ---------- buzzer check (Z11) ----------
+
+  private profileName(id: string) {
+    const p = getProfile(this.db, id);
+    return p ? p.nickname || p.display_name : 'Player';
+  }
+
+  /** Phones connected right now with their last reported delay. */
+  connections(): ConnectionRow[] {
+    const best = new Map<string, number | null>();
+    for (const c of this.clients) {
+      if (c.role !== 'player' || !c.profileId) continue;
+      const prev = best.get(c.profileId);
+      best.set(c.profileId, prev == null ? c.rtt : c.rtt == null ? prev : Math.min(prev, c.rtt));
+    }
+    return [...best].map(([id, rtt]) => ({ name: this.profileName(id), rttMs: rtt, quality: rttQuality(rtt) })).sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  startBuzzCheck() {
+    const expected: BuzzCheckExpected[] = [];
+    for (const id of this.onlineProfiles()) expected.push({ key: `phone:${id}`, name: this.profileName(id), kind: 'phone' });
+    for (const d of this.controllers.list()) if (d.connected) expected.push({ key: d.id, name: this.controllerName(d.id, d.label), kind: d.kind });
+    this.check.start(expected); // phones ping right away when told a check started (fresh delay numbers)
+  }
+
+  /** The player a controller is assigned to in the current game, else its own label. */
+  private controllerName(controllerId: string, label: string) {
+    const g = this.games.current;
+    const b = g?.bindings.find((x) => x.controllerId === controllerId);
+    if (!g || !b) return label;
+    if (b.target.kind === 'profile') return this.profileName(b.target.profileId);
+    const target = b.target;
+    return g.competitors.find((c) => c.id === target.competitorId)?.name || label;
+  }
+
+  /** A controller press during a check: recorded, and kept away from the game. */
+  checkControllerPress(controllerId: string, kind: InputKind, label: string): boolean {
+    if (!this.check.active) return false;
+    return this.check.press({ key: controllerId, name: this.controllerName(controllerId, label), kind, label, rttMs: null });
+  }
+
+  sendBuzzCheck(only?: Client) {
+    const view = this.check.view;
+    const hostMsg: ServerMessage = { t: 'buzzCheck', view, connections: this.connections() };
+    for (const c of only ? [only] : this.clients) {
+      if (c.role === 'host') this.send(c, hostMsg);
+      else if (c.role === 'player' && c.profileId && (view || only))
+        this.send(c, { t: 'buzzCheckMine', active: !!view?.active, endsAt: view?.endsAt ?? 0, pressed: this.check.pressed(`phone:${c.profileId}`) });
+    }
   }
 
   get size() {
@@ -50,7 +107,7 @@ export class Hub {
   }
 
   attach(ws: WebSocket) {
-    const c: Client = { ws, role: null, profileId: null, trusted: false, deviceIds: new Set(), lastBuzz: 0, msgCount: 0, msgWindow: Date.now(), joinFails: [] };
+    const c: Client = { ws, role: null, profileId: null, trusted: false, deviceIds: new Set(), lastBuzz: 0, msgCount: 0, msgWindow: Date.now(), joinFails: [], rtt: null };
     this.clients.add(c);
     ws.on('message', (raw) => this.onMessage(c, raw.toString()));
     ws.on('close', () => {
@@ -161,7 +218,10 @@ export class Hub {
     if (!parsed.success) return this.send(c, { t: 'error', message: 'Invalid message' });
     const m = parsed.data;
 
-    if (m.t === 'ping') return this.send(c, { t: 'pong', c: m.c, s: Date.now() });
+    if (m.t === 'ping') {
+      if (m.rtt != null) c.rtt = m.rtt;
+      return this.send(c, { t: 'pong', c: m.c, s: Date.now() });
+    }
 
     if (m.t === 'hello') {
       const sess = readSession(this.db, m.token);
@@ -190,6 +250,7 @@ export class Hub {
       if (c.trusted) this.send(c, { t: 'controllers', list: this.controllers.list(), listening: this.controllers.listening });
       if (c.role === 'host') this.sendPresentation();
       else if (c.role === 'public') this.sendPresentation(c);
+      if (c.role === 'host' || (c.role === 'player' && this.check.view)) this.sendBuzzCheck(c);
       return;
     }
     if (!c.role) return this.send(c, { t: 'error', message: 'Say hello first' });
@@ -208,6 +269,8 @@ export class Hub {
         if (c.role !== 'player' || !c.profileId) return this.send(c, { t: 'buzzResult', ok: false, info: 'sign-in-required' });
         if (now - c.lastBuzz < 150) return; // debounce rapid taps
         c.lastBuzz = now;
+        // During a buzzer check the press is recorded for the check only.
+        if (this.check.press({ key: `phone:${c.profileId}`, name: this.profileName(c.profileId), kind: 'phone', label: 'Phone', rttMs: c.rtt })) return this.send(c, { t: 'buzzResult', ok: true, info: 'check' });
         const r = this.games.buzz({ controllerId: `phone:${c.profileId}`, kind: 'phone', profileId: c.profileId });
         return this.send(c, { t: 'buzzResult', ok: r.ok, info: r.info });
       }
@@ -241,6 +304,13 @@ export class Hub {
       case 'controllerFx': {
         if (c.role !== 'host') return;
         this.controllerFx(m.controllerId, m.fx);
+        return;
+      }
+      case 'buzzCheck': {
+        if (c.role !== 'host') return;
+        if (m.action === 'start') this.startBuzzCheck();
+        else if (m.action === 'stop') this.check.stop();
+        else this.sendBuzzCheck(c);
         return;
       }
       case 'assignListen': {
@@ -286,6 +356,7 @@ export class Hub {
 
   closeAll() {
     this.closed = true;
+    this.check.dispose();
     for (const c of this.clients) c.ws.close(1001, 'server-shutdown');
   }
 }

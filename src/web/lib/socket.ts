@@ -5,6 +5,7 @@ import type { GameView, PlayerContext } from '../../shared/views';
 import type { HostAction } from '../../shared/actions';
 import type { BindingTarget } from '../../shared/game';
 import type { PresentationState, PresentRequest, PublicLobby } from '../../shared/presentation';
+import type { BuzzCheckView, ConnectionRow } from '../../shared/buzzCheck';
 
 type Role = 'host' | 'public' | 'player';
 export type ConnStatus = 'connecting' | 'open' | 'reconnecting' | 'unauthorized';
@@ -27,6 +28,12 @@ interface LiveState {
   /** Lobby session and public TV presentation (hosts and TVs only). */
   lobby: PublicLobby | null;
   presentation: PresentationState | null;
+  /** Last measured round trip to the server (ms). */
+  rtt: number | null;
+  /** Hosts: buzzer check + phone connection quality. */
+  buzzCheck: { view: BuzzCheckView | null; connections: ConnectionRow[] } | null;
+  /** Players: a buzzer check is running / this phone already pressed. */
+  myCheck: { active: boolean; endsAt: number; pressed: boolean } | null;
 }
 
 export const useLive = create<LiveState>(() => ({
@@ -45,6 +52,9 @@ export const useLive = create<LiveState>(() => ({
   ready: false,
   lobby: null,
   presentation: null,
+  rtt: null,
+  buzzCheck: null,
+  myCheck: null,
 }));
 
 let ws: WebSocket | null = null;
@@ -107,7 +117,7 @@ function open() {
 }
 
 function ping() {
-  if (ws?.readyState === 1) ws.send(JSON.stringify({ t: 'ping', c: Date.now() }));
+  if (ws?.readyState === 1) ws.send(JSON.stringify({ t: 'ping', c: Date.now(), rtt: useLive.getState().rtt ?? undefined }));
 }
 
 function handle(m: ServerMessage) {
@@ -128,7 +138,7 @@ function handle(m: ServerMessage) {
     case 'pong': {
       const now = Date.now();
       const rtt = now - m.c;
-      useLive.setState({ offset: m.s - (m.c + rtt / 2) });
+      useLive.setState({ offset: m.s - (m.c + rtt / 2), rtt });
       break;
     }
     case 'result':
@@ -140,6 +150,19 @@ function handle(m: ServerMessage) {
     case 'controllers':
       useLive.setState({ controllers: m.list, listening: m.listening });
       break;
+    case 'buzzCheck':
+      useLive.setState({ buzzCheck: { view: m.view, connections: m.connections } });
+      break;
+    case 'buzzCheckMine': {
+      const was = useLive.getState().myCheck?.active;
+      useLive.setState({ myCheck: m.active || m.pressed ? { active: m.active, endsAt: m.endsAt, pressed: m.pressed } : null });
+      // A check just started: measure the delay now and report it with the next ping.
+      if (m.active && !was) {
+        ping();
+        setTimeout(ping, 600);
+      }
+      break;
+    }
     case 'controllerFx':
       for (const cb of fxListeners) cb(m.controllerId, m.fx);
       break;
@@ -173,6 +196,11 @@ export function onControllerFx(cb: FxListener) {
 /** Host: flash / vibrate a controller, wherever it is connected. */
 export function controllerFx(controllerId: string, fx: 'identify' | 'test') {
   send({ t: 'controllerFx', controllerId, fx });
+}
+
+/** Host: start / stop a buzzer check, or refresh the connection list. */
+export function buzzCheck(action: 'start' | 'stop' | 'refresh') {
+  send({ t: 'buzzCheck', action });
 }
 
 export function send(msg: unknown) {

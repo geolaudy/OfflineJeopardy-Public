@@ -75,6 +75,7 @@ export async function startServer(opts: ServerOptions) {
   const games = new GameManager(db);
   const controllers = new ControllerRegistry(db, {
     onPress: (p) => {
+      if (hub.checkControllerPress(p.controllerId, p.kind, p.label)) return; // buzzer check: never reaches the game
       const r = games.buzz({ controllerId: p.controllerId, kind: p.kind });
       // Joy-Con feedback (Z12): a firm pulse for the first buzz, two taps when too early.
       if (p.kind === 'joycon' && getSetting(db, 'joyconRumble', true)) {

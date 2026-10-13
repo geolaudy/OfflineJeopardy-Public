@@ -3,6 +3,7 @@ import { hostApi } from '../../lib/api';
 import { attempt, useFetch } from '../../lib/hooks';
 import { PageTitleBar } from '../../components/ui';
 import ControllersPanel, { AssignListener } from '../../components/ControllersPanel';
+import BuzzCheckPanel from '../../components/BuzzCheckPanel';
 
 export default function ControllersPage() {
   const game = useLive((s) => s.game);
@@ -32,6 +33,7 @@ export default function ControllersPage() {
           <span className="block text-xs text-slate-500">One firm pulse for the first buzz, two short taps when someone buzzes too early.</span>
         </span>
       </label>
+      <BuzzCheckPanel />
       <ControllersPanel g={game && game.phase !== 'ended' ? game : null} />
       {game && <AssignListener g={game} />}
     </div>
