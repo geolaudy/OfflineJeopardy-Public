@@ -363,15 +363,15 @@ function CluePanel({ g, run }: { g: GameView; run: Run }) {
             <div className="grid grid-cols-2 gap-2">
               {g.buzzer.status === 'open' ? (
                 <Button size="lg" variant="warning" onClick={() => run({ type: 'lockBuzzers' })}>
-                  <Lock size={18} aria-hidden /> Lock buzzers
+                  <Lock size={18} aria-hidden /> Lock<span className="hidden sm:inline"> buzzers</span>
                 </Button>
               ) : (
                 <Button size="lg" variant="success" disabled={!!winner} onClick={() => run({ type: 'unlockBuzzers' })} data-testid="unlock">
-                  <LockOpen size={18} aria-hidden /> Unlock buzzers
+                  <LockOpen size={18} aria-hidden /> Unlock<span className="hidden sm:inline"> buzzers</span>
                 </Button>
               )}
               <Button size="lg" variant="secondary" onClick={() => run({ type: 'resetBuzzers' })}>
-                <RotateCcw size={18} aria-hidden /> Reset buzzers
+                <RotateCcw size={18} aria-hidden /> Reset<span className="hidden sm:inline"> buzzers</span>
               </Button>
             </div>
           )}

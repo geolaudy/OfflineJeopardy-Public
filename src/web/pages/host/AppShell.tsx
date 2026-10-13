@@ -40,8 +40,12 @@ interface PresentCtx {
   setEnabled: (v: boolean) => void;
   /** Present a specific public page (e.g. a selected player) — only when enabled. */
   show: (req: PresentRequest) => void;
+  /** Open the navigation drawer (narrow screens). */
+  openNav: () => void;
+  /** The TV is showing the game, so presenting is paused. */
+  playing: boolean;
 }
-const Ctx = createContext<PresentCtx>({ enabled: false, setEnabled: () => {}, show: () => {} });
+const Ctx = createContext<PresentCtx>({ enabled: false, setEnabled: () => {}, show: () => {}, openNav: () => {}, playing: false });
 export const usePresent = () => useContext(Ctx);
 
 const KEY = 'oj.presentOnTv';
@@ -90,7 +94,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
     if (req) sendPresent(req);
   }, [location.pathname, enabled, playing, status]);
 
-  const ctx = useMemo(() => ({ enabled, setEnabled, show }), [enabled, setEnabled, show]);
+  const openNav = useCallback(() => setMenu(true), []);
+  const ctx = useMemo(() => ({ enabled, setEnabled, show, openNav, playing }), [enabled, setEnabled, show, openNav, playing]);
+  // On Home with a game or lobby, the game bar carries the navigation button: one bar, not two (small phones).
+  const hasGame = useLive((s) => !!s.game);
+  const homeBar = (location.pathname === '/host' || location.pathname === '/host/') && (hasGame || !!lobby?.open);
   const current = HOST_NAV.find((n) => (n.end ? location.pathname === n.to || location.pathname === `${n.to}/` : location.pathname.startsWith(n.to)))?.label ?? 'Host';
 
   const nav = (
@@ -148,7 +156,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
     <Ctx.Provider value={ctx}>
       <div className="app-screen flex flex-col bg-slate-100 md:flex-row">
         {/* Narrow screens: top bar + drawer. */}
-        <header className="safe-top safe-x flex min-h-14 shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-2 md:hidden">
+        <header className={cx('safe-top safe-x flex min-h-14 shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-2 md:hidden', homeBar && 'hidden')}>
           <button onClick={() => setMenu(true)} className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-slate-100" aria-label="Open navigation" data-testid="app-nav-toggle">
             <Menu size={22} aria-hidden />
           </button>

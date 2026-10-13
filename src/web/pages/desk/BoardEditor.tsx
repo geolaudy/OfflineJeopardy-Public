@@ -6,7 +6,7 @@ import { ActionButton, Button, Field, Modal, cx, inputCls, toast } from '../../c
 import { blankBoard, blankCategory, blankClue, blankFinal, blankRound, boardStats, uid, validateBoard } from '../../../shared/boardUtils';
 import { boardContentSchema } from '../../../shared/boardIO';
 import type { BoardContent, Category, Clue, ClueLayout, ClueUnlock, MediaRef, Round } from '../../../shared/game';
-import { Eye, Plus, Star, ArrowLeft, Image, OctagonAlert, TriangleAlert, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Eye, Plus, Star, ArrowLeft, Image, OctagonAlert, TriangleAlert, ChevronLeft, ChevronRight, X, Download } from 'lucide-react';
 
 // ---------- types & helpers ----------
 
@@ -742,7 +742,7 @@ export default function BoardEditor() {
                   dragFrom === ci && 'opacity-50',
                 )}
               >
-                <div className="mb-1 flex items-center justify-between text-xs text-blue-200">
+                <div className="mb-1 flex flex-wrap items-center justify-between gap-y-0.5 text-xs text-blue-200">
                   <span
                     draggable
                     onDragStart={(e) => {
@@ -754,7 +754,7 @@ export default function BoardEditor() {
                       setDragFrom(null);
                       setDragOver(null);
                     }}
-                    className="flex min-h-8 cursor-grab select-none items-center rounded-md px-2 hover:bg-blue-800"
+                    className="flex min-h-8 cursor-grab select-none items-center rounded-md px-1.5 hover:bg-blue-800"
                     title="Drag to reorder"
                     aria-hidden
                   >
@@ -768,7 +768,7 @@ export default function BoardEditor() {
                       <ChevronRight size={16} aria-hidden />
                     </IconBtn>
                     <IconBtn label={`Export ${c.name || `category ${ci + 1}`}`} onClick={() => exportCategory(c)}>
-                      ⤓
+                      <Download size={15} aria-hidden />
                     </IconBtn>
                     <IconBtn label={`Delete ${c.name || `category ${ci + 1}`}`} onClick={() => removeCategory(ci)}>
                       <X size={16} aria-hidden />
@@ -938,7 +938,7 @@ function IconBtn({ label, onClick, disabled, children }: { label: string; onClic
       title={label}
       disabled={disabled}
       onClick={onClick}
-      className="flex h-8 w-8 items-center justify-center rounded-md text-sm text-blue-100 hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-30"
+      className="flex h-8 w-7 items-center justify-center rounded-md text-sm text-blue-100 hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-30"
     >
       {children}
     </button>

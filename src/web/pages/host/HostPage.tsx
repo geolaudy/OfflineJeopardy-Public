@@ -3,7 +3,7 @@
 // Home is the game itself: set up → lobby → live game → results.
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
-import { Pause, Play, Menu as MenuIcon, ArrowLeft, Save, QrCode, SlidersHorizontal, ScrollText, Power, Flag, Repeat } from 'lucide-react';
+import { EllipsisVertical, Monitor, MonitorOff, Pause, Play, Menu as MenuIcon, ArrowLeft, Save, QrCode, SlidersHorizontal, ScrollText, Power, Flag, Repeat } from 'lucide-react';
 import { api, ensureLocalHost, hostApi, tokens } from '../../lib/api';
 import { connect, disconnect, useLive, act } from '../../lib/socket';
 import { Button, Drawer, toast, cx } from '../../components/ui';
@@ -15,7 +15,7 @@ import Live from './Live';
 import Results from './Results';
 import EventLog from './EventLog';
 import RulesEditor from './RulesEditor';
-import AppShell, { isGameComputer } from './AppShell';
+import AppShell, { isGameComputer, usePresent } from './AppShell';
 import { isDesktopApp } from '../../lib/desktop';
 import { reannounce, startInputBridge } from '../../lib/inputBridge';
 
@@ -180,6 +180,7 @@ function HostHome() {
   const [menu, setMenu] = useState(false);
   const [log, setLog] = useState(false);
   const [rules, setRules] = useState(false);
+  const present = usePresent();
 
   const run = async (a: Parameters<typeof act>[0]) => {
     const r = await act(a);
@@ -207,7 +208,12 @@ function HostHome() {
     <div className="flex h-full flex-col">
       {/* Before any game or lobby the setup page has its own title, so this bar would only repeat it. */}
       <header className={cx('shrink-0 border-b border-slate-200 bg-white', ready && !game && !lobby?.open && 'hidden')}>
-        <div className="flex min-h-14 items-center gap-2 px-2 py-1.5">
+        <div className="safe-top flex min-h-14 items-center gap-2 px-2 py-1.5">
+          {(game || lobby?.open) && (
+            <button onClick={present.openNav} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-700 hover:bg-slate-100 md:hidden" aria-label="Open navigation" data-testid="app-nav-toggle">
+              <MenuIcon size={22} aria-hidden />
+            </button>
+          )}
           {canGoBack ? (
             <button onClick={switchGame} className="flex h-11 w-11 items-center justify-center rounded-full text-slate-700 hover:bg-slate-100" aria-label="Back to games" data-testid="nav-back">
               <ArrowLeft size={22} aria-hidden />
@@ -219,15 +225,21 @@ function HostHome() {
             <h1 className="truncate text-lg leading-tight font-bold">{game?.title ?? (lobby?.open ? `Lobby: ${lobby.name}` : 'Host controller')}</h1>
             <div className="text-sm text-slate-600">{game ? <span data-testid="phase">{phaseLabel(game)}</span> : status === 'open' ? 'Ready' : 'Connecting…'}</div>
           </div>
+          {lobby?.open && !present.playing && (
+            <button onClick={() => present.setEnabled(!present.enabled)} className={cx('flex h-11 w-11 shrink-0 items-center justify-center rounded-full md:hidden', present.enabled ? 'bg-blue-700 text-white' : 'text-slate-600')} aria-label={present.enabled ? 'Present on TV: on' : 'Present on TV: off'}>
+              {present.enabled ? <Monitor size={20} aria-hidden /> : <MonitorOff size={20} aria-hidden />}
+            </button>
+          )}
           {playing && (
-            <Button variant={game.paused ? 'warning' : 'secondary'} onClick={() => run({ type: game.paused ? 'resumeGame' : 'pauseGame' })}>
+            <Button variant={game.paused ? 'warning' : 'secondary'} onClick={() => run({ type: game.paused ? 'resumeGame' : 'pauseGame' })} aria-label={game.paused ? 'Resume' : 'Pause'}>
               {game.paused ? <Play size={18} aria-hidden /> : <Pause size={18} aria-hidden />}
-              {game.paused ? 'Resume' : 'Pause'}
+              <span className="hidden sm:inline">{game.paused ? 'Resume' : 'Pause'}</span>
             </Button>
           )}
           {(game || lobby?.open) && (
             <Button variant="secondary" onClick={() => setMenu(true)} aria-label="Game menu" data-testid="nav-menu">
-              <MenuIcon size={18} aria-hidden /> Menu
+              <EllipsisVertical size={18} aria-hidden />
+              <span className="hidden sm:inline">Menu</span>
             </Button>
           )}
         </div>

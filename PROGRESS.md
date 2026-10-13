@@ -23,7 +23,9 @@
 - **Survival UI (O8):** lives are now projected to every role; hearts on the TV podiums (OUT + greyed when eliminated), on the host score bar and on the phone. Tests: Vitest 110/110, Playwright 19/19 (new survival.spec.ts).
 - Pushed a2083d5.
 - **UX pass (R2-25, part 1):** screenshot audit of all host pages on iPad and iPhone (WebKit). Fixed: Boards header actions overlapping the title on iPad portrait (shared PageTitleBar), duplicate host header before a game exists, start screen with no side padding on phones; consistent headers with icon buttons on Players/Teams/Themes/History. Tests: Vitest 110/110, Playwright 19/19.
-- **Next:** UX pass part 2 (live-game screens on small phones, editor on iPad); tournament mode; latency diagnostics.
+- Pushed 02dea95.
+- **UX pass part 2:** live game on iPhone SE/13 and iPad Mini, editor on iPad portrait. One header bar on phones during a game (navigation + TV switch in the game bar; icon-only Pause/Menu; distinct ⋮ game menu), short buzzer labels, wrapping editor category controls. Tests: Vitest 110/110, Playwright 19/19.
+- **Next:** tournament mode; latency diagnostics; real-device checks (iPad Safari, Joy-Con) remain manual.
 
 ## Session 3 — 2026-10-12 (roadmap continuation, auto-push workflow)
 
