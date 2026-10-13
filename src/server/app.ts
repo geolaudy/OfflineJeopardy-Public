@@ -35,7 +35,7 @@ import { boardContentSchema, exportBoardCsv, exportBoardJson, importBoardCsv, im
 import { reassignIds, validateBoard } from '../shared/boardUtils.js';
 import { SAMPLE_BOARD, SAMPLE_BOARD_TITLE } from '../shared/sampleBoards.js';
 
-export const APP_VERSION = '0.1.0';
+export const APP_VERSION = '0.2.0'; // keep in sync with package.json "version"
 
 export interface ServerOptions {
   dataDir: string;
