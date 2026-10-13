@@ -6,7 +6,8 @@ import { newPairingCode } from './auth.js';
 import * as repo from './repos.js';
 import * as stats from './stats.js';
 import type { GameState } from '../shared/game.js';
-import { BOT_LEVELS, EARLY_BUZZ_OPTIONS } from '../shared/game.js';
+import { BOT_LEVELS } from '../shared/game.js';
+import { summarizeRules } from '../shared/rulesSummary.js';
 import { rankRows, secondaryLine, formatValue, VIEW_LABELS, type LeaderView } from '../shared/leaderboard.js';
 import type { PresentationState, PresentRequest, PublicLobby, PublicRoster, RosterRow } from '../shared/presentation.js';
 import { humanCount } from './engine/engine.js';
@@ -224,24 +225,8 @@ export class LobbyManager {
   private rules(): PresentationState['rules'] {
     const s = this.game();
     if (!s) return { title: 'Game rules', lines: [{ label: 'Status', value: 'The host is still choosing the game settings.' }] };
-    const r = s.rules;
-    const t = r.timers;
-    const secs = (n: number) => (n > 0 ? `${n} s` : 'off');
     const board = s.boardId ? repo.getBoard(this.db, s.boardId)?.title : null;
-    const lines = [
-      { label: 'Board', value: board ?? s.title },
-      { label: 'Mode', value: s.mode === 'team' ? 'Teams' : 'Individuals' },
-      ...(r.maxPlayers ? [{ label: 'Player limit', value: String(r.maxPlayers) }] : []),
-      { label: 'Wrong answers', value: r.incorrectDeducts ? 'Lose the clue value' : 'No penalty' },
-      { label: 'Early buzzing', value: EARLY_BUZZ_OPTIONS[r.earlyBuzzPenalty].label + (r.earlyBuzzPenalty === 'points' ? ` (−${r.earlyBuzzPoints})` : '') },
-      { label: 'Time to buzz in', value: secs(t.buzzSeconds) },
-      { label: 'Time to answer', value: secs(t.answerSeconds) },
-      { label: 'Final Wager', value: r.finalAllowNonPositive ? 'Everyone plays' : 'Players with a positive score' },
-      ...(r.survivalLives ? [{ label: 'Survival', value: `${r.survivalLives} lives each` }] : []),
-      ...(s.mode === 'team' ? [{ label: 'After a wrong answer', value: r.teamRetry === 'otherMembers' ? 'A teammate may try' : 'One try per team' }] : []),
-      ...(s.competitors.some((c) => c.bot) ? [{ label: 'Computer opponents', value: s.competitors.filter((c) => c.bot).map((c) => `${c.name} (${BOT_LEVELS[c.bot!].label})`).join(', ') }] : []),
-      ...(s.practice ? [{ label: 'Practice game', value: 'Not counted in statistics' }] : []),
-    ];
+    const lines = summarizeRules(s.rules, { mode: s.mode, boardTitle: board ?? s.title, practice: s.practice, bots: s.competitors.filter((c) => c.bot).map((c) => `${c.name} (${BOT_LEVELS[c.bot!].label})`) });
     return { title: s.title, lines };
   }
 

@@ -6,7 +6,7 @@ import { ActionButton, Button, Field, Modal, cx, inputCls, toast } from '../../c
 import { blankBoard, blankCategory, blankClue, blankFinal, blankRound, boardStats, uid, validateBoard } from '../../../shared/boardUtils';
 import { boardContentSchema } from '../../../shared/boardIO';
 import type { BoardContent, Category, Clue, ClueLayout, ClueUnlock, MediaRef, Round } from '../../../shared/game';
-import { Eye, Plus, Star } from 'lucide-react';
+import { Eye, Plus, Star, ArrowLeft, Image, OctagonAlert, TriangleAlert, ChevronLeft, ChevronRight, X } from 'lucide-react';
 
 // ---------- types & helpers ----------
 
@@ -274,7 +274,7 @@ export default function BoardEditor() {
       savedRev.current = target;
       setStatus(revRef.current > target ? 'dirty' : 'saved');
       toast('Board created', 'success');
-      navigate(`/desk/boards/${b.id}`, { replace: true });
+      navigate(`/host/boards/${b.id}`, { replace: true });
       if (revRef.current > target) void persistRef.current(false);
     } catch (e) {
       setStatus('error');
@@ -480,7 +480,7 @@ export default function BoardEditor() {
     return (
       <div className="mx-auto max-w-lg p-6 text-center">
         <p className="mb-4 text-lg font-semibold text-red-700">Could not open this board: {loadError}</p>
-        <Link to="/desk/library" className="font-semibold text-blue-700 underline">
+        <Link to="/host/boards" className="font-semibold text-blue-700 underline">
           Back to library
         </Link>
       </div>
@@ -515,13 +515,13 @@ export default function BoardEditor() {
       {/* Top bar */}
       <div className="sticky top-0 z-20 -mx-2 mb-3 flex flex-wrap items-center gap-2 border-b border-slate-200 bg-slate-50/95 px-2 py-2 backdrop-blur">
         <Link
-          to="/desk/library"
+          to="/host/boards"
           onClick={(e) => {
             if (!boardIdRef.current && rev > 0 && !window.confirm('This new board has not been saved. Leave anyway?')) e.preventDefault();
           }}
           className="flex min-h-11 items-center rounded-xl px-3 font-semibold text-slate-700 hover:bg-slate-200"
         >
-          ← Library
+          <ArrowLeft size={18} aria-hidden /> Boards
         </Link>
         <label className="sr-only" htmlFor="board-title">
           Board title
@@ -596,7 +596,7 @@ export default function BoardEditor() {
             <ul className="mt-2 max-h-48 space-y-1 overflow-auto text-sm">
               {[...errors, ...warnings].map((i, k) => (
                 <li key={k} className={i.level === 'error' ? 'font-semibold text-red-800' : 'text-amber-800'}>
-                  {i.level === 'error' ? '⛔ ' : '⚠ '}
+                  {i.level === 'error' ? <OctagonAlert size={16} className="mr-1 inline align-[-3px]" aria-hidden /> : <TriangleAlert size={16} className="mr-1 inline align-[-3px]" aria-hidden />}
                   {i.message}
                 </li>
               ))}
@@ -617,7 +617,7 @@ export default function BoardEditor() {
             onClick={() => setRoundIdx(i)}
             className={cx('min-h-11 rounded-xl px-4 font-semibold', i === ri ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 ring-1 ring-slate-300 hover:bg-slate-100')}
           >
-            {r.kind === 'final' ? '⭐ ' : ''}
+            {r.kind === 'final' ? <Star size={14} className="mr-1 inline fill-current align-[-2px]" aria-hidden /> : null}
             {r.name || `Round ${i + 1}`}
           </button>
         ))}
@@ -642,7 +642,7 @@ export default function BoardEditor() {
         {round.kind === 'standard' ? (
           <>
             <Button variant="secondary" size="md" aria-label="Move round earlier" title="Move round earlier" disabled={ri === 0} onClick={() => moveRound(ri, -1)}>
-              ◀
+              <ChevronLeft size={18} aria-hidden />
             </Button>
             <Button
               variant="secondary"
@@ -651,7 +651,7 @@ export default function BoardEditor() {
               disabled={ri + 1 >= content.rounds.length || content.rounds[ri + 1].kind === 'final'}
               onClick={() => moveRound(ri, 1)}
             >
-              ▶
+              <ChevronRight size={18} aria-hidden />
             </Button>
             <span className="mx-1 hidden h-8 w-px bg-slate-200 sm:block" />
             <Button variant="secondary" onClick={addCategory} disabled={round.categories.length >= MAX_CATS}>
@@ -762,16 +762,16 @@ export default function BoardEditor() {
                   </span>
                   <span className="flex gap-0.5">
                     <IconBtn label={`Move ${c.name || `category ${ci + 1}`} left`} disabled={ci === 0} onClick={() => moveCategory(ci, ci - 1)}>
-                      ◀
+                      <ChevronLeft size={16} aria-hidden />
                     </IconBtn>
                     <IconBtn label={`Move ${c.name || `category ${ci + 1}`} right`} disabled={ci === round.categories.length - 1} onClick={() => moveCategory(ci, ci + 1)}>
-                      ▶
+                      <ChevronRight size={16} aria-hidden />
                     </IconBtn>
                     <IconBtn label={`Export ${c.name || `category ${ci + 1}`}`} onClick={() => exportCategory(c)}>
                       ⤓
                     </IconBtn>
                     <IconBtn label={`Delete ${c.name || `category ${ci + 1}`}`} onClick={() => removeCategory(ci)}>
-                      ✕
+                      <X size={16} aria-hidden />
                     </IconBtn>
                   </span>
                 </div>
@@ -820,8 +820,8 @@ export default function BoardEditor() {
                     <span className="flex w-full items-center justify-between">
                       <span className="font-black text-blue-900">{q.value}</span>
                       <span className="flex gap-1 text-xs">
-                        {q.dailyWager ? <span title="Daily Wager">★</span> : null}
-                        {q.media?.length ? <span title="Has media">🖼</span> : null}
+                        {q.dailyWager ? <span title="Daily Wager"><Star size={12} className="inline fill-current" aria-hidden /></span> : null}
+                        {q.media?.length ? <span title="Has media"><Image size={12} className="inline" aria-hidden /></span> : null}
                       </span>
                     </span>
                     <span className={cx('line-clamp-2 text-xs', done ? 'text-slate-700' : 'italic text-amber-800')}>{q.question.trim() ? q.question : 'Needs question'}</span>
@@ -830,7 +830,7 @@ export default function BoardEditor() {
               }),
             )}
           </div>
-          <p className="mt-2 text-xs text-slate-500">Tip: drag a category header to reorder, or use ◀ ▶. Click a clue to edit it.</p>
+          <p className="mt-2 text-xs text-slate-500">Tip: drag a category header to reorder, or use the arrow buttons. Click a clue to edit it.</p>
         </div>
       )}
 

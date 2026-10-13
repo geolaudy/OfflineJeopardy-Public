@@ -5,6 +5,7 @@ import { attempt, useFetch } from '../../lib/hooks';
 import { Button, Card, Field, cx } from '../../components/ui';
 import { configureSound, sfx } from '../../lib/sound';
 import { desktop } from '../../lib/desktop';
+import { Palette, ChevronRight, ChevronDown } from 'lucide-react';
 
 interface S {
   preferredAddress: string | null;
@@ -64,8 +65,8 @@ export default function Settings() {
           The TV uses{' '}
           <b>{v.boardTheme.startsWith('custom:') ? 'a custom theme' : (BOARD_THEMES.find(([id]) => id === v.boardTheme)?.[1] ?? 'Classic')}</b>.
         </p>
-        <Link to="/desk/themes" className="inline-flex min-h-11 items-center rounded-xl bg-blue-700 px-4 font-semibold text-white hover:bg-blue-800">
-          🎨 Choose or customize the TV theme →
+        <Link to="/host/themes" className="inline-flex min-h-11 items-center rounded-xl bg-blue-700 px-4 font-semibold text-white hover:bg-blue-800">
+          <Palette size={18} className="mr-2" aria-hidden /> Choose or customize the TV theme
         </Link>
       </Card>
       <Card className="space-y-3">
@@ -130,7 +131,8 @@ export default function Settings() {
         </div>
       </Card>
       <button className="font-semibold text-blue-700" onClick={() => setAdvanced((a) => !a)}>
-        {advanced ? '▾' : '▸'} Advanced
+        {advanced ? <ChevronDown size={16} className="mr-1 inline align-[-3px]" aria-hidden /> : <ChevronRight size={16} className="mr-1 inline align-[-3px]" aria-hidden />}
+          Advanced
       </button>
       {advanced && (
         <Card className="space-y-3">

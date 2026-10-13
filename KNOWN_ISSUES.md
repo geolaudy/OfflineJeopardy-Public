@@ -12,7 +12,7 @@
 | K8 | Images | HEIC images are not decoded by the bundled sharp build. | iOS Safari normally converts to JPEG on upload. |
 | K9 | Timers | A timer that was running when the app crashed is restored paused (by design). | Host taps Resume. |
 | K10 | Sessions | Bearer tokens live in localStorage; private browsing may lose them per page session. | Sign in again. |
-| K11 | Board editor | No in-app navigation blocker for an unsaved *new* board except the "← Library" link (existing boards autosave). | Save new boards once before navigating away. |
+| K11 | Board editor | No in-app navigation blocker for an unsaved *new* board except the Boards back link (existing boards autosave). | Save new boards once before navigating away. |
 | K12 | Profiles | Profile preferences (preferred buzzer/button) are informational; the host still assigns controllers explicitly (by design, to avoid wrong assignments). | — |
 | K13 | Spec gaps | Not started: computer opponents, theme editor/import, workspaces, offline AI, room codes, tournament/survival modes, plugins, game-package export. (Host keyboard shortcuts done in session 2.) | See FEATURE_MATRIX.md. |
 | K14 | Mobile | Layout fixes (dvh, safe areas, dialogs) verified with Playwright WebKit device emulation only; emulation has no Safari toolbars or notch insets. | Validate on a real iPhone + iPad (portrait/landscape, Home-Screen mode). |
@@ -20,3 +20,7 @@
 | K16 | Early buzz | Early detection is by arrival at the server: a press sent just before the host unlocks but arriving just after counts as on time (and vice versa). Inherent to server-authoritative timing (D15). | Use "Short lockout" rather than "Out for this clue" for latency-tolerant play. |
 | K17 | Leaderboard | Ranking thresholds are fixed (3 games for win %/average, 10 answers for accuracy). | Configurable thresholds not implemented. |
 | K18 | Navigation | Host back arrow appears only on setup/results (returns to the game list); during live play the drawer is the navigation (deliberately no accidental exit). | — |
+| K19 | Lobby pairing | One-step pairing from the host QR (`/host#pair=…`) is tested in Playwright WebKit only; scanning with a real iPad camera is **not verified**. | Typing the 6-digit code always works. |
+| K20 | TV lobby | Shared-buzzer team members on the TV lobby come from the game projection matched by team name (the server roster row has no member list); two teams with the same name would merge. | Give teams distinct names. |
+| K21 | TV lobby | Reduced-motion and light-theme variants of the lobby/presentation pages were not checked visually. | Report if anything looks off. |
+| K22 | Presentation | Leaderboard/player TV pages were verified with injected sample data and the live empty state, not with a long real history. | — |

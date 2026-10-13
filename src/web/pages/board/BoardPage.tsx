@@ -1,22 +1,24 @@
 // Public game board for the TV / projector. Receives only the public projection.
+import { Maximize } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import { connect, useLive, reconnectNow } from '../../lib/socket';
 import { api, ensureLocalHost, tokens } from '../../lib/api';
 import { Avatar, QrImage, cx, fmtScore } from '../../components/ui';
-import { competitorAvatar, competitorColor, competitorName, findCompetitor, profileName } from '../../lib/view';
+import { competitorAvatar, competitorColor, competitorName, findCompetitor } from '../../lib/view';
 import { configureSound, sfx, unlockAudio } from '../../lib/sound';
 import { reannounce, startInputBridge } from '../../lib/inputBridge';
 import type { GameView } from '../../../shared/views';
 import { avatarEmoji } from '../../lib/avatars';
 import { isDesktopApp } from '../../lib/desktop';
-import { BoardCtx, presentationFor, themeRoot, useBoard, usePrefersReducedMotion, useViewportHeight, vhPx } from './common';
+import { BoardCtx, presentationFor, themeRoot, useBoard, usePrefersReducedMotion, useViewportHeight } from './common';
 import type { CustomTheme } from '../../../shared/themes';
 import { Grid } from './Grid';
 import { CluePanel } from './ClueZoom';
 import { Intro } from './Intro';
 import { FinalScreen } from './FinalScreen';
 import { Scoreboard } from './Scoreboard';
+import { Presenter } from './Presenter';
 import { EASE_OUT_ARR, T } from './timing';
 import './board.css';
 
@@ -33,6 +35,8 @@ export default function BoardPage() {
   const status = useLive((s) => s.status);
   const trusted = useLive((s) => s.trustedDevice);
   const profilesVersion = useLive((s) => s.profilesVersion);
+  const lobby = useLive((s) => s.lobby);
+  const presented = useLive((s) => s.presentation);
   const [settings, setSettings] = useState<PublicSettings>({ theme: 'classic', custom: null, sound: true, volume: 0.7, reducedMotion: false });
   const [info, setInfo] = useState<{ urls: { join: string; host: string } } | null>(null);
 
@@ -73,6 +77,21 @@ export default function BoardPage() {
   const presentation = useMemo(() => presentationFor(settings.theme, settings.custom, reduced, vh), [settings.theme, settings.custom, reduced, vh]);
   const root = useMemo(() => themeRoot(settings.theme, settings.custom), [settings.theme, settings.custom]);
 
+  // Which screen: gameplay (board / clue / Final), results, the presenter (public lobby and
+  // presented pages) or the splash before any lobby exists.
+  const page = presented?.page ?? 'lobby';
+  const screen: 'play' | 'results' | 'present' | 'splash' = !game
+    ? lobby?.open
+      ? 'present'
+      : 'splash'
+    : game.phase === 'lobby'
+      ? 'present'
+      : game.phase === 'ended'
+        ? page === 'lobby'
+          ? 'results'
+          : 'present'
+        : 'play';
+
   return (
     <BoardCtx.Provider value={presentation}>
       <MotionConfig reducedMotion={reduced ? 'always' : 'never'}>
@@ -82,13 +101,13 @@ export default function BoardPage() {
           style={root.style}
           onClick={unlockAudio}
         >
-          {!game ? (
+          {screen === 'splash' ? (
             <Splash info={info} status={status} />
-          ) : game.phase === 'lobby' ? (
-            <Lobby g={game} info={info} />
-          ) : game.phase === 'ended' ? (
+          ) : screen === 'present' ? (
+            <Presenter g={game} lobby={lobby} presentation={presented} joinUrl={info?.urls.join ?? null} />
+          ) : screen === 'results' && game ? (
             <Results g={game} />
-          ) : (
+          ) : game ? (
             <>
               <div className="relative min-h-0 flex-1">
                 <Stage g={game} />
@@ -106,7 +125,7 @@ export default function BoardPage() {
               </div>
               <Scoreboard g={game} />
             </>
-          )}
+          ) : null}
           {game?.paused && (
             <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/70">
               <p className="bt-display text-[9vh] text-white">PAUSED</p>
@@ -194,10 +213,10 @@ function FullscreenButton() {
   return (
     <button
       onClick={toggle}
-      className={cx('absolute top-3 right-3 z-50 rounded-lg bg-black/50 px-3 py-2 text-sm text-white transition-opacity', visible ? 'opacity-100' : 'pointer-events-none opacity-0')}
+      className={cx('absolute right-3 bottom-3 z-50 inline-flex items-center gap-2 rounded-lg bg-black/50 px-3 py-2 text-sm text-white transition-opacity', visible ? 'opacity-100' : 'pointer-events-none opacity-0')}
       aria-label="Toggle full screen"
     >
-      ⛶ Full screen (F11)
+      <Maximize size={16} aria-hidden /> Full screen (F11)
     </button>
   );
 }
@@ -243,66 +262,19 @@ function Splash({ info, status }: { info: { urls: { join: string; host: string }
     <div className="flex h-full flex-col items-center justify-center gap-[4vh] p-[4vw] text-center">
       <ThemeLogo className="max-h-[16vh]" />
       <h1 className="bt-headline">OfflineJeopardy</h1>
-      <p className="text-[3vh] opacity-90">{status === 'open' ? 'Waiting for the host to start a game…' : 'Connecting…'}</p>
+      <p className="text-[3vh] opacity-90">
+        {status === 'open' ? 'Waiting for the host — create a lobby on the game computer to begin.' : 'Connecting…'}
+      </p>
       {info && (
         <div className="flex items-center gap-[3vw] rounded-3xl bg-white p-[2.5vh] text-slate-900 shadow-2xl">
           <QrImage target="join" className="h-[26vh] w-[26vh]" />
           <div className="text-left">
-            <p className="text-[3.2vh] font-bold">Players: scan to join</p>
+            <p className="text-[3.2vh] font-bold">Players: scan to set up your profile</p>
             <p className="font-mono text-[2.2vh]">{info.urls.join}</p>
             <p className="mt-[2vh] text-[2vh] text-slate-600">Host controller (iPad): {info.urls.host}</p>
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function Lobby({ g, info }: { g: GameView; info: { urls: { join: string } } | null }) {
-  const ctx = useBoard();
-  return (
-    <div className="flex h-full flex-col p-[3vw]">
-      <div className="flex items-center justify-center gap-[2vw]">
-        <ThemeLogo className="max-h-[10vh]" />
-        <h1 className="bt-headline text-center !text-[min(8vh,5vw)]">{g.title}</h1>
-      </div>
-      <div className="mt-[3vh] grid min-h-0 flex-1 grid-cols-[auto_1fr] gap-[3vw]">
-        <div className="flex flex-col items-center justify-center rounded-3xl bg-white p-[3vh] text-slate-900 shadow-2xl">
-          <QrImage target="join" className="h-[38vh] w-[38vh]" />
-          <p className="mt-[2vh] text-[3.4vh] font-bold">Scan to join</p>
-          {info && <p className="font-mono text-[2.2vh]">{info.urls.join}</p>}
-          <RoomCode g={g} className="mt-[2vh] text-[2.6vh]" />
-        </div>
-        <div className="min-h-0 overflow-hidden">
-          <p className="mb-[2vh] text-[3vh] font-semibold opacity-90">{g.mode === 'team' ? 'Teams' : 'Players'} ({g.competitors.length})</p>
-          <div className="grid grid-cols-2 gap-[1.5vh] xl:grid-cols-3">
-            <AnimatePresence>
-              {g.competitors.map((c) => (
-                <motion.div key={c.id} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="rounded-2xl bg-black/25 p-[1.5vh]">
-                  <div className="flex items-center gap-[1vw]">
-                    <Avatar profile={competitorAvatar(c, g)} size={vhPx(ctx, 5.2)} />
-                    <span className="truncate text-[3vh] font-bold">{competitorName(c, g)}</span>
-                  </div>
-                  {c.kind === 'team' && (
-                    <div className="mt-[1vh] flex flex-wrap gap-2 text-[1.8vh] opacity-90">
-                      {c.memberIds.map((m) => (
-                        <span key={m} className="flex items-center gap-1 rounded-full bg-black/30 px-2 py-1">
-                          <Avatar profile={g.profiles[m]} size={vhPx(ctx, 2)} /> {profileName(g.profiles[m])}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
-          {g.unassigned.length > 0 && (
-            <p className="mt-[2vh] text-[2.2vh] opacity-80">
-              Waiting for a team: {g.unassigned.map((u) => profileName(g.profiles[u.profileId])).join(', ')}
-            </p>
-          )}
-        </div>
-      </div>
     </div>
   );
 }

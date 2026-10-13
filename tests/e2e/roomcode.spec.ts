@@ -27,7 +27,7 @@ test('room code: required by the host, shown on the TV, typed on the phone', asy
   await tv.goto(`${BASE}/board`);
   const pc = await (await cr.newContext({ viewport: { width: 1366, height: 900 } })).newPage();
   await pc.goto(`${BASE}/host`);
-  await pc.getByRole('button', { name: 'Create game' }).click();
+  await pc.getByRole('button', { name: 'Open lobby' }).click();
   await pc.getByTestId('require-room-code').click();
   await expect(pc.getByTestId('require-room-code')).toBeChecked();
   const code = (await pc.getByTestId('host-room-code').innerText()).trim();

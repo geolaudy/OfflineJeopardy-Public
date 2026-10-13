@@ -483,6 +483,36 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
     case 'newRoomCode':
       fail('A new room code is created by the game computer');
       return;
+    case 'setBoard': {
+      if (s.phase !== 'lobby') fail('The board can only be changed before the game starts');
+      s.boardId = a.boardId;
+      s.board = a.board;
+      s.roundIndex = Math.max(0, a.board.rounds.findIndex((r) => r.kind === 'standard'));
+      s.usedClueIds = [];
+      if (a.title) s.title = a.title;
+      return;
+    }
+    case 'setMode': {
+      if (s.phase !== 'lobby') fail('The mode can only be changed before the game starts');
+      if (s.mode === a.mode) return { ignored: true };
+      if (a.mode === 'team' && s.practice) fail('Practice games are played as individuals');
+      // Everyone stays in the game; only the grouping changes. Buzzers assigned to a player stay
+      // with that player; buzzers assigned to a team (or a solo seat) are released.
+      const people = [...new Set([...s.competitors.filter((c) => !c.bot).flatMap((c) => c.memberIds), ...s.unassigned.filter((u) => !u.pending).map((u) => u.profileId)])];
+      const pending = s.unassigned.filter((u) => u.pending);
+      s.bindings = s.bindings.filter((b) => b.target.kind === 'profile');
+      s.competitors = [];
+      s.controlCompetitorId = null;
+      s.mode = a.mode;
+      if (a.mode === 'team') {
+        s.unassigned = [...people.map((profileId) => ({ profileId, joinedAt: now, pending: false })), ...pending];
+      } else {
+        s.unassigned = pending;
+        for (const profileId of people)
+          s.competitors.push({ id: ctx.newId(), kind: 'player', profileId, name: '', color: TEAM_COLORS[s.competitors.length % TEAM_COLORS.length], buzzerMode: 'individual', memberIds: [profileId] });
+      }
+      return;
+    }
     case 'mediaPlay': {
       const clue = activeClue(s);
       if (a.clueId !== clue.clueId) return { ignored: true, info: 'stale' };

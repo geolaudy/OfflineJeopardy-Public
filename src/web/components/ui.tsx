@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode 
 import { create } from 'zustand';
 import { avatarEmoji, PLAYER_COLORS, readableOn, contrastRatio } from '../lib/avatars';
 import type { ProfilePublic } from '../../shared/views';
+import { tokens } from '../lib/api';
+import { ArrowLeft, Menu, type LucideIcon } from 'lucide-react';
 
 export function cx(...c: (string | false | null | undefined)[]) {
   return c.filter(Boolean).join(' ');
@@ -76,8 +78,12 @@ export function PageTitleBar({ title, subtitle, actions }: { title: ReactNode; s
   );
 }
 
-export function Card({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cx('rounded-2xl border border-slate-200 bg-white p-4 shadow-sm', className)}>{children}</div>;
+export function Card({ children, className, ...rest }: { children: ReactNode; className?: string; 'data-testid'?: string }) {
+  return (
+    <div className={cx('rounded-2xl border border-slate-200 bg-white p-4 shadow-sm', className)} {...rest}>
+      {children}
+    </div>
+  );
 }
 
 let fieldSeq = 0;
@@ -225,7 +231,7 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
 export interface NavItem {
   to: string;
   label: string;
-  icon: string;
+  icon: LucideIcon;
   /** Exact match only (for index routes). */
   end?: boolean;
   testId?: string;
@@ -271,11 +277,11 @@ export function PageHeader({ title, subtitle, onBack, onMenu, right, testId }: {
       <div className="flex min-h-14 items-center gap-1 px-2">
         {onBack ? (
           <button onClick={onBack} className="flex h-11 w-11 items-center justify-center rounded-full text-2xl text-slate-700 hover:bg-slate-100 active:bg-slate-200" aria-label="Back" data-testid="nav-back">
-            ←
+            <ArrowLeft size={22} aria-hidden />
           </button>
         ) : onMenu ? (
           <button onClick={onMenu} className="flex h-11 w-11 items-center justify-center rounded-full text-2xl text-slate-700 hover:bg-slate-100 active:bg-slate-200" aria-label="Open menu" data-testid="nav-menu">
-            ☰
+            <Menu size={22} aria-hidden />
           </button>
         ) : (
           <span className="w-2" />
@@ -377,13 +383,14 @@ export function PinPad({ onComplete, busy, label = 'Enter PIN', error }: { onCom
   );
 }
 
-export function QrImage({ target, className }: { target: 'join' | 'host' | 'board'; className?: string }) {
+export function QrImage({ target, className, refreshKey }: { target: 'join' | 'host' | 'board' | 'hostPair'; className?: string; refreshKey?: unknown }) {
   const [svg, setSvg] = useState('');
   useEffect(() => {
     let alive = true;
     const load = () =>
-      fetch(`/api/qr?target=${target}`)
-        .then((r) => r.text())
+      // The host pairing QR contains the temporary lobby code, so it needs the host session.
+      fetch(`/api/qr?target=${target}`, { headers: target === 'hostPair' && tokens.host ? { authorization: `Bearer ${tokens.host}` } : {} })
+        .then((r) => (r.ok ? r.text() : ''))
         .then((t) => alive && setSvg(t))
         .catch(() => {});
     load();
@@ -392,7 +399,7 @@ export function QrImage({ target, className }: { target: 'join' | 'host' | 'boar
       alive = false;
       clearInterval(t);
     };
-  }, [target]);
+  }, [target, refreshKey]);
   return <div className={cx('aspect-square bg-white [&>svg]:h-full [&>svg]:w-full', className)} role="img" aria-label={`QR code for ${target} page`} dangerouslySetInnerHTML={{ __html: svg }} />;
 }
 

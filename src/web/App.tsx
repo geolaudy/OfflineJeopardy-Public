@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter, Link, Navigate, Route, Routes } from 'react-router-dom';
 import { Toasts } from './components/ui';
 import { isDesktopApp } from './lib/desktop';
+import { Monitor, MonitorPlay, Smartphone, Tablet } from 'lucide-react';
 
 const BoardPage = lazy(() => import('./pages/board/BoardPage'));
 const BoardPreview = lazy(() => import('./pages/board/Preview'));
@@ -13,19 +14,22 @@ const DeskPage = lazy(() => import('./pages/desk/DeskPage'));
 function Launcher() {
   if (isDesktopApp()) return <Navigate to="/desk" replace />;
   const links = [
-    ['/join', '📱 Player', 'Join a game, buzz, see your stats'],
-    ['/host', '🎛️ Host controller', 'Run the game (iPad / tablet)'],
-    ['/board', '📺 Game board', 'Show on the TV or projector'],
-    ['/desk', '🖥️ Dashboard', 'Boards, players, settings'],
-  ];
+    ['/join', Smartphone, 'Player', 'Join a game, buzz, see your stats'],
+    ['/host', Tablet, 'Host controller', 'Run the game (iPad / tablet)'],
+    ['/board', MonitorPlay, 'Game board', 'Show on the TV or projector'],
+    ['/desk', Monitor, 'Start screen', 'On the game computer: create a lobby'],
+  ] as const;
   return (
     <div className="mx-auto max-w-lg p-6">
       <h1 className="mb-6 text-center text-3xl font-black">OfflineJeopardy</h1>
       <div className="grid gap-3">
-        {links.map(([to, title, sub]) => (
-          <Link key={to} to={to} className="rounded-2xl bg-white p-4 shadow-sm hover:bg-slate-50">
-            <div className="text-xl font-bold">{title}</div>
-            <div className="text-slate-600">{sub}</div>
+        {links.map(([to, Icon, title, sub]) => (
+          <Link key={to} to={to} className="flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm hover:bg-slate-50">
+            <Icon size={28} strokeWidth={1.8} className="shrink-0 text-blue-700" aria-hidden />
+            <span>
+              <span className="block text-xl font-bold">{title}</span>
+              <span className="block text-slate-600">{sub}</span>
+            </span>
           </Link>
         ))}
       </div>
@@ -42,7 +46,7 @@ export default function App() {
           <Route path="/board" element={<BoardPage />} />
           <Route path="/board/preview" element={<BoardPreview />} />
           <Route path="/board/preview/:id" element={<BoardPreviewPage />} />
-          <Route path="/host" element={<HostPage />} />
+          <Route path="/host/*" element={<HostPage />} />
           <Route path="/join/*" element={<JoinPage />} />
           <Route path="/players" element={<Navigate to="/join" replace />} />
           <Route path="/desk/*" element={<DeskPage />} />

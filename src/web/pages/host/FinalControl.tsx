@@ -3,6 +3,7 @@ import type { GameView } from '../../../shared/views';
 import type { HostAction } from '../../../shared/actions';
 import { ActionButton, Avatar, Button, inputCls, cx, fmtScore } from '../../components/ui';
 import { competitorAvatar, competitorName, findCompetitor, profileName, useTimer } from '../../lib/view';
+import { Trophy, Check, X } from 'lucide-react';
 
 type Run = (a: HostAction) => Promise<{ ok: boolean }>;
 
@@ -56,7 +57,7 @@ export default function FinalControl({ g, run }: { g: GameView; run: Run }) {
           </ActionButton>
         ) : (
           <ActionButton size="xl" variant="success" className="flex-1" onAction={() => run({ type: 'endGame' })} data-testid="end-game">
-            🏆 Show the winner
+            <Trophy size={20} aria-hidden /> Show the winner
           </ActionButton>
         )}
       </div>
@@ -113,10 +114,10 @@ function FinalEntry({ g, run, entry: e }: { g: GameView; run: Run; entry: NonNul
           )}
           <div className="grid grid-cols-2 gap-2">
             <ActionButton variant="success" size="lg" onAction={() => run({ type: 'judgeFinal', competitorId: c.id, correct: true, profileId: c.kind === 'team' ? who : undefined })}>
-              ✓ Correct
+              <Check size={18} aria-hidden /> Correct
             </ActionButton>
             <ActionButton variant="danger" size="lg" onAction={() => run({ type: 'judgeFinal', competitorId: c.id, correct: false, profileId: c.kind === 'team' ? who : undefined })}>
-              ✗ Incorrect
+              <X size={18} aria-hidden /> Incorrect
             </ActionButton>
           </div>
         </>

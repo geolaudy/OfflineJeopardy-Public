@@ -9,6 +9,7 @@ import FinalControl from './FinalControl';
 import { EarlyBuzzQuick } from './EarlyBuzzRule';
 import { HOST_SHORTCUTS, useHostShortcuts } from './shortcuts';
 import { MediaControls, MediaThumbs } from './MediaControls';
+import { Undo2, Dices, Gamepad2, EyeOff, Eye, NotebookPen, BellRing, Play, ChevronRight, ChevronsRight, Pause, RotateCcw, Timer, Lock, LockOpen, Check, X, ArrowLeft, Ban, Zap } from 'lucide-react';
 
 type Run = (a: HostAction) => Promise<{ ok: boolean }>;
 
@@ -47,7 +48,7 @@ export default function Live({ g, run }: { g: GameView; run: Run }) {
           ))}
           <div className="flex-1" />
           <ActionButton variant="secondary" size="lg" disabled={!g.undoLabel} onAction={() => run({ type: 'undo' })} className="shrink-0" data-testid="undo">
-            ↶ Undo{g.undoLabel ? <span className="text-sm font-normal text-slate-500">({g.undoLabel})</span> : null}
+            <Undo2 size={18} aria-hidden /> Undo{g.undoLabel ? <span className="text-sm font-normal text-slate-500">({g.undoLabel})</span> : null}
           </ActionButton>
         </div>
       </footer>
@@ -92,7 +93,7 @@ function HostBoard({ g, run }: { g: GameView; run: Run }) {
                 data-testid="host-tile"
               >
                 {q.value}
-                {q.dailyWager && !q.used && <span className="absolute top-0.5 right-1 text-[10px]" title="Daily Wager">🎲</span>}
+                {q.dailyWager && !q.used && <span className="absolute top-0.5 right-1 text-[10px]" title="Daily Wager"><Dices size={12} aria-hidden /></span>}
               </button>
             );
           }),
@@ -172,7 +173,7 @@ function BoardTools({ g, run, onDevices }: { g: GameView; run: Run; onDevices: (
           </ActionButton>
         )}
         <Button size="lg" variant="secondary" onClick={onDevices}>
-          🎮 Buzzers
+          <Gamepad2 size={18} aria-hidden /> Buzzers
         </Button>
         <Button size="lg" variant="secondary" onClick={() => run({ type: 'showJoinQr', show: !g.showJoinQr })}>
           {g.showJoinQr ? 'Hide' : 'Show'} QR on TV
@@ -207,14 +208,14 @@ function HostAnswer({ g }: { g: GameView }) {
       <div className="text-xs font-bold tracking-wide text-green-800 uppercase">{g.practice ? 'Answer' : 'Answer (only you can see this)'}</div>
       {hidden ? (
         <button className="mt-1 min-h-11 rounded-lg bg-white px-3 font-semibold text-green-900 ring-1 ring-green-600" onClick={() => setPeek(true)} data-testid="peek-answer">
-          🙈 Hidden while you play — tap to peek
+          <EyeOff size={16} className="mr-1 inline align-[-3px]" aria-hidden />Hidden while you play — tap to peek
         </button>
       ) : (
         <div className="text-2xl font-black text-green-900" data-testid="host-answer">
           {clue.answer}
         </div>
       )}
-      {clue.notes && !hidden && <div className="mt-1 text-sm text-slate-700">📝 {clue.notes}</div>}
+      {clue.notes && !hidden && <div className="mt-1 text-sm text-slate-700"><NotebookPen size={14} className="mr-1 inline align-[-2px]" aria-hidden />{clue.notes}</div>}
     </div>
   );
 }
@@ -227,7 +228,7 @@ function BuzzFor({ g, run }: { g: GameView; run: Run }) {
     <div className={cx('flex flex-wrap gap-2', g.practice && 'rounded-xl bg-red-50 p-2')}>
       {humans.map((c) => (
         <ActionButton key={c.id} size={g.practice ? 'xl' : 'sm'} variant={g.practice ? 'danger' : 'ghost'} className={g.practice ? 'flex-1' : ''} onAction={() => run({ type: 'hostBuzz', competitorId: c.id })} data-testid="buzz-for">
-          🔔 {g.practice ? `Buzz — ${competitorName(c, g)}` : `Buzz for ${competitorName(c, g)}`}
+          <BellRing size={18} aria-hidden /> {g.practice ? `Buzz — ${competitorName(c, g)}` : `Buzz for ${competitorName(c, g)}`}
         </ActionButton>
       ))}
     </div>
@@ -243,7 +244,7 @@ function IntroControls({ g, run }: { g: GameView; run: Run }) {
     return (
       <div className="flex justify-end">
         <Button size="sm" variant="ghost" onClick={() => run({ type: 'startIntro' })} data-testid="intro-start">
-          ▶ Introduce the categories on TV
+          <Play size={18} aria-hidden /> Introduce the categories on TV
         </Button>
       </div>
     );
@@ -260,11 +261,11 @@ function IntroControls({ g, run }: { g: GameView; run: Run }) {
       </div>
       <div className="grid grid-cols-[2fr_1fr_1fr] gap-2">
         <ActionButton size="lg" variant="warning" onAction={() => run({ type: 'introNext' })} data-testid="intro-next">
-          {nextLabel} ▶
+          {nextLabel} <ChevronRight size={18} aria-hidden />
         </ActionButton>
         {!intro.auto ? (
           <Button size="lg" variant="secondary" onClick={() => run({ type: 'startIntro', auto: true })} title="Play the introduction automatically">
-            Auto ▶▶
+            Auto <ChevronsRight size={18} aria-hidden />
           </Button>
         ) : (
           <span />
@@ -290,20 +291,20 @@ function TimerControls({ g, run }: { g: GameView; run: Run }) {
       <div className="flex-1" />
       {t?.running ? (
         <Button size="sm" variant="secondary" onClick={() => run({ type: 'timerPause' })}>
-          ❚❚ Pause
+          <Pause size={18} aria-hidden /> Pause
         </Button>
       ) : t && !t.expired && t.remainingMs > 0 ? (
         <Button size="sm" variant="secondary" onClick={() => run({ type: 'timerResume' })}>
-          ▶ Resume
+          <Play size={18} aria-hidden /> Resume
         </Button>
       ) : null}
       {t && (
         <Button size="sm" variant="secondary" onClick={() => run({ type: 'timerReset' })}>
-          ↺ Reset
+          <RotateCcw size={18} aria-hidden /> Reset
         </Button>
       )}
       <Button size="sm" variant="secondary" onClick={() => run({ type: 'timerStart', kind: g.buzzer.winner ? 'answer' : 'buzz', seconds: (g.buzzer.winner ? defaults.answerSeconds : defaults.buzzSeconds) || 10 })}>
-        ⏱ Start {(g.buzzer.winner ? defaults.answerSeconds : defaults.buzzSeconds) || 10}s
+        <Timer size={18} aria-hidden /> Start {(g.buzzer.winner ? defaults.answerSeconds : defaults.buzzSeconds) || 10}s
       </Button>
     </div>
   );
@@ -361,15 +362,15 @@ function CluePanel({ g, run }: { g: GameView; run: Run }) {
             <div className="grid grid-cols-2 gap-2">
               {g.buzzer.status === 'open' ? (
                 <Button size="lg" variant="warning" onClick={() => run({ type: 'lockBuzzers' })}>
-                  🔒 Lock buzzers
+                  <Lock size={18} aria-hidden /> Lock buzzers
                 </Button>
               ) : (
                 <Button size="lg" variant="success" disabled={!!winner} onClick={() => run({ type: 'unlockBuzzers' })} data-testid="unlock">
-                  🔓 Unlock buzzers
+                  <LockOpen size={18} aria-hidden /> Unlock buzzers
                 </Button>
               )}
               <Button size="lg" variant="secondary" onClick={() => run({ type: 'resetBuzzers' })}>
-                ↺ Reset buzzers
+                <RotateCcw size={18} aria-hidden /> Reset buzzers
               </Button>
             </div>
           )}
@@ -392,10 +393,10 @@ function CluePanel({ g, run }: { g: GameView; run: Run }) {
               <Attribution g={g} c={responder} value={who} onChange={setWho} />
               <div className="grid grid-cols-2 gap-2">
                 <ActionButton size="xl" variant="success" onAction={() => judge('correct')} data-testid="correct">
-                  ✓ Correct
+                  <Check size={20} aria-hidden /> Correct
                 </ActionButton>
                 <ActionButton size="xl" variant="danger" onAction={() => judge('incorrect')} data-testid="incorrect">
-                  ✗ Incorrect
+                  <X size={20} aria-hidden /> Incorrect
                 </ActionButton>
               </div>
             </div>
@@ -428,10 +429,10 @@ function ClueFlow({ g, run }: { g: GameView; run: Run }) {
     return (
       <div className="mt-auto grid grid-cols-[1fr_auto] gap-2">
         <ActionButton size="xl" variant="primary" onAction={() => run({ type: 'closeClue', clueId: id })} data-testid="back-to-board">
-          ← Return to board
+          <ArrowLeft size={18} aria-hidden /> Return to board
         </ActionButton>
         <Button size="lg" variant="ghost" onClick={() => run({ type: 'hideAnswer' })} data-testid="hide-answer">
-          🙈 Hide answer
+          <EyeOff size={18} aria-hidden /> Hide answer
         </Button>
       </div>
     );
@@ -444,10 +445,10 @@ function ClueFlow({ g, run }: { g: GameView; run: Run }) {
         </p>
         <div className="grid grid-cols-[1fr_auto] gap-2">
           <ActionButton size="xl" variant="primary" onAction={() => run({ type: 'revealAnswer', clueId: id })} data-testid="reveal-answer">
-            👁 Reveal answer
+            <Eye size={18} aria-hidden /> Reveal answer
           </ActionButton>
           <ActionButton size="lg" variant="ghost" onAction={() => run({ type: 'closeClue', clueId: id })} data-testid="skip-clue">
-            Skip →
+            Skip <ChevronRight size={18} aria-hidden />
           </ActionButton>
         </div>
       </div>
@@ -464,7 +465,7 @@ function ClueFlow({ g, run }: { g: GameView; run: Run }) {
           data-testid="end-answering"
           title={pendingJudgement ? 'Judge the answer first' : 'Nobody knows it — stop buzzing and reveal the answer'}
         >
-          ⏹ Nobody knows
+          <Ban size={18} aria-hidden /> Nobody knows
         </ActionButton>
       ) : (
         <span />
@@ -475,7 +476,7 @@ function ClueFlow({ g, run }: { g: GameView; run: Run }) {
         onAction={() => (confirm('Skip this clue without showing the answer?') ? run({ type: 'closeClue', clueId: id }) : undefined)}
         data-testid="skip-clue"
       >
-        Skip clue →
+        Skip clue <ChevronRight size={18} aria-hidden />
       </ActionButton>
     </div>
   );
@@ -496,7 +497,7 @@ function EarlyBuzzes({ g, run }: { g: GameView; run: Run }) {
             return (
               <li key={`${e.competitorId}${e.profileId}${e.at}`} className="flex items-center gap-2">
                 <span className="min-w-0 flex-1 truncate">
-                  ⚡ <b>{who}</b> buzzed early
+                  <Zap size={14} className="mr-1 inline align-[-2px] text-amber-600" aria-hidden /><b>{who}</b> buzzed early
                   <span className="text-slate-600">
                     {e.penalty === 'lockout' ? ' · short lockout' : e.penalty === 'clue' ? ' · out for this clue' : e.points ? ` · −${e.points}` : e.penalty === 'points' ? ' · already charged' : ''}
                   </span>
@@ -526,7 +527,7 @@ function DailyWagerForm({ g, run }: { g: GameView; run: Run }) {
   const valid = amount !== '' && Number.isInteger(n) && n >= g.rules.dailyWagerMin && n <= max;
   return (
     <div className="space-y-3 rounded-xl bg-amber-50 p-3 ring-2 ring-amber-400">
-      <p className="font-bold">🎲 Daily Wager — the TV is hiding the clue until the wager is locked.</p>
+      <p className="font-bold"><Dices size={18} className="mr-1 inline align-[-3px]" aria-hidden />Daily Wager — the TV is hiding the clue until the wager is locked.</p>
       <Field label="Who is wagering?">
         <select className={inputCls} value={cid ?? ''} onChange={(e) => setCid(e.target.value)}>
           {g.competitors.map((x) => (

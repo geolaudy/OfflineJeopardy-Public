@@ -56,7 +56,7 @@ test('full game: iPad host pairing, phone profiles + buzzing, private answers, l
   for (const d of '000000' === code ? '111111' : '000000') await ipad.getByRole('button', { name: d, exact: true }).click();
   await expect(ipad.getByRole('alert')).toContainText('Incorrect host code');
   for (const d of code) await ipad.getByRole('button', { name: d, exact: true }).click();
-  await expect(ipad.getByRole('heading', { name: 'New game' })).toBeVisible();
+  await expect(ipad.getByRole('heading', { name: 'Set up a game' })).toBeVisible();
 
   // Phones: iPhone (WebKit) and Android (Chromium)
   const iphone = await (await wk.newContext({ ...devices['iPhone 13'] })).newPage();
@@ -65,7 +65,7 @@ test('full game: iPad host pairing, phone profiles + buzzing, private answers, l
   await createProfileOnPhone(android, 'Sam', '9876');
 
   // Host creates a solo game from the starter board
-  await ipad.getByRole('button', { name: 'Create game' }).click();
+  await ipad.getByRole('button', { name: 'Open lobby' }).click();
   await expect(ipad.getByTestId('start-game')).toBeVisible();
   await expect(tv.getByText('Scan to join')).toBeVisible();
 
@@ -244,7 +244,7 @@ test('works with no internet: every request stays on the local server', async ()
     }
     return route.continue();
   });
-  for (const path of ['/board', '/join', '/host', '/desk', '/desk/library', '/desk/players', '/desk/settings']) {
+  for (const path of ['/board', '/join', '/host', '/desk', '/host/boards', '/host/players', '/host/settings']) {
     await page.goto(`${BASE}${path}`);
     await page.waitForLoadState('networkidle');
   }

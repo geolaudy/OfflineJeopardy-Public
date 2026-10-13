@@ -8,6 +8,7 @@ import { Button, Card, Field, Modal, cx, inputCls, toast } from '../../component
 import { contrastRatio } from '../../lib/avatars';
 import { FONT_STACKS, THEME_PRESETS, newThemeData, type CustomTheme, type CustomThemeData, type FontKey, type PresetId, type ThemeColors } from '../../../shared/themes';
 import type { PreviewMessage, PreviewView } from '../board/Preview';
+import { RotateCcw } from 'lucide-react';
 
 const COLOR_FIELDS: [keyof ThemeColors, string][] = [
   ['background', 'Background'],
@@ -284,7 +285,7 @@ function ThemeEditor({ initial, onClose, onSaved }: { initial: { id: string | nu
                   <span className={cx('min-w-0 flex-1 truncate text-sm', !d.colors[k] && 'text-slate-400')}>{label}</span>
                   {d.colors[k] ? (
                     <button className="text-xs text-slate-500 hover:text-slate-800" onClick={() => setColor(k, '')} aria-label={`Reset ${label}`}>
-                      ↺
+                      <RotateCcw size={14} aria-hidden />
                     </button>
                   ) : null}
                 </div>

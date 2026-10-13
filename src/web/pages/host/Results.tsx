@@ -4,6 +4,7 @@ import { hostApi } from '../../lib/api';
 import { attempt } from '../../lib/hooks';
 import { ActionButton, Avatar, cx, fmtScore } from '../../components/ui';
 import { competitorAvatar, competitorName, findCompetitor, profileName } from '../../lib/view';
+import { Undo2 } from 'lucide-react';
 
 export default function Results({ g }: { g: GameView }) {
   return (
@@ -35,7 +36,7 @@ export default function Results({ g }: { g: GameView }) {
           New game
         </ActionButton>
         <ActionButton size="lg" variant="secondary" onAction={async () => (confirm('Re-open the game? The final result will be undone.') ? act({ type: 'undo' }) : undefined)}>
-          ↶ Undo end of game
+          <Undo2 size={18} aria-hidden /> Undo end of game
         </ActionButton>
       </div>
     </div>

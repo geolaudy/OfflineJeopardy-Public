@@ -6,6 +6,7 @@ import { meApi } from '../../lib/api';
 import { useFetch } from '../../lib/hooks';
 import { cx, fmtScore } from '../../components/ui';
 import type { Me } from './JoinPage';
+import { Trophy } from 'lucide-react';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -128,7 +129,7 @@ export function GameDetailPage({ me }: { me: Me }) {
         </p>
         {winners.length > 0 && (
           <p className="mt-2 font-semibold">
-            🏆 {winners.join(' & ')} {winners.length > 1 ? 'tied for the win' : 'won'}
+            <Trophy size={18} className="mr-1 inline align-[-3px] text-amber-500" aria-hidden />{winners.join(' & ')} {winners.length > 1 ? 'tied for the win' : 'won'}
           </p>
         )}
       </section>

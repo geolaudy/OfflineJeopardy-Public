@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { downloadFile, hostApi } from '../../lib/api';
 import { attempt, useFetch } from '../../lib/hooks';
 import { ActionButton, Button, Card, Empty, Field, Modal, PageTitleBar, cx, inputCls, toast } from '../../components/ui';
-import { Eye, Link2, Plus, Upload } from 'lucide-react';
+import { Eye, Link2, Plus, Upload, Folder, FileText, ChevronDown, ChevronUp } from 'lucide-react';
 import { ImportFromSourceModal } from './ImportFromSource';
 import { CSV_HEADER } from '../../../shared/boardIO';
 import type { BoardContent, Clue } from '../../../shared/game';
@@ -99,7 +99,7 @@ export default function Library() {
   const closeDelete = useCallback(() => setDeleteTarget(null), []);
   const closeImport = useCallback(() => setImportOpen(false), []);
   const closeTemplates = useCallback(() => setTemplatesOpen(false), []);
-  const openEditor = useCallback((id: string) => navigate(`/desk/boards/${id}`), [navigate]);
+  const openEditor = useCallback((id: string) => navigate(`/host/boards/${id}`), [navigate]);
 
   const replaceBoard = (b: Partial<BoardSummary> & { id: string }) =>
     setData((list) => (list ? list.map((x) => (x.id === b.id ? { ...x, ...b } : x)) : list));
@@ -138,7 +138,7 @@ export default function Library() {
                 From template
               </Button>
             ) : null}
-            <Button onClick={() => navigate('/desk/boards/new')}>
+            <Button onClick={() => navigate('/host/boards/new')}>
               <Plus size={18} aria-hidden /> New board
             </Button>
           </>
@@ -233,7 +233,7 @@ export default function Library() {
             <Button variant="secondary" onClick={() => setImportOpen(true)}>
               Import
             </Button>
-            <Button onClick={() => navigate('/desk/boards/new')}>+ New board</Button>
+            <Button onClick={() => navigate('/host/boards/new')}>+ New board</Button>
           </div>
         </Empty>
       ) : null}
@@ -261,7 +261,7 @@ export default function Library() {
           <li key={b.id}>
             <BoardCard
               board={b}
-              onEdit={() => navigate(`/desk/boards/${b.id}`)}
+              onEdit={() => navigate(`/host/boards/${b.id}`)}
               onPreview={() => navigate(`/board/preview/${b.id}`)}
               onQuickLook={() => setPreviewId(b.id)}
               onFavorite={() => void patch(b, { favorite: !b.favorite })}
@@ -317,7 +317,7 @@ export default function Library() {
                   const r = await attempt(() => hostApi<{ id: string }>('POST', `/api/boards/${t.id}/duplicate`));
                   if (r) {
                     setTemplatesOpen(false);
-                    navigate(`/desk/boards/${r.id}`);
+                    navigate(`/host/boards/${r.id}`);
                   }
                 }}
               >
@@ -369,7 +369,11 @@ function BoardCard({
             {b.title}
           </h2>
           <p className="text-sm text-slate-500">
-            {b.folder ? <span className="mr-2">📁 {b.folder}</span> : null}
+            {b.folder ? (
+                  <span className="mr-2 inline-flex items-center gap-1">
+                    <Folder size={12} aria-hidden /> {b.folder}
+                  </span>
+                ) : null}
             Edited {timeAgo(b.updatedAt)}
           </p>
         </div>
@@ -415,7 +419,7 @@ function BoardCard({
           <Eye size={16} aria-hidden /> Preview
         </Button>
         <Button size="sm" variant="ghost" aria-expanded={moreOpen} onClick={() => setMoreOpen((o) => !o)}>
-          {moreOpen ? 'Less ▴' : 'More ▾'}
+          {moreOpen ? 'Less' : 'More'} {moreOpen ? <ChevronUp size={16} aria-hidden /> : <ChevronDown size={16} aria-hidden />}
         </Button>
       </div>
       {moreOpen ? (
@@ -666,7 +670,13 @@ function ImportModal({ open, onClose, onSaved }: { open: boolean; onClose: () =>
             htmlFor="import-file"
             className="flex min-h-20 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 p-4 text-center hover:bg-slate-50 focus-within:ring-2 focus-within:ring-blue-300"
           >
-            <span className="font-semibold">{file ? `📄 ${file.name}` : 'Choose a .csv, .json or board package (.zip)'}</span>
+            <span className="font-semibold">{file ? (
+              <span className="inline-flex items-center gap-1.5">
+                <FileText size={16} aria-hidden /> {file.name}
+              </span>
+            ) : (
+              'Choose a .csv, .json or board package (.zip)'
+            )}</span>
             <span className="text-sm text-slate-500">{busy ? 'Checking…' : file ? 'Choose another file' : 'Files are read locally and checked before saving'}</span>
           </label>
         </div>

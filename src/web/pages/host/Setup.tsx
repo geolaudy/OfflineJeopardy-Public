@@ -10,6 +10,8 @@ import ControllersPanel, { AssignListener } from '../../components/ControllersPa
 import { competitorAvatar, competitorName, profileName } from '../../lib/view';
 import { TEAM_AVATARS, avatarEmoji, PLAYER_COLORS } from '../../lib/avatars';
 import { BOT_LEVELS, BOT_NAMES, TEAM_COLORS, type BotLevel } from '../../../shared/game';
+import { Play, RefreshCw, FlaskConical, Bot, X, Hand, BellRing, SlidersHorizontal, User, Users } from 'lucide-react';
+import RulesEditor from './RulesEditor';
 
 const run = async (a: Parameters<typeof act>[0]) => {
   const r = await act(a);
@@ -22,6 +24,7 @@ export default function Setup({ g }: { g: GameView }) {
   const ready = g.competitors.length > 0 && g.competitors.every((c) => !!c.bot || c.memberIds.length > 0) && g.competitors.some((c) => !c.bot);
   return (
     <div className="mx-auto max-w-5xl space-y-4 p-4">
+      <LobbyControls g={g} />
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex rounded-xl bg-white p-1 shadow-sm" role="tablist">
           {(['players', 'buzzers'] as const).map((t) => (
@@ -32,7 +35,7 @@ export default function Setup({ g }: { g: GameView }) {
         </div>
         <div className="flex-1" />
         <ActionButton size="lg" variant="success" disabled={!ready} onAction={() => run({ type: 'startGame' })} data-testid="start-game">
-          ▶ Start game
+          <Play size={20} aria-hidden /> Start game
         </ActionButton>
       </div>
       {tab === 'players' ? g.mode === 'team' ? <TeamSetup g={g} /> : <SoloSetup g={g} /> : <ControllersPanel g={g} />}
@@ -62,7 +65,7 @@ function JoinHint({ g }: { g: GameView }) {
               {g.roomCode}
             </span>
             <Button size="sm" variant="ghost" onClick={() => run({ type: 'newRoomCode' })}>
-              ↻ New code
+              <RefreshCw size={16} aria-hidden /> New code
             </Button>
           </div>
         )}
@@ -153,14 +156,14 @@ function SoloSetup({ g }: { g: GameView }) {
       <PendingList g={g} />
       {g.practice && (
         <p className="rounded-xl bg-violet-50 p-3 text-sm text-violet-900" data-testid="practice-note">
-          🧪 <b>Practice game</b> — it is saved in history but does not count in statistics or the leaderboard. The buzzers open automatically after each question.
+          <FlaskConical size={16} className="mr-1 inline align-[-3px]" aria-hidden /><b>Practice game</b> — it is saved in history but does not count in statistics or the leaderboard. The buzzers open automatically after each question.
         </p>
       )}
       <Card>
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <h3 className="flex-1 text-lg font-bold">Players ({g.competitors.length})</h3>
           <Button variant="secondary" onClick={() => setAddingBot(true)} data-testid="add-bot">
-            🤖 Computer opponent
+            <Bot size={18} aria-hidden /> Computer opponent
           </Button>
           <Button onClick={() => setAdding(true)}>+ Add player</Button>
         </div>
@@ -188,7 +191,7 @@ function SoloSetup({ g }: { g: GameView }) {
                   <span className={cx('text-xs', g.online?.includes(c.profileId!) ? 'text-green-700' : 'text-slate-400')}>{g.online?.includes(c.profileId!) ? '● phone' : '○'}</span>
                 )}
                 <Button size="sm" variant="ghost" onClick={() => run({ type: 'removeCompetitor', competitorId: c.id })} aria-label={`Remove ${name}`}>
-                  ✕
+                  <X size={18} aria-hidden />
                 </Button>
               </li>
             );
@@ -308,7 +311,8 @@ function TeamSetup({ g }: { g: GameView }) {
                     onClick={() => run({ type: 'updateCompetitor', competitorId: c.id, buzzerMode: m })}
                     className={cx('min-h-12 rounded-xl border-2 px-2 text-sm font-semibold', c.buzzerMode === m ? 'border-blue-700 bg-blue-50 text-blue-900' : 'border-slate-200')}
                   >
-                    {m === 'individual' ? '🙋 Each player buzzes' : '🔔 One shared buzzer'}
+                    {m === 'individual' ? <Hand size={18} aria-hidden /> : <BellRing size={18} aria-hidden />}
+                {m === 'individual' ? 'Each player buzzes' : 'One shared buzzer'}
                   </button>
                 ))}
               </div>
@@ -454,5 +458,81 @@ function TeamEditor({ g, competitorId, onClose }: { g: GameView; competitorId?: 
         </div>
       </div>
     </Modal>
+  );
+}
+
+interface BoardOption {
+  id: string;
+  title: string;
+  archived: boolean;
+  favorite: boolean;
+}
+
+/** Lobby controls (R2-6): what is being played, with changes allowed until the game starts. */
+function LobbyControls({ g }: { g: GameView }) {
+  const [boards, setBoards] = useState<BoardOption[]>([]);
+  const [rulesOpen, setRulesOpen] = useState(false);
+  useEffect(() => {
+    hostApi<BoardOption[]>('GET', '/api/boards')
+      .then((b) => setBoards(b.filter((x) => !x.archived || x.id === g.boardId).sort((a, c) => Number(c.favorite) - Number(a.favorite))))
+      .catch(() => {});
+  }, [g.boardId]);
+  const people = new Set([...g.competitors.filter((c) => !c.bot).flatMap((c) => c.memberIds), ...g.unassigned.map((u) => u.profileId)]).size;
+  const teamBuzzers = g.bindings.filter((b) => b.target.kind === 'competitor').length;
+
+  const changeBoard = async (boardId: string) => {
+    if (!boardId || boardId === g.boardId) return;
+    if (await attempt(() => hostApi('POST', '/api/games/current/board', { boardId }))) toast('Board changed', 'success');
+  };
+  const changeMode = async (mode: 'solo' | 'team') => {
+    if (mode === g.mode) return;
+    const lines =
+      mode === 'team'
+        ? ['Everyone stays in the game but needs to be put on a team.', g.competitors.some((c) => c.bot) ? 'Computer opponents leave (they only play individual games).' : '', 'Buzzers assigned to a player stay with that player.']
+        : ['Teams are split up; every member plays for themselves.', teamBuzzers ? `${teamBuzzers} shared team buzzer${teamBuzzers === 1 ? '' : 's'} will need to be assigned again.` : '', 'Buzzers assigned to a player stay with that player.'];
+    if (!confirm(`Switch to ${mode === 'team' ? 'teams' : 'individuals'}?\n\n${lines.filter(Boolean).join('\n')}`)) return;
+    await run({ type: 'setMode', mode });
+  };
+
+  return (
+    <Card className="grid gap-3 sm:grid-cols-[1.5fr_1fr_auto] sm:items-end" data-testid="lobby-controls">
+      <Field label="Board">
+        <select className={inputCls} value={g.boardId ?? ''} onChange={(e) => void changeBoard(e.target.value)} aria-label="Board">
+          {!g.boardId && <option value="">(board no longer in the library)</option>}
+          {boards.map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.title}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Play as" group>
+        <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1">
+          {(['solo', 'team'] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => void changeMode(m)}
+              disabled={m === 'team' && g.practice}
+              aria-pressed={g.mode === m}
+              className={cx('flex min-h-11 items-center justify-center gap-1.5 rounded-lg font-semibold disabled:opacity-40', g.mode === m ? 'bg-white text-blue-800 shadow-sm' : 'text-slate-600')}
+              data-testid={`mode-${m}`}
+            >
+              {m === 'solo' ? <User size={18} aria-hidden /> : <Users size={18} aria-hidden />}
+              {m === 'solo' ? 'Individuals' : 'Teams'}
+            </button>
+          ))}
+        </div>
+      </Field>
+      <div className="flex items-center gap-3">
+        <span className="text-sm text-slate-600" data-testid="lobby-count">
+          {people}
+          {g.rules.maxPlayers ? ` / ${g.rules.maxPlayers}` : ''} {people === 1 && !g.rules.maxPlayers ? 'player' : 'players'}
+        </span>
+        <Button variant="secondary" onClick={() => setRulesOpen(true)}>
+          <SlidersHorizontal size={18} aria-hidden /> Rules
+        </Button>
+      </div>
+      <RulesEditor open={rulesOpen} onClose={() => setRulesOpen(false)} g={g} run={async (a) => ({ ok: await run(a) })} />
+    </Card>
   );
 }

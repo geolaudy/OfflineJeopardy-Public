@@ -7,6 +7,16 @@
 - Tests: Vitest 78/78, Playwright 13/13 (new media.spec.ts). Practice spec now picks its board explicitly (it depended on which board was newest). Pushed 338dd0d (+3f963d6 matrix fix).
 - **Milestone: board importing (R2-20/R2-21)** (built by a subagent, reviewed and wired here): plugin pipeline with SSRF-safe downloads, Buzzinga share link / CSV export / saved JSON, user-provided clue datasets and CSV, previews, duplicate warnings, rollback; Library button "From link or dataset". Buzzinga share-link parsing is **not verified against a real shareable board** (see RESEARCH_NOTES.md). Test fixture with real show clues replaced by original clues. Board packages now carry answer-side media.
 - Tests: Vitest 104/104, Playwright 14/14.
+- **Milestone: board & clue preview (R2-17)** — preview from the library card, editor header and each clue using the real TV components, without starting a game (ac6d2c8). **Lobby session + public presentation state on the server** (c8f6c10).
+- **Milestone: lobby-first startup and unified host app (R2-1…R2-11, R2-18, R2-19).**
+  - Game computer start screen `/desk`: Create lobby (primary; opens the TV window), Resume, Boards, Settings, Help, network troubleshooting. With a lobby open: host pairing QR (one-step pairing via `/host#pair=`), 6-digit lobby-scoped code, "Host connected" status (start screen connects as an observer), TV window controls, Close lobby.
+  - One host app at `/host/*` for iPad and PC: Home, Boards, Players, Teams, Buzzers, History, Settings, Help; "Present on TV" / "Private view" switch; Back to start on the game computer. Old `/desk/*` links redirect.
+  - Home: "Set up a game" (board with preview, mode, rules preset, player limit, rules draft, summary) → **Open lobby** → lobby setup with **lobby controls** (change board, Individuals/Teams with an exact warning, rules, count/limit) → Start game.
+  - TV (built by a frontend subagent, reviewed here): full-screen lobby, compact lobby panel with shared-element morph, left nav rail, wordmark top-right, presented pages (leaderboard, players, player card, teams, boards, board categories, rules summary, buzzer overview). All payloads built on the server from public data.
+  - Emoji in menus and controls replaced by Lucide vector icons; Help rewritten for the new flow.
+  - Fixed during testing: pairing code in the URL fragment was lost when React re-ran a state initialiser (now read without side effects, removed after mount); `Card` now forwards `data-testid`; TV phone-readiness dots refresh when phones connect/disconnect.
+- Tests: Vitest 107/107, Playwright 17/17 (new lobby.spec.ts: start screen → create lobby → QR pairing → present on TV / private view → lobby controls → close lobby; legacy redirects). Screenshots: test-results/screens/.
+- **Next:** Milestone E — board intro (checker reveal) + settings (R2-23), buzzer unlock indicator styles (R2-24), sound cues/packs (R2-22); then R2-25 UX pass, survival UI, tournament mode.
 
 ## Session 3 — 2026-10-12 (roadmap continuation, auto-push workflow)
 

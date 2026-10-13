@@ -49,6 +49,7 @@ export const useLive = create<LiveState>(() => ({
 
 let ws: WebSocket | null = null;
 let currentRole: Role = 'public';
+let observer = false;
 let tokenFn: () => string | null | undefined = () => null;
 let retry = 0;
 let reqId = 1;
@@ -56,8 +57,9 @@ const pending = new Map<number, (r: { ok: boolean; error?: string; info?: string
 let pingTimer: ReturnType<typeof setInterval> | null = null;
 let stopped = false;
 
-export function connect(role: Role, getToken: () => string | null | undefined) {
+export function connect(role: Role, getToken: () => string | null | undefined, opts: { observer?: boolean } = {}) {
   currentRole = role;
+  observer = !!opts.observer;
   tokenFn = getToken;
   stopped = false;
   open();
@@ -82,7 +84,7 @@ function open() {
   useLive.setState({ status: retry ? 'reconnecting' : 'connecting', role: currentRole });
   sock.onopen = () => {
     retry = 0;
-    sock.send(JSON.stringify({ t: 'hello', role: currentRole, token: tokenFn() ?? undefined }));
+    sock.send(JSON.stringify({ t: 'hello', role: currentRole, token: tokenFn() ?? undefined, observer: observer || undefined }));
     ping();
     if (pingTimer) clearInterval(pingTimer);
     pingTimer = setInterval(ping, 10_000);

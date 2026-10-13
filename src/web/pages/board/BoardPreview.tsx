@@ -110,7 +110,7 @@ export default function BoardPreview() {
   const g = useMemo(() => (board ? buildView(board, st) : null), [board, st]);
   const ctx = useMemo(() => presentationFor(look.theme, look.custom, reduced, vh), [look, reduced, vh]);
   const root = themeRoot(look.theme, look.custom);
-  const exit = () => (window.history.length > 1 ? navigate(-1) : navigate(`/desk/boards/${id}`));
+  const exit = () => (window.history.length > 1 ? navigate(-1) : navigate(`/host/boards/${id}`));
 
   const open = (clueId: string) => setSt((s) => (s.openId || s.played.includes(clueId) ? s : { ...s, openId: clueId, revealed: false, media: null }));
   const back = () => setSt((s) => (s.openId ? { ...s, played: [...s.played, s.openId], openId: null, revealed: false, media: null } : s));

@@ -37,12 +37,12 @@ test('import + edit a board, then a mixed-mode team game through the Final', asy
 
   // ---- Desktop: import CSV through the library, edit a clue in the editor ----
   const desk = await (await cr.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
-  await desk.goto(`${BASE}/desk/library`);
+  await desk.goto(`${BASE}/host/boards`);
   await desk.getByRole('button', { name: /^Import/ }).first().click();
   await desk.locator('#import-file').setInputFiles({ name: 'team-test.csv', mimeType: 'text/csv', buffer: Buffer.from(CSV) });
   await desk.getByLabel('Board title').fill('Team Test Board');
   await desk.getByRole('button', { name: 'Save and edit' }).click();
-  await expect(desk).toHaveURL(/\/desk\/boards\/[0-9a-f-]{36}$/);
+  await expect(desk).toHaveURL(/\/host\/boards\/[0-9a-f-]{36}$/);
   const boardId = desk.url().split('/').pop()!;
   await desk.getByRole('button', { name: 'Edit Space 200' }).click();
   await desk.getByLabel('Question (shown on the board)').fill('Known as the Red Planet.');
@@ -61,8 +61,8 @@ test('import + edit a board, then a mixed-mode team game through the Final', asy
   const ipad = await (await wk.newContext({ ...devices['iPad Pro 11 landscape'] })).newPage();
   await ipad.goto(`${BASE}/host`);
   await ipad.getByRole('button', { name: /Team Test Board/ }).click();
-  await ipad.getByRole('button', { name: '👥 Teams' }).click();
-  await ipad.getByRole('button', { name: 'Create game' }).click();
+  await ipad.getByRole('button', { name: 'Teams', exact: true }).click();
+  await ipad.getByRole('button', { name: 'Open lobby' }).click();
 
   const makeTeam = async (name: string, shared: boolean, members: string[]) => {
     await ipad.getByRole('button', { name: '+ New team' }).click();
@@ -139,7 +139,7 @@ test('import + edit a board, then a mixed-mode team game through the Final', asy
   await taylorPhone.getByRole('button', { name: 'Submit answer' }).click();
   await expect(ipad.getByTestId('final-entry')).toContainText('Answer: Budapest');
   await ipad.getByTestId('final-next').click(); // reveal
-  await ipad.getByTestId('final-entry').getByRole('button', { name: '✓ Correct' }).click();
+  await ipad.getByTestId('final-entry').getByRole('button', { name: 'Correct', exact: true }).click();
   await expect(tv.getByText('Budapest').first()).toBeVisible();
   await ipad.getByTestId('final-next').click(); // finish
   await ipad.getByTestId('end-game').click();

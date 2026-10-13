@@ -51,9 +51,11 @@
 | `src/server/auth.ts` | scrypt PIN hashing, sessions, lockouts, rate limiter, pairing code. |
 | `src/server/images.ts` | sharp-based image validation/resizing; media sniffing; safe paths. |
 | `src/web/pages/board` | Public TV board: BoardPage (stage), Grid, ClueZoom (FLIP zoom from tile), Intro, Scoreboard, TimerBar (WAAPI), FinalScreen, board.css (classic look), timing.ts. |
-| `src/web/pages/host` | iPad host controller (picker, setup, live, final, results). |
+| `src/server/lobby.ts` | `LobbyManager`: lobby session (name, temporary pairing code) and the public **presentation state** the TV shows outside play. Payloads (roster, leaderboard, players, player card, teams, boards, board categories, rules summary, buzzer overview) are built on the server from public data only; phones never receive them. |
+| `src/shared/presentation.ts`, `leaderboard.ts`, `rulesSummary.ts` | Presentation contract (`PresentRequest` → `PresentationState`), shared ranking and plain-language rules summary (same wording on host and TV). |
+| `src/web/pages/host` | Host app for the iPad **and** the game computer: `AppShell` (Home, Boards, Players, Teams, Buzzers, History, Settings, Help; Present-on-TV switch; Back to start on the game computer), `HostPage` (pairing gate incl. one-step `#pair=` link, routes), Home = set up (GamePicker) → lobby (Setup + LobbyControls) → live → results. The library/editor/players/teams/… pages under `pages/desk` are reused as host pages. |
 | `src/web/pages/join` | Phone player portal. Routes: `/join` (buzzer), `/join/profile`, `/join/stats`, `/join/history[/:gameId]`, `/join/leaderboard`, `/join/players[/:id]`, `/join/settings`; drawer + back arrow. |
-| `src/web/pages/desk` | Desktop dashboard (connect, library, editor, players, teams, buzzers, history, settings, help). |
+| `src/web/pages/desk` | `DeskPage` = the game computer's **start screen** (`/desk`: Create lobby, Resume, Boards, Settings, Help; after creating: host pairing QR + code, host status, TV window). Old `/desk/*` addresses redirect to `/host/*`. The other files are the shared management pages used by the host app. |
 | `src/web/lib/inputBridge.ts` | Joy-Con (WebHID) / gamepad / keyboard reader → server. |
 | `src/electron/` | Electron main + preload. |
 | `tests/unit`, `tests/integration`, `tests/e2e` | Vitest unit, Vitest+real server integration, Playwright E2E. |

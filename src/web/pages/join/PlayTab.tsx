@@ -37,7 +37,7 @@ export default function PlayTab({ me }: { me: Me }) {
   if (g.phase === 'ended') {
     const mine = g.competitors.find((c) => c.memberIds.includes(me.id));
     const r = g.results?.find((x) => x.competitorId === mine?.id);
-    return <Idle text={r ? (r.isWinner ? `🏆 You won with ${fmtScore(r.score)}!` : `Game over — you finished #${r.placement} with ${fmtScore(r.score)}.`) : 'This game has ended.'} />;
+    return <Idle text={r ? (r.isWinner ? `You won with ${fmtScore(r.score)}!` : `Game over — you finished #${r.placement} with ${fmtScore(r.score)}.`) : 'This game has ended.'} />;
   }
   if (!ctx?.competitorId) {
     const pending = ctx?.pending || g.unassigned.some((u) => u.profileId === me.id);

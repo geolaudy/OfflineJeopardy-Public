@@ -84,7 +84,7 @@ for (const name of ['iPad Pro 11', 'iPad Pro 11 landscape', 'iPad Mini'] as cons
     const ipad = await ctx.newPage();
     await ipad.goto(`${BASE}/host`);
     // The picker (or setup) loads with a fully visible header.
-    const create = ipad.getByRole('button', { name: 'Create game' });
+    const create = ipad.getByRole('button', { name: 'Open lobby' });
     await expect(create.or(ipad.getByTestId('start-game')).or(ipad.getByTestId('nav-back')).first()).toBeVisible();
     // A finished game may still be loaded (results screen): the back arrow returns to the game list.
     if (!(await create.isVisible()) && !(await ipad.getByTestId('start-game').isVisible())) await ipad.getByTestId('nav-back').click();
@@ -123,7 +123,7 @@ for (const name of ['iPad Pro 11', 'iPad Pro 11 landscape', 'iPad Mini'] as cons
 
     // Leave the game list clean for the next test.
     await ipad.getByTestId('nav-back').click();
-    await expect(ipad.getByRole('button', { name: 'Create game' })).toBeVisible();
+    await expect(ipad.getByRole('button', { name: 'Open lobby' })).toBeVisible();
     await phone.context().close();
     await ctx.close();
   });

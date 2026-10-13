@@ -32,7 +32,7 @@ test('preview a board and its clues without starting a game (R2-17)', async () =
   const historyBefore = (await (await api.get('/api/history', { headers: H })).json()).length;
 
   const desk = await (await cr.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
-  await desk.goto(`${BASE}/desk/library`);
+  await desk.goto(`${BASE}/host/boards`);
   await card(desk, 'Starter Trivia Night').getByTestId('board-preview-button').click();
   await expect(desk.getByTestId('board-preview')).toBeVisible();
   await expect(desk.getByTestId('board-category').first()).toHaveText('History');
@@ -44,7 +44,7 @@ test('preview a board and its clues without starting a game (R2-17)', async () =
   await desk.getByTestId('preview-back').click();
   await expect(desk.locator('[data-clue-id="hist_1"][data-testid="board-tile"]')).toHaveCount(0); // played in the preview only
   await desk.getByTestId('preview-exit').click();
-  await expect(desk).toHaveURL(/\/desk\/library$/);
+  await expect(desk).toHaveURL(/\/host\/boards$/);
 
   // Nothing was created or changed.
   const after = await (await api.get('/api/games', { headers: H })).json();
@@ -58,7 +58,7 @@ test('import a clue dataset file through the "From link or dataset" dialog (R2-2
   const api = await request.newContext({ baseURL: BASE });
   const host = (await (await api.post('/api/host/local-login')).json()).token as string;
   const desk = await (await cr.newContext({ viewport: { width: 1366, height: 900 } })).newPage();
-  await desk.goto(`${BASE}/desk/library`);
+  await desk.goto(`${BASE}/host/boards`);
   await desk.getByTestId('import-from-source').click();
   const dialog = desk.getByRole('dialog');
   await dialog.getByRole('tab', { name: /file/i }).click();
@@ -68,7 +68,7 @@ test('import a clue dataset file through the "From link or dataset" dialog (R2-2
   await dialog.getByRole('checkbox', { name: /2900/ }).uncheck();
   await expect(dialog.getByText('1 selected')).toBeVisible();
   await dialog.getByRole('button', { name: 'Import', exact: true }).click();
-  await expect(desk).toHaveURL(/\/desk\/boards\/[0-9a-f-]{36}$/);
+  await expect(desk).toHaveURL(/\/host\/boards\/[0-9a-f-]{36}$/);
   const id = desk.url().split('/').pop()!;
   const b = await (await api.get(`/api/boards/${id}`, { headers: { authorization: `Bearer ${host}` } })).json();
   expect(b.title).toBe('Show 4680 (2004-12-31)');
@@ -91,7 +91,7 @@ test('board package with media: export from the library, import it back, plus du
   expect(made.id).toBeTruthy();
 
   const desk = await (await cr.newContext({ viewport: { width: 1366, height: 900 }, acceptDownloads: true })).newPage();
-  await desk.goto(`${BASE}/desk/library`);
+  await desk.goto(`${BASE}/host/boards`);
   const c = card(desk, 'Media Board');
   await c.getByRole('button', { name: /More/ }).click();
   const [download] = await Promise.all([desk.waitForEvent('download'), c.getByRole('button', { name: 'Export package (with media)' }).click()]);
@@ -106,7 +106,7 @@ test('board package with media: export from the library, import it back, plus du
   await expect(desk.getByLabel('Board title')).toHaveValue('Media Board');
   await desk.getByLabel('Board title').fill('Media Board (imported)');
   await desk.getByRole('button', { name: 'Save and edit' }).click();
-  await expect(desk).toHaveURL(/\/desk\/boards\/[0-9a-f-]{36}$/);
+  await expect(desk).toHaveURL(/\/host\/boards\/[0-9a-f-]{36}$/);
   const importedId = desk.url().split('/').pop()!;
   const imported = await (await api.get(`/api/boards/${importedId}`, { headers: H })).json();
   expect(imported.title).toBe('Media Board (imported)');
@@ -116,7 +116,7 @@ test('board package with media: export from the library, import it back, plus du
   expect((await api.get(url)).status()).toBe(200);
 
   // Duplicate, archive and restore from the library.
-  await desk.goto(`${BASE}/desk/library`);
+  await desk.goto(`${BASE}/host/boards`);
   await card(desk, 'Media Board').getByRole('button', { name: /More/ }).click();
   await card(desk, 'Media Board').getByRole('button', { name: 'Duplicate' }).click();
   await expect(desk.getByRole('heading', { name: /^Media Board \(copy\)|^Copy of Media Board/ })).toBeVisible();

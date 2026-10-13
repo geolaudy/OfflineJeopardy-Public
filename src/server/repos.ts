@@ -341,7 +341,7 @@ export function persistGame(db: DB, s: GameState, touched: GameplayEvent[], stat
     db.prepare(
       `INSERT INTO games (id, board_id, title, mode, status, state_json, created_at, updated_at, started_at, ended_at, practice)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET title = excluded.title, status = excluded.status, state_json = excluded.state_json,
+       ON CONFLICT(id) DO UPDATE SET board_id = excluded.board_id, title = excluded.title, mode = excluded.mode, status = excluded.status, state_json = excluded.state_json,
        updated_at = excluded.updated_at, started_at = excluded.started_at, ended_at = excluded.ended_at, practice = excluded.practice`,
     ).run(s.id, s.boardId && getBoardExists(db, s.boardId) ? s.boardId : null, s.title, s.mode, statusOverride ?? gameStatus(s), JSON.stringify(rest), s.createdAt, now, s.startedAt, s.endedAt, s.practice ? 1 : 0);
     const up = db.prepare(

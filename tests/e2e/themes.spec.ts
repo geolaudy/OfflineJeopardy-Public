@@ -25,7 +25,7 @@ test('custom theme: live preview, use on TV (live update), edit, export and re-i
   await expect(tvRoot).toHaveAttribute('data-theme', 'classic');
 
   const desk = await (await cr.newContext({ viewport: { width: 1440, height: 900 }, acceptDownloads: true })).newPage();
-  await desk.goto(`${BASE}/desk/themes`);
+  await desk.goto(`${BASE}/host/themes`);
   await desk.getByTestId('new-theme').click();
   const dialog = desk.getByRole('dialog');
   await dialog.getByLabel('Theme name').fill('E2E Party');

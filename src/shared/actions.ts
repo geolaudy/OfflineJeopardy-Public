@@ -1,6 +1,7 @@
 // Host action contract (validated on the server with zod). Clients send these over
 // the WebSocket as { t: 'host', action }. Only authenticated host sessions may send them.
 import { z } from 'zod';
+import type { BoardContent } from './game.js';
 
 const id = z.string().min(1).max(64);
 const int = z.number().int().min(-10_000_000).max(10_000_000);
@@ -134,6 +135,8 @@ export const hostActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('showJoinQr'), show: z.boolean() }),
   z.object({ type: z.literal('undo') }),
   z.object({ type: z.literal('newRoomCode') }),
+  /** Lobby only: switch between individuals and teams (assignments that no longer fit are reset). */
+  z.object({ type: z.literal('setMode'), mode: z.enum(['solo', 'team']) }),
   // Media playback (the TV plays; the host controls). durationMs comes from the host's metadata load.
   z.object({ type: z.literal('mediaPlay'), clueId: id, side: z.enum(['clue', 'answer']), index: z.number().int().min(0).max(10), durationMs: z.number().int().min(0).max(36_000_000).nullable().optional() }),
   z.object({ type: z.literal('mediaPause') }),
@@ -156,6 +159,8 @@ export type SystemAction =
   | { type: 'timerExpire' }
   | { type: 'playerJoin'; profileId: string; code?: string }
   | { type: 'setRoomCode'; code: string }
-  | { type: 'mediaEnded'; clueId: string };
+  | { type: 'mediaEnded'; clueId: string }
+  /** Lobby only: play a different board (loaded and validated by the server). */
+  | { type: 'setBoard'; boardId: string; board: BoardContent; title?: string };
 
 export type EngineAction = HostAction | SystemAction;

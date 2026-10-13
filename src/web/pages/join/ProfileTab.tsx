@@ -4,6 +4,7 @@ import { meApi, tokens } from '../../lib/api';
 import { Avatar, Button, ColorPicker, Field, Modal, inputCls, toast } from '../../components/ui';
 import { AvatarPicker } from '../../components/ProfileForm';
 import type { Me } from './JoinPage';
+import { Camera } from 'lucide-react';
 
 /** view 'profile': identity (photo, name, avatar, colour) · view 'settings': buzzer preferences, privacy, PIN, sign-out. */
 export default function ProfileTab({ me, setMe, signOut, view = 'profile' }: { me: Me; setMe: (m: Me) => void; signOut: (forget: boolean) => void; view?: 'profile' | 'settings' }) {
@@ -52,7 +53,7 @@ export default function ProfileTab({ me, setMe, signOut, view = 'profile' }: { m
         <Avatar profile={{ ...me, color, avatar }} size={112} />
         <div className="flex gap-2">
           <Button variant="secondary" size="sm" onClick={() => fileRef.current?.click()}>
-            📷 {me.pictureUrl ? 'Change photo' : 'Add photo'}
+            <Camera size={16} aria-hidden /> {me.pictureUrl ? 'Change photo' : 'Add photo'}
           </Button>
           {me.pictureUrl && (
             <Button

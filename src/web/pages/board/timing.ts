@@ -18,9 +18,20 @@ export const T = {
   fillSpread: 0.85,
   /** Score change highlight. */
   scoreFlash: 0.9,
+  /** Lobby: full screen ↔ compact side panel (shared QR card and avatars). */
+  morph: 0.7,
+  /** Lobby text/details fading in after (or out before) the morph. */
+  morphFadeIn: 0.4,
+  morphFadeOut: 0.2,
+  /** Presented pages (leaderboard, players, …): cross-fade with a short slide. */
+  page: 0.45,
+  /** Nav rail highlight moving to the current page. */
+  rail: 0.45,
 } as const;
 
 /** Decelerating curve for things arriving; symmetric curve for things leaving. */
 export const EASE_OUT = 'cubic-bezier(0.22, 0.61, 0.36, 1)';
 export const EASE_IN_OUT = 'cubic-bezier(0.65, 0, 0.35, 1)';
 export const EASE_OUT_ARR = [0.22, 0.61, 0.36, 1] as const;
+/** Shared-element morphs (both ends are on screen, so a gentle symmetric curve). */
+export const EASE_MORPH_ARR = [0.45, 0, 0.15, 1] as const;

@@ -8,6 +8,7 @@ import type { BindingTarget } from '../../shared/game';
 import { Avatar, Button, Modal, cx } from './ui';
 import { competitorName, profileName } from '../lib/view';
 import { act } from '../lib/socket';
+import { Gamepad2, UsersRound } from 'lucide-react';
 
 const BUTTON_CHOICES: Record<string, string[]> = {
   joycon: ['any', 'SL,SR', 'A', 'B', 'X', 'Y', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'L,ZL', 'R,ZR'],
@@ -28,7 +29,7 @@ export function AssignListener({ g }: { g: GameView }) {
   return (
     <Modal open onClose={() => send({ t: 'assignListen', target: null })} title="Assign a buzzer">
       <div className="space-y-4 text-center">
-        <div className="text-5xl">🎮</div>
+        <Gamepad2 size={56} strokeWidth={1.5} className="mx-auto text-blue-700" aria-hidden />
         <p className="text-lg">
           Ask <b>{targetLabel(listening.target, g)}</b> to press a button on their Joy-Con, controller or keyboard key now.
         </p>
@@ -125,7 +126,7 @@ export default function ControllersPanel({ g }: { g: GameView | null }) {
           );
         })}
       </ul>
-      {g ? <AssignmentTable g={g} /> : <p className="text-sm text-slate-500">Assign controllers to players once a game is set up (host controller → Buzzers).</p>}
+      {g ? <AssignmentTable g={g} /> : <p className="text-sm text-slate-500">Once a game is set up, players and teams appear here so you can assign their controllers.</p>}
       <Modal open={help} onClose={() => setHelp(false)} title="Connecting Joy-Cons" wide>
         <ol className="list-decimal space-y-2 pl-5 text-slate-700">
           <li>On the game computer open Windows Settings → Bluetooth &amp; devices → Add device → Bluetooth.</li>
@@ -174,7 +175,7 @@ function AssignmentTable({ g }: { g: GameView }) {
           const b = bound(r.target);
           return (
             <li key={r.key} className="flex flex-wrap items-center gap-3 p-3" data-testid="assignment-row">
-              {r.avatar ? <Avatar profile={r.avatar} size={32} /> : <span className="text-2xl">👥</span>}
+              {r.avatar ? <Avatar profile={r.avatar} size={32} /> : <UsersRound size={28} className="text-slate-500" aria-hidden />}
               <div className="min-w-0 flex-1">
                 <div className="font-semibold">{r.label}</div>
                 <div className="text-xs text-slate-500">

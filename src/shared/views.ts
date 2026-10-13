@@ -91,6 +91,8 @@ export interface GameView {
   role: ViewRole;
   id: Id;
   title: string;
+  /** The board being played (host only). */
+  boardId?: Id | null;
   mode: 'solo' | 'team';
   phase: Phase;
   paused: boolean;

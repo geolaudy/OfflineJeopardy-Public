@@ -1,0 +1,197 @@
+// Full-screen public lobby (R2-5): title, board, mode, players (avatars, colours, teams), subtle
+// controller readiness and how to join. The join QR card itself lives in Presenter (it stays
+// mounted and morphs between this screen and the compact panel).
+import { useRef, type CSSProperties } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
+import { Wifi, ScanLine, UserRound } from 'lucide-react';
+import { cx } from '../../components/ui';
+import { avatarEmoji } from '../../lib/avatars';
+import { countLabel, modeLabel, type LobbyModel, type LobbyPerson, type LobbyTeam } from './lobbyModel';
+import { DeviceTag, Fade, SharedAvatar, fitCards, useBoxSize } from './presentKit';
+import { COMPACT_AVATARS } from './CompactLobby';
+import { useBoard, vhPx } from './common';
+import { EASE_OUT_ARR, T } from './timing';
+
+const MAX_PEOPLE = 30;
+
+/** Keys present when this screen first rendered: those avatars morph in from the compact panel,
+ *  anything added later is a new arrival and animates in on its own. */
+function useKnownKeys(keys: string[]) {
+  const ref = useRef<Set<string> | null>(null);
+  if (!ref.current) ref.current = new Set(keys);
+  return ref.current;
+}
+
+export function LobbyFull({ m, morphIn }: { m: LobbyModel; morphIn: boolean }) {
+  const known = useKnownKeys([...m.people.map((p) => p.key), ...(m.teams ?? []).map((t) => t.key)]);
+  const rosterRef = useRef<HTMLDivElement>(null);
+  const box = useBoxSize(rosterRef);
+  return (
+    <div className="tvp-full" data-testid="tv-lobby-full">
+      <div className="tvp-full-main">
+        <Fade className="tvp-head">
+          <p className="tvp-kicker">{m.kicker}</p>
+          <h1 className="tvp-title tvp-title-xl">{m.title}</h1>
+          {m.preparing ? (
+            <p className="tvp-status" role="status">
+              <i className={cx('tvp-dot', m.hostConnected && 'is-ready')} aria-hidden />
+              {m.hostConnected ? 'The host is setting up the game…' : 'Waiting for the host to connect…'}
+            </p>
+          ) : (
+            <div className="tvp-chips">
+              {m.boardTitle && <span className="tvp-chip">{m.boardTitle}</span>}
+              <span className="tvp-chip">{modeLabel(m.mode)}</span>
+              <span className="tvp-chip" data-testid="tv-lobby-count">
+                {countLabel(m)}
+              </span>
+              {m.practice && <span className="tvp-chip is-accent">Practice game</span>}
+            </div>
+          )}
+        </Fade>
+
+        <div className="tvp-roster" ref={rosterRef}>
+          {m.preparing ? (
+            <Fade className="tvp-empty">
+              <p className="tvp-empty-title">Players can get ready now</p>
+              <p>Scan the code to create or pick your profile. You can join as soon as the host opens the game.</p>
+            </Fade>
+          ) : m.teams ? (
+            box.w > 0 && <Teams teams={m.teams} known={known} morphIn={morphIn} box={box} />
+          ) : m.people.length ? (
+            box.w > 0 && <People people={m.people} known={known} morphIn={morphIn} box={box} />
+          ) : (
+            <Fade className="tvp-empty">
+              <p className="tvp-empty-title">No players yet</p>
+              <p>Scan the code with your phone to join.</p>
+            </Fade>
+          )}
+        </div>
+
+        {m.waiting.length > 0 && (
+          <Fade className="tvp-waiting">
+            <span className="tvp-waiting-label">Waiting for a team</span>
+            {m.waiting.join(', ')}
+          </Fade>
+        )}
+      </div>
+
+      <Fade className="tvp-howto" delay={0.1}>
+        <p className="tvp-howto-title">How to join</p>
+        <ol>
+          <li>
+            <Wifi aria-hidden /> Connect your phone to the same Wi-Fi as this computer.
+          </li>
+          <li>
+            <ScanLine aria-hidden /> Point the camera at the code, or type the address.
+          </li>
+          <li>
+            <UserRound aria-hidden /> Pick your profile, enter your PIN{m.preparing ? '' : ' and tap Join'}.
+          </li>
+        </ol>
+      </Fade>
+    </div>
+  );
+}
+
+function People({ people, known, morphIn, box }: { people: LobbyPerson[]; known: Set<string>; morphIn: boolean; box: { w: number; h: number } }) {
+  const ctx = useBoard();
+  const shown = people.slice(0, people.length > MAX_PEOPLE ? MAX_PEOPLE - 1 : MAX_PEOPLE);
+  const more = people.length - shown.length;
+  // Size the cards from the space available, so 1 or 30 players fill it at any aspect ratio.
+  const gap = ctx.vh * 0.014;
+  const fit = fitCards(shown.length + (more ? 1 : 0), box, { gap, maxH: ctx.vh * 0.15, minRatio: 2.5, maxCols: 5 });
+  const cardH = Math.max(ctx.vh * 0.05, fit.cardH);
+  const name = Math.min(cardH * 0.3, fit.cardW * 0.085);
+  return (
+    <div className="tvp-people" style={{ gridTemplateColumns: `repeat(${fit.cols}, minmax(0, 1fr))`, gridAutoRows: `${cardH}px`, '--name': `${name}px` } as CSSProperties}>
+      <AnimatePresence propagate>
+        {shown.map((p, i) => (
+          <PersonCard key={p.key} p={p} av={cardH * 0.62} isNew={!known.has(p.key)} animateAvatar={morphIn && i >= COMPACT_AVATARS - 1 && known.has(p.key)} />
+        ))}
+      </AnimatePresence>
+      {more > 0 && <Fade className="tvp-person tvp-more">+{more} more</Fade>}
+    </div>
+  );
+}
+
+function PersonCard({ p, av, isNew, animateAvatar }: { p: LobbyPerson; av: number; isNew: boolean; animateAvatar: boolean }) {
+  return (
+    <motion.div
+      layout="position"
+      className="tvp-person"
+      style={{ '--pc': p.color } as CSSProperties}
+      initial={isNew ? { opacity: 0, scale: 0.85 } : false}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      transition={{ duration: T.fade, ease: EASE_OUT_ARR }}
+      data-testid="tv-lobby-player"
+    >
+      <Fade className="tvp-person-bg" />
+      <SharedAvatar p={p} size={av} animateIn={animateAvatar} />
+      <Fade className="tvp-person-text">
+        <span className="tvp-person-name">{p.name}</span>
+        <DeviceTag device={p.device} ready={p.ready} />
+      </Fade>
+    </motion.div>
+  );
+}
+
+function Teams({ teams, known, morphIn, box }: { teams: LobbyTeam[]; known: Set<string>; morphIn: boolean; box: { w: number; h: number } }) {
+  const ctx = useBoard();
+  if (!teams.length)
+    return (
+      <Fade className="tvp-empty">
+        <p className="tvp-empty-title">No teams yet</p>
+        <p>Scan the code to join — the host puts everyone on a team.</p>
+      </Fade>
+    );
+  const cols = Math.max(1, Math.min(teams.length <= 4 ? 2 : teams.length <= 6 ? 3 : 4, Math.floor(box.w / (ctx.vh * 0.3))));
+  const most = Math.max(1, ...teams.map((t) => t.members.length));
+  const rowsOfTeams = Math.ceil(teams.length / cols);
+  // Member line height from the space each team card gets (card chrome is about 9vh).
+  const perTeamVh = ((box.h / ctx.vh) * 100 - (rowsOfTeams - 1) * 1.6) / rowsOfTeams;
+  const lineVh = Math.max(2.4, Math.min(5.4, (perTeamVh - 9) / (most * 1.2)));
+  let index = 0;
+  return (
+    <div className="tvp-teams" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+      <AnimatePresence propagate>
+        {teams.map((t) => (
+          <motion.section
+            key={t.key}
+            layout="position"
+            className="tvp-team"
+            style={{ '--pc': t.color } as CSSProperties}
+            initial={known.has(t.key) ? false : { opacity: 0, y: '2vh' }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: T.fade, ease: EASE_OUT_ARR }}
+          >
+            <Fade className="tvp-team-bg" />
+            <Fade className="tvp-team-head">
+              <span className="tvp-team-emoji" aria-hidden>
+                {avatarEmoji(t.avatar)}
+              </span>
+              <span className="tvp-team-name">{t.name}</span>
+              {t.shared && <DeviceTag device={t.shared.device === 'No team buzzer yet' ? 'Team buzzer not set' : `Team buzzer: ${t.shared.device}`} ready={t.shared.ready} />}
+            </Fade>
+            <ul className="tvp-team-members" style={{ '--line': `${lineVh}vh` } as CSSProperties}>
+              {t.members.length === 0 && <li className="tvp-team-none">No players yet</li>}
+              {t.members.map((p) => {
+                const i = index++;
+                return (
+                  <li key={p.key}>
+                    <SharedAvatar p={p} size={vhPx(ctx, lineVh * 0.78)} animateIn={!known.has(p.key) || (morphIn && i >= COMPACT_AVATARS - 1)} />
+                    <Fade className="tvp-team-member">
+                      <span className="truncate">{p.name}</span>
+                      {!t.shared && <DeviceTag device={p.device} ready={p.ready} />}
+                    </Fade>
+                  </li>
+                );
+              })}
+            </ul>
+          </motion.section>
+        ))}
+      </AnimatePresence>
+    </div>
+  );
+}

@@ -1,5 +1,6 @@
 // Host profile management: create, edit, picture, PIN reset, delete, statistics.
 import { useRef, useState } from 'react';
+import { usePresent } from '../host/AppShell';
 import { hostApi } from '../../lib/api';
 import { attempt, useFetch } from '../../lib/hooks';
 import { Avatar, Button, ColorPicker, Empty, Field, Modal, inputCls, toast } from '../../components/ui';
@@ -7,6 +8,7 @@ import { AvatarPicker, ProfileCreateForm } from '../../components/ProfileForm';
 import { ProfileStats } from '../../components/StatsView';
 import { useLive } from '../../lib/socket';
 import { profileName } from '../../lib/view';
+import { Lock } from 'lucide-react';
 
 interface AdminProfile {
   id: string;
@@ -25,7 +27,13 @@ export default function Players() {
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
   const [edit, setEdit] = useState<AdminProfile | null>(null);
-  const [stats, setStats] = useState<AdminProfile | null>(null);
+  const [stats, setStatsState] = useState<AdminProfile | null>(null);
+  const { show } = usePresent();
+  // Opening a player's statistics presents their public card on the TV (respects "keep my stats private").
+  const setStats = (p: AdminProfile | null) => {
+    setStatsState(p);
+    show(p ? { page: 'player', profileId: p.id } : { page: 'players' });
+  };
   const [q, setQ] = useState('');
   const rows = (list.data ?? []).filter((p) => `${p.name} ${p.nickname}`.toLowerCase().includes(q.toLowerCase()));
   const dupNames = new Set((list.data ?? []).map((p) => p.name.toLowerCase()).filter((n, i, a) => a.indexOf(n) !== i));
@@ -50,7 +58,12 @@ export default function Players() {
                 <div className="truncate text-xs text-slate-500">
                   {p.nickname ? p.name : ''}
                   {dupNames.has(p.name.toLowerCase()) ? ' · same name as another player' : ''}
-                  {p.locked ? ' · 🔒 locked (wrong PINs)' : ''}
+                  {p.locked ? (
+                  <>
+                    {' · '}
+                    <Lock size={12} className="inline align-[-1px]" aria-hidden /> locked (wrong PINs)
+                  </>
+                ) : null}
                 </div>
               </div>
               <Button size="sm" variant="ghost" onClick={() => setStats(p)}>

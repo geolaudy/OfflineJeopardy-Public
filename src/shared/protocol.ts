@@ -31,7 +31,7 @@ const target = z.discriminatedUnion('kind', [
 ]);
 
 export const ClientMessageSchema = z.discriminatedUnion('t', [
-  z.object({ t: z.literal('hello'), role: z.enum(['host', 'public', 'player']), token: z.string().max(200).optional() }),
+  z.object({ t: z.literal('hello'), role: z.enum(['host', 'public', 'player']), token: z.string().max(200).optional(), observer: z.boolean().optional() }),
   z.object({ t: z.literal('host'), id: z.number().optional(), action: z.unknown() }),
   z.object({ t: z.literal('buzz') }),
   z.object({ t: z.literal('join'), code: z.string().max(12).optional() }),

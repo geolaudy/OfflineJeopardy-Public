@@ -10,21 +10,24 @@ export default function Help() {
       <h1 className="text-3xl font-black">Help</h1>
       <Section title="Quick start">
         <ol className="list-decimal space-y-1 pl-5">
-          <li>Home → Open game board. Drag it to the TV or pick the TV screen first.</li>
-          <li>On the iPad, scan the host QR code (Home) and enter the 6-digit host code.</li>
-          <li>On the iPad: pick a board, choose Individuals or Teams, and create the game.</li>
+          <li>On the game computer, press <b>Create lobby</b>. The game board opens on the TV (or open /board on the TV computer).</li>
+          <li>Scan the host QR code on the computer screen with the iPad camera — it pairs in one step. Or open the address shown and type the 6-digit host code. You can also host on the computer itself.</li>
+          <li>On the iPad Home page: pick a board, choose Individuals or Teams and the rules, then press <b>Open lobby</b>.</li>
           <li>Players scan the QR code on the TV, choose or create their profile with a 4-digit PIN, and tap Join game.</li>
           <li>Assign Joy-Cons or keys under Buzzers (optional — phones work as buzzers automatically).</li>
-          <li>Start the game. Tap a clue on the iPad; it appears on the TV. You see the answer privately.</li>
+          <li>Press <b>Start game</b>. Tap a clue on the iPad; it appears on the TV. You see the answer privately.</li>
           <li>Unlock buzzers, then mark Correct or Incorrect. Use Undo for mistakes.</li>
         </ol>
+      </Section>
+      <Section title="The TV while you set up">
+        <p>While a lobby is open and <b>Present on TV</b> is on, the TV follows what you open on the iPad: the lobby, the leaderboard, a player's public statistics, teams, boards (categories only), the rules or the buzzer overview. Switch to <b>Private view</b> to browse without changing the TV. Answers, PINs, settings and device details are never shown on the TV.</p>
       </Section>
       <Section title="Scoring">
         <p>Correct answers add the clue value; incorrect answers subtract it (unless the Classroom preset is used). Scores can go negative. Tap a score on the iPad to award or deduct points by hand.</p>
         <p>In team games, points always go to the team. When a team member answers, they get personal credit as a statistic — the team never gets extra points for it. For shared buzzers, the host picks who answered or chooses "Team only / unknown".</p>
       </Section>
       <Section title="Daily Wagers and the Final">
-        <p>Daily Wager clues are marked 🎲 on the iPad. The TV hides the clue until the wager is locked. The wager can be anything from the minimum up to the player's score or the round's highest value, whichever is larger.</p>
+        <p>Daily Wager clues are marked with a dice icon on the iPad. The TV hides the clue until the wager is locked. The wager can be anything from the minimum up to the player's score or the round's highest value, whichever is larger.</p>
         <p>In the Final, players with a positive score wager privately from their phones (or the host types it in), then answer. The host reveals and judges each answer.</p>
       </Section>
       <Section title="Saving and resuming">

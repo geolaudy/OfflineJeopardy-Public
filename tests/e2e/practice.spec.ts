@@ -27,7 +27,7 @@ test('practice game: computer opponent, answer hidden until revealed, buzzers op
   await pc.goto(`${BASE}/host`);
   await pc.getByRole('button', { name: /Starter Trivia Night/ }).click(); // don't depend on which board is newest
   await pc.getByTestId('practice-toggle').check();
-  await pc.getByRole('button', { name: 'Create game' }).click();
+  await pc.getByRole('button', { name: 'Open lobby' }).click();
   await expect(pc.getByTestId('practice-note')).toBeVisible();
 
   await pc.getByRole('button', { name: '+ Add player' }).click();

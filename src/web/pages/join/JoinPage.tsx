@@ -13,6 +13,7 @@ import type { ProfilePublic } from '../../../shared/views';
 import PlayTab from './PlayTab';
 import ProfileTab from './ProfileTab';
 import { ProfileStats } from '../../components/StatsView';
+import { BellRing, CircleUserRound, ChartColumn, History, Trophy, Users, Settings, LogOut } from 'lucide-react';
 
 const Leaderboard = lazy(() => import('./Leaderboard'));
 const PlayersList = lazy(() => import('./Players').then((m) => ({ default: m.PlayersList })));
@@ -30,13 +31,13 @@ export interface Me extends ProfilePublic {
 }
 
 export const JOIN_NAV: NavItem[] = [
-  { to: '/join', label: 'Current game', icon: '🔔', end: true, testId: 'nav-play' },
-  { to: '/join/profile', label: 'My profile', icon: '🙂', testId: 'nav-profile' },
-  { to: '/join/stats', label: 'My statistics', icon: '📊', testId: 'nav-stats' },
-  { to: '/join/history', label: 'Game history', icon: '🕘', testId: 'nav-history' },
-  { to: '/join/leaderboard', label: 'Leaderboard', icon: '🏆', testId: 'nav-leaderboard' },
-  { to: '/join/players', label: 'Players', icon: '👥', testId: 'nav-players' },
-  { to: '/join/settings', label: 'Settings', icon: '⚙️', testId: 'nav-settings' },
+  { to: '/join', label: 'Current game', icon: BellRing, end: true, testId: 'nav-play' },
+  { to: '/join/profile', label: 'My profile', icon: CircleUserRound, testId: 'nav-profile' },
+  { to: '/join/stats', label: 'My statistics', icon: ChartColumn, testId: 'nav-stats' },
+  { to: '/join/history', label: 'Game history', icon: History, testId: 'nav-history' },
+  { to: '/join/leaderboard', label: 'Leaderboard', icon: Trophy, testId: 'nav-leaderboard' },
+  { to: '/join/players', label: 'Players', icon: Users, testId: 'nav-players' },
+  { to: '/join/settings', label: 'Settings', icon: Settings, testId: 'nav-settings' },
 ];
 
 /** Page titles; detail pages (with a parent) get a back arrow instead of the menu button. */
@@ -129,7 +130,7 @@ function SignIn({ onSignedIn }: { onSignedIn: (m: Me) => void }) {
       <PageHeader title="OfflineJeopardy" subtitle="Player sign-in" />
       <main className="scroll-area min-h-0 flex-1">
         <div className="mx-auto max-w-xl pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]">
-          <h2 className="mt-2 text-center text-3xl font-black">Welcome! 👋</h2>
+          <h2 className="mt-2 text-center text-3xl font-black">Welcome!</h2>
           <p className="mb-4 text-center text-slate-600">Who's playing?</p>
           {(profiles.data?.length ?? 0) > 8 && (
             <input className="mb-3 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base" placeholder="Find your name" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find your name" />
@@ -219,7 +220,7 @@ function Portal({ me, setMe, signOut }: { me: Me; setMe: (m: Me) => void; signOu
         right={
           live ? (
             <NavLink to="/join" className="mr-1 flex min-h-11 items-center rounded-full bg-red-600 px-4 text-sm font-bold text-white" data-testid="back-to-buzzer">
-              🔔 Buzzer
+              <BellRing size={16} className="mr-1.5" aria-hidden /> Buzzer
             </NavLink>
           ) : (
             <NavLink to="/join/profile" aria-label="My profile" className="mr-1 flex h-11 w-11 items-center justify-center rounded-full">
@@ -272,7 +273,7 @@ function Portal({ me, setMe, signOut }: { me: Me; setMe: (m: Me) => void; signOu
                 className={({ isActive }) => cx('flex min-h-12 items-center gap-3 rounded-xl px-3 text-base font-semibold', isActive ? 'bg-blue-50 text-blue-800' : 'text-slate-700 hover:bg-slate-50 active:bg-slate-100')}
               >
                 <span aria-hidden className="w-6 text-center text-xl">
-                  {n.icon}
+                  <n.icon size={22} strokeWidth={1.9} className="mx-auto" />
                 </span>
                 {n.label}
               </NavLink>
@@ -282,7 +283,7 @@ function Portal({ me, setMe, signOut }: { me: Me; setMe: (m: Me) => void; signOu
         <div className="mt-4 border-t border-slate-100 pt-2">
           <button onClick={() => signOut(false)} className="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left font-semibold text-slate-600 hover:bg-slate-50" data-testid="drawer-sign-out">
             <span aria-hidden className="w-6 text-center text-xl">
-              ↩
+              <LogOut size={20} className="mx-auto" />
             </span>
             Sign out
           </button>

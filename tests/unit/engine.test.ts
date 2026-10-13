@@ -702,3 +702,41 @@ describe('media clues, answer media and automatic unlock (R2-13/14/16)', () => {
     expect(tryRun(s, { type: 'mediaPlay', clueId: 'nope', side: 'clue', index: 0 }).ok).toBe(false);
   });
 });
+
+describe('lobby controls: change mode and board before the game starts (R2-6)', () => {
+  it('solo to teams keeps everyone and their personal buzzers; back to solo releases shared team buzzers', () => {
+    let s = soloGame(['alex', 'jordan']);
+    s = run(
+      s,
+      { type: 'addBot', name: 'Robo', level: 'easy' },
+      { type: 'bindController', controllerId: 'jc-1', kind: 'joycon', label: 'Joy-Con (L)', target: { kind: 'profile', profileId: 'alex' } },
+      { type: 'bindController', controllerId: 'kb-1', kind: 'keyboard', label: 'Key A', target: { kind: 'profile', profileId: 'jordan' } },
+    );
+    s = run(s, { type: 'setMode', mode: 'team' });
+    expect(s.mode).toBe('team');
+    expect(s.competitors).toHaveLength(0); // the computer opponent leaves (solo only)
+    expect(s.unassigned.map((u) => u.profileId).sort()).toEqual(['alex', 'jordan']);
+    expect(s.bindings.map((b) => b.controllerId)).toEqual(['jc-1', 'kb-1']); // personal buzzers stay with the player
+    s = run(s, { type: 'addTeam', name: 'Owls', color: '#2563eb', buzzerMode: 'shared', memberIds: ['alex', 'jordan'] });
+    s = run(s, { type: 'bindController', controllerId: 'jc-2', kind: 'joycon', label: 'Joy-Con (R)', target: { kind: 'competitor', competitorId: s.competitors[0].id } });
+    s = run(s, { type: 'setMode', mode: 'solo' });
+    expect(s.competitors.map((c) => c.profileId).sort()).toEqual(['alex', 'jordan']);
+    expect(s.unassigned).toHaveLength(0);
+    expect(s.bindings.map((b) => b.controllerId)).toEqual(['jc-1', 'kb-1']); // the team's shared buzzer is released
+  });
+
+  it('only in the lobby; practice games stay individual; the board can be swapped before the start', () => {
+    let s = soloGame(['alex']);
+    const other = { ...SAMPLE_BOARD, rounds: SAMPLE_BOARD.rounds.slice(0, 1) };
+    s = run(s, { type: 'setBoard', boardId: 'b2', board: other, title: 'Other board' });
+    expect(s.boardId).toBe('b2');
+    expect(s.title).toBe('Other board');
+    expect(s.board.rounds).toHaveLength(1);
+    expect(s.competitors).toHaveLength(1);
+    const practice = createGame({ id: 'p', title: 'P', boardId: 'b1', board: SAMPLE_BOARD, mode: 'solo', rules: { ...DEFAULT_RULES }, now: clock, practice: true });
+    expect(tryRun(practice, { type: 'setMode', mode: 'team' }).ok).toBe(false);
+    s = run(s, { type: 'addPlayer', profileId: 'sam' }, { type: 'startGame' });
+    expect(tryRun(s, { type: 'setMode', mode: 'team' }).ok).toBe(false);
+    expect(tryRun(s, { type: 'setBoard', boardId: 'b1', board: SAMPLE_BOARD }).ok).toBe(false);
+  });
+});

@@ -4,6 +4,7 @@ import type { HostAction } from '../../../shared/actions';
 import { RULE_PRESETS, rulesFromPreset, type GameRules } from '../../../shared/game';
 import { Button, Field, Modal, inputCls } from '../../components/ui';
 import { EarlyBuzzFields } from './EarlyBuzzRule';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 
 function Toggle({ label, hint, checked, onChange }: { label: string; hint?: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -17,12 +18,28 @@ function Toggle({ label, hint, checked, onChange }: { label: string; hint?: stri
   );
 }
 
-export default function RulesEditor({ open, onClose, g, run }: { open: boolean; onClose: () => void; g: GameView; run: (a: HostAction) => Promise<{ ok: boolean }> }) {
-  const [r, setR] = useState<GameRules>(g.rules);
+/** Edits the current game's rules (g + run), or a rules draft before the game exists (rules + onSave). */
+export default function RulesEditor({
+  open,
+  onClose,
+  g,
+  run,
+  rules,
+  onSave,
+}: {
+  open: boolean;
+  onClose: () => void;
+  g?: GameView;
+  run?: (a: HostAction) => Promise<{ ok: boolean }>;
+  rules?: GameRules;
+  onSave?: (r: GameRules) => Promise<boolean> | boolean;
+}) {
+  const source = rules ?? g!.rules;
+  const [r, setR] = useState<GameRules>(source);
   const [advanced, setAdvanced] = useState(false);
   // Copy the rules when the dialog opens only — live updates must not wipe edits in progress.
   useEffect(() => {
-    if (open) setR(g.rules);
+    if (open) setR(source);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
   const t = r.timers;
@@ -58,6 +75,9 @@ export default function RulesEditor({ open, onClose, g, run }: { open: boolean; 
         <Toggle label="Re-open buzzers after a wrong answer" checked={r.autoReopenAfterIncorrect} onChange={(v) => setR({ ...r, autoReopenAfterIncorrect: v })} />
         <Toggle label="Players can join from their phones without approval" checked={r.allowSelfJoin} onChange={(v) => setR({ ...r, allowSelfJoin: v })} />
         <Toggle label="Introduce the categories on the TV at the start of each round" hint="You can skip or replay the introduction any time." checked={r.categoryIntro} onChange={(v) => setR({ ...r, categoryIntro: v })} />
+        <Field label="Player limit" hint="0 = no limit. Computer opponents don't count.">
+          <input className={inputCls} inputMode="numeric" value={r.maxPlayers} onChange={(e) => setR({ ...r, maxPlayers: Math.min(200, Number(e.target.value.replace(/\D/g, '') || 0)) })} aria-label="Player limit" />
+        </Field>
         <Field label="Unlock buzzers automatically when a clue opens" hint="Applies to the next clue that opens. Clues can also have their own setting in the board editor.">
           <select className={inputCls} value={r.autoUnlock} onChange={(e) => setR({ ...r, autoUnlock: e.target.value as GameRules['autoUnlock'] })} aria-label="Automatic buzzer unlock">
             <option value="off">Off — I unlock the buzzers</option>
@@ -71,7 +91,8 @@ export default function RulesEditor({ open, onClose, g, run }: { open: boolean; 
           <EarlyBuzzFields rules={r} onChange={setR} />
         </div>
         <button className="text-sm font-semibold text-blue-700" onClick={() => setAdvanced((a) => !a)}>
-          {advanced ? '▾ Hide advanced rules' : '▸ Advanced rules'}
+          {advanced ? <ChevronDown size={16} className="mr-1 inline align-[-3px]" aria-hidden /> : <ChevronRight size={16} className="mr-1 inline align-[-3px]" aria-hidden />}
+          {advanced ? 'Hide advanced rules' : 'Advanced rules'}
         </button>
         {advanced && (
           <div className="space-y-3">
@@ -98,7 +119,8 @@ export default function RulesEditor({ open, onClose, g, run }: { open: boolean; 
           </Button>
           <Button
             onClick={async () => {
-              if ((await run({ type: 'updateRules', rules: r })).ok) onClose();
+              const ok = onSave ? await onSave(r) : (await run!({ type: 'updateRules', rules: r })).ok;
+              if (ok) onClose();
             }}
           >
             Save rules

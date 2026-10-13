@@ -728,6 +728,23 @@ export async function startServer(opts: ServerOptions) {
     const s = games.create({ title: body.title || b.title, boardId: b.id, board: structuredClone(b.content), mode: body.mode, rules: body.rules ? normalizeRules(body.rules) : rulesFromPreset(body.preset), practice: body.practice });
     return { id: s.id };
   });
+  // Lobby control: play a different board in the open game (before it starts). Players, teams and
+  // buzzers stay; a title that was just the old board's name follows the new board.
+  app.post('/api/games/current/board', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const body = parse(z.object({ boardId: z.string() }), req.body, reply);
+    if (!body) return;
+    const g = games.current;
+    if (!g) return bad(reply, 'No game is loaded', 409);
+    const b = repo.getBoard(db, body.boardId);
+    if (!b) return bad(reply, 'Board not found', 404);
+    const errors = validateBoard(b.content).filter((i) => i.level === 'error');
+    if (errors.length) return bad(reply, errors.map((e) => e.message).join(' '));
+    const old = g.boardId ? repo.getBoard(db, g.boardId) : null;
+    const retitle = !old || old.title === g.title;
+    const res = games.dispatch({ type: 'setBoard', boardId: b.id, board: structuredClone(b.content), title: retitle ? b.title : undefined });
+    return res.ok ? { ok: true } : bad(reply, res.error ?? 'Could not change the board');
+  });
   app.post('/api/games/:id/load', async (req, reply) => {
     if (!requireHost(req, reply)) return;
     const s = games.load((req.params as { id: string }).id);

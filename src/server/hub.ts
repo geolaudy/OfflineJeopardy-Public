@@ -16,6 +16,7 @@ interface Client {
   ws: WebSocket;
   role: 'host' | 'public' | 'player' | null;
   profileId: string | null;
+  observer?: boolean; // the game computer's start screen: a host connection that is not a host controller
   trusted: boolean; // authenticated host session: may manage the game and report controller input
   deviceIds: Set<string>; // controllers reported by this client
   lastBuzz: number;
@@ -54,7 +55,10 @@ export class Hub {
     ws.on('message', (raw) => this.onMessage(c, raw.toString()));
     ws.on('close', () => {
       this.clients.delete(c);
-      if (c.role === 'player') this.scheduleBroadcast();
+      if (c.role === 'player') {
+        this.scheduleBroadcast();
+        this.lobby?.refreshSoon(); // phone readiness on the TV lobby
+      }
       if (c.role === 'host') this.sendPresentation();
       if (c.deviceIds.size) this.controllers.disconnectAll(c.deviceIds);
     });
@@ -117,7 +121,7 @@ export class Hub {
   }
 
   private hostCount() {
-    return [...this.clients].filter((c) => c.role === 'host').length;
+    return [...this.clients].filter((c) => c.role === 'host' && !c.observer).length;
   }
 
   /** Public lobby info + presentation to the TV(s) and hosts (never to phones). */
@@ -163,6 +167,7 @@ export class Hub {
         }
         c.role = 'host';
         c.trusted = true;
+        c.observer = !!m.observer;
       } else if (m.role === 'player') {
         c.role = 'player';
         c.profileId = sess?.kind === 'profile' ? sess.profileId : null;
@@ -172,7 +177,10 @@ export class Hub {
         c.trusted = sess?.kind === 'host';
       }
       this.send(c, { t: 'welcome', role: c.role, profileId: c.profileId, trustedDevice: c.trusted, serverTime: Date.now() });
-      if (c.role === 'player') this.scheduleBroadcast();
+      if (c.role === 'player') {
+        this.scheduleBroadcast();
+        this.lobby?.refreshSoon();
+      }
       else this.broadcastTo(c);
       if (c.trusted) this.send(c, { t: 'controllers', list: this.controllers.list(), listening: this.controllers.listening });
       if (c.role === 'host') this.sendPresentation();

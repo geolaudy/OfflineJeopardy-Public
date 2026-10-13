@@ -5,6 +5,7 @@ import type { GameView } from '../../../shared/views';
 import type { HostAction } from '../../../shared/actions';
 import { EARLY_BUZZ_OPTIONS, type EarlyBuzzPenalty, type GameRules } from '../../../shared/game';
 import { Button, Field, Modal, cx, inputCls } from '../../components/ui';
+import { Timer, ChevronDown } from 'lucide-react';
 
 type Run = (a: HostAction) => Promise<{ ok: boolean }>;
 
@@ -98,7 +99,7 @@ export function EarlyBuzzQuick({ g, run }: { g: GameView; run: Run }) {
   return (
     <>
       <button onClick={() => setOpen(true)} className="inline-flex min-h-9 items-center gap-1 rounded-full bg-slate-100 px-3 text-xs font-semibold text-slate-700 active:bg-slate-200" data-testid="early-rule-chip">
-        ⏱ Early buzz: {earlyRuleSummary(g.rules)} ▾
+        <Timer size={16} aria-hidden /> Early buzz: {earlyRuleSummary(g.rules)} <ChevronDown size={16} aria-hidden />
       </button>
       <Modal open={open} onClose={() => setOpen(false)} title="Early buzz rule">
         <div className="space-y-4">
