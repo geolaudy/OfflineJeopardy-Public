@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import sharp from 'sharp';
+import fs from 'node:fs';
+import path from 'node:path';
 import { api, boot, createProfile, hostToken, sampleBoardId, TestClient } from './helpers';
 
 const servers: Awaited<ReturnType<typeof boot>>[] = [];
@@ -416,11 +418,105 @@ describe('boards: import, export, versions', () => {
   it('backs up the database', async () => {
     const s = await start();
     const host = await hostToken(s);
-    const res = await fetch(`${s.url}/api/admin/backup`, { headers: { authorization: `Bearer ${host}` } });
+    const res = await fetch(`${s.url}/api/admin/backup?media=0`, { headers: { authorization: `Bearer ${host}` } });
     const buf = Buffer.from(await res.arrayBuffer());
     expect(buf.subarray(0, 15).toString()).toBe('SQLite format 3');
     const diag = await api(s, 'GET', '/api/admin/diagnostics', undefined, host);
     expect(diag.data.integrity).toBe('ok');
+  });
+});
+
+describe('board packages and full backups (L9, K6, K7)', () => {
+  const upload = async (s: { url: string }, url: string, token: string, name: string, data: Buffer, type: string) => {
+    const fd = new FormData();
+    fd.append('file', new Blob([new Uint8Array(data)], { type }), name);
+    const r = await fetch(s.url + url, { method: 'POST', headers: { authorization: `Bearer ${token}` }, body: fd });
+    return { status: r.status, data: await r.json() };
+  };
+
+  it('exports a board with its media as one ZIP and imports it on another installation', async () => {
+    const a = await start();
+    const hostA = await hostToken(a);
+    const png = await sharp({ create: { width: 640, height: 480, channels: 3, background: '#00aa00' } }).png().toBuffer();
+    const media = (await upload(a, '/api/media', hostA, 'map.png', png, 'image/png')).data;
+    expect(media.url).toMatch(/^\/media\/clues\//);
+    const boardId = await sampleBoardId(a, hostA);
+    const board = (await api(a, 'GET', `/api/boards/${boardId}`, undefined, hostA)).data;
+    board.content.rounds[0].categories[0].clues[0].media = [{ kind: 'image', url: media.url, caption: 'A map' }];
+    board.content.rounds[0].categories[1].clues[0].media = [{ kind: 'image', url: '/media/clues/gone.webp' }]; // missing file
+    await api(a, 'PUT', `/api/boards/${boardId}`, board, hostA);
+
+    const res = await fetch(`${a.url}/api/boards/${boardId}/package`, { headers: { authorization: `Bearer ${hostA}` } });
+    expect(res.headers.get('content-type')).toContain('application/zip');
+    const pkg = Buffer.from(await res.arrayBuffer());
+    const { readZip } = await import('../../src/server/zip');
+    const names = readZip(pkg, { maxEntries: 50, maxTotalBytes: 1e8 }).map((e) => e.name);
+    expect(names).toContain('board.json');
+    expect(names).toContain(`media/${media.url.split('/').pop()}`);
+
+    // A second, empty installation imports it: media is re-validated, stored and the URL rewritten.
+    const b = await start();
+    const hostB = await hostToken(b);
+    const preview = (await upload(b, '/api/boards/import-package?preview=1', hostB, 'p.ojboard.zip', pkg, 'application/zip')).data;
+    expect(preview.saved).toBeNull();
+    expect(preview.summary.mediaFiles).toBe(1);
+    const imp = await upload(b, '/api/boards/import-package', hostB, 'p.ojboard.zip', pkg, 'application/zip');
+    expect(imp.status).toBe(200);
+    expect(imp.data.warnings.join(' ')).toMatch(/gone\.webp is missing/);
+    const saved = (await api(b, 'GET', `/api/boards/${imp.data.saved.id}`, undefined, hostB)).data;
+    const m = saved.content.rounds[0].categories[0].clues[0].media[0];
+    expect(m).toMatchObject({ kind: 'image', caption: 'A map' });
+    expect(m.url).not.toBe(media.url); // stored as a new file
+    const img = await fetch(b.url + m.url);
+    expect(img.status).toBe(200);
+    await img.arrayBuffer();
+    expect(saved.content.rounds[0].categories[1].clues[0].media).toEqual([]);
+
+    // Hostile packages are refused.
+    expect((await upload(b, '/api/boards/import-package', hostB, 'x.zip', Buffer.from('nope'), 'application/zip')).status).toBe(400);
+    const { createZip } = await import('../../src/server/zip');
+    const noBoard = createZip([{ name: 'readme.txt', data: Buffer.from('hi') }]);
+    expect((await upload(b, '/api/boards/import-package', hostB, 'x.zip', noBoard, 'application/zip')).data.error).toMatch(/board\.json/);
+    const fakeMedia = createZip([
+      { name: 'board.json', data: Buffer.from(JSON.stringify({ ...JSON.parse(readZip(pkg, { maxEntries: 50, maxTotalBytes: 1e8 }).find((e) => e.name === 'board.json')!.data.toString()) })) },
+      { name: `media/${media.url.split('/').pop()}`, data: Buffer.from('<script>alert(1)</script>') },
+    ]);
+    const bad = await upload(b, '/api/boards/import-package', hostB, 'x.zip', fakeMedia, 'application/zip');
+    expect(bad.data.warnings.join(' ')).toMatch(/rejected/);
+    expect((await upload(b, '/api/boards/import-package', (await createProfile(b, 'Eve')).token, 'p.zip', pkg, 'application/zip')).status).toBe(401);
+  });
+
+  it('full backup contains database + media and restores both on the next start', async () => {
+    const dir = (await import('./helpers')).tempDir();
+    const s = await start(dir);
+    const host = await hostToken(s);
+    const alex = await createProfile(s, 'Alex');
+    const png = await sharp({ create: { width: 300, height: 300, channels: 3, background: '#0000ff' } }).png().toBuffer();
+    const pic = await upload(s, '/api/me/picture', alex.token, 'me.png', png, 'image/png');
+    const picFile = pic.data.pictureUrl.split('/').pop();
+    const res = await fetch(`${s.url}/api/admin/backup`, { headers: { authorization: `Bearer ${host}` } });
+    const zip = Buffer.from(await res.arrayBuffer());
+    const { readZip } = await import('../../src/server/zip');
+    const names = readZip(zip, { maxEntries: 100, maxTotalBytes: 1e9 }).map((e) => e.name);
+    expect(names).toEqual(expect.arrayContaining(['offlinejeopardy.db', 'manifest.json', `media/profiles/${picFile}`]));
+    // Database-only backups are still available.
+    const dbOnly = Buffer.from(await (await fetch(`${s.url}/api/admin/backup?media=0`, { headers: { authorization: `Bearer ${host}` } })).arrayBuffer());
+    expect(dbOnly.subarray(0, 15).toString()).toBe('SQLite format 3');
+
+    // Lose data: delete the profile picture and create another player, then restore the ZIP.
+    fs.rmSync(path.join(dir, 'media', 'profiles', picFile));
+    await createProfile(s, 'AfterBackup');
+    const r = await upload(s, '/api/admin/restore', host, 'backup.zip', zip, 'application/zip');
+    expect(r.data).toMatchObject({ ok: true, media: 1 });
+    await s.close();
+    servers.splice(servers.indexOf(s), 1);
+    const s2 = await start(dir); // restore is applied on start
+    const names2 = (await api(s2, 'GET', '/api/profiles')).data.map((p: { name: string }) => p.name);
+    expect(names2).toEqual(['Alex']);
+    const restored = await fetch(`${s2.url}/media/profiles/${picFile}`);
+    expect(restored.status).toBe(200);
+    expect((await restored.arrayBuffer()).byteLength).toBeGreaterThan(100);
+    expect(fs.readdirSync(dir).some((f) => f.startsWith('pre-restore-media-'))).toBe(true); // safety copy kept
   });
 });
 

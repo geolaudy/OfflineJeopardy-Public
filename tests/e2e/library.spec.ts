@@ -1,0 +1,82 @@
+// Desktop board library: package export/import with media (L9), duplicate, archive/restore,
+// version restore (K5). Runs against the real local server in Chromium (Electron's engine).
+import { test, expect, chromium, request, type Browser, type Page } from '@playwright/test';
+import sharp from 'sharp';
+import fs from 'node:fs';
+
+const BASE = 'http://127.0.0.1:3210';
+let cr: Browser;
+test.beforeAll(async () => {
+  cr = await chromium.launch();
+});
+test.afterAll(async () => {
+  await cr?.close();
+});
+
+const card = (page: Page, title: string) =>
+  page
+    .locator('div', { has: page.getByRole('heading', { name: title, exact: true }) })
+    .filter({ has: page.getByRole('button', { name: 'Edit', exact: true }) })
+    .last();
+
+test('board package with media: export from the library, import it back, plus duplicate / archive / version restore', async () => {
+  const api = await request.newContext({ baseURL: BASE });
+  const host = (await (await api.post('/api/host/local-login')).json()).token as string;
+  const H = { authorization: `Bearer ${host}` };
+
+  // A board with an uploaded clue picture.
+  const png = await sharp({ create: { width: 400, height: 300, channels: 3, background: '#ffcc00' } }).png().toBuffer();
+  const media = await (await api.post('/api/media', { headers: H, multipart: { file: { name: 'pic.png', mimeType: 'image/png', buffer: png } } })).json();
+  const sampleId = (await (await api.get('/api/boards', { headers: H })).json())[0].id;
+  const sample = await (await api.get(`/api/boards/${sampleId}`, { headers: H })).json();
+  sample.content.rounds[0].categories[0].clues[0].media = [{ kind: 'image', url: media.url }];
+  const made = await (await api.post('/api/boards', { headers: H, data: { title: 'Media Board', description: '', tags: ['pkg'], content: sample.content } })).json();
+  expect(made.id).toBeTruthy();
+
+  const desk = await (await cr.newContext({ viewport: { width: 1366, height: 900 }, acceptDownloads: true })).newPage();
+  await desk.goto(`${BASE}/desk/library`);
+  const c = card(desk, 'Media Board');
+  await c.getByRole('button', { name: /More/ }).click();
+  const [download] = await Promise.all([desk.waitForEvent('download'), c.getByRole('button', { name: 'Export package (with media)' }).click()]);
+  expect(download.suggestedFilename()).toBe('Media Board.ojboard.zip');
+  const pkgPath = await download.path();
+  const pkg = fs.readFileSync(pkgPath!);
+  expect(pkg.readUInt32LE(0)).toBe(0x04034b50); // ZIP
+
+  // Import it back through the import dialog under a new title.
+  await desk.getByRole('button', { name: /^Import/ }).first().click();
+  await desk.locator('#import-file').setInputFiles({ name: 'Media Board.ojboard.zip', mimeType: 'application/zip', buffer: pkg });
+  await expect(desk.getByLabel('Board title')).toHaveValue('Media Board');
+  await desk.getByLabel('Board title').fill('Media Board (imported)');
+  await desk.getByRole('button', { name: 'Save and edit' }).click();
+  await expect(desk).toHaveURL(/\/desk\/boards\/[0-9a-f-]{36}$/);
+  const importedId = desk.url().split('/').pop()!;
+  const imported = await (await api.get(`/api/boards/${importedId}`, { headers: H })).json();
+  expect(imported.title).toBe('Media Board (imported)');
+  const url = imported.content.rounds[0].categories[0].clues[0].media[0].url as string;
+  expect(url).toMatch(/^\/media\/clues\//);
+  expect(url).not.toBe(media.url);
+  expect((await api.get(url)).status()).toBe(200);
+
+  // Duplicate, archive and restore from the library.
+  await desk.goto(`${BASE}/desk/library`);
+  await card(desk, 'Media Board').getByRole('button', { name: /More/ }).click();
+  await card(desk, 'Media Board').getByRole('button', { name: 'Duplicate' }).click();
+  await expect(desk.getByRole('heading', { name: /^Media Board \(copy\)|^Copy of Media Board/ })).toBeVisible();
+  await card(desk, 'Media Board').getByRole('button', { name: 'Archive' }).click();
+  await expect(desk.getByRole('heading', { name: 'Media Board', exact: true })).toHaveCount(0);
+  await desk.getByRole('checkbox', { name: /Show archived/ }).check();
+  await card(desk, 'Media Board').getByRole('button', { name: /More/ }).click().catch(() => {});
+  await card(desk, 'Media Board').getByRole('button', { name: 'Restore' }).click();
+  const after = await (await api.get(`/api/boards/${made.id}`, { headers: H })).json();
+  expect(after.archived).toBe(false);
+
+  // Version history: change the title via the API (new version), restore the first version.
+  await api.put(`/api/boards/${made.id}`, { headers: H, data: { ...after, title: 'Media Board v2', version: true } });
+  const versions = await (await api.get(`/api/boards/${made.id}/versions`, { headers: H })).json();
+  expect(versions.length).toBeGreaterThanOrEqual(2);
+  const first = versions[versions.length - 1];
+  await api.post(`/api/boards/${made.id}/versions/${first.id}/restore`, { headers: H });
+  expect((await (await api.get(`/api/boards/${made.id}`, { headers: H })).json()).title).toBe('Media Board');
+  await api.dispose();
+});

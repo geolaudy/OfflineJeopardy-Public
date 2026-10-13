@@ -112,8 +112,10 @@ export default function Library() {
     if (r) await reload();
   };
 
-  const exportBoard = (b: BoardSummary, format: 'json' | 'csv') =>
-    attempt(() => downloadFile(`/api/boards/${b.id}/export?format=${format}`, `${safeName(b.title)}.${format}`), `Exported ${format.toUpperCase()}`);
+  const exportBoard = (b: BoardSummary, format: 'json' | 'csv' | 'package') =>
+    format === 'package'
+      ? attempt(() => downloadFile(`/api/boards/${b.id}/package`, `${safeName(b.title)}.ojboard.zip`), 'Exported board package')
+      : attempt(() => downloadFile(`/api/boards/${b.id}/export?format=${format}`, `${safeName(b.title)}.${format}`), `Exported ${format.toUpperCase()}`);
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -335,7 +337,7 @@ function BoardCard({
   onFavorite: () => void;
   onArchive: () => void;
   onDuplicate: () => Promise<unknown>;
-  onExport: (f: 'json' | 'csv') => Promise<unknown>;
+  onExport: (f: 'json' | 'csv' | 'package') => Promise<unknown>;
   onDelete: () => void;
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
@@ -405,6 +407,9 @@ function BoardCard({
         <div className="mt-2 flex flex-wrap gap-2 border-t border-slate-100 pt-2">
           <ActionButton size="sm" variant="secondary" onAction={onDuplicate}>
             Duplicate
+          </ActionButton>
+          <ActionButton size="sm" variant="secondary" onAction={() => onExport('package')} title="Board plus its pictures, audio and video in one .zip file">
+            Export package (with media)
           </ActionButton>
           <ActionButton size="sm" variant="secondary" onAction={() => onExport('json')}>
             Export JSON
@@ -550,9 +555,15 @@ function ClueDetail({ clue, light }: { clue?: Clue; light?: boolean }) {
 
 // ---------- import ----------
 
+function packageForm(f: File) {
+  const fd = new FormData();
+  fd.append('file', f, f.name);
+  return fd;
+}
+
 function ImportModal({ open, onClose, onSaved }: { open: boolean; onClose: () => void; onSaved: (id: string) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
-  const [file, setFile] = useState<{ name: string; text: string; format: 'csv' | 'json' } | null>(null);
+  const [file, setFile] = useState<{ name: string; text: string; format: 'csv' | 'json' | 'package'; zip?: File } | null>(null);
   const [preview, setPreview] = useState<ImportResponse | null>(null);
   const [title, setTitle] = useState('');
   const [busy, setBusy] = useState(false);
@@ -571,6 +582,25 @@ function ImportModal({ open, onClose, onSaved }: { open: boolean; onClose: () =>
   const onPick = async (e: ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
+    // Board package (.zip): board + its pictures/audio/video, checked on the server.
+    if (f.name.toLowerCase().endsWith('.zip') || f.type === 'application/zip') {
+      if (f.size > 300 * 1024 * 1024) {
+        toast('That package is too large (max 300 MB).', 'error');
+        return;
+      }
+      setBusy(true);
+      try {
+        setFile({ name: f.name, text: '', format: 'package', zip: f });
+        const r = await attempt(() => hostApi<ImportResponse>('POST', '/api/boards/import-package?preview=1', undefined, packageForm(f)));
+        if (r) {
+          setPreview(r);
+          setTitle(r.title);
+        }
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     if (f.size > 3_500_000) {
       toast('That file is too large to import (max ~3.5 MB).', 'error');
       return;
@@ -594,7 +624,10 @@ function ImportModal({ open, onClose, onSaved }: { open: boolean; onClose: () =>
   const save = async () => {
     if (!file || !preview) return;
     const r = await attempt(
-      () => hostApi<ImportResponse>('POST', '/api/boards/import', { format: file.format, text: file.text, title: title.trim() || undefined, preview: false }),
+      () =>
+        file.format === 'package' && file.zip
+          ? hostApi<ImportResponse>('POST', `/api/boards/import-package?title=${encodeURIComponent(title.trim())}`, undefined, packageForm(file.zip))
+          : hostApi<ImportResponse>('POST', '/api/boards/import', { format: file.format, text: file.text, title: title.trim() || undefined, preview: false }),
       'Board imported',
     );
     if (r?.saved) {
@@ -610,12 +643,12 @@ function ImportModal({ open, onClose, onSaved }: { open: boolean; onClose: () =>
     <Modal open={open} onClose={close} title="Import a board" wide>
       <div className="grid gap-4">
         <div>
-          <input ref={fileRef} type="file" accept=".csv,.json,text/csv,application/json" className="sr-only" id="import-file" onChange={(e) => void onPick(e)} />
+          <input ref={fileRef} type="file" accept=".csv,.json,.zip,text/csv,application/json,application/zip" className="sr-only" id="import-file" onChange={(e) => void onPick(e)} />
           <label
             htmlFor="import-file"
             className="flex min-h-20 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 p-4 text-center hover:bg-slate-50 focus-within:ring-2 focus-within:ring-blue-300"
           >
-            <span className="font-semibold">{file ? `📄 ${file.name}` : 'Choose a .csv or .json file'}</span>
+            <span className="font-semibold">{file ? `📄 ${file.name}` : 'Choose a .csv, .json or board package (.zip)'}</span>
             <span className="text-sm text-slate-500">{busy ? 'Checking…' : file ? 'Choose another file' : 'Files are read locally and checked before saving'}</span>
           </label>
         </div>
@@ -635,7 +668,7 @@ function ImportModal({ open, onClose, onSaved }: { open: boolean; onClose: () =>
                 <code>daily_wager</code>: <code>yes</code> or blank. <code>round</code> and <code>notes</code> are optional.
               </li>
             </ul>
-            <p className="mt-2">JSON files exported from OfflineJeopardy can be imported as-is.</p>
+            <p className="mt-2">JSON files exported from OfflineJeopardy can be imported as-is. Board packages (.ojboard.zip) also bring their pictures, audio and video.</p>
           </details>
         ) : null}
 

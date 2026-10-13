@@ -2,7 +2,7 @@
 
 Statuses: NOT STARTED · IN PROGRESS · IMPLEMENTED (code exists, no automated test) · TESTED (relevant automated tests pass) · BLOCKED.
 Test keys: **U** = `tests/unit/engine.test.ts` · **I** = `tests/integration/server.test.ts` · **E** = `tests/e2e/game.spec.ts`, **E2** = `tests/e2e/teams-editor.spec.ts` (Playwright: Chromium TV/desktop/Android, WebKit iPad/iPhone).
-Last full run: 2026-10-12 (session 2) — Vitest 58/58, Playwright 8/8 passing.
+Last full run: 2026-10-12 (session 3) — Vitest 64/64, Playwright 9/9 passing. **L** = tests/e2e/library.spec.ts.
 
 ## Core architecture & desktop
 
@@ -15,7 +15,7 @@ Last full run: 2026-10-12 (session 2) — Vitest 58/58, Playwright 8/8 passing.
 | A5 | Firewall rule on install (private networks) | P1 | IMPLEMENTED | build/installer.nsh | — | Not executed in a test |
 | A6 | Configurable data dir (portable: next to exe; config.json override) | P2 | IMPLEMENTED | electron/main.ts | — | No UI to change it yet |
 | A7 | Local logging | P2 | IMPLEMENTED | electron/main.ts (`data/logs/main.log`) | manual | — |
-| A8 | Backup / restore / integrity check | P1 | TESTED (backup, integrity) / IMPLEMENTED (restore) | server/app.ts, desk/Settings.tsx | I | Backup excludes media files |
+| A8 | Backup / restore / integrity check (full .zip with media, or database-only .db) | P1 | TESTED | server/app.ts, server/zip.ts, desk/Settings.tsx | I (full backup → restore on next start incl. media, safety copies) | Restore applies on restart; large media folders are buffered in memory |
 | A9 | Crash / restart recovery (state restored, timers paused, buzzers locked) | P0 | TESTED | gameManager.recover | I | — |
 
 ## Public board (TV)
@@ -112,15 +112,15 @@ Last full run: 2026-10-12 (session 2) — Vitest 58/58, Playwright 8/8 passing.
 
 | ID | Feature | Pri | Status | Source | Tests | Limitations |
 |---|---|---|---|---|---|---|
-| L1 | Board CRUD, duplicate, delete, rename, version history | P0 | TESTED (API; UI import→edit→save) | repos.ts, desk/Library.tsx, desk/BoardEditor.tsx | I, E2 | Duplicate/archive/version UI not browser-tested |
+| L1 | Board CRUD, duplicate, delete, rename, version history | P0 | TESTED | repos.ts, desk/Library.tsx, desk/BoardEditor.tsx | I, E2, L (duplicate, archive/restore in UI; version restore via API) | Version-restore button not clicked in a browser test |
 | L2 | Configurable categories (fewer/more than 6), rows, values, DW flags, Final | P0 | IMPLEMENTED | BoardEditor.tsx | — | — |
 | L3 | Drag-and-drop category reordering, clue moves | P1 | IMPLEMENTED | BoardEditor.tsx | — | — |
 | L4 | Autosave drafts + manual save | P1 | IMPLEMENTED | BoardEditor.tsx | — | — |
 | L5 | CSV + JSON import (preview, validation, duplicate warning) and export | P0 | TESTED | shared/boardIO.ts, app.ts | I | — |
 | L6 | Category import/export | P2 | IMPLEMENTED | BoardEditor.tsx | — | — |
 | L7 | Search, filter, tags, folders, favorites, archive, templates, previews | P1 | IMPLEMENTED | Library.tsx | — | — |
-| L8 | Multimedia clues (image/audio/video upload, display) | P1 | IMPLEMENTED | app.ts /api/media, BoardEditor, BoardPage | — | Media not included in JSON export packages |
-| L9 | Complete game-package export with media | P2 | NOT STARTED | — | — | — |
+| L8 | Multimedia clues (image/audio/video upload, display) | P1 | TESTED (upload, packaging) / IMPLEMENTED (editor UI) | app.ts /api/media, BoardEditor, BoardPage | I, L | Editor media-upload button not browser-tested; plain JSON export still references media by URL (use packages) |
+| L9 | Board package export/import with media (.ojboard.zip) | P2 | TESTED | server/zip.ts, app.ts /api/boards/:id/package + /api/boards/import-package, desk/Library.tsx | U (zip, Windows interop), I (round trip, missing/hostile media, auth), L (UI export → import) | Max 300 MB per package |
 | L10 | Example board | P1 | TESTED | shared/sampleBoards.ts | I, E | — |
 
 ## Other spec areas

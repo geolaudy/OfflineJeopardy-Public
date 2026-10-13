@@ -31,7 +31,7 @@
 - Edits to name, nickname, photo, avatar and color appear on the TV instantly.
 
 ## Boards
-Dashboard → Boards: create, edit, duplicate, archive, import (CSV/JSON) and export.
+Dashboard → Boards: create, edit, duplicate, archive, import (CSV/JSON/board package) and export. **More → Export package (with media)** saves a board together with its pictures, audio and video as one `.ojboard.zip` file — import it on another PC with **Import**.
 CSV columns: `round,category,value,question,answer,daily_wager,notes` (round "Final" = Final Wager).
 
 ## Troubleshooting
@@ -39,4 +39,4 @@ CSV columns: `round,category,value,question,answer,daily_wager,notes` (round "Fi
 - **Several networks on the PC:** Home → Network → pick the address your devices use.
 - **Joy-Con not showing:** pair it in Windows Bluetooth (hold the rail sync button), keep the OfflineJeopardy window open, press **Refresh devices**, press a button. Any player can switch to their phone at any time.
 - **PC restarted mid-game:** open the app — the game resumes where it was (timers paused).
-- **Backups:** Settings → Download backup. Photos/media live in the data folder (Settings → Open data folder).
+- **Backups:** Settings → **Download full backup** (.zip with everything, including photos and clue media). **Restore from backup…** accepts that .zip (or an older .db backup); it is applied when the app restarts, and the previous data is kept as a safety copy in the data folder.

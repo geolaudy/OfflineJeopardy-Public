@@ -23,7 +23,7 @@ Order follows CLAUDE.md §31. ✅ done · 🔶 partial · ⬜ not started.
 
 1. ✅ (done) E2E for import/edit, team setup with shared keyboard buzzer, Final via phones. Remaining: editor drag-and-drop/versions/media E2E.
 2. Real-hardware validation session: pair 2+ Joy-Cons on Windows, verify detection/MAC ids/assign/buzz/reconnect; fix offsets if needed. Real iPad Safari pass.
-3. Game-package export/import with media (zip), backup including media.
+3. ✅ Game-package export/import with media (zip), backup including media (session 3).
 4. Theme editor (custom colors/fonts/background/logo) + theme import/export.
 5. ✅ Host keyboard shortcuts; ✅ statistics export (CSV); latency diagnostics view still open.
 6. Computer opponents / practice mode; room codes; tournament & survival modes.

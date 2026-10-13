@@ -29,6 +29,7 @@ import { Hub } from './hub.js';
 import { lanAddresses, pickAddress } from './network.js';
 import { ImageError, MAX_UPLOAD_BYTES, processClueImage, processProfilePicture, safeJoin, sniffMedia } from './images.js';
 import * as stats from './stats.js';
+import { createZip, isZip, readZip, ZipError, type ZipEntry } from './zip.js';
 import { normalizeRules, rulesFromPreset, RULE_PRESETS } from '../shared/game.js';
 import { rulesSchema } from '../shared/actions.js';
 import { boardContentSchema, exportBoardCsv, exportBoardJson, importBoardCsv, importBoardJson } from '../shared/boardIO.js';
@@ -36,6 +37,8 @@ import { reassignIds, validateBoard } from '../shared/boardUtils.js';
 import { SAMPLE_BOARD, SAMPLE_BOARD_TITLE } from '../shared/sampleBoards.js';
 
 export const APP_VERSION = '0.2.0'; // keep in sync with package.json "version"
+const MAX_PACKAGE_BYTES = 300 * 1024 * 1024;
+const MAX_BACKUP_BYTES = 1024 * 1024 * 1024;
 
 export interface ServerOptions {
   dataDir: string;
@@ -79,7 +82,7 @@ export async function startServer(opts: ServerOptions) {
   const pinLimiter = new RateLimiter(20, 60_000);
   const hostLimiter = new RateLimiter(10, 60_000);
 
-  const app = Fastify({ logger: opts.logger ?? false, bodyLimit: 5 * 1024 * 1024, trustProxy: false });
+  const app = Fastify({ logger: opts.logger ?? false, bodyLimit: 5 * 1024 * 1024, trustProxy: false, forceCloseConnections: true });
   await app.register(fastifyWebsocket, { options: { maxPayload: 64 * 1024 } });
   await app.register(fastifyMultipart, { limits: { fileSize: MAX_UPLOAD_BYTES * 5, files: 1, fields: 10 } });
 
@@ -525,30 +528,118 @@ export async function startServer(opts: ServerOptions) {
   });
 
   // ---------- media for clues ----------
+  /** Validates (content sniffing / image decoding), stores and registers one clue media file. */
+  async function storeClueMedia(buf: Buffer, originalName: string) {
+    const id = repo.newId();
+    const av = sniffMedia(buf);
+    let out: { file: string; mime: string; kind: 'image' | 'audio' | 'video' };
+    if (av) {
+      const name = `${id}.${av.ext}`;
+      fs.writeFileSync(path.join(clueMediaDir, name), buf);
+      out = { file: name, mime: av.mime, kind: av.kind };
+    } else {
+      const img = await processClueImage(buf, clueMediaDir);
+      out = { ...img, kind: 'image' };
+    }
+    db.prepare('INSERT INTO media (id, kind, file, mime, size, original_name, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(id, out.kind, out.file, out.mime, buf.length, originalName.slice(0, 200), Date.now());
+    return { id, kind: out.kind, url: `/media/clues/${out.file}` };
+  }
+
   app.post('/api/media', async (req, reply) => {
     if (!requireHost(req, reply)) return;
     const file = await req.file().catch(() => undefined);
     if (!file) return bad(reply, 'No file uploaded');
     const buf = await file.toBuffer().catch(() => null);
     if (!buf) return bad(reply, 'File is too large', 413);
-    const id = repo.newId();
     try {
-      const av = sniffMedia(buf);
-      let out: { file: string; mime: string; kind: 'image' | 'audio' | 'video' };
-      if (av) {
-        const name = `${id}.${av.ext}`;
-        fs.writeFileSync(path.join(clueMediaDir, name), buf);
-        out = { file: name, mime: av.mime, kind: av.kind };
-      } else {
-        const img = await processClueImage(buf, clueMediaDir);
-        out = { ...img, kind: 'image' };
-      }
-      db.prepare('INSERT INTO media (id, kind, file, mime, size, original_name, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(id, out.kind, out.file, out.mime, buf.length, file.filename.slice(0, 200), Date.now());
-      return { id, kind: out.kind, url: `/media/clues/${out.file}` };
+      return await storeClueMedia(buf, file.filename);
     } catch (e) {
       if (e instanceof ImageError) return bad(reply, e.message);
       throw e;
     }
+  });
+
+  // ---------- board packages (board + its media in one .zip) ----------
+  const clueFileOf = (url: string) => /^\/media\/clues\/([A-Za-z0-9._-]{1,120})$/.exec(url)?.[1] ?? null;
+  app.get('/api/boards/:id/package', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const b = repo.getBoard(db, (req.params as { id: string }).id);
+    if (!b) return bad(reply, 'Board not found', 404);
+    const entries: ZipEntry[] = [{ name: 'board.json', data: Buffer.from(exportBoardJson(b), 'utf8') }];
+    const seen = new Set<string>();
+    const missing: string[] = [];
+    for (const r of b.content.rounds)
+      for (const c of r.categories)
+        for (const q of c.clues)
+          for (const m of q.media ?? []) {
+            const f = clueFileOf(m.url);
+            if (!f || seen.has(f)) continue;
+            seen.add(f);
+            const full = safeJoin(clueMediaDir, f);
+            if (full && fs.existsSync(full)) entries.push({ name: `media/${f}`, data: fs.readFileSync(full) });
+            else missing.push(f);
+          }
+    entries.push({ name: 'manifest.json', data: Buffer.from(JSON.stringify({ format: 'offline-jeopardy-board-package', version: 1, appVersion: APP_VERSION, createdAt: Date.now(), title: b.title, mediaFiles: seen.size - missing.length, missing }, null, 2)) });
+    const safe = b.title.replace(/[^a-z0-9 _-]/gi, '').trim() || 'board';
+    reply.header('content-disposition', `attachment; filename="${safe}.ojboard.zip"`);
+    return reply.type('application/zip').send(createZip(entries));
+  });
+  app.post('/api/boards/import-package', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const preview = (req.query as { preview?: string }).preview === '1';
+    const file = await req.file({ limits: { fileSize: MAX_PACKAGE_BYTES } }).catch(() => undefined);
+    if (!file) return bad(reply, 'No file uploaded');
+    const buf = await file.toBuffer().catch(() => null);
+    if (!buf) return bad(reply, 'The package is too large (max 300 MB)', 413);
+    let entries: ZipEntry[];
+    try {
+      entries = readZip(buf, { maxEntries: 5000, maxTotalBytes: MAX_PACKAGE_BYTES * 2 });
+    } catch (e) {
+      return bad(reply, e instanceof ZipError ? e.message : 'That file is not a board package');
+    }
+    const boardEntry = entries.find((e) => e.name === 'board.json');
+    if (!boardEntry) return bad(reply, 'This ZIP is not an OfflineJeopardy board package (board.json is missing)');
+    const r = importBoardJson(boardEntry.data.toString('utf8'));
+    const title: string = ((req.query as { title?: string }).title ?? '').trim().slice(0, 120) || r.title || 'Imported board';
+    const media = new Map(entries.filter((e) => e.name.startsWith('media/')).map((e) => [e.name.slice(6), e]));
+    const warnings = [...r.warnings];
+    if (repo.listBoards(db).some((b) => b.title.toLowerCase() === title.toLowerCase())) warnings.push(`A board named "${title}" already exists — the import will be saved as a separate board.`);
+    const summary = { ...r.summary, mediaFiles: media.size };
+    if (preview || !r.content) return { ...r, summary, warnings, title, saved: null };
+    // Store each referenced file (validated again here — never trust package contents) and
+    // rewrite the board's media URLs to the newly stored copies.
+    const mapped = new Map<string, string | null>();
+    const content = reassignIds(r.content);
+    for (const round of content.rounds)
+      for (const cat of round.categories)
+        for (const q of cat.clues) {
+          if (!q.media?.length) continue;
+          const kept = [];
+          for (const m of q.media) {
+            const f = clueFileOf(m.url);
+            if (!f) continue; // only local media can be packaged
+            if (!mapped.has(f)) {
+              const entry = media.get(f);
+              if (!entry) {
+                mapped.set(f, null);
+                warnings.push(`Media file ${f} is missing from the package; the clue keeps its text.`);
+              } else {
+                try {
+                  mapped.set(f, (await storeClueMedia(entry.data, f)).url);
+                } catch (e) {
+                  mapped.set(f, null);
+                  warnings.push(`Media file ${f} was rejected: ${e instanceof ImageError ? e.message : 'unsupported file'}`);
+                }
+              }
+            }
+            const url = mapped.get(f);
+            if (url) kept.push({ ...m, url });
+          }
+          q.media = kept;
+        }
+    const saved = repo.saveBoard(db, { title, description: r.description ?? '', tags: r.tags ?? [], content }, { version: true });
+    audit(db, 'host', 'board.importPackage', { id: saved.id, media: [...mapped.values()].filter(Boolean).length });
+    return { ...r, summary, warnings, title, saved: { id: saved.id } };
   });
   app.get('/media/:dir/:file', async (req, reply) => {
     const { dir, file } = req.params as { dir: string; file: string };
@@ -706,17 +797,47 @@ export async function startServer(opts: ServerOptions) {
     const buf = fs.readFileSync(tmp);
     fs.rmSync(tmp, { force: true });
     const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-    reply.header('content-disposition', `attachment; filename="offlinejeopardy-backup-${stamp}.db"`);
-    return reply.type('application/octet-stream').send(buf);
+    if ((req.query as { media?: string }).media === '0') {
+      reply.header('content-disposition', `attachment; filename="offlinejeopardy-backup-${stamp}.db"`);
+      return reply.type('application/octet-stream').send(buf);
+    }
+    // Full backup: database + profile pictures + clue media in one ZIP.
+    const entries: ZipEntry[] = [{ name: 'offlinejeopardy.db', data: buf }];
+    for (const [sub, dir] of [['profiles', profileMediaDir], ['clues', clueMediaDir]] as const)
+      for (const f of fs.readdirSync(dir)) {
+        const full = safeJoin(dir, f);
+        if (full && fs.statSync(full).isFile()) entries.push({ name: `media/${sub}/${f}`, data: fs.readFileSync(full) });
+      }
+    entries.push({ name: 'manifest.json', data: Buffer.from(JSON.stringify({ format: 'offline-jeopardy-backup', version: 1, appVersion: APP_VERSION, schemaVersion: schemaVersion(db), createdAt: Date.now(), mediaFiles: entries.length - 1 }, null, 2)) });
+    reply.header('content-disposition', `attachment; filename="offlinejeopardy-backup-${stamp}.zip"`);
+    return reply.type('application/zip').send(createZip(entries));
   });
   app.post('/api/admin/restore', async (req, reply) => {
     if (!requireHost(req, reply)) return;
-    const file = await req.file().catch(() => undefined);
+    const file = await req.file({ limits: { fileSize: MAX_BACKUP_BYTES } }).catch(() => undefined);
     if (!file) return bad(reply, 'No file uploaded');
-    const buf = await file.toBuffer().catch(() => null);
-    if (!buf || buf.subarray(0, 16).toString('latin1') !== 'SQLite format 3\u0000') return bad(reply, 'That is not an OfflineJeopardy backup file');
+    const upload = await file.toBuffer().catch(() => null);
+    if (!upload) return bad(reply, 'The backup is too large', 413);
+    // Accept a full ZIP backup (database + media) or a database-only .db backup.
+    let dbBuf = upload;
+    let mediaEntries: ZipEntry[] = [];
+    if (isZip(upload)) {
+      try {
+        const entries = readZip(upload, { maxEntries: 100_000, maxTotalBytes: MAX_BACKUP_BYTES * 2 });
+        const manifest = entries.find((e) => e.name === 'manifest.json');
+        const dbEntry = entries.find((e) => e.name === 'offlinejeopardy.db');
+        if (!manifest || !dbEntry || JSON.parse(manifest.data.toString('utf8')).format !== 'offline-jeopardy-backup') throw new ZipError('not a backup');
+        dbBuf = dbEntry.data;
+        mediaEntries = entries.filter((e) => /^media\/(profiles|clues)\/[A-Za-z0-9._-]{1,120}$/.test(e.name));
+      } catch {
+        return bad(reply, 'That ZIP is not an OfflineJeopardy backup');
+      }
+    }
+    if (dbBuf.subarray(0, 16).toString('latin1') !== 'SQLite format 3\u0000') return bad(reply, 'That is not an OfflineJeopardy backup file');
     const pending = path.join(dataDir, 'restore-pending.db');
-    fs.writeFileSync(pending, buf);
+    const pendingMedia = path.join(dataDir, 'restore-pending-media');
+    fs.rmSync(pendingMedia, { recursive: true, force: true });
+    fs.writeFileSync(pending, dbBuf);
     try {
       const test = openDatabase(pending);
       const ok = integrityCheck(test) === 'ok' && !!test.prepare(`SELECT name FROM sqlite_master WHERE name = 'profiles'`).get();
@@ -726,8 +847,13 @@ export async function startServer(opts: ServerOptions) {
       fs.rmSync(pending, { force: true });
       return bad(reply, 'The backup file is damaged or not compatible');
     }
-    audit(db, 'host', 'db.restoreScheduled');
-    return { ok: true, message: 'Backup verified. Restart OfflineJeopardy to finish restoring.' };
+    if (isZip(upload)) {
+      // Media is staged next to the database and swapped in on the next start, like the database.
+      for (const sub of ['profiles', 'clues']) fs.mkdirSync(path.join(pendingMedia, sub), { recursive: true });
+      for (const e of mediaEntries) fs.writeFileSync(path.join(pendingMedia, e.name.slice('media/'.length)), e.data);
+    }
+    audit(db, 'host', 'db.restoreScheduled', { media: isZip(upload) ? mediaEntries.length : null });
+    return { ok: true, media: isZip(upload) ? mediaEntries.length : null, message: 'Backup verified. Restart OfflineJeopardy to finish restoring.' };
   });
 
   // ---------- static web app ----------
@@ -775,9 +901,17 @@ export type RunningServer = Awaited<ReturnType<typeof startServer>>;
 function applyPendingRestore(dataDir: string, dbFile: string) {
   const pending = path.join(dataDir, 'restore-pending.db');
   if (!fs.existsSync(pending)) return;
-  if (fs.existsSync(dbFile)) fs.copyFileSync(dbFile, path.join(dataDir, `pre-restore-${Date.now()}.db`));
+  const stamp = Date.now();
+  if (fs.existsSync(dbFile)) fs.copyFileSync(dbFile, path.join(dataDir, `pre-restore-${stamp}.db`));
   for (const ext of ['', '-wal', '-shm']) fs.rmSync(dbFile + ext, { force: true });
   fs.renameSync(pending, dbFile);
+  // Full (ZIP) backups also carry media: keep the current media as a safety copy, then swap in.
+  const pendingMedia = path.join(dataDir, 'restore-pending-media');
+  if (fs.existsSync(pendingMedia)) {
+    const media = path.join(dataDir, 'media');
+    if (fs.existsSync(media)) fs.renameSync(media, path.join(dataDir, `pre-restore-media-${stamp}`));
+    fs.renameSync(pendingMedia, media);
+  }
 }
 
 function seed(db: DB) {

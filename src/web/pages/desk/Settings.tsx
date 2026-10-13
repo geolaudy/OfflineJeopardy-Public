@@ -119,10 +119,13 @@ export default function Settings() {
       </Card>
       <Card className="space-y-3">
         <h2 className="text-lg font-bold">Backup & restore</h2>
-        <p className="text-sm text-slate-600">A backup contains boards, players (PINs stay hashed), teams, statistics and history. Uploaded pictures and media stay in the data folder.</p>
+        <p className="text-sm text-slate-600">A full backup (.zip) contains boards, players (PINs stay hashed), teams, statistics, history, profile pictures and clue media. Restoring accepts a full .zip backup or an older database-only .db backup.</p>
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => attempt(() => downloadFile('/api/admin/backup', `offlinejeopardy-backup-${new Date().toISOString().slice(0, 10)}.db`))}>
-            ⬇ Download backup
+          <Button variant="secondary" onClick={() => attempt(() => downloadFile('/api/admin/backup', `offlinejeopardy-backup-${new Date().toISOString().slice(0, 10)}.zip`))} data-testid="backup-full">
+            ⬇ Download full backup
+          </Button>
+          <Button variant="ghost" onClick={() => attempt(() => downloadFile('/api/admin/backup?media=0', `offlinejeopardy-database-${new Date().toISOString().slice(0, 10)}.db`))}>
+            Database only
           </Button>
           <Button variant="secondary" onClick={() => restoreRef.current?.click()}>
             ⬆ Restore from backup…
@@ -135,7 +138,7 @@ export default function Settings() {
           <input
             ref={restoreRef}
             type="file"
-            accept=".db,application/octet-stream"
+            accept=".zip,.db,application/zip,application/octet-stream"
             className="hidden"
             onChange={async (e) => {
               const f = e.target.files?.[0];
