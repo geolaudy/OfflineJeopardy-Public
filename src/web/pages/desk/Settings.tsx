@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { downloadFile, hostApi } from '../../lib/api';
 import { attempt, useFetch } from '../../lib/hooks';
 import { Button, Card, Field, cx } from '../../components/ui';
@@ -26,31 +27,6 @@ export const BOARD_THEMES: [string, string][] = [
   ['corporate', 'Corporate'],
   ['contrast', 'High Contrast'],
 ];
-
-function ThemePreview({ theme }: { theme: string }) {
-  return (
-    <div className="board-theme overflow-hidden rounded-xl p-2" data-theme={theme} aria-hidden>
-      <div className="grid grid-cols-4 gap-1">
-        {['HISTORY', 'SCIENCE', 'SPORTS', 'MUSIC'].map((c) => (
-          <div key={c} className="b-cat p-1 text-center text-[9px] font-black">
-            {c}
-          </div>
-        ))}
-        {[200, 400].flatMap((v) =>
-          [0, 1, 2, 3].map((i) =>
-            i === 2 && v === 200 ? (
-              <div key={`${v}${i}`} className="b-used" />
-            ) : (
-              <div key={`${v}${i}`} className="b-tile py-1 text-center text-sm font-black">
-                {v}
-              </div>
-            ),
-          ),
-        )}
-      </div>
-    </div>
-  );
-}
 
 function Toggle({ label, checked, onChange, hint }: { label: string; checked: boolean; onChange: (v: boolean) => void; hint?: string }) {
   return (
@@ -84,15 +60,13 @@ export default function Settings() {
       <h1 className="text-3xl font-black">Settings</h1>
       <Card className="space-y-3">
         <h2 className="text-lg font-bold">Game board look</h2>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {BOARD_THEMES.map(([id, label]) => (
-            <button key={id} onClick={() => set({ boardTheme: id })} className={cx('rounded-xl border-2 p-1 text-left', v.boardTheme === id ? 'border-blue-700' : 'border-transparent')} aria-pressed={v.boardTheme === id}>
-              <ThemePreview theme={id} />
-              <div className="mt-1 px-1 text-sm font-semibold">{label}</div>
-            </button>
-          ))}
-        </div>
-        <p className="text-xs text-slate-500">The TV updates right away.</p>
+        <p className="text-slate-700">
+          The TV uses{' '}
+          <b>{v.boardTheme.startsWith('custom:') ? 'a custom theme' : (BOARD_THEMES.find(([id]) => id === v.boardTheme)?.[1] ?? 'Classic')}</b>.
+        </p>
+        <Link to="/desk/themes" className="inline-flex min-h-11 items-center rounded-xl bg-blue-700 px-4 font-semibold text-white hover:bg-blue-800">
+          🎨 Choose or customize the TV theme →
+        </Link>
       </Card>
       <Card className="space-y-3">
         <h2 className="text-lg font-bold">Sound & motion</h2>

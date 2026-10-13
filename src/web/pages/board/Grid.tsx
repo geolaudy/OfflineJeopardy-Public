@@ -7,7 +7,7 @@ import { FitText, money, useBoard } from './common';
 import { T } from './timing';
 
 export function Grid({ g, activeId, activeOpen, fillIn }: { g: GameView; activeId: string | null; activeOpen: boolean; fillIn: boolean }) {
-  const { theme } = useBoard();
+  const { prefix, scale } = useBoard();
   const round = g.rounds[g.roundIndex];
   const cols = round?.categories.length ?? 0;
   const rows = round ? Math.max(0, ...round.categories.map((c) => c.clues.length)) : 0;
@@ -33,7 +33,7 @@ export function Grid({ g, activeId, activeOpen, fillIn }: { g: GameView; activeI
     <div className="bt-grid" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gridTemplateRows: `1.3fr repeat(${rows}, minmax(0, 1fr))` }}>
       {round.categories.map((c) => (
         <div key={c.id} className="bt-cell bt-cat" data-testid="board-category">
-          <FitText text={c.name} max={4.4} min={1.5} className="bt-cat-text" />
+          <FitText text={c.name} max={4.4 * scale.category} min={1.5 * scale.category} className="bt-cat-text" />
         </div>
       ))}
       {Array.from({ length: rows }).map((_, r) =>
@@ -51,7 +51,7 @@ export function Grid({ g, activeId, activeOpen, fillIn }: { g: GameView; activeI
               style={fillStyle(r, ci)}
               data-testid={!q.used && !active ? 'board-tile' : undefined}
             >
-              {showValue && <span className="bt-value">{money(theme, q.value)}</span>}
+              {showValue && <span className="bt-value">{money(prefix, q.value)}</span>}
             </div>
           );
         }),

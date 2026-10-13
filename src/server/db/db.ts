@@ -207,6 +207,20 @@ CREATE TABLE audit_log (
 );
 `,
   },
+  {
+    // Additive only: existing databases keep all data.
+    version: 2,
+    name: 'custom board themes',
+    sql: `
+CREATE TABLE themes (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  data_json TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+`,
+  },
 ];
 
 export function openDatabase(file: string): DB {

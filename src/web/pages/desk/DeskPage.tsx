@@ -16,6 +16,7 @@ const Teams = lazy(() => import('./Teams'));
 const History = lazy(() => import('./History'));
 const Settings = lazy(() => import('./Settings'));
 const Help = lazy(() => import('./Help'));
+const Themes = lazy(() => import('./Themes'));
 const ControllersPage = lazy(() => import('./ControllersPage'));
 
 const NAV = [
@@ -25,6 +26,7 @@ const NAV = [
   ['/desk/teams', '👥', 'Teams', false],
   ['/desk/controllers', '🎮', 'Buzzers', false],
   ['/desk/history', '🕘', 'History & stats', false],
+  ['/desk/themes', '🎨', 'TV themes', false],
   ['/desk/settings', '⚙️', 'Settings', false],
   ['/desk/help', '❓', 'Help', false],
 ] as const;
@@ -113,6 +115,7 @@ export default function DeskPage() {
             <Route path="teams" element={<Teams />} />
             <Route path="controllers" element={<ControllersPage />} />
             <Route path="history" element={<History />} />
+            <Route path="themes" element={<Themes />} />
             <Route path="settings" element={<Settings />} />
             <Route path="help" element={<Help />} />
             <Route path="*" element={<Navigate to="/desk" replace />} />

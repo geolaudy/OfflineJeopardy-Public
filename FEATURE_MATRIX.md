@@ -2,7 +2,7 @@
 
 Statuses: NOT STARTED · IN PROGRESS · IMPLEMENTED (code exists, no automated test) · TESTED (relevant automated tests pass) · BLOCKED.
 Test keys: **U** = `tests/unit/engine.test.ts` · **I** = `tests/integration/server.test.ts` · **E** = `tests/e2e/game.spec.ts`, **E2** = `tests/e2e/teams-editor.spec.ts` (Playwright: Chromium TV/desktop/Android, WebKit iPad/iPhone).
-Last full run: 2026-10-12 (session 3) — Vitest 64/64, Playwright 9/9 passing. **L** = tests/e2e/library.spec.ts.
+Last full run: 2026-10-12 (session 3) — Vitest 65/65, Playwright 10/10 passing. **L** = tests/e2e/library.spec.ts, **T** = tests/e2e/themes.spec.ts.
 
 ## Core architecture & desktop
 
@@ -31,7 +31,7 @@ Last full run: 2026-10-12 (session 3) — Vitest 64/64, Playwright 9/9 passing. 
 | B7 | Winner announcement / results | P0 | TESTED | BoardPage Results | E | — |
 | B8 | Fullscreen, secondary-monitor placement | P1 | IMPLEMENTED | BoardPage, electron openBoardWindow | — | Multi-monitor untested |
 | B9 | Join QR show/hide; lobby screen with large QR | P0 | TESTED | BoardPage, /api/qr | I (QR svg), E (lobby) | — |
-| B10 | Sound effects (synthesised), reduced motion, themes (8 presets) | P2 | IMPLEMENTED | lib/sound.ts, styles.css, desk/Settings.tsx | — | No theme editor/import/export yet |
+| B10 | Sound effects (synthesised), reduced motion, themes (8 presets + custom) | P2 | TESTED (themes) / IMPLEMENTED (sound) | lib/sound.ts, styles.css, board/board.css, desk/Themes.tsx | I, T | Sound packs not customizable |
 
 ## iPad host controller
 
@@ -131,7 +131,7 @@ Last full run: 2026-10-12 (session 3) — Vitest 64/64, Playwright 9/9 passing. 
 | O2 | LAN address detection + interface choice + troubleshooting | P0 | IMPLEMENTED | desk/Connect.tsx, network.ts |
 | O3 | Single-player vs computer opponents, practice mode | P2 | NOT STARTED | |
 | O4 | Shared-screen local multiplayer (keyboard buzzers on one PC) | P1 | IMPLEMENTED | keyboard buzzers + host on same PC |
-| O5 | Theme editor, theme import/export, custom fonts/logos/backgrounds | P2 | NOT STARTED | 8 preset themes exist |
+| O5 | Theme editor (colors, offline font stacks, text sizes, corners, shadows, value prefix, background image + dim, logo), live preview (real TV page in iframe), import/export (.ojtheme.json with embedded, re-validated images), live TV update | P2 | TESTED | shared/themes.ts, db migration v2, repos.ts, app.ts /api/themes*, board/common.tsx + Preview.tsx, desk/Themes.tsx — tests: I (CRUD, auth, URL whitelist, import re-validation, TV resolution, migration), T = tests/e2e/themes.spec.ts. Not customizable yet: sound effects, transition/reveal effects, timer/scoreboard layout |
 | O6 | Workspaces & roles | P3 | NOT STARTED | |
 | O7 | Optional offline AI (Ollama) | P3 | NOT STARTED | |
 | O8 | Additional modes: Double/Triple rounds via multi-round boards, presets | P2 | IN PROGRESS | multi-round boards + rule presets; no survival/tournament |

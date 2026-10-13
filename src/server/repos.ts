@@ -4,6 +4,7 @@ import type { DB } from './db/db.js';
 import { tx } from './db/db.js';
 import type { Board, BoardContent, BoardMeta, GameState, GameplayEvent } from '../shared/game.js';
 import type { ProfilePublic } from '../shared/views.js';
+import { newThemeData, type CustomTheme, type CustomThemeData } from '../shared/themes.js';
 import { normalizeState } from './engine/engine.js';
 
 export const newId = () => crypto.randomUUID();
@@ -453,4 +454,38 @@ export function recordParticipants(db: DB, s: GameState, profiles: Record<string
     for (const b of s.bindings)
       insA.run(s.id, b.controllerId, b.kind, b.label, b.target.kind, b.target.kind === 'profile' ? b.target.profileId : b.target.competitorId);
   });
+}
+
+// ---------- custom TV themes ----------
+
+export function listThemes(db: DB): CustomTheme[] {
+  const rows = db.prepare('SELECT * FROM themes ORDER BY name COLLATE NOCASE').all() as { id: string; data_json: string; created_at: number; updated_at: number }[];
+  return rows.map(themeFromRow);
+}
+
+export function getTheme(db: DB, id: string): CustomTheme | undefined {
+  const r = db.prepare('SELECT * FROM themes WHERE id = ?').get(id) as { id: string; data_json: string; created_at: number; updated_at: number } | undefined;
+  return r ? themeFromRow(r) : undefined;
+}
+
+function themeFromRow(r: { id: string; data_json: string; created_at: number; updated_at: number }): CustomTheme {
+  // Older/foreign data is filled with defaults so the board never receives a partial theme.
+  const data = { ...newThemeData(), ...(JSON.parse(r.data_json) as Partial<CustomThemeData>) };
+  data.colors = { ...newThemeData().colors, ...data.colors };
+  return { ...data, id: r.id, createdAt: r.created_at, updatedAt: r.updated_at };
+}
+
+export function saveTheme(db: DB, data: CustomThemeData, id?: string): CustomTheme {
+  const now = Date.now();
+  const existing = id ? getTheme(db, id) : undefined;
+  const tid = existing?.id ?? newId();
+  db.prepare(
+    `INSERT INTO themes (id, name, data_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET name = excluded.name, data_json = excluded.data_json, updated_at = excluded.updated_at`,
+  ).run(tid, data.name, JSON.stringify(data), existing?.createdAt ?? now, now);
+  return getTheme(db, tid)!;
+}
+
+export function deleteTheme(db: DB, id: string) {
+  db.prepare('DELETE FROM themes WHERE id = ?').run(id);
 }

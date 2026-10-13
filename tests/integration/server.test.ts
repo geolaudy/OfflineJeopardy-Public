@@ -426,6 +426,53 @@ describe('boards: import, export, versions', () => {
   });
 });
 
+describe('custom TV themes (O5)', () => {
+  it('creates, validates, selects, exports/imports (with images) and deletes themes; DB migrates additively', async () => {
+    const s = await start();
+    const host = await hostToken(s);
+    const { newThemeData } = await import('../../src/shared/themes');
+    const base = { ...newThemeData('classic', 'Party'), colors: { ...newThemeData().colors, tile: '#7c3aed', value: '#fde047' }, valuePrefix: '€', displayFont: 'rounded' };
+    expect((await api(s, 'POST', '/api/themes', base)).status).toBe(401);
+    // Only images stored by this server may be referenced (no external URLs).
+    expect((await api(s, 'POST', '/api/themes', { ...base, backgroundImage: 'http://evil.example/x.png' }, host)).status).toBe(400);
+    expect((await api(s, 'POST', '/api/themes', { ...base, colors: { ...base.colors, tile: 'red' } }, host)).status).toBe(400);
+
+    const png = await sharp({ create: { width: 200, height: 100, channels: 3, background: '#ff00ff' } }).png().toBuffer();
+    const fd = new FormData();
+    fd.append('file', new Blob([new Uint8Array(png)], { type: 'image/png' }), 'logo.png');
+    const logo = await (await fetch(s.url + '/api/media', { method: 'POST', headers: { authorization: `Bearer ${host}` }, body: fd })).json();
+    const t = (await api(s, 'POST', '/api/themes', { ...base, logo: logo.url }, host)).data;
+    expect(t).toMatchObject({ name: 'Party', base: 'classic', logo: logo.url });
+
+    // Select it for the TV: the public settings carry the resolved theme (base preset + overrides).
+    const pub0 = (await api(s, 'GET', '/api/settings/public')).data;
+    expect(pub0).toMatchObject({ theme: 'classic', custom: null });
+    await api(s, 'PUT', '/api/settings', { boardTheme: `custom:${t.id}` }, host);
+    const pub = (await api(s, 'GET', '/api/settings/public')).data;
+    expect(pub.theme).toBe('classic');
+    expect(pub.custom).toMatchObject({ id: t.id, valuePrefix: '€', colors: { tile: '#7c3aed' } });
+
+    // Export embeds the logo; importing re-validates it and stores a fresh copy.
+    const file = (await api(s, 'GET', `/api/themes/${t.id}/export`, undefined, host)).data;
+    expect(file.format).toBe('offline-jeopardy-theme');
+    expect(file.images[logo.url].base64.length).toBeGreaterThan(50);
+    const imp = (await api(s, 'POST', '/api/themes/import', file, host)).data;
+    expect(imp.theme.logo).toMatch(/^\/media\/clues\//);
+    expect(imp.theme.logo).not.toBe(logo.url);
+    expect(imp.warnings).toEqual([]);
+    const bad = (await api(s, 'POST', '/api/themes/import', { ...file, images: { [logo.url]: { mime: 'image/png', base64: Buffer.from('<svg onload=alert(1)>').toString('base64') } } }, host)).data;
+    expect(bad.theme.logo).toBeNull();
+    expect(bad.warnings.join(' ')).toMatch(/rejected/);
+    expect((await api(s, 'GET', '/api/themes', undefined, host)).data).toHaveLength(3);
+
+    // Deleting the active theme puts the TV back on the classic preset.
+    await api(s, 'DELETE', `/api/themes/${t.id}`, undefined, host);
+    expect((await api(s, 'GET', '/api/settings/public')).data).toMatchObject({ theme: 'classic', custom: null });
+    const { schemaVersion } = await import('../../src/server/db/db');
+    expect(schemaVersion(s.db)).toBe(2);
+  });
+});
+
 describe('board packages and full backups (L9, K6, K7)', () => {
   const upload = async (s: { url: string }, url: string, token: string, name: string, data: Buffer, type: string) => {
     const fd = new FormData();

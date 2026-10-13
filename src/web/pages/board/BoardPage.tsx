@@ -10,7 +10,8 @@ import { reannounce, startInputBridge } from '../../lib/inputBridge';
 import type { GameView } from '../../../shared/views';
 import { avatarEmoji } from '../../lib/avatars';
 import { isDesktopApp } from '../../lib/desktop';
-import { BoardCtx, useBoard, usePrefersReducedMotion, useViewportHeight, vhPx } from './common';
+import { BoardCtx, presentationFor, themeRoot, useBoard, usePrefersReducedMotion, useViewportHeight, vhPx } from './common';
+import type { CustomTheme } from '../../../shared/themes';
 import { Grid } from './Grid';
 import { CluePanel } from './ClueZoom';
 import { Intro } from './Intro';
@@ -21,6 +22,7 @@ import './board.css';
 
 interface PublicSettings {
   theme: string;
+  custom: CustomTheme | null;
   sound: boolean;
   volume: number;
   reducedMotion: boolean;
@@ -31,7 +33,7 @@ export default function BoardPage() {
   const status = useLive((s) => s.status);
   const trusted = useLive((s) => s.trustedDevice);
   const profilesVersion = useLive((s) => s.profilesVersion);
-  const [settings, setSettings] = useState<PublicSettings>({ theme: 'classic', sound: true, volume: 0.7, reducedMotion: false });
+  const [settings, setSettings] = useState<PublicSettings>({ theme: 'classic', custom: null, sound: true, volume: 0.7, reducedMotion: false });
   const [info, setInfo] = useState<{ urls: { join: string; host: string } } | null>(null);
 
   useEffect(() => {
@@ -68,14 +70,16 @@ export default function BoardPage() {
   const osReduced = usePrefersReducedMotion();
   const vh = useViewportHeight();
   const reduced = osReduced || settings.reducedMotion;
-  const presentation = useMemo(() => ({ theme: settings.theme, reduced, vh }), [settings.theme, reduced, vh]);
+  const presentation = useMemo(() => presentationFor(settings.theme, settings.custom, reduced, vh), [settings.theme, settings.custom, reduced, vh]);
+  const root = useMemo(() => themeRoot(settings.theme, settings.custom), [settings.theme, settings.custom]);
 
   return (
     <BoardCtx.Provider value={presentation}>
       <MotionConfig reducedMotion={reduced ? 'always' : 'never'}>
         <div
           className={cx('board-theme relative flex h-screen w-screen flex-col overflow-hidden select-none', settings.reducedMotion && 'reduce-motion')}
-          data-theme={settings.theme}
+          data-theme={root.dataTheme}
+          style={root.style}
           onClick={unlockAudio}
         >
           {!game ? (
@@ -217,9 +221,16 @@ function useSounds(g: GameView | null) {
   }, [g]);
 }
 
+/** A custom theme's logo (decorative), shown on title screens. */
+export function ThemeLogo({ className }: { className?: string }) {
+  const { logo } = useBoard();
+  return logo ? <img src={logo} alt="" aria-hidden className={cx('w-auto max-w-[40vw] object-contain', className)} data-testid="theme-logo" /> : null;
+}
+
 function Splash({ info, status }: { info: { urls: { join: string; host: string } } | null; status: string }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-[4vh] p-[4vw] text-center">
+      <ThemeLogo className="max-h-[16vh]" />
       <h1 className="bt-headline">OfflineJeopardy</h1>
       <p className="text-[3vh] opacity-90">{status === 'open' ? 'Waiting for the host to start a game…' : 'Connecting…'}</p>
       {info && (
@@ -240,7 +251,10 @@ function Lobby({ g, info }: { g: GameView; info: { urls: { join: string } } | nu
   const ctx = useBoard();
   return (
     <div className="flex h-full flex-col p-[3vw]">
-      <h1 className="bt-headline text-center !text-[min(8vh,5vw)]">{g.title}</h1>
+      <div className="flex items-center justify-center gap-[2vw]">
+        <ThemeLogo className="max-h-[10vh]" />
+        <h1 className="bt-headline text-center !text-[min(8vh,5vw)]">{g.title}</h1>
+      </div>
       <div className="mt-[3vh] grid min-h-0 flex-1 grid-cols-[auto_1fr] gap-[3vw]">
         <div className="flex flex-col items-center justify-center rounded-3xl bg-white p-[3vh] text-slate-900 shadow-2xl">
           <QrImage target="join" className="h-[38vh] w-[38vh]" />
@@ -288,6 +302,7 @@ function Results({ g }: { g: GameView }) {
   const big = Math.round(ctx.vh * 0.13);
   return (
     <div className="bt-results">
+      <ThemeLogo className="max-h-[9vh]" />
       <p className="bt-kicker">{g.title}</p>
       <motion.h1
         initial={{ scale: 0.7, opacity: 0 }}

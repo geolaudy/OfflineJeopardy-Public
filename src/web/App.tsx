@@ -4,6 +4,7 @@ import { Toasts } from './components/ui';
 import { isDesktopApp } from './lib/desktop';
 
 const BoardPage = lazy(() => import('./pages/board/BoardPage'));
+const BoardPreview = lazy(() => import('./pages/board/Preview'));
 const HostPage = lazy(() => import('./pages/host/HostPage'));
 const JoinPage = lazy(() => import('./pages/join/JoinPage'));
 const DeskPage = lazy(() => import('./pages/desk/DeskPage'));
@@ -38,6 +39,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Launcher />} />
           <Route path="/board" element={<BoardPage />} />
+          <Route path="/board/preview" element={<BoardPreview />} />
           <Route path="/host" element={<HostPage />} />
           <Route path="/join/*" element={<JoinPage />} />
           <Route path="/players" element={<Navigate to="/join" replace />} />

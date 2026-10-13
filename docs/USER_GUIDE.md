@@ -30,6 +30,9 @@
 - Players who tick "Keep my statistics private" are hidden from the leaderboard and their stats page shows as private.
 - Edits to name, nickname, photo, avatar and color appear on the TV instantly.
 
+## TV themes
+Dashboard → **TV themes**: pick one of the 8 built-in looks, or **Customize…** one — colors, fonts, text sizes, corners, shadows, what appears before values ($, €, nothing…), a background image and a logo. The preview shows the real TV screen; **Save & use on TV** switches the TV immediately. Share themes with **Export** / **Import theme…** (.ojtheme.json, pictures included).
+
 ## Boards
 Dashboard → Boards: create, edit, duplicate, archive, import (CSV/JSON/board package) and export. **More → Export package (with media)** saves a board together with its pictures, audio and video as one `.ojboard.zip` file — import it on another PC with **Import**.
 CSV columns: `round,category,value,question,answer,daily_wager,notes` (round "Final" = Final Wager).

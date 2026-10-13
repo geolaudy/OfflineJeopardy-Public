@@ -31,6 +31,7 @@ import { ImageError, MAX_UPLOAD_BYTES, processClueImage, processProfilePicture, 
 import * as stats from './stats.js';
 import { createZip, isZip, readZip, ZipError, type ZipEntry } from './zip.js';
 import { normalizeRules, rulesFromPreset, RULE_PRESETS } from '../shared/game.js';
+import { customThemeSchema, isPreset, newThemeData, type ThemeFile } from '../shared/themes.js';
 import { rulesSchema } from '../shared/actions.js';
 import { boardContentSchema, exportBoardCsv, exportBoardJson, importBoardCsv, importBoardJson } from '../shared/boardIO.js';
 import { reassignIds, validateBoard } from '../shared/boardUtils.js';
@@ -762,7 +763,7 @@ export async function startServer(opts: ServerOptions) {
     trustLocalhost: z.boolean().optional(),
     publicLeaderboard: z.boolean().optional(),
     theme: z.string().max(40).optional(),
-    boardTheme: z.string().max(40).optional(),
+    boardTheme: z.string().max(80).optional(),
     sound: z.boolean().optional(),
     volume: z.number().min(0).max(1).optional(),
     reducedMotion: z.boolean().optional(),
@@ -772,7 +773,100 @@ export async function startServer(opts: ServerOptions) {
   const readSettings = () => Object.fromEntries(Object.entries(SETTING_DEFAULTS).map(([k, v]) => [k, getSetting(db, k, v)]));
   app.get('/api/settings/public', async () => {
     const s = readSettings();
-    return { theme: s.boardTheme, sound: s.sound, volume: s.volume, reducedMotion: s.reducedMotion };
+    // "custom:<id>" selects a saved custom theme; the TV gets its full definition (public look only).
+    const customId = typeof s.boardTheme === 'string' && s.boardTheme.startsWith('custom:') ? s.boardTheme.slice(7) : null;
+    const custom = customId ? repo.getTheme(db, customId) ?? null : null;
+    return { theme: custom ? custom.base : isPreset(String(s.boardTheme)) ? s.boardTheme : 'classic', custom, sound: s.sound, volume: s.volume, reducedMotion: s.reducedMotion };
+  });
+
+  // ---------- custom TV themes ----------
+  app.get('/api/themes', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    return repo.listThemes(db);
+  });
+  app.post('/api/themes', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const body = parse(customThemeSchema, req.body, reply);
+    if (!body) return;
+    return repo.saveTheme(db, body);
+  });
+  app.put('/api/themes/:id', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const { id } = req.params as { id: string };
+    if (!repo.getTheme(db, id)) return bad(reply, 'Theme not found', 404);
+    const body = parse(customThemeSchema, req.body, reply);
+    if (!body) return;
+    const t = repo.saveTheme(db, body, id);
+    if (getSetting(db, 'boardTheme', 'classic') === `custom:${id}`) hub.profilesChanged(); // live update on the TV
+    return t;
+  });
+  app.delete('/api/themes/:id', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const { id } = req.params as { id: string };
+    repo.deleteTheme(db, id);
+    if (getSetting(db, 'boardTheme', 'classic') === `custom:${id}`) {
+      setSetting(db, 'boardTheme', 'classic');
+      hub.profilesChanged();
+    }
+    return { ok: true };
+  });
+  app.get('/api/themes/:id/export', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const t = repo.getTheme(db, (req.params as { id: string }).id);
+    if (!t) return bad(reply, 'Theme not found', 404);
+    const { id: _i, createdAt: _c, updatedAt: _u, ...theme } = t;
+    const images: ThemeFile['images'] = {};
+    for (const url of [theme.backgroundImage, theme.logo]) {
+      const f = url ? clueFileOf(url) : null;
+      const full = f ? safeJoin(clueMediaDir, f) : null;
+      if (url && full && fs.existsSync(full)) images[url] = { mime: url.endsWith('.gif') ? 'image/gif' : 'image/webp', base64: fs.readFileSync(full).toString('base64') };
+    }
+    const file: ThemeFile = { format: 'offline-jeopardy-theme', version: 1, theme, images };
+    const safe = t.name.replace(/[^a-z0-9 _-]/gi, '').trim() || 'theme';
+    reply.header('content-disposition', `attachment; filename="${safe}.ojtheme.json"`);
+    return reply.type('application/json').send(JSON.stringify(file, null, 2));
+  });
+  app.post('/api/themes/import', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const body = parse(
+      z.object({
+        format: z.literal('offline-jeopardy-theme'),
+        version: z.literal(1),
+        theme: z.unknown(),
+        images: z.record(z.string().max(200), z.object({ mime: z.string().max(40), base64: z.string().max(6_000_000) })).default({}),
+      }),
+      req.body,
+      reply,
+    );
+    if (!body) return;
+    // Images are decoded, re-validated and re-encoded like any upload; URLs are rewritten.
+    const warnings: string[] = [];
+    const raw = { ...newThemeData(), ...(body.theme as object) } as Record<string, unknown>;
+    for (const key of ['backgroundImage', 'logo'] as const) {
+      const url = raw[key];
+      if (typeof url !== 'string') {
+        raw[key] = null;
+        continue;
+      }
+      const img = body.images[url];
+      if (!img) {
+        raw[key] = null;
+        warnings.push(`The ${key === 'logo' ? 'logo' : 'background image'} is missing from the file.`);
+        continue;
+      }
+      try {
+        raw[key] = (await storeClueMedia(Buffer.from(img.base64, 'base64'), `theme-${key}`)).url;
+      } catch {
+        raw[key] = null;
+        warnings.push(`The ${key === 'logo' ? 'logo' : 'background image'} was rejected (not a supported image).`);
+      }
+    }
+    raw.colors = { ...newThemeData().colors, ...((raw.colors as object) ?? {}) };
+    const parsed = customThemeSchema.safeParse(raw);
+    if (!parsed.success) return bad(reply, `This theme file is not valid: ${parsed.error.issues.slice(0, 3).map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')}`);
+    const t = repo.saveTheme(db, parsed.data);
+    audit(db, 'host', 'theme.import', { id: t.id });
+    return { theme: t, warnings };
   });
   app.get('/api/settings', async (req, reply) => {
     if (!requireHost(req, reply)) return;

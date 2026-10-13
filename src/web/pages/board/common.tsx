@@ -1,16 +1,49 @@
 // Small shared helpers for the TV board: presentation context, viewport units, fit-to-box text.
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { cx } from '../../components/ui';
+import { themeCssVars, valuePrefixFor, type CustomThemeData } from '../../../shared/themes';
 
 export interface BoardPresentation {
   theme: string;
+  /** Shown before clue values ("$" on the classic preset; custom themes may change it). */
+  prefix: string;
+  /** Custom theme logo (shown on title screens), or null. */
+  logo: string | null;
+  /** Text size multipliers from a custom theme (1 = default). */
+  scale: { category: number; value: number; clue: number };
   /** Reduced motion (OS preference or the board setting): cross-fades instead of zooms/slides. */
   reduced: boolean;
   /** Viewport height in px (for components that need pixel sizes, e.g. avatars). */
   vh: number;
 }
 
-export const BoardCtx = createContext<BoardPresentation>({ theme: 'classic', reduced: false, vh: 1080 });
+export const DEFAULT_SCALE = { category: 1, value: 1, clue: 1 };
+export const BoardCtx = createContext<BoardPresentation>({ theme: 'classic', prefix: '$', logo: null, scale: DEFAULT_SCALE, reduced: false, vh: 1080 });
+
+/** data-theme + inline CSS variables for the board root. A custom theme overrides its base preset. */
+export function themeRoot(theme: string, custom: CustomThemeData | null): { dataTheme: string; style: CSSProperties | undefined } {
+  if (!custom) return { dataTheme: theme, style: undefined };
+  const style: Record<string, string> = { ...themeCssVars(custom) };
+  if (custom.backgroundImage) {
+    const d = custom.backgroundDim;
+    style.backgroundImage = `linear-gradient(rgba(0,0,0,${d}), rgba(0,0,0,${d})), url("${custom.backgroundImage}")`;
+    style.backgroundSize = 'cover';
+    style.backgroundPosition = 'center';
+  }
+  return { dataTheme: custom.base, style: style as CSSProperties };
+}
+
+export function presentationFor(theme: string, custom: CustomThemeData | null, reduced: boolean, vh: number): BoardPresentation {
+  return {
+    theme: custom?.base ?? theme,
+    prefix: valuePrefixFor(custom?.base ?? theme, custom),
+    logo: custom?.logo ?? null,
+    scale: custom ? { category: custom.categoryScale, value: custom.valueScale, clue: custom.clueScale } : DEFAULT_SCALE,
+    reduced,
+    vh,
+  };
+}
 export const useBoard = () => useContext(BoardCtx);
 
 /** Pixel size for `n` percent of the viewport height. */
@@ -18,11 +51,11 @@ export function vhPx(ctx: BoardPresentation, n: number) {
   return Math.max(8, Math.round((ctx.vh * n) / 100));
 }
 
-/** Clue values: the classic theme shows a "$" prefix, other themes plain numbers. */
-export function money(theme: string, v: number) {
+/** Clue values with the theme's prefix ("$" on the classic preset). */
+export function money(prefix: string, v: number) {
   const s = Math.abs(v).toLocaleString();
   const sign = v < 0 ? '−' : '';
-  return theme === 'classic' ? `${sign}$${s}` : `${sign}${s}`;
+  return `${sign}${prefix}${s}`;
 }
 
 export function useViewportHeight() {

@@ -4,7 +4,9 @@
 
 - Baseline backed up: pushed main to GitHub and tagged **v0.2.0** (Vitest 58/58, Playwright 8/8 at the time).
 - **Milestone: board packages + full backups (L9, K6, K7).** Dependency-free ZIP module (src/server/zip.ts: stored/deflate, CRC checks, path-traversal/zip-bomb/encryption/ZIP64 refusal, Windows Expand/Compress-Archive interop). Board package export/import with media re-validation and URL rewriting; full backup .zip (DB + profile pictures + clue media) with restore-on-restart incl. media safety copy; database-only backup kept. Library and Settings UI updated. Fastify now force-closes connections on shutdown (an unread media download could stall app exit).
-- Tests: Vitest 64/64 (new zip unit tests + package/backup integration tests); Playwright 9/9 (new library.spec.ts: UI package export → import, duplicate, archive/restore, version restore).
+- Tests: Vitest 64/64 (new zip unit tests + package/backup integration tests); Playwright 9/9 (new library.spec.ts: UI package export → import, duplicate, archive/restore, version restore). Pushed b5cd734.
+- **Milestone: custom TV themes (O5).** shared/themes.ts model (base preset + overrides), DB migration v2 (themes table, additive), /api/themes CRUD + export/import (images embedded and re-validated, only local media URLs allowed), TV applies overrides as CSS variables + value prefix + text scales + logo, live update when the active theme is edited; desk **TV themes** page with real-TV live preview (/board/preview in an iframe via postMessage). Settings now links to it.
+- Tests: Vitest 65/65, Playwright 10/10 (new themes.spec.ts).
 
 ## Session 2 — 2026-10-12 (user feedback round 1)
 

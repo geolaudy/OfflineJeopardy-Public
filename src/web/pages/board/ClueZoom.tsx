@@ -129,6 +129,7 @@ function DailyWagerCard({ g }: { g: GameView }) {
 
 /** Question only: no category and no value on the TV (the host still sees both). */
 function QuestionCard({ g }: { g: GameView }) {
+  const { scale } = useBoard();
   const clue = g.clue!;
   const images = clue.media.filter((m) => m.kind === 'image');
   const others = clue.media.filter((m) => m.kind !== 'image');
@@ -151,8 +152,8 @@ function QuestionCard({ g }: { g: GameView }) {
       )}
       <FitText
         text={clue.question ?? ''}
-        max={images.length || others.length ? 6 : 8.2}
-        min={2.4}
+        max={(images.length || others.length ? 6 : 8.2) * scale.clue}
+        min={2.4 * Math.min(1, scale.clue)}
         className="bt-question"
         boxClassName="min-h-0 flex-1"
         testId="clue-text"
