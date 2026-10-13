@@ -78,8 +78,8 @@ function Start() {
   };
 
   return (
-    <div className="app-screen scroll-area bg-slate-100">
-      <div className="safe-x mx-auto flex min-h-full max-w-5xl flex-col gap-6 p-6">
+    <div className="app-screen scroll-area safe-x bg-slate-100">
+      <div className="mx-auto flex min-h-full max-w-5xl flex-col gap-6 p-6">
         <header className="flex items-center gap-3">
           <h1 className="flex-1 text-3xl font-black tracking-tight">OfflineJeopardy</h1>
           <button onClick={() => setShowNet((v) => !v)} className="flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-white" aria-expanded={showNet}>

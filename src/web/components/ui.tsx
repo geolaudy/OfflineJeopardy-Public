@@ -69,7 +69,7 @@ export function ActionButton({ onAction, ...rest }: Omit<Parameters<typeof Butto
 export function PageTitleBar({ title, subtitle, actions }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode }) {
   return (
     <div className="mb-5 flex flex-wrap items-start gap-3">
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-[1_1_16rem]">
         <h1 className="text-3xl font-black">{title}</h1>
         {subtitle ? <p className="mt-1 text-slate-600">{subtitle}</p> : null}
       </div>

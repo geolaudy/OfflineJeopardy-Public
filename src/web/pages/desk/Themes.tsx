@@ -8,7 +8,7 @@ import { Button, Card, Field, Modal, cx, inputCls, toast } from '../../component
 import { contrastRatio } from '../../lib/avatars';
 import { FONT_STACKS, THEME_PRESETS, newThemeData, type CustomTheme, type CustomThemeData, type FontKey, type PresetId, type ThemeColors } from '../../../shared/themes';
 import type { PreviewMessage, PreviewView } from '../board/Preview';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, Plus, Upload } from 'lucide-react';
 
 const COLOR_FIELDS: [keyof ThemeColors, string][] = [
   ['background', 'Background'],
@@ -59,12 +59,12 @@ export default function Themes() {
   return (
     <div className="mx-auto max-w-6xl space-y-5 p-6">
       <div className="flex flex-wrap items-center gap-2">
-        <h1 className="flex-1 text-3xl font-black">TV themes</h1>
+        <h1 className="min-w-0 flex-[1_1_16rem] text-3xl font-black">TV themes</h1>
         <Button variant="secondary" onClick={() => importRef.current?.click()}>
-          ⬆ Import theme…
+          <Upload size={18} aria-hidden /> Import theme…
         </Button>
         <Button onClick={() => setEditing({ id: null, data: newThemeData(current.startsWith('custom:') ? 'classic' : (current as PresetId), 'My theme') })} data-testid="new-theme">
-          + New theme
+          <Plus size={18} aria-hidden /> New theme
         </Button>
         <input ref={importRef} type="file" accept=".json,application/json" className="hidden" onChange={(e) => void onImport(e)} data-testid="theme-import-input" />
       </div>

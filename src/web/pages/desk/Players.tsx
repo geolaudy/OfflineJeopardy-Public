@@ -3,12 +3,12 @@ import { useRef, useState } from 'react';
 import { usePresent } from '../host/AppShell';
 import { hostApi } from '../../lib/api';
 import { attempt, useFetch } from '../../lib/hooks';
-import { Avatar, Button, ColorPicker, Empty, Field, Modal, inputCls, toast } from '../../components/ui';
+import { Avatar, Button, ColorPicker, Empty, Field, Modal, PageTitleBar, inputCls, toast } from '../../components/ui';
 import { AvatarPicker, ProfileCreateForm } from '../../components/ProfileForm';
 import { ProfileStats } from '../../components/StatsView';
 import { useLive } from '../../lib/socket';
 import { profileName } from '../../lib/view';
-import { Lock } from 'lucide-react';
+import { Lock, Plus } from 'lucide-react';
 
 interface AdminProfile {
   id: string;
@@ -40,12 +40,18 @@ export default function Players() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-4 p-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="flex-1 text-3xl font-black">Players</h1>
-        <input className={`${inputCls} max-w-xs`} placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search players" />
-        <Button onClick={() => setCreating(true)}>+ New player</Button>
-      </div>
-      <p className="text-sm text-slate-600">Players usually create their own profile by scanning the QR code. Every profile has a permanent ID, so renaming or changing pictures never affects their history.</p>
+      <PageTitleBar
+        title="Players"
+        subtitle="Players usually create their own profile by scanning the QR code. Renaming or changing pictures never affects their history."
+        actions={
+          <>
+            <input className={`${inputCls} w-48`} placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search players" />
+            <Button onClick={() => setCreating(true)}>
+              <Plus size={18} aria-hidden /> New player
+            </Button>
+          </>
+        }
+      />
       {rows.length === 0 ? (
         <Empty title="No players yet">Create one here, or let players scan the QR code on the TV.</Empty>
       ) : (

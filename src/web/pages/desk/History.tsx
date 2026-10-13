@@ -18,7 +18,7 @@ export default function History() {
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-6">
       <div className="flex flex-wrap items-center gap-2">
-        <h1 className="flex-1 text-3xl font-black">History & statistics</h1>
+        <h1 className="min-w-0 flex-[1_1_16rem] text-3xl font-black">History & statistics</h1>
         <Button variant="secondary" size="sm" onClick={() => attempt(() => downloadFile('/api/stats/export/players.csv', 'offlinejeopardy-players.csv'))}>
           <Download size={16} aria-hidden /> Player stats (CSV)
         </Button>

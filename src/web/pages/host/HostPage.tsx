@@ -205,7 +205,8 @@ function HostHome() {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="shrink-0 border-b border-slate-200 bg-white">
+      {/* Before any game or lobby the setup page has its own title, so this bar would only repeat it. */}
+      <header className={cx('shrink-0 border-b border-slate-200 bg-white', ready && !game && !lobby?.open && 'hidden')}>
         <div className="flex min-h-14 items-center gap-2 px-2 py-1.5">
           {canGoBack ? (
             <button onClick={switchGame} className="flex h-11 w-11 items-center justify-center rounded-full text-slate-700 hover:bg-slate-100" aria-label="Back to games" data-testid="nav-back">

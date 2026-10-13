@@ -2,12 +2,13 @@
 import { useState } from 'react';
 import { hostApi } from '../../lib/api';
 import { attempt, useFetch, useProfiles, type TeamRecord } from '../../lib/hooks';
-import { Avatar, Button, ColorPicker, Empty, Field, Modal, inputCls, cx } from '../../components/ui';
+import { Avatar, Button, ColorPicker, Empty, Field, Modal, PageTitleBar, inputCls, cx } from '../../components/ui';
 import { AvatarPicker } from '../../components/ProfileForm';
 import { TeamStatsView } from '../../components/StatsView';
 import { TEAM_AVATARS, avatarEmoji } from '../../lib/avatars';
 import { TEAM_COLORS } from '../../../shared/game';
 import { profileName } from '../../lib/view';
+import { Plus } from 'lucide-react';
 
 export default function Teams() {
   const [archived, setArchived] = useState(false);
@@ -18,14 +19,20 @@ export default function Teams() {
   const byId = new Map((profiles.data ?? []).map((p) => [p.id, p]));
   return (
     <div className="mx-auto max-w-5xl space-y-4 p-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="flex-1 text-3xl font-black">Teams</h1>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={archived} onChange={(e) => setArchived(e.target.checked)} /> Show archived
-        </label>
-        <Button onClick={() => setEdit({})}>+ New team</Button>
-      </div>
-      <p className="text-sm text-slate-600">Saved teams can be added to any team game. Each team picks its own buzzer mode. Changing a team later never rewrites past games.</p>
+      <PageTitleBar
+        title="Teams"
+        subtitle="Saved teams can be added to any team game. Each team picks its own buzzer mode. Changing a team later never rewrites past games."
+        actions={
+          <>
+            <label className="flex min-h-11 items-center gap-2 text-sm">
+              <input type="checkbox" className="h-5 w-5 accent-blue-700" checked={archived} onChange={(e) => setArchived(e.target.checked)} /> Show archived
+            </label>
+            <Button onClick={() => setEdit({})}>
+              <Plus size={18} aria-hidden /> New team
+            </Button>
+          </>
+        }
+      />
       {!teams.data?.length ? (
         <Empty title="No saved teams">Create teams here or during game setup on the host controller.</Empty>
       ) : (
