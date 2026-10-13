@@ -3479,3 +3479,38 @@ This feature is complete when:
 
 This is a mandatory feature and must be included in the core gameplay architecture.
 **PRIMARY DIRECTIVE: Build the complete application independently, use REA selectively, coordinate specialized development agents, test real functionality, and minimize unnecessary user involvement.**
+---
+
+# 43. USER FEEDBACK REQUIREMENTS — ROUND 1 (added 2026-10-12)
+
+These requirements were added by the user after the first playable release. They are
+binding project requirements with the same weight as the sections above. Full details,
+acceptance criteria and audit findings: **USER_FEEDBACK.md** (IDs FB-x.y). Tracking:
+FEATURE_MATRIX.md → "User feedback round 1".
+
+Must keep working (user-confirmed): Joy-Cons, Bluetooth controller connectivity, iPad host
+controller, existing profiles / saved games / DB records / controller assignments, LAN play.
+
+1. **Mobile & tablet (P1)** — no top clipping on iPhone/iPad (safe areas, `dvh`, dialogs that
+   fit the visible viewport); smooth, non-jittery UI (no focus stealing, GPU-friendly animation,
+   minimal re-renders); consistent navigation everywhere (back arrow, hamburger drawer, page
+   titles, working browser Back, current page indicated).
+2. **Player stats on phones (P2)** — leaderboard (solo / team / contribution views kept separate,
+   clear ranking criteria); other players' permitted public profiles and statistics (never PINs
+   or private data); personal game history with a detailed per-game page built from historical
+   snapshots; drawer links: My Profile, My Statistics, Leaderboard, Players, Game History,
+   Current Game, Settings.
+3. **Early buzz-in penalties (P3)** — configurable before and during a game (no penalty, short
+   lockout, lockout for the rest of the clue, point deduction), effective from the next buzz,
+   never retroactive; server-side detection consistent for Joy-Cons, phones and keyboards,
+   including shared and individual team buzzers; feedback on host, TV and phone.
+4. **Classic game-show presentation (P4, public board only)** — classic blue board with gold
+   values and bold category headings; selected clue zooms from its tile to full screen (FLIP,
+   transform/opacity, reduced-motion aware) and back; full-screen question shows **no category
+   and no value**; subtle buzzers-open indicator; per-round category introduction (round title,
+   categories slide in one at a time; host start/next/skip/replay, optional auto-advance).
+5. **Unanswered clues (P5)** — when nobody answers, the host is guided to **Reveal answer**, then
+   **Return to board**; skip is secondary; the engine distinguishes answering-ended, revealed and
+   completed; no accidental double completion.
+6. **Presentation polish (P6)** — consistent, deliberate transitions for board, clue open/close,
+   reveals, score updates, buzzer indicators, rounds, Final Wager and winner announcement.

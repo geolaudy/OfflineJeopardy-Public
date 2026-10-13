@@ -28,3 +28,16 @@ Order follows CLAUDE.md §31. ✅ done · 🔶 partial · ⬜ not started.
 5. Host keyboard shortcuts; latency diagnostics view; statistics export (CSV).
 6. Computer opponents / practice mode; room codes; tournament & survival modes.
 7. Optional: Ollama-based question generation with manual fallback; workspaces.
+
+## Milestone 15 — User feedback round 1 (started 2026-10-12, session 2)
+
+Details/acceptance criteria: USER_FEEDBACK.md. Order (dependencies first):
+
+1. Record requirements (done) → 2. engine: early-buzz rules, answering-ended flow, category intro,
+   state normalisation for old saves (unit tests) → 3. server: lockout-expiry rebroadcast, teardown
+   fix, leaderboard/player/history APIs (integration tests) → 4. mobile foundation: dvh/safe areas,
+   Modal fix, store structural sharing, cheap animations → 5. navigation: phone portal routes +
+   drawer, host drawer, responsive desk nav → 6. phone stats pages: leaderboard, players, history
+   detail → 7. host UI: early-buzz controls, reveal→return flow, intro controls → 8. TV: classic
+   theme, clue zoom, intro, subtle indicator, polish → 9. E2E updates + mobile layout screenshot
+   tests → 10. docs, commit → continue roadmap (IMPLEMENTATION_PLAN "Next tasks").

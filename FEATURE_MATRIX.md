@@ -140,3 +140,27 @@ Last full run: 2026-10-12 — U 25/25, I 13/13, E2E 4/4 passing.
 | O11 | Statistics export, score export | P2 | IN PROGRESS | profile export only |
 | O12 | Multiple save slots / save-file export | P2 | TESTED (multiple games resumable) / IMPLEMENTED (export) | I |
 | O13 | Plugin system | P3 | NOT STARTED | |
+
+## User feedback round 1 (2026-10-12) — see USER_FEEDBACK.md
+
+| ID | Feature / bug | Pri | Status | Source | Tests | Limitations |
+|---|---|---|---|---|---|---|
+| FB-1.1 | Phone/tablet top clipping (safe areas, dvh, dialogs) | P1 | IN PROGRESS | ui.tsx, styles.css, index.html | — | — |
+| FB-1.2 | Smooth mobile UI (no focus stealing, cheap animations, fewer re-renders) | P1 | IN PROGRESS | ui.tsx, socket.ts, PlayTab, BoardPage | — | — |
+| FB-1.3 | Consistent navigation (back arrow, drawer, titles, browser Back) | P1 | NOT STARTED | — | — | — |
+| FB-2.1 | Leaderboard (solo / team / contribution views) | P2 | NOT STARTED | — | — | — |
+| FB-2.2 | Other players' public profiles & stats | P2 | NOT STARTED | — | — | — |
+| FB-2.3 | Personal game history + detailed game page | P2 | NOT STARTED | — | — | — |
+| FB-2.4 | Phone drawer links (profile, stats, leaderboard, players, history, game, settings) | P2 | NOT STARTED | — | — | — |
+| FB-3.1 | Early-buzz rule options, editable mid-game | P3 | NOT STARTED | — | — | — |
+| FB-3.2 | Consistent server-side early detection across devices/team modes | P3 | NOT STARTED | — | — | — |
+| FB-3.3 | Early-buzz feedback (host/TV/phone), lockout expiry refresh, refunds | P3 | NOT STARTED | — | — | — |
+| FB-4.1 | Classic board appearance | P4 | NOT STARTED | — | — | — |
+| FB-4.2 | Clue zoom from tile (FLIP) + reverse | P4 | NOT STARTED | — | — | — |
+| FB-4.3 | Full-screen question without category/value | P4 | NOT STARTED | — | — | — |
+| FB-4.4 | Subtle buzzers-open indicator | P4 | NOT STARTED | — | — | — |
+| FB-4.5 | Category introduction per round | P4 | NOT STARTED | — | — | — |
+| FB-5.1 | Unanswered clue: Reveal answer → Return to board | P5 | NOT STARTED | — | — | — |
+| FB-6.1 | Presentation polish | P6 | NOT STARTED | — | — | — |
+| FB-E1 | Test teardown race (unhandled errors) | — | NOT STARTED | — | — | — |
+| FB-E2 | Saved-game backward compatibility | — | NOT STARTED | — | — | — |
