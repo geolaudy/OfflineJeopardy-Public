@@ -567,6 +567,7 @@ describe('board packages and full backups (L9, K6, K7)', () => {
     const boardId = await sampleBoardId(a, hostA);
     const board = (await api(a, 'GET', `/api/boards/${boardId}`, undefined, hostA)).data;
     board.content.rounds[0].categories[0].clues[0].media = [{ kind: 'image', url: media.url, caption: 'A map' }];
+    board.content.rounds[0].categories[0].clues[0].answerMedia = [{ kind: 'image', url: media.url, caption: 'Answer map' }];
     board.content.rounds[0].categories[1].clues[0].media = [{ kind: 'image', url: '/media/clues/gone.webp' }]; // missing file
     await api(a, 'PUT', `/api/boards/${boardId}`, board, hostA);
 
@@ -590,11 +591,12 @@ describe('board packages and full backups (L9, K6, K7)', () => {
     const saved = (await api(b, 'GET', `/api/boards/${imp.data.saved.id}`, undefined, hostB)).data;
     const m = saved.content.rounds[0].categories[0].clues[0].media[0];
     expect(m).toMatchObject({ kind: 'image', caption: 'A map' });
+    expect(saved.content.rounds[0].categories[0].clues[0].answerMedia[0]).toMatchObject({ kind: 'image', caption: 'Answer map', url: m.url }); // answer side carried over
     expect(m.url).not.toBe(media.url); // stored as a new file
     const img = await fetch(b.url + m.url);
     expect(img.status).toBe(200);
     await img.arrayBuffer();
-    expect(saved.content.rounds[0].categories[1].clues[0].media).toEqual([]);
+    expect(saved.content.rounds[0].categories[1].clues[0].media ?? []).toEqual([]);
 
     // Hostile packages are refused.
     expect((await upload(b, '/api/boards/import-package', hostB, 'x.zip', Buffer.from('nope'), 'application/zip')).status).toBe(400);

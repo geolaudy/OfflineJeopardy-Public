@@ -1,0 +1,12 @@
+round,col,cat,catDescription,row,customValue,clueText,correctResponse,isDailyDouble,clueType,topCaption,bottomCaption,answerType,answerTopCaption,answerBottomCaption,buzzerActivationMode,isAudioOnly,isAnswerAudioOnly
+1,1,Rivers,Flowing water,1,,Longest river in Africa,What is the Nile?,FALSE,TEXT,,,TEXT,,,none,FALSE,FALSE
+1,1,Rivers,Flowing water,2,,"River through Paris, France",What is the Seine?,FALSE,TEXT,,,TEXT,,,none,FALSE,FALSE
+1,1,Rivers,Flowing water,3,,https://uploads.example.test/river.png,What is the Amazon?,TRUE,IMAGE,Name this river,,TEXT,,,none,FALSE,FALSE
+1,1,Rivers,Flowing water,4,,,,FALSE,TEXT,,,TEXT,,,none,FALSE,FALSE
+1,1,Rivers,Flowing water,5,,,,FALSE,TEXT,,,TEXT,,,none,FALSE,FALSE
+,,,,,,,,,,,,,,,,,
+1,2,Mountains,,1,150,Highest mountain on Earth,What is Everest?,FALSE,TEXT,,,TEXT,,,none,FALSE,FALSE
+,,,,,,,,,,,,,,,,,
+2,1,Oceans,,1,,Largest ocean,What is the Pacific?,FALSE,TEXT,,,TEXT,,,none,FALSE,FALSE
+,,,,,,,,,,,,,,,,,
+final,,Capitals,,,,Capital of Australia,What is Canberra?,FALSE,TEXT,,,TEXT,,,,FALSE,FALSE

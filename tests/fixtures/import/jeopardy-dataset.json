@@ -1,0 +1,12 @@
+[
+  {"category": "HISTORY", "air_date": "2004-12-31", "question": "'This explorer's ships reached the Caribbean in 1492'", "value": "$200", "answer": "Christopher Columbus", "round": "Jeopardy!", "show_number": "4680"},
+  {"category": "HISTORY", "air_date": "2004-12-31", "question": "'Ancient builders linked towns &amp; ports with these paved routes'", "value": "$400", "answer": "roads", "round": "Jeopardy!", "show_number": "4680"},
+  {"category": "HISTORY", "air_date": "2004-12-31", "question": "'<a href=\"http://example.com/media/sample-picture.jpg\" target=\"_blank\">This</a> landmark was finished in 1889'", "value": "$1,100", "answer": "the Eiffel Tower", "round": "Jeopardy!", "show_number": "4680"},
+  {"category": "FAMOUS ATHLETES", "air_date": "2004-12-31", "question": "'This sprinter set a 100-metre world record in 2009'", "value": "$200", "answer": "Usain Bolt", "round": "Jeopardy!", "show_number": "4680"},
+  {"category": "TRIBUTES", "air_date": "2004-12-31", "question": "'This scientist's three laws of motion are still taught in schools'", "value": "$2,000", "answer": "Isaac Newton", "round": "Double Jeopardy!", "show_number": "4680"},
+  {"category": "TRIBUTES", "air_date": "2004-12-31", "question": "'\"To infinity and beyond\" is this toy astronaut's catchphrase'", "value": "$400", "answer": "Buzz Lightyear", "round": "Double Jeopardy!", "show_number": "4680"},
+  {"category": "THE SOLAR SYSTEM", "air_date": "2004-12-31", "question": "'The largest planet orbiting our sun'", "value": null, "answer": "Jupiter", "round": "Final Jeopardy!", "show_number": "4680"},
+  {"category": "TIEBREAKER", "air_date": "2004-12-31", "question": "'A tiebreaker clue'", "value": null, "answer": "tie", "round": "Tiebreaker", "show_number": "4680"},
+  {"category": "SCIENCE", "air_date": "1997-03-14", "question": "'The chemical symbol for gold'", "value": "$100", "answer": "Au", "round": "Jeopardy!", "show_number": "2900"},
+  {"category": "SCIENCE", "air_date": "1997-03-14", "question": "'This gas makes up most of the air we breathe'", "value": "$300", "answer": "nitrogen", "round": "Jeopardy!", "show_number": "2900"}
+]

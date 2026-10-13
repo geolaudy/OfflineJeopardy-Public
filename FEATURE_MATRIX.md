@@ -193,8 +193,8 @@ Last run 2026-10-12: Vitest 58/58 (43 unit, 15 integration), Playwright 8/8.
 | R2-17 | Board and clue preview without a game | P1 | NOT STARTED | — | — | — |
 | R2-18 | Vector icon set replacing emoji | P2 | NOT STARTED | — | — | — |
 | R2-19 | Shared page header / Boards alignment | P2 | IN PROGRESS | components/ui.tsx PageTitleBar; desk/Library.tsx | — | Other desk pages already right-align actions; they adopt PageTitleBar in the lobby redesign |
-| R2-20 | Buzzinga.io share-link import (where legitimate) | P2 | NOT STARTED | — | — | — |
-| R2-21 | Extensible importer + Jeopardy-style data | P2 | NOT STARTED | — | — | — |
+| R2-20 | Buzzinga.io import (share link via the public endpoint the share page itself uses; official CSV export; saved board JSON) | P2 | IMPLEMENTED | importers/sources/buzzinga.ts, importRoutes.ts, desk/ImportFromSource.tsx; findings in RESEARCH_NOTES.md | U, I (fixture server), L (dialog via dataset) | **Not verified against a real shareable Buzzinga board** (response shape inferred from their public JavaScript); undocumented endpoint may change; requires internet at import time only |
+| R2-21 | Extensible importer (parse → normalise → media → validate → create; plugin registry) + user-provided Jeopardy-style datasets (JSON clue lists, generic CSV, direct .csv/.json links); SSRF-safe downloads, size caps, rollback, previews, duplicate warnings | P2 | TESTED | src/server/importers/**, importRoutes.ts, desk/ImportFromSource.tsx | U (15), I (11), L = library.spec.ts dataset import | Nothing bundled or scraped; media folders for CSV and TSV datasets not supported |
 | R2-22 | Sound cues + sound packs | P2 | NOT STARTED | — | — | — |
 | R2-23 | Board intro (checker reveal) animation + settings | P2 | NOT STARTED | — | — | — |
 | R2-24 | Buzzer unlock indicator styles | P2 | NOT STARTED | — | — | — |

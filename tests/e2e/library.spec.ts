@@ -23,6 +23,28 @@ const card = (page: Page, title: string) =>
     .filter({ has: page.getByRole('button', { name: 'Edit', exact: true }) })
     .last();
 
+test('import a clue dataset file through the "From link or dataset" dialog (R2-21)', async () => {
+  const api = await request.newContext({ baseURL: BASE });
+  const host = (await (await api.post('/api/host/local-login')).json()).token as string;
+  const desk = await (await cr.newContext({ viewport: { width: 1366, height: 900 } })).newPage();
+  await desk.goto(`${BASE}/desk/library`);
+  await desk.getByTestId('import-from-source').click();
+  const dialog = desk.getByRole('dialog');
+  await dialog.getByRole('tab', { name: /file/i }).click();
+  await desk.locator('#import-source-file').setInputFiles('tests/fixtures/import/jeopardy-dataset.json');
+  await expect(dialog.getByText('Shows (2)')).toBeVisible();
+  await dialog.getByRole('checkbox', { name: /4680/ }).check();
+  await dialog.getByRole('checkbox', { name: /2900/ }).uncheck();
+  await expect(dialog.getByText('1 selected')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Import', exact: true }).click();
+  await expect(desk).toHaveURL(/\/desk\/boards\/[0-9a-f-]{36}$/);
+  const id = desk.url().split('/').pop()!;
+  const b = await (await api.get(`/api/boards/${id}`, { headers: { authorization: `Bearer ${host}` } })).json();
+  expect(b.title).toBe('Show 4680 (2004-12-31)');
+  expect(b.content.rounds.map((r: { kind: string }) => r.kind)).toEqual(['standard', 'standard', 'final']);
+  await api.dispose();
+});
+
 test('board package with media: export from the library, import it back, plus duplicate / archive / version restore', async () => {
   const api = await request.newContext({ baseURL: BASE });
   const host = (await (await api.post('/api/host/local-login')).json()).token as string;

@@ -1,0 +1,6 @@
+round,category,value,question,answer,daily_wager,notes,image,answer_image,caption
+Round 1,Animals,200,This animal is the largest land mammal,What is the elephant?,,,https://uploads.example.test/elephant.png,,An elephant
+Round 1,Animals,400,This bird cannot fly,What is the penguin?,yes,Accept emperor penguin,,https://uploads.example.test/penguin.png,
+Round 1,Music,200,Listen to this sound,What is a trumpet?,,,trumpet.mp3,,
+Round 1,Music,$400,Composer of the Moonlight Sonata,Who is Beethoven?,,,,,
+Final,Geography,,The largest desert on Earth,What is Antarctica?,,,,,

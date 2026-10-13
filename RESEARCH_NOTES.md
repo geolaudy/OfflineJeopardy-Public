@@ -41,3 +41,42 @@ Protocol facts used (public community documentation of the Switch controller HID
 - Web Audio is unlocked on first user gesture (iOS requirement).
 - `localStorage` may be unavailable in private browsing; tokens fall back to memory for that page session.
 - Automated tests run the host UI in Playwright WebKit with the iPad Pro 11 landscape descriptor. Real-iPad validation is still required (KNOWN_ISSUES).
+
+## Board importing (R2-20/R2-21)
+
+Investigated 2026-10-13. Code: `src/server/importers/**`, `src/server/importRoutes.ts`, `src/web/pages/desk/ImportFromSource.tsx`. Tests: `tests/unit/importers.test.ts`, `tests/integration/import.test.ts`, fixtures in `tests/fixtures/import/`.
+
+### Architecture
+
+Separate stages, one module each: the source plugin parses its input (`sources/*.ts`) → normalised `NormalizedBoard` (media kept as source URLs, plus attribution) → `pipeline.applyLimits` clamps to app limits with warnings → `media.acquireMedia` downloads permitted media (`net.safeGet`: http(s) only, SSRF checks, 50 MB per file, 500 MB per import, 300 files, 60 s per file, only `image/*` (no SVG), `audio/*`, `video/*`, octet-stream) and hands the bytes to the server's `storeClueMedia`, which validates them again by content → `pipeline.buildContent` + `validateContent` (`boardContentSchema` + `validateBoard`) → `saveBoard`. A registry (`registry.ts`) holds `ImportSource` plugins (`id`, `label`, `detect`, `parse`); the first plugin whose `detect` matches wins. Site-specific logic exists only inside its plugin.
+
+Routes (host-only): `POST /api/import/inspect` (keeps the parsed result for 10 min, max 5 pending), `GET /api/import/:id/preview?key=`, `POST /api/import/commit`, `DELETE /api/import/:id`. Commit validates every board before saving any; on failure all media stored during that commit are deleted (and boards already saved in a multi-board commit, via `deleteBoard`).
+
+**Media rule (decision):** media that can never be imported (YouTube, local file names, non-links) is listed in the preview as missing. Media that fails to *download* at commit time (HTTP error, wrong type, too large, timeout, rejected by validation) is skipped and reported in the commit response; the board is still created with the clue text. `requireAllMedia: true` makes any media failure roll the whole import back (API only, not exposed in the UI). Reason: a preview cannot know whether a download will succeed without downloading everything twice.
+
+**SSRF / offline:** only http/https without credentials; `localhost`, `*.local`, `*.internal`, `*.lan`, single-label hosts and every loopback/private/link-local/CGNAT/multicast/reserved address (including IPv4-mapped IPv6) are refused. The address check also runs inside the DNS lookup used for the actual connection (defeats DNS rebinding) and on every redirect hop (max 5). Tests may set `testing.allowPrivateNetworks` to reach the local fixture server; production code never sets it. Without internet a URL import fails with "No internet connection — importing from a link works only online; playing stays offline." File imports and gameplay never touch the network.
+
+### Show content (decision)
+
+OfflineJeopardy bundles no show content and never downloads or scrapes archive sites (j-archive or similar). The dataset plugin only parses a file the user chose; links inside clue text (archive pictures) are stripped and not followed — the preview says how many clues had them. The UI reminds users to use only content they have the right to use. The generic "link to a file" plugin accepts only `.csv`/`.json` text and refuses HTML pages, so it cannot be used as a page scraper.
+
+Supported formats: (a) JSON array of clue objects (`category`, `value` "$200"/null, `question`, `answer`, `round` "Jeopardy!"/"Double Jeopardy!"/"Final Jeopardy!", `show_number`, `air_date`) — grouped by show, one board per selected show (up to 10 per commit), HTML stripped, surrounding quotes removed. The value ladder is rebuilt per round (200–1000/400–2000, or 100–500/200–1000 for older shows); off-ladder aired values (Daily Double wagers) take the free ladder slot and are marked as Daily Wagers; tie-breakers are skipped. Rounds are renamed "Round 1/2" and "Final Wager" (no show branding). (b) Generic CSV `round,category,value,question,answer[,daily_wager,notes,image,answer_image,caption,answer_caption]`; image columns accept http(s) links ("|"-separated); local file names are reported as missing (board packages remain the way to bring local media). Not done: user media folders, TSV variants of community datasets.
+
+### Buzzinga.io (R2-20)
+
+Sources: https://buzzinga.io/robots.txt, https://buzzinga.io/terms (effective 08/29/2025), https://buzzinga.io/help/sharing-a-board/, https://buzzinga.io/help/import-export-csv/, https://buzzinga.io/help/embedding-a-board/, https://buzzinga.io/sitemap-0.xml, and the public HTML/JS of https://play.buzzinga.io/ (static reading of the shipped bundle to learn URL formats; no REA, no login, no automation of the site).
+
+Verified:
+- `buzzinga.io/robots.txt`: `User-agent: *` / `Allow: /`. `api.buzzinga.io/robots.txt` returns 404 (no rules). `play.buzzinga.io/robots.txt` returns the app page (no rules).
+- Terms: users keep ownership of their content; acceptable use forbids unlawful use, interfering with operation and uploading harmful material. No clause about automated access, scraping or API use was found. Software, design and trademarks belong to Buzzinga Games Inc. (we copy none of them).
+- Sharing (help page): the owner switches a board to "Shareable" and copies a share link; recipients can view the board and must sign in only to "Save a copy". Turning "Shareable" off disables the link.
+- Official export: Buzzinga Pro has "Download CSV" (board editor > gear icon). Columns (help page + the client's export function): `round,col,cat,catDescription,row,customValue,clueText,correctResponse,isDailyDouble,clueType,topCaption,bottomCaption,answerType,answerTopCaption,answerBottomCaption,buzzerActivationMode,isAudioOnly,isAnswerAudioOnly`; `round` is 1–3 or `final`; image/audio clues carry a media URL in `clueText`/`correctResponse`; video is a YouTube URL; the CSV holds links, not files.
+- Share link format (client router): `https://play.buzzinga.io/share/<gameId>` (also `/embed/<gameId>`). The share page loads its data with an unauthenticated `GET https://api.buzzinga.io/api/getSharedBoard/<gameId>` (the client attaches a bearer token only when the visitor happens to be signed in). The API answers with `Access-Control-Allow-Origin: *`, a published rate limit header (`x-ratelimit-limit: 2000`), and `404 {"error":"Game board not found"}` for unknown or non-shareable ids (checked with a made-up id, also end-to-end through the importer).
+- Board JSON shape as used by the client: `{ name, rounds: [ [ { category, description, clues: [ { text, answer, type: TEXT|IMAGE|AUDIO|VIDEO, answerType, value?, isDailyDouble, topCaption, bottomCaption, answerTopCaption, answerBottomCaption, ... } ] } ] ], finalRound: { categoryName, clue: {...} } }`.
+
+Assumed / NOT verified (no real shareable board was available):
+- That `getSharedBoard` returns exactly this shape for a real shareable board (inferred from client code; the parser is defensive and fails with a message recommending the CSV export).
+- That `name` is the title field in that response; default values for clues without `value` (row × 200 × round number); where uploaded media is hosted (any http(s) media URL the board references is downloaded, subject to the SSRF rules).
+- The endpoint is undocumented and may change without notice.
+
+Decision: implement the `buzzinga` plugin for public share links, because the access is public, unauthenticated, authorised by the owner ("Shareable"), allowed by robots.txt and not restricted by the Terms we read. It makes one request per user action, sends no cookies or credentials, identifies itself in the User-Agent, never retries, and stops on 401/403/404/429 with an explanation. Private boards and anything behind a sign-in or paid plan are never accessed — the user is told to ask the owner to make the board shareable or to export it as CSV. The plugin also imports the official CSV export (and a saved board JSON), which is the recommended path when links fail. YouTube videos are not downloaded (the link is kept in the host notes).

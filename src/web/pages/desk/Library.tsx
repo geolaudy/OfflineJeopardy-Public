@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { downloadFile, hostApi } from '../../lib/api';
 import { attempt, useFetch } from '../../lib/hooks';
 import { ActionButton, Button, Card, Empty, Field, Modal, PageTitleBar, cx, inputCls, toast } from '../../components/ui';
-import { Plus, Upload } from 'lucide-react';
+import { Link2, Plus, Upload } from 'lucide-react';
+import { ImportFromSourceModal } from './ImportFromSource';
 import { CSV_HEADER } from '../../../shared/boardIO';
 import type { BoardContent, Clue } from '../../../shared/game';
 
@@ -68,6 +69,8 @@ export default function Library() {
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<BoardSummary | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [sourceImportOpen, setSourceImportOpen] = useState(false);
+  const closeSourceImport = useCallback(() => setSourceImportOpen(false), []);
   const [templatesOpen, setTemplatesOpen] = useState(false);
 
   const folders = useMemo(() => [...new Set(boards.map((b) => b.folder).filter(Boolean))].sort((a, b) => a.localeCompare(b)), [boards]);
@@ -126,6 +129,9 @@ export default function Library() {
           <>
             <Button variant="secondary" onClick={() => setImportOpen(true)}>
               <Upload size={18} aria-hidden /> Import
+            </Button>
+            <Button variant="secondary" onClick={() => setSourceImportOpen(true)} data-testid="import-from-source">
+              <Link2 size={18} aria-hidden /> From link or dataset
             </Button>
             {templates.length > 0 ? (
               <Button variant="secondary" onClick={() => setTemplatesOpen(true)}>
@@ -296,6 +302,7 @@ export default function Library() {
       </Modal>
 
       <ImportModal open={importOpen} onClose={closeImport} onSaved={openEditor} />
+      <ImportFromSourceModal open={sourceImportOpen} onClose={closeSourceImport} onSaved={openEditor} />
 
       <Modal open={templatesOpen} onClose={closeTemplates} title="Start from a template">
         <p className="mb-3 text-sm text-slate-600">A copy of the template is created; the template itself stays unchanged.</p>

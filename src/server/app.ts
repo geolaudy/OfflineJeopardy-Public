@@ -30,6 +30,7 @@ import { lanAddresses, pickAddress } from './network.js';
 import { ImageError, MAX_UPLOAD_BYTES, processClueImage, processProfilePicture, safeJoin, sniffMedia } from './images.js';
 import * as stats from './stats.js';
 import { createZip, isZip, readZip, ZipError, type ZipEntry } from './zip.js';
+import { registerImportRoutes } from './importRoutes.js';
 import { normalizeRules, rulesFromPreset, RULE_PRESETS } from '../shared/game.js';
 import { customThemeSchema, isPreset, newThemeData, type ThemeFile } from '../shared/themes.js';
 import { rulesSchema } from '../shared/actions.js';
@@ -572,7 +573,7 @@ export async function startServer(opts: ServerOptions) {
     for (const r of b.content.rounds)
       for (const c of r.categories)
         for (const q of c.clues)
-          for (const m of q.media ?? []) {
+          for (const m of [...(q.media ?? []), ...(q.answerMedia ?? [])]) {
             const f = clueFileOf(m.url);
             if (!f || seen.has(f)) continue;
             seen.add(f);
@@ -613,34 +614,53 @@ export async function startServer(opts: ServerOptions) {
     const content = reassignIds(r.content);
     for (const round of content.rounds)
       for (const cat of round.categories)
-        for (const q of cat.clues) {
-          if (!q.media?.length) continue;
-          const kept = [];
-          for (const m of q.media) {
-            const f = clueFileOf(m.url);
-            if (!f) continue; // only local media can be packaged
-            if (!mapped.has(f)) {
-              const entry = media.get(f);
-              if (!entry) {
-                mapped.set(f, null);
-                warnings.push(`Media file ${f} is missing from the package; the clue keeps its text.`);
-              } else {
-                try {
-                  mapped.set(f, (await storeClueMedia(entry.data, f)).url);
-                } catch (e) {
+        for (const q of cat.clues)
+          for (const side of ['media', 'answerMedia'] as const) {
+            const list = q[side];
+            if (!list?.length) continue;
+            const kept = [];
+            for (const m of list) {
+              const f = clueFileOf(m.url);
+              if (!f) continue; // only local media can be packaged
+              if (!mapped.has(f)) {
+                const entry = media.get(f);
+                if (!entry) {
                   mapped.set(f, null);
-                  warnings.push(`Media file ${f} was rejected: ${e instanceof ImageError ? e.message : 'unsupported file'}`);
+                  warnings.push(`Media file ${f} is missing from the package; the clue keeps its text.`);
+                } else {
+                  try {
+                    mapped.set(f, (await storeClueMedia(entry.data, f)).url);
+                  } catch (e) {
+                    mapped.set(f, null);
+                    warnings.push(`Media file ${f} was rejected: ${e instanceof ImageError ? e.message : 'unsupported file'}`);
+                  }
                 }
               }
+              const url = mapped.get(f);
+              if (url) kept.push({ ...m, url });
             }
-            const url = mapped.get(f);
-            if (url) kept.push({ ...m, url });
+            q[side] = kept.length ? kept : undefined;
           }
-          q.media = kept;
-        }
     const saved = repo.saveBoard(db, { title, description: r.description ?? '', tags: r.tags ?? [], content }, { version: true });
     audit(db, 'host', 'board.importPackage', { id: saved.id, media: [...mapped.values()].filter(Boolean).length });
     return { ...r, summary, warnings, title, saved: { id: saved.id } };
+  });
+
+  // ---------- importing from links, Buzzinga exports and clue datasets (src/server/importers) ----------
+  registerImportRoutes(app, {
+    requireHost,
+    storeClueMedia,
+    saveBoard: (input) => repo.saveBoard(db, input, { version: true }),
+    listBoardTitles: () => repo.listBoards(db).map((b) => b.title),
+    removeClueMedia: (url) => {
+      const f = clueFileOf(url);
+      if (!f) return;
+      const full = safeJoin(clueMediaDir, f);
+      if (full) fs.rmSync(full, { force: true });
+      db.prepare('DELETE FROM media WHERE file = ?').run(f);
+    },
+    deleteBoard: (id) => repo.deleteBoard(db, id),
+    audit: (action, detail) => audit(db, 'host', action, detail),
   });
   app.get('/media/:dir/:file', async (req, reply) => {
     const { dir, file } = req.params as { dir: string; file: string };

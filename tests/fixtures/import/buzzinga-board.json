@@ -1,0 +1,39 @@
+{
+  "name": "Science Night",
+  "rounds": [
+    [
+      {
+        "category": "Space",
+        "description": "Everything above the clouds",
+        "clues": [
+          { "text": "This planet is known as the Red Planet", "answer": "What is Mars?", "type": "TEXT", "answerType": "TEXT", "isDailyDouble": false },
+          { "text": "https://uploads.example.test/pic.png", "answer": "What is Saturn?", "type": "IMAGE", "answerType": "TEXT", "topCaption": "Name this planet", "bottomCaption": "Photo: NASA", "isDailyDouble": true },
+          { "text": "https://www.youtube.com/watch?v=abc123", "answer": "What is a rocket launch?", "type": "VIDEO", "answerType": "TEXT", "topCaption": "What is happening?" },
+          { "text": "The closest star to Earth", "answer": "What is the Sun?", "type": "TEXT", "answerType": "IMAGE", "answerTopCaption": "The Sun", "value": 750 },
+          { "text": "", "answer": "", "type": "TEXT", "answerType": "TEXT" }
+        ]
+      },
+      {
+        "category": "Chemistry",
+        "clues": [
+          { "text": "H2O is the formula for this", "answer": "What is water?" },
+          { "text": "https://uploads.example.test/sound.mp3", "answer": "What is fizzing?", "type": "AUDIO", "answerType": "TEXT" }
+        ]
+      }
+    ],
+    [
+      {
+        "category": "Biology",
+        "clues": [
+          { "text": "The powerhouse of the cell", "answer": "What is the mitochondria?" }
+        ]
+      }
+    ],
+    []
+  ],
+  "finalRound": {
+    "categoryName": "Famous Scientists",
+    "clue": { "text": "He developed the theory of general relativity", "answer": "Who is Albert Einstein?", "type": "TEXT", "answerType": "TEXT" }
+  },
+  "effectiveBrand": null
+}

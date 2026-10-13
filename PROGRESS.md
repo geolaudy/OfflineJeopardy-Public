@@ -4,7 +4,9 @@
 
 - Checkpoint: tag **v0.3.0** pushed before any change (Vitest 74/74, Playwright 12/12). Round-2 requirements recorded (USER_FEEDBACK.md Round 2, PROJECT_SPEC §44, FEATURE_MATRIX, IMPLEMENTATION_PLAN milestone 16).
 - **Milestone: media clues (R2-12…R2-16).** Captions were saved but never displayed (only image alt text) — now shown under images on TV for both sides. Media-first layout sized from the real clue area and each image's aspect ratio (no cropping/stretching, invisible until loaded so nothing jumps; per-clue layout auto/media/balanced/text). Separate answer-side media (hidden from the TV until reveal; decoded before the cross-fade). Authoritative media playback state with host Play/Pause/Resume/Restart/Stop/Mute, duration from metadata (host never plays sound), server-scheduled media end; Electron TV allows autoplay. Automatic buzzer unlock: game rule off/all/media-only/per-clue + per-clue immediate/host/after media starts/after media ends. Editor: Clue presentation / Answer reveal / Layout & buzzers sections. lucide-react icons introduced; PageTitleBar fixes the Boards header.
-- Tests: Vitest 78/78, Playwright 13/13 (new media.spec.ts). Practice spec now picks its board explicitly (it depended on which board was newest).
+- Tests: Vitest 78/78, Playwright 13/13 (new media.spec.ts). Practice spec now picks its board explicitly (it depended on which board was newest). Pushed 338dd0d (+3f963d6 matrix fix).
+- **Milestone: board importing (R2-20/R2-21)** (built by a subagent, reviewed and wired here): plugin pipeline with SSRF-safe downloads, Buzzinga share link / CSV export / saved JSON, user-provided clue datasets and CSV, previews, duplicate warnings, rollback; Library button "From link or dataset". Buzzinga share-link parsing is **not verified against a real shareable board** (see RESEARCH_NOTES.md). Test fixture with real show clues replaced by original clues. Board packages now carry answer-side media.
+- Tests: Vitest 104/104, Playwright 14/14.
 
 ## Session 3 — 2026-10-12 (roadmap continuation, auto-push workflow)
 
