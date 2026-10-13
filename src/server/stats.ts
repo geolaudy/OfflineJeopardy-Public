@@ -354,3 +354,58 @@ export function gamesCsv(db: DB) {
     ...rows.map((r) => [r.title, r.mode, new Date(r.endedAt).toISOString(), r.name, r.kind, r.members, r.score, r.placement, r.winner ? 'yes' : 'no']),
   ]);
 }
+
+// ---------- head to head (T10) ----------
+
+export interface HeadToHead {
+  /** Counted games where both played on different sides. */
+  opponents: { games: number; aAhead: number; bAhead: number; tied: number };
+  /** Counted team games where both played on the same team. */
+  teammates: { games: number; wins: number };
+  recent: { gameId: string; title: string; endedAt: number | null; together: boolean; aPlace: number | null; bPlace: number | null; aScore: number; bScore: number; won: 'a' | 'b' | 'both' | 'none' }[];
+}
+
+export function headToHead(db: DB, a: string, b: string): HeadToHead {
+  const rows = db
+    .prepare(
+      `SELECT g.id AS gameId, g.title, g.ended_at AS endedAt, pa.competitor_id AS ca, pb.competitor_id AS cb,
+              ga.placement AS aPlace, gb.placement AS bPlace, ga.final_score AS aScore, gb.final_score AS bScore,
+              ga.is_winner AS aWin, gb.is_winner AS bWin
+       FROM games g
+       JOIN game_participants pa ON pa.game_id = g.id AND pa.profile_id = ?
+       JOIN game_participants pb ON pb.game_id = g.id AND pb.profile_id = ?
+       JOIN game_competitors ga ON ga.game_id = g.id AND ga.competitor_id = pa.competitor_id
+       JOIN game_competitors gb ON gb.game_id = g.id AND gb.competitor_id = pb.competitor_id
+       WHERE ${COUNTED}
+       ORDER BY g.ended_at DESC`,
+    )
+    .all(a, b) as unknown as { gameId: string; title: string; endedAt: number | null; ca: string; cb: string; aPlace: number | null; bPlace: number | null; aScore: number | null; bScore: number | null; aWin: number | null; bWin: number | null }[];
+  const out: HeadToHead = { opponents: { games: 0, aAhead: 0, bAhead: 0, tied: 0 }, teammates: { games: 0, wins: 0 }, recent: [] };
+  for (const r of rows) {
+    const together = r.ca === r.cb;
+    if (together) {
+      out.teammates.games++;
+      if (r.aWin) out.teammates.wins++;
+    } else {
+      out.opponents.games++;
+      const pa = r.aPlace ?? Infinity;
+      const pb = r.bPlace ?? Infinity;
+      if (pa < pb) out.opponents.aAhead++;
+      else if (pb < pa) out.opponents.bAhead++;
+      else out.opponents.tied++;
+    }
+    if (out.recent.length < 8)
+      out.recent.push({
+        gameId: r.gameId,
+        title: r.title,
+        endedAt: r.endedAt,
+        together,
+        aPlace: r.aPlace,
+        bPlace: r.bPlace,
+        aScore: r.aScore ?? 0,
+        bScore: r.bScore ?? 0,
+        won: r.aWin && r.bWin ? 'both' : r.aWin ? 'a' : r.bWin ? 'b' : 'none',
+      });
+  }
+  return out;
+}

@@ -21,7 +21,7 @@ test('buzzer check: phone test button, press listed on the host with its delay',
   const phone = await (await wk.newContext({ ...devices['iPhone 13'] })).newPage();
   await phone.goto(`${BASE}/join`);
   await phone.getByTestId('new-profile').click();
-  await phone.getByLabel('Your name').fill('Casey Check');
+  await phone.getByLabel('Your name', { exact: true }).fill('Casey Check');
   await phone.getByLabel('PIN', { exact: true }).fill('2580');
   await phone.getByLabel('Confirm PIN').fill('2580');
   await phone.getByRole('button', { name: 'Create profile' }).click();

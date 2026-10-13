@@ -29,7 +29,7 @@ async function hostApiToken() {
 async function createProfileOnPhone(page: Page, name: string, pin: string) {
   await page.goto(`${BASE}/join`);
   await page.getByTestId('new-profile').click();
-  await page.getByLabel('Your name').fill(name);
+  await page.getByLabel('Your name', { exact: true }).fill(name);
   await page.getByLabel('PIN', { exact: true }).fill(pin);
   await page.getByLabel('Confirm PIN').fill(pin);
   await page.getByRole('button', { name: 'Create profile' }).click();

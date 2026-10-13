@@ -9,6 +9,8 @@ import { ProfileStats } from '../../components/StatsView';
 import { profileName } from '../../lib/view';
 import type { ProfilePublic } from '../../../shared/views';
 import type { Me } from './JoinPage';
+import { Swords } from 'lucide-react';
+import HeadToHead, { type CompareData } from '../../components/HeadToHead';
 
 export function PlayersList({ me }: { me: Me }) {
   const profiles = useProfiles();
@@ -76,6 +78,7 @@ export function PlayerPage({ me }: { me: Me }) {
           )}
         </section>
       )}
+      {d.data && id !== me.id && <CompareWithMe me={me} id={id} />}
       {isPrivate && <p className="rounded-2xl bg-white p-6 text-center text-slate-600 shadow-sm">This player keeps their statistics private.</p>}
       {notFound && <p className="rounded-2xl bg-white p-6 text-center text-slate-600 shadow-sm">{d.error}</p>}
       {!d.data && !d.error && <p className="text-slate-500">Loading…</p>}
@@ -123,3 +126,17 @@ export function PlayerPage({ me }: { me: Me }) {
   );
 }
 
+
+/** Head to head with the signed-in player (T10). Loaded only when asked for. */
+function CompareWithMe({ me, id }: { me: Me; id: string }) {
+  const [open, setOpen] = useState(false);
+  const d = useFetch(() => (open ? meApi<CompareData>('GET', `/api/stats/compare?a=${me.id}&b=${id}`) : Promise.resolve(null)), [open, id]);
+  if (!open)
+    return (
+      <button onClick={() => setOpen(true)} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 font-bold text-white" data-testid="compare-with-me">
+        <Swords size={18} aria-hidden /> Compare with me
+      </button>
+    );
+  if (d.error) return <p className="rounded-2xl bg-white p-4 text-center text-slate-600 shadow-sm">{d.error}</p>;
+  return d.data ? <HeadToHead d={d.data} /> : <p className="text-slate-500">Loading…</p>;
+}

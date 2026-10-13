@@ -8,7 +8,8 @@ import { AvatarPicker, ProfileCreateForm } from '../../components/ProfileForm';
 import { ProfileStats } from '../../components/StatsView';
 import { useLive } from '../../lib/socket';
 import { profileName } from '../../lib/view';
-import { Lock, Plus } from 'lucide-react';
+import { Lock, Plus, Swords } from 'lucide-react';
+import HeadToHead, { type CompareData } from '../../components/HeadToHead';
 
 interface AdminProfile {
   id: string;
@@ -35,6 +36,7 @@ export default function Players() {
     show(p ? { page: 'player', profileId: p.id } : { page: 'players' });
   };
   const [q, setQ] = useState('');
+  const [comparing, setComparing] = useState<AdminProfile | null>(null);
   const rows = (list.data ?? []).filter((p) => `${p.name} ${p.nickname}`.toLowerCase().includes(q.toLowerCase()));
   const dupNames = new Set((list.data ?? []).map((p) => p.name.toLowerCase()).filter((n, i, a) => a.indexOf(n) !== i));
 
@@ -75,6 +77,9 @@ export default function Players() {
               <Button size="sm" variant="ghost" onClick={() => setStats(p)}>
                 Stats
               </Button>
+              <Button size="sm" variant="ghost" onClick={() => setComparing(p)} aria-label={'Compare ' + profileName(p)} data-testid="compare-player">
+                <Swords size={16} aria-hidden />
+              </Button>
               <Button size="sm" variant="secondary" onClick={() => setEdit(p)}>
                 Edit
               </Button>
@@ -106,6 +111,7 @@ export default function Players() {
         />
       )}
       {stats && <StatsModal p={stats} onClose={() => setStats(null)} />}
+      {comparing && <CompareModal first={comparing} players={list.data ?? []} onClose={() => setComparing(null)} />}
     </div>
   );
 }
@@ -203,6 +209,29 @@ function EditProfile({ p, onClose }: { p: AdminProfile; onClose: () => void }) {
         >
           Delete profile
         </Button>
+      </div>
+    </Modal>
+  );
+}
+
+/** Head to head between two players (T10). The host can compare anyone. */
+function CompareModal({ first, players, onClose }: { first: AdminProfile; players: AdminProfile[]; onClose: () => void }) {
+  const others = players.filter((p) => p.id !== first.id);
+  const [other, setOther] = useState(others[0]?.id ?? '');
+  const d = useFetch(() => (other ? hostApi<CompareData>('GET', '/api/stats/compare?a=' + first.id + '&b=' + other) : Promise.resolve(null)), [first.id, other]);
+  return (
+    <Modal open onClose={onClose} title={`Compare ${profileName(first)}`} wide>
+      <div className="space-y-4">
+        <Field label="With">
+          <select className={inputCls} value={other} onChange={(e) => setOther(e.target.value)} aria-label="Compare with">
+            {others.map((p) => (
+              <option key={p.id} value={p.id}>
+                {profileName(p)}
+              </option>
+            ))}
+          </select>
+        </Field>
+        {!others.length ? <p className="text-slate-500">Add another player to compare.</p> : d.error ? <p className="text-slate-600">{d.error}</p> : d.data ? <HeadToHead d={d.data} /> : <p className="text-slate-500">Loading…</p>}
       </div>
     </Modal>
   );

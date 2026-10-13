@@ -869,6 +869,38 @@ export async function startServer(opts: ServerOptions) {
     if (!t) return bad(reply, 'Team not found', 404);
     return { team: t, stats: stats.teamStats(db, t.id) };
   });
+  // Head to head (T10): two players' record against (and with) each other. Same privacy as a
+  // player's statistics: signed in, and neither profile private unless it is your own (host sees all).
+  app.get('/api/stats/compare', async (req, reply) => {
+    const q = req.query as { a?: string; b?: string };
+    const s = sessionOf(req);
+    if (!s) return bad(reply, 'Sign in first', 401);
+    if (!q.a || !q.b || q.a === q.b) return bad(reply, 'Choose two different players');
+    const side = (id: string) => {
+      const p = repo.getProfile(db, id);
+      if (!p || p.deleted_at) return { ok: false as const, error: 'Profile not found', code: 404 };
+      const own = s.kind === 'profile' && s.profileId === id;
+      if (!own && s.kind !== 'host' && p.stats_private) return { ok: false as const, error: `${repo.toPublic(p).name} keeps their statistics private`, code: 403 };
+      const st = stats.profileStats(db, id);
+      const c = st.combined;
+      return {
+        ok: true as const,
+        profile: repo.toPublic(p),
+        summary: {
+          games: c.gamesPlayed,
+          wins: c.wins,
+          accuracy: c.correct + c.incorrect ? c.correct / (c.correct + c.incorrect) : null,
+          bestScore: st.solo.games.highestScore ?? null,
+          avgReactionMs: st.solo.buzzer.averageReactionMs ?? st.team.buzzer.averageReactionMs ?? null,
+        },
+      };
+    };
+    const a = side(q.a);
+    if (!a.ok) return bad(reply, a.error, a.code);
+    const b = side(q.b);
+    if (!b.ok) return bad(reply, b.error, b.code);
+    return { a, b, h2h: stats.headToHead(db, q.a, q.b) };
+  });
   // Team balancing (T11): a skill estimate per player from their history (host only).
   app.get('/api/stats/ratings', async (req, reply) => {
     if (!requireHost(req, reply)) return;
