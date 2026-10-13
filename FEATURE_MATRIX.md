@@ -1,4 +1,4 @@
-| R2-19 |undefined|undefined| IN PROGRESS | components/ui.tsx PageTitleBar; desk/Library.tsx | — | Other desk pages already right-align actions; they adopt PageTitleBar during the lobby redesign || R2-16 |undefined|undefined| TESTED | rules.autoUnlock, Clue.unlock, unlockModeFor, engine openBuzzers/maybeAutoOpen, RulesEditor, BoardEditor | U (off/all/mediaOnly/perClue, mediaEnd), E (media-only clue opens itself; audio clue opens when sound ends) | Default Off preserves the old behaviour || R2-15 |undefined|undefined| TESTED | ClueMedia captions (figcaption), BoardEditor MediaList | E (caption on TV for clue and answer side); captions already persisted via boardIO schema | — || R2-14 |undefined|undefined| TESTED | shared/game.ts answerMedia, projection (hidden until reveal), ClueMedia (decoded-before-crossfade), BoardEditor sections | U (never leaked before reveal), E (uncovered image + caption + answer replace hint) | — || R2-13 |undefined|undefined| TESTED | engine media* actions, gameManager.scheduleMediaEnd, host/MediaControls.tsx, ClueMedia.useMediaSync, Electron autoplayPolicy | U, E (play/pause/resume on TV, duration from metadata, nothing playing after close) | Plain-browser TVs need one click before sound can autoplay (Electron TV window does not) || R2-12 |undefined|undefined| TESTED | board/ClueMedia.tsx, board.css | U (layout data), E = tests/e2e/media.spec.ts (image >45% of screen height, caption, screenshots) | Video clues share the image path; no portrait-TV screenshot yet |# Feature Matrix
+# Feature Matrix
 
 Statuses: NOT STARTED · IN PROGRESS · IMPLEMENTED (code exists, no automated test) · TESTED (relevant automated tests pass) · BLOCKED.
 Test keys: **U** = `tests/unit/engine.test.ts` · **I** = `tests/integration/server.test.ts` · **E** = `tests/e2e/game.spec.ts`, **E2** = `tests/e2e/teams-editor.spec.ts` (Playwright: Chromium TV/desktop/Android, WebKit iPad/iPhone).
@@ -185,14 +185,14 @@ Last run 2026-10-12: Vitest 58/58 (43 unit, 15 integration), Playwright 8/8.
 | R2-9 | Compact lobby panel + transitions | P1 | NOT STARTED | — | — | — |
 | R2-10 | Public navigation rail + branding | P2 | NOT STARTED | — | — | — |
 | R2-11 | Return to start from local host mode | P1 | NOT STARTED | — | — | — |
-| R2-12 | Media-first clue layout + per-clue layout option | P1 | NOT STARTED | — | — | — |
-| R2-13 | Host audio/video controls (synced) | P1 | NOT STARTED | — | — | — |
-| R2-14 | Separate clue / answer media | P1 | NOT STARTED | — | — | — |
-| R2-15 | Image captions fixed end to end | P1 | NOT STARTED | — | — | — |
-| R2-16 | Automatic buzzer unlock (game + per clue) | P1 | NOT STARTED | — | — | — |
+| R2-12 | Media-first clue layout + per-clue layout option | P1 | TESTED | board/ClueMedia.tsx, board.css | U, E = tests/e2e/media.spec.ts (image >45% of screen height, caption, screenshots) | Video clues share the image path; no portrait-TV screenshot yet |
+| R2-13 | Host audio/video controls (synced) | P1 | TESTED | engine media* actions, gameManager.scheduleMediaEnd, host/MediaControls.tsx, ClueMedia.useMediaSync, Electron autoplayPolicy | U, E (play/pause/resume on the TV, duration from metadata, nothing playing after close) | Plain-browser TVs need one click before sound can autoplay (the Electron TV window does not) |
+| R2-14 | Separate clue / answer media | P1 | TESTED | shared/game.ts answerMedia, projection (hidden until reveal), ClueMedia (decoded before cross-fade), BoardEditor sections | U (never leaked before reveal), E (uncovered image + caption; answer replaces hint) | Board package import does not yet carry answerMedia (fix pending) |
+| R2-15 | Image captions fixed end to end | P1 | TESTED | ClueMedia captions (figcaption), BoardEditor MediaList | E (caption on TV for clue and answer side); persistence via boardIO schema | — |
+| R2-16 | Automatic buzzer unlock (game + per clue) | P1 | TESTED | rules.autoUnlock, Clue.unlock, unlockModeFor, engine openBuzzers/maybeAutoOpen, RulesEditor, BoardEditor | U (off/all/mediaOnly/perClue, mediaEnd), E (media-only clue opens itself; audio clue opens when the sound ends) | Default Off preserves the old behaviour |
 | R2-17 | Board and clue preview without a game | P1 | NOT STARTED | — | — | — |
 | R2-18 | Vector icon set replacing emoji | P2 | NOT STARTED | — | — | — |
-| R2-19 | Shared page header / Boards alignment | P2 | NOT STARTED | — | — | — |
+| R2-19 | Shared page header / Boards alignment | P2 | IN PROGRESS | components/ui.tsx PageTitleBar; desk/Library.tsx | — | Other desk pages already right-align actions; they adopt PageTitleBar in the lobby redesign |
 | R2-20 | Buzzinga.io share-link import (where legitimate) | P2 | NOT STARTED | — | — | — |
 | R2-21 | Extensible importer + Jeopardy-style data | P2 | NOT STARTED | — | — | — |
 | R2-22 | Sound cues + sound packs | P2 | NOT STARTED | — | — | — |
