@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { applyAction, createGame, type EngineCtx } from '../../src/server/engine/engine';
+import { applyAction, createGame, normalizeState, type EngineCtx } from '../../src/server/engine/engine';
 import { InputFilter, resolveInput } from '../../src/server/engine/buzzer';
 import { projectState, playerContext } from '../../src/server/engine/projection';
-import { DEFAULT_RULES, rulesFromPreset, scoresOf, type GameState } from '../../src/shared/game';
+import { DEFAULT_RULES, rulesFromPreset, scoresOf, type GameRules, type GameState } from '../../src/shared/game';
 import type { EngineAction } from '../../src/shared/actions';
 import { SAMPLE_BOARD } from '../../src/shared/sampleBoards';
 
@@ -107,7 +107,7 @@ describe('game flow and scoring', () => {
 
   it('early buzzes are recorded and optionally locked out', () => {
     let s = soloGame();
-    s = run(s, { type: 'updateRules', rules: { ...DEFAULT_RULES, earlyBuzzLockoutMs: 500 } }, { type: 'startGame' }, { type: 'selectClue', clueId: 'geo_2' });
+    s = run(s, { type: 'updateRules', rules: { ...DEFAULT_RULES, earlyBuzzPenalty: 'lockout', earlyBuzzLockoutMs: 500 } }, { type: 'startGame' }, { type: 'selectClue', clueId: 'geo_2' });
     s = buzz(s, 'alex'); // early - buzzers locked
     expect(s.buzzer.winner).toBeNull();
     expect(s.events.at(-1)).toMatchObject({ type: 'buzz', result: 'early' });
@@ -358,5 +358,242 @@ describe('projections never leak secrets', () => {
     expect(JSON.stringify(projectState(s, 'host', {}))).toContain('The Inca');
     s = run(s, { type: 'revealAnswer' });
     expect(projectState(s, 'public', {}).clue?.answer).toBe('The Inca');
+  });
+});
+
+// ---------- User feedback round 1 (USER_FEEDBACK.md FB-3.x, FB-4.5, FB-5.1, FB-E2) ----------
+
+const withRules = (s: GameState, patch: Partial<GameRules>) => run(s, { type: 'updateRules', rules: { ...s.rules, ...patch } });
+const lastEarly = (s: GameState) => s.events.filter((e) => e.type === 'buzz' && e.result === 'early').at(-1);
+const tryBuzz = (s: GameState, profileId: string) =>
+  applyAction(s, { type: 'buzz', competitorId: cid(s, profileId), profileId, controllerId: `phone:${profileId}`, sourceKind: 'phone' }, ctx());
+
+describe('early-buzz rules (FB-3)', () => {
+  it('no penalty: early press is recorded, player can still buzz once open', () => {
+    let s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_1' });
+    s = buzz(s, 'alex');
+    expect(lastEarly(s)).toMatchObject({ competitorId: cid(s, 'alex'), scoreDelta: 0 });
+    expect(s.buzzer.early).toHaveLength(1);
+    s = run(s, { type: 'unlockBuzzers' });
+    s = buzz(s, 'alex');
+    expect(s.buzzer.winner?.competitorId).toBe(cid(s, 'alex'));
+  });
+
+  it('short lockout expires; lockout is per person, not per device', () => {
+    let s = withRules(run(soloGame(), { type: 'startGame' }), { earlyBuzzPenalty: 'lockout', earlyBuzzLockoutMs: 400 });
+    s = run(s, { type: 'selectClue', clueId: 'hist_1' });
+    s = buzz(s, 'alex'); // phone, early
+    s = run(s, { type: 'unlockBuzzers' });
+    // The same person on another device (a bound Joy-Con) is still locked out.
+    s = run(s, { type: 'bindController', controllerId: 'jc1', kind: 'joycon', label: 'JC', target: { kind: 'profile', profileId: 'alex' } });
+    expect(press(s, 'jc1').info).toBe('locked-out');
+    expect(playerContext(s, 'alex', clock)).toMatchObject({ canBuzz: false, buzzReason: 'locked-out', lockedUntil: clock + 400 });
+    clock += 450;
+    expect(press(s, 'jc1').info).toBe('won');
+  });
+
+  it('out-for-the-clue lockout lasts until the next clue', () => {
+    let s = withRules(run(soloGame(), { type: 'startGame' }), { earlyBuzzPenalty: 'clue' });
+    s = run(s, { type: 'selectClue', clueId: 'hist_1' });
+    s = buzz(s, 'alex');
+    s = run(s, { type: 'unlockBuzzers' });
+    clock += 60_000;
+    s = buzz(s, 'alex');
+    expect(s.buzzer.winner).toBeNull();
+    s = buzz(s, 'sam');
+    expect(s.buzzer.winner?.competitorId).toBe(cid(s, 'sam'));
+    s = run(s, { type: 'judge', result: 'correct' }, { type: 'closeClue' }, { type: 'selectClue', clueId: 'hist_2' }, { type: 'unlockBuzzers' });
+    s = buzz(s, 'alex');
+    expect(s.buzzer.winner?.competitorId).toBe(cid(s, 'alex')); // fresh clue, no lockout
+  });
+
+  it('point penalty: deducted once per player per clue, refundable with an audit trail', () => {
+    let s = withRules(run(soloGame(), { type: 'startGame' }), { earlyBuzzPenalty: 'points', earlyBuzzPoints: 150, earlyBuzzLockoutMs: 100 });
+    s = run(s, { type: 'selectClue', clueId: 'hist_1' });
+    s = buzz(s, 'alex');
+    expect(scoresOf(s.events)[cid(s, 'alex')]).toBe(-150);
+    clock += 200;
+    s = buzz(s, 'alex'); // second early press on the same clue: no second deduction
+    expect(scoresOf(s.events)[cid(s, 'alex')]).toBe(-150);
+    const penalty = s.events.find((e) => e.type === 'buzz' && e.result === 'early' && e.scoreDelta === -150)!;
+    s = run(s, { type: 'refundPenalty', eventId: penalty.id });
+    expect(scoresOf(s.events)[cid(s, 'alex')] ?? 0).toBe(0);
+    expect(s.events.find((e) => e.id === penalty.id)?.voided).toBe(true);
+    // the early press itself stays on record for statistics, without points
+    expect(s.events.filter((e) => e.type === 'buzz' && e.result === 'early' && !e.voided)).toHaveLength(2);
+    expect(tryRun(s, { type: 'refundPenalty', eventId: penalty.id }).ok).toBe(false);
+  });
+
+  it('changing the rule mid-game applies to the next buzz only and never rewrites earlier penalties', () => {
+    let s = withRules(run(soloGame(), { type: 'startGame' }), { earlyBuzzPenalty: 'points', earlyBuzzPoints: 100 });
+    s = run(s, { type: 'selectClue', clueId: 'hist_1' });
+    s = buzz(s, 'alex');
+    s = withRules(s, { earlyBuzzPenalty: 'none' });
+    s = buzz(s, 'sam');
+    expect(scoresOf(s.events)).toMatchObject({ [cid(s, 'alex')]: -100 });
+    expect(scoresOf(s.events)[cid(s, 'sam')] ?? 0).toBe(0);
+    expect(s.events.filter((e) => e.result === 'early').map((e) => e.note)).toEqual(['points', 'none']);
+  });
+
+  it('is not "early" after time ran out or when already out of the clue', () => {
+    let s = withRules(run(soloGame(), { type: 'startGame' }), { earlyBuzzPenalty: 'points', earlyBuzzPoints: 100 });
+    s = run(s, { type: 'selectClue', clueId: 'hist_1' }, { type: 'unlockBuzzers' });
+    clock += 10_000;
+    s = run(s, { type: 'timerExpire' });
+    expect(s.clue?.answeringEnded).toBe(true);
+    const r = tryBuzz(s, 'alex');
+    expect(r.ok && r.info).toBe('ended');
+    expect(scoresOf(s.events)[cid(s, 'alex')] ?? 0).toBe(0);
+    // already tried this clue (auto re-open off) → not early either
+    s = withRules(s, { autoReopenAfterIncorrect: false });
+    s = run(s, { type: 'closeClue' }, { type: 'selectClue', clueId: 'hist_2' }, { type: 'unlockBuzzers' });
+    s = buzz(s, 'alex');
+    s = run(s, { type: 'judge', result: 'incorrect' });
+    expect(s.buzzer.status).toBe('locked');
+    const r2 = tryBuzz(s, 'alex');
+    expect(r2.ok && r2.info).toBe('already-answered');
+    // ...but another player pressing before the host re-opens IS early
+    s = buzz(s, 'sam');
+    expect(lastEarly(s)?.competitorId).toBe(cid(s, 'sam'));
+  });
+
+  it('teams: individual buzzers lock out only that member; a shared buzzer locks out the team', () => {
+    const t = teamGame();
+    let s = withRules(run(t.s, { type: 'startGame' }), { earlyBuzzPenalty: 'clue' });
+    s = run(s, { type: 'selectClue', clueId: 'hist_1' });
+    s = press(s, 'jc-L-1').s; // Alex (Wizards, individual buzzers) early
+    s = press(s, 'jc-L-2').s; // Dragons' shared device early
+    expect(s.buzzer.early.map((e) => [e.competitorId, e.profileId])).toEqual([
+      [t.wiz, 'alex'],
+      [t.dra, null],
+    ]);
+    s = run(s, { type: 'unlockBuzzers' });
+    expect(press(s, 'jc-L-2').info).toBe('locked-out');
+    expect(press(s, 'jc-L-1').info).toBe('locked-out');
+    expect(press(s, 'jc-R-1').info).toBe('won'); // Alex's teammate is not punished
+  });
+
+  it('team point penalty hits the team score once; contribution only for an identified member', () => {
+    const t = teamGame();
+    let s = withRules(run(t.s, { type: 'startGame' }), { earlyBuzzPenalty: 'points', earlyBuzzPoints: 50 });
+    s = run(s, { type: 'selectClue', clueId: 'hist_1' });
+    s = press(s, 'jc-L-1').s;
+    s = press(s, 'jc-L-2').s;
+    expect(scoresOf(s.events)).toEqual({ [t.wiz]: -50, [t.dra]: -50 });
+    expect(s.events.filter((e) => e.result === 'early').map((e) => [e.profileId, e.contributionDelta])).toEqual([
+      ['alex', -50],
+      [null, 0],
+    ]);
+  });
+
+  it('phones may press while locked (early presses count like physical buzzers)', () => {
+    let s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_1' });
+    expect(playerContext(s, 'alex', clock)).toMatchObject({ canBuzz: false, canPress: true, buzzReason: 'locked' });
+    s = run(s, { type: 'revealAnswer' });
+    expect(playerContext(s, 'alex', clock)).toMatchObject({ canPress: false, buzzReason: 'ended' });
+  });
+});
+
+describe('unanswered clue flow (FB-5.1)', () => {
+  it('time runs out → reveal → return: no score change, closed as unanswered', () => {
+    let s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'unlockBuzzers' });
+    clock += 10_000;
+    s = run(s, { type: 'timerExpire' });
+    expect(s.clue).toMatchObject({ answeringEnded: true, answerRevealed: false });
+    s = run(s, { type: 'revealAnswer', clueId: 'hist_1' });
+    expect(projectState(s, 'public', {}).clue?.answer).toBe('The Inca');
+    s = run(s, { type: 'closeClue', clueId: 'hist_1' });
+    expect(s.phase).toBe('board');
+    expect(s.events.at(-1)).toMatchObject({ type: 'clue_close', result: 'unanswered' });
+    expect(scoresOf(s.events)).toEqual({});
+    expect(s.usedClueIds).toContain('hist_1');
+  });
+
+  it('host can end answering without a timer; re-opening is still possible', () => {
+    let s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'unlockBuzzers' });
+    s = run(s, { type: 'endAnswering' });
+    expect(s.clue?.answeringEnded).toBe(true);
+    expect(s.buzzer.status).toBe('locked');
+    s = run(s, { type: 'unlockBuzzers' });
+    expect(s.clue?.answeringEnded).toBe(false);
+    s = buzz(s, 'alex');
+    expect(tryRun(s, { type: 'endAnswering' }).ok).toBe(false); // judge first
+  });
+
+  it('everyone wrong → answering ended automatically', () => {
+    let s = run(soloGame(['alex', 'sam']), { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'unlockBuzzers' });
+    s = buzz(s, 'alex');
+    s = run(s, { type: 'judge', result: 'incorrect' });
+    expect(s.clue?.answeringEnded).toBe(false);
+    s = buzz(s, 'sam');
+    s = run(s, { type: 'judge', result: 'incorrect' });
+    expect(s.clue?.answeringEnded).toBe(true);
+    s = run(s, { type: 'revealAnswer' }, { type: 'closeClue' });
+    expect(s.events.at(-1)).toMatchObject({ type: 'clue_close', result: 'unanswered' });
+  });
+
+  it('stale double taps cannot close the next clue or complete twice', () => {
+    let s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'closeClue', clueId: 'hist_1' });
+    expect(s.events.at(-1)).toMatchObject({ type: 'clue_close', result: 'skipped' });
+    s = run(s, { type: 'selectClue', clueId: 'hist_2' });
+    const r = tryRun(s, { type: 'closeClue', clueId: 'hist_1' });
+    expect(r.ok && r.ignored).toBe(true);
+    expect(r.ok && r.state.phase).toBe('clue');
+    expect(s.events.filter((e) => e.type === 'clue_close')).toHaveLength(1);
+  });
+
+  it('a correct answer closes as answered', () => {
+    let s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'unlockBuzzers' });
+    s = buzz(s, 'alex');
+    s = run(s, { type: 'judge', result: 'correct' }, { type: 'closeClue' });
+    expect(s.events.at(-1)).toMatchObject({ type: 'clue_close', result: 'answered' });
+  });
+});
+
+describe('category introduction (FB-4.5)', () => {
+  it('starts with each round, steps through every category, can be replayed, skipped or interrupted', () => {
+    let s = run(soloGame(), { type: 'startGame' });
+    const cats = s.board.rounds[s.roundIndex].categories.length;
+    expect(s.intro).toEqual({ roundIndex: s.roundIndex, step: -1, auto: false });
+    expect(projectState(s, 'public', {}).intro?.step).toBe(-1);
+    for (let i = 0; i < cats; i++) s = run(s, { type: 'introNext' });
+    expect(s.intro?.step).toBe(cats - 1);
+    s = run(s, { type: 'introNext' });
+    expect(s.intro).toBeNull();
+    s = run(s, { type: 'startIntro', auto: true });
+    expect(s.intro).toMatchObject({ step: -1, auto: true });
+    s = run(s, { type: 'introSkip' });
+    expect(s.intro).toBeNull();
+    s = run(s, { type: 'startIntro' }, { type: 'selectClue', clueId: 'hist_1' });
+    expect(s.intro).toBeNull();
+    s = run(s, { type: 'closeClue' }, { type: 'setRound', roundIndex: 1 });
+    expect(s.intro).toMatchObject({ roundIndex: 1, step: -1 });
+  });
+
+  it('can be turned off by rule', () => {
+    let s = withRules(soloGame(), { categoryIntro: false });
+    s = run(s, { type: 'startGame' });
+    expect(s.intro).toBeNull();
+  });
+});
+
+describe('saved-game compatibility (FB-E2)', () => {
+  it('upgrades a state saved before the feedback changes', () => {
+    const s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'unlockBuzzers' });
+    const legacy = JSON.parse(JSON.stringify(s));
+    delete legacy.intro;
+    delete legacy.clue.answeringEnded;
+    delete legacy.buzzer.early;
+    const { earlyBuzzPenalty: _a, earlyBuzzPoints: _b, categoryIntro: _c, ...oldRules } = legacy.rules;
+    legacy.rules = { ...oldRules, earlyBuzzLockoutMs: 300 };
+    const up = normalizeState(structuredClone(legacy));
+    expect(up.intro).toBeNull();
+    expect(up.clue?.answeringEnded).toBe(false);
+    expect(up.buzzer.early).toEqual([]);
+    expect(up.rules).toMatchObject({ earlyBuzzPenalty: 'lockout', earlyBuzzLockoutMs: 300, earlyBuzzPoints: 100, categoryIntro: true });
+    const after = buzz(up, 'alex');
+    expect(after.buzzer.winner?.competitorId).toBe(cid(after, 'alex'));
+    const off = normalizeState({ ...structuredClone(legacy), rules: { ...oldRules, earlyBuzzLockoutMs: 0 } });
+    expect(off.rules.earlyBuzzPenalty).toBe('none');
   });
 });

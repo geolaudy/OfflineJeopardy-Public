@@ -4,6 +4,7 @@ import type { DB } from './db/db.js';
 import { tx } from './db/db.js';
 import type { Board, BoardContent, BoardMeta, GameState, GameplayEvent } from '../shared/game.js';
 import type { ProfilePublic } from '../shared/views.js';
+import { normalizeState } from './engine/engine.js';
 
 export const newId = () => crypto.randomUUID();
 
@@ -401,7 +402,8 @@ export function loadGame(db: DB, id: string): GameState | undefined {
     voided: !!r.voided,
     voidedBy: (r.voided_by as string) ?? undefined,
   }));
-  return { ...state, events };
+  // Saves from older versions are upgraded in memory (missing fields get defaults; nothing is dropped).
+  return normalizeState({ ...state, events } as GameState);
 }
 
 export function listGames(db: DB, statuses: GameRow['status'][]) {

@@ -29,7 +29,7 @@ import { Hub } from './hub.js';
 import { lanAddresses, pickAddress } from './network.js';
 import { ImageError, MAX_UPLOAD_BYTES, processClueImage, processProfilePicture, safeJoin, sniffMedia } from './images.js';
 import * as stats from './stats.js';
-import { rulesFromPreset, RULE_PRESETS } from '../shared/game.js';
+import { normalizeRules, rulesFromPreset, RULE_PRESETS } from '../shared/game.js';
 import { rulesSchema } from '../shared/actions.js';
 import { boardContentSchema, exportBoardCsv, exportBoardJson, importBoardCsv, importBoardJson } from '../shared/boardIO.js';
 import { reassignIds, validateBoard } from '../shared/boardUtils.js';
@@ -578,7 +578,7 @@ export async function startServer(opts: ServerOptions) {
     if (!b) return bad(reply, 'Board not found', 404);
     const errors = validateBoard(b.content).filter((i) => i.level === 'error');
     if (errors.length) return bad(reply, errors.map((e) => e.message).join(' '));
-    const s = games.create({ title: body.title || b.title, boardId: b.id, board: structuredClone(b.content), mode: body.mode, rules: body.rules ?? rulesFromPreset(body.preset) });
+    const s = games.create({ title: body.title || b.title, boardId: b.id, board: structuredClone(b.content), mode: body.mode, rules: body.rules ? normalizeRules(body.rules) : rulesFromPreset(body.preset) });
     return { id: s.id };
   });
   app.post('/api/games/:id/load', async (req, reply) => {
@@ -622,7 +622,15 @@ export async function startServer(opts: ServerOptions) {
     if (!p) return bad(reply, 'Profile not found', 404);
     const own = s?.kind === 'profile' && s.profileId === id;
     if (!own && s?.kind !== 'host' && (p.stats_private || !s)) return bad(reply, 'These statistics are private', 403);
-    return { profile: repo.toPublic(p), stats: stats.profileStats(db, id) };
+    if (p.deleted_at) return bad(reply, 'Profile not found', 404);
+    // Public view of another player: public profile fields, statistics and game results only —
+    // never PINs, sessions, preferences or other private settings.
+    const history = (stats.profileHistory(db, id) as Record<string, unknown>[]).slice(0, 25).map((h) => ({
+      id: h.id, title: h.title, mode: h.mode, endedAt: h.endedAt, competitorName: h.competitorName, kind: h.kind,
+      finalScore: h.finalScore, placement: h.placement, isWinner: h.isWinner, competitorCount: h.competitorCount, winners: h.winners,
+      correct: h.correct, incorrect: h.incorrect,
+    }));
+    return { profile: repo.toPublic(p), own, stats: stats.profileStats(db, id), history };
   });
   app.get('/api/stats/teams/:id', async (req, reply) => {
     if (!requireHost(req, reply)) return;

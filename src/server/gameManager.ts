@@ -5,7 +5,7 @@ import type { DB } from './db/db.js';
 import { audit } from './db/db.js';
 import type { EngineAction } from '../shared/actions.js';
 import type { BoardContent, GameRules, GameState, InputKind } from '../shared/game.js';
-import { timerRemaining } from '../shared/game.js';
+import { CLUE_LOCKOUT, timerRemaining } from '../shared/game.js';
 import { applyAction, createGame, type EngineResult } from './engine/engine.js';
 import { resolveInput } from './engine/buzzer.js';
 import { getSetting, setSetting } from './db/db.js';
@@ -15,6 +15,10 @@ import type { ProfilePublic } from '../shared/views.js';
 export class GameManager {
   current: GameState | null = null;
   private timerHandle: NodeJS.Timeout | null = null;
+  private lockoutHandle: NodeJS.Timeout | null = null;
+  private introHandle: NodeJS.Timeout | null = null;
+  /** Delay between automatic category-introduction steps. */
+  introStepMs = 3500;
   onChange: () => void = () => {};
   clock: () => number = () => Date.now();
 
@@ -73,6 +77,7 @@ export class GameManager {
     this.current = s;
     setSetting(this.db, 'currentGameId', s?.id ?? null);
     this.scheduleTimer();
+    this.scheduleIntro();
     this.onChange();
   }
 
@@ -90,15 +95,43 @@ export class GameManager {
     if (action.type === 'startGame' || action.type === 'endGame' || (action.type === 'undo' && s.phase === 'ended')) {
       recordParticipants(this.db, res.state, this.profilesFor(res.state));
     }
-    if (action.type === 'endGame' || action.type === 'correctAttribution' || action.type === 'adjustScore')
+    if (action.type === 'endGame' || action.type === 'correctAttribution' || action.type === 'adjustScore' || action.type === 'refundPenalty' || action.type === 'updateRules')
       audit(this.db, actor, `game.${action.type}`, { gameId: s.id, action });
     if (action.type === 'undo' && s.phase === 'ended' && res.state.phase !== 'ended') {
       // Re-opened a completed game: it is active again until ended.
       persistGame(this.db, res.state, []);
     }
     this.scheduleTimer();
+    if (action.type === 'buzz' || action.type === 'unlockBuzzers' || action.type === 'undo') this.scheduleLockoutRefresh();
+    if (action.type === 'startIntro' || action.type === 'introNext' || action.type === 'introSkip' || action.type === 'undo') this.scheduleIntro();
     this.onChange();
     return res;
+  }
+
+  /** Early-buzz lockouts expire silently in state; re-broadcast when the next one ends so phones
+   *  re-enable their buzzer without waiting for an unrelated change. */
+  private scheduleLockoutRefresh() {
+    if (this.lockoutHandle) clearTimeout(this.lockoutHandle);
+    this.lockoutHandle = null;
+    const now = this.clock();
+    const next = Math.min(...Object.values(this.current?.buzzer.lockouts ?? {}).filter((t) => t > now && t < CLUE_LOCKOUT));
+    if (!Number.isFinite(next)) return;
+    this.lockoutHandle = setTimeout(() => {
+      this.lockoutHandle = null;
+      this.onChange();
+      this.scheduleLockoutRefresh();
+    }, next - now + 5);
+  }
+
+  /** Server-paced automatic category introduction (host chose "Auto"). */
+  private scheduleIntro() {
+    if (this.introHandle) clearTimeout(this.introHandle);
+    this.introHandle = null;
+    if (!this.current?.intro?.auto) return;
+    this.introHandle = setTimeout(() => {
+      this.introHandle = null;
+      if (this.current?.intro?.auto) this.dispatch({ type: 'introNext' }, 'intro');
+    }, this.introStepMs);
   }
 
   /** Single entry point for every buzz from every device type. */
@@ -125,6 +158,8 @@ export class GameManager {
   }
 
   dispose() {
-    if (this.timerHandle) clearTimeout(this.timerHandle);
+    for (const h of [this.timerHandle, this.lockoutHandle, this.introHandle]) if (h) clearTimeout(h);
+    this.timerHandle = this.lockoutHandle = this.introHandle = null;
+    this.onChange = () => {};
   }
 }

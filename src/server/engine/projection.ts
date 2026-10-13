@@ -2,7 +2,7 @@
 // locations) are removed here, before data ever leaves the server.
 import { findClue, scoresOf, type GameState, type Id } from '../../shared/game.js';
 import type { GameView, PlayerContext, ProfilePublic, ViewRole } from '../../shared/views.js';
-import { buzzBlockReason, competitorForProfile } from './engine.js';
+import { buzzBlockReason, competitorForProfile, lockoutUntil } from './engine.js';
 
 export function projectState(s: GameState, role: ViewRole, profiles: Record<Id, ProfilePublic>): GameView {
   const host = role === 'host';
@@ -45,6 +45,7 @@ export function projectState(s: GameState, role: ViewRole, profiles: Record<Id, 
       wager: s.clue.wager,
       answerRevealed: s.clue.answerRevealed,
       resolved: s.clue.resolved,
+      answeringEnded: s.clue.answeringEnded,
     };
   }
 
@@ -94,6 +95,7 @@ export function projectState(s: GameState, role: ViewRole, profiles: Record<Id, 
     buzzer,
     final,
     timer: s.timer,
+    intro: s.intro,
     showJoinQr: s.showJoinQr,
     results: s.results,
     startedAt: s.startedAt,
@@ -117,13 +119,16 @@ export function playerContext(s: GameState, profileId: Id, now: number): PlayerC
   const c = competitorForProfile(s, profileId);
   const u = s.unassigned.find((x) => x.profileId === profileId);
   const shared = c?.kind === 'team' && c.buzzerMode === 'shared';
-  const reason = !c ? 'not-playing' : shared ? 'shared-team' : buzzBlockReason(s, c.id, profileId, `phone:${profileId}`, now);
+  const reason = !c ? 'not-playing' : shared ? 'shared-team' : buzzBlockReason(s, c.id, profileId, now);
+  const until = c && !shared ? lockoutUntil(s, c.id, profileId) : 0;
   return {
     profileId,
     competitorId: c?.id ?? null,
     pending: !!u?.pending,
     canBuzz: reason === null,
+    canPress: reason === null || reason === 'locked',
     buzzReason: reason,
     sharedTeam: !!shared,
+    lockedUntil: until > now ? until : null,
   };
 }

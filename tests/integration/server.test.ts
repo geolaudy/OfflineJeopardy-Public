@@ -423,3 +423,111 @@ describe('boards: import, export, versions', () => {
     expect(diag.data.integrity).toBe('ok');
   });
 });
+
+describe('user feedback round 1 (server level)', () => {
+  it('early buzzes from phone, Joy-Con and keyboard follow the same rules; rule changes apply mid-game; lockout expiry refreshes phones', async () => {
+    const s = await start();
+    const host = await hostToken(s);
+    const [alex, jordan, sam] = await Promise.all(['Alex', 'Jordan', 'Sam'].map((n) => createProfile(s, n)));
+    const boardId = await sampleBoardId(s, host);
+    await api(s, 'POST', '/api/games', { boardId, mode: 'solo' }, host);
+    const h = await client(s, 'host', host);
+    for (const p of [alex, jordan, sam]) await h.act({ type: 'addPlayer', profileId: p.id });
+    // Jordan uses a (simulated) Joy-Con, Sam a keyboard key on the game PC, Alex a phone.
+    const bridge = await client(s, 'public', host);
+    const assign = async (profileId: string, ev: Record<string, unknown>) => {
+      h.send({ t: 'assignListen', target: { kind: 'profile', profileId } });
+      await h.wait((m) => m.t === 'controllers' && !!m.listening);
+      bridge.send({ t: 'controller', ev: { type: 'button', pressed: true, ...ev } });
+      bridge.send({ t: 'controller', ev: { type: 'button', pressed: false, ...ev } });
+      await h.waitState((g) => !!g?.bindings.some((b) => b.target.kind === 'profile' && b.target.profileId === profileId));
+    };
+    bridge.send({ t: 'controller', ev: { type: 'connected', controllerId: 'joycon:aa', kind: 'joycon', label: 'Joy-Con (L)', side: 'L' } });
+    await assign(jordan.id, { controllerId: 'joycon:aa', kind: 'joycon', button: 'L' });
+    await assign(sam.id, { controllerId: 'kb:KeyS', kind: 'keyboard', label: 'Key S', button: 'KeyS' });
+    await h.act({ type: 'updateRules', rules: { ...h.state!.rules, earlyBuzzPenalty: 'points', earlyBuzzPoints: 100, earlyBuzzLockoutMs: 400, categoryIntro: false } });
+    await h.act({ type: 'startGame' });
+    const pa = await client(s, 'player', alex.token);
+    const cidOf = (pid: string) => h.state!.competitors.find((c) => c.profileId === pid)!.id;
+
+    await h.act({ type: 'selectClue', clueId: 'hist_1' });
+    await pa.waitState((g, me) => g?.phase === 'clue' && me?.canPress === true && me?.canBuzz === false);
+    await new Promise((r) => setTimeout(r, 200)); // past the per-device debounce of the assignment presses
+    pa.send({ t: 'buzz' });
+    bridge.send({ t: 'controller', ev: { type: 'button', controllerId: 'joycon:aa', button: 'L', pressed: true } });
+    bridge.send({ t: 'controller', ev: { type: 'button', controllerId: 'kb:KeyS', button: 'KeyS', pressed: true } });
+    const g = await h.waitState((x) => (x?.buzzer.early.length ?? 0) === 3);
+    expect(new Set(g!.buzzer.early.map((e) => e.competitorId))).toEqual(new Set([cidOf(alex.id), cidOf(jordan.id), cidOf(sam.id)]));
+    for (const c of g!.competitors) expect(c.score).toBe(-100);
+    expect(g!.events!.filter((e) => e.result === 'early').map((e) => e.sourceKind).sort()).toEqual(['joycon', 'keyboard', 'phone']);
+    // The public board learns who buzzed early (for its subtle marker) but never the lockout table.
+    const pub = await client(s, 'public');
+    await pub.waitState((x) => (x?.buzzer.early.length ?? 0) === 3);
+    expect(JSON.stringify(pub.state)).not.toContain('lockouts');
+    // The phone is locked out, then re-enabled by the server when the lockout ends (no other change needed).
+    await pa.waitState((_g, me) => me?.buzzReason === 'locked-out' && me?.lockedUntil > 0);
+    await pa.waitState((_g, me) => me?.buzzReason === 'locked' && me?.lockedUntil === null, 2000);
+
+    // Host switches to "no penalty" mid-game: the next early buzz costs nothing, earlier penalties stay.
+    await h.act({ type: 'updateRules', rules: { ...h.state!.rules, earlyBuzzPenalty: 'none' } });
+    await h.act({ type: 'closeClue' });
+    await h.act({ type: 'selectClue', clueId: 'hist_2' });
+    pa.send({ t: 'buzz' });
+    await h.waitState((x) => (x?.buzzer.early.length ?? 0) === 1);
+    expect(h.state!.competitors.find((c) => c.id === cidOf(alex.id))!.score).toBe(-100);
+    // Unanswered flow: open, host ends answering, reveal, return.
+    await h.act({ type: 'unlockBuzzers' });
+    await h.act({ type: 'endAnswering', clueId: 'hist_2' });
+    expect(h.state!.clue?.answeringEnded).toBe(true);
+    await h.act({ type: 'revealAnswer', clueId: 'hist_2' });
+    await pub.waitState((x) => !!x?.clue?.answer);
+    await h.act({ type: 'closeClue', clueId: 'hist_2' });
+    const again = await h.tryAct({ type: 'closeClue', clueId: 'hist_2' }); // double tap is harmless
+    expect(again.ok).toBe(true);
+    expect(h.state!.phase).toBe('board');
+    // Refund one of the earlier penalties (audited).
+    const pen = h.state!.events!.find((e) => e.result === 'early' && e.scoreDelta === -100 && e.profileId === sam.id)!;
+    await h.act({ type: 'refundPenalty', eventId: pen.id });
+    await h.waitState((x) => x?.competitors.find((c) => c.profileId === sam.id)?.score === 0);
+  });
+
+  it('leaderboard keeps solo/team/contribution separate; other players see public stats only; private profiles stay private', async () => {
+    const s = await start();
+    const host = await hostToken(s);
+    const [alex, jordan, quiet] = await Promise.all(['Alex', 'Jordan', 'Quiet'].map((n) => createProfile(s, n)));
+    await api(s, 'PATCH', '/api/me', { statsPrivate: true }, quiet.token);
+    const boardId = await sampleBoardId(s, host);
+    await api(s, 'POST', '/api/games', { boardId, mode: 'solo' }, host);
+    const h = await client(s, 'host', host);
+    await h.act({ type: 'addPlayer', profileId: alex.id });
+    await h.act({ type: 'addPlayer', profileId: jordan.id });
+    await h.act({ type: 'startGame' });
+    const pa = await client(s, 'player', alex.token);
+    await h.act({ type: 'selectClue', clueId: 'hist_1' });
+    await h.act({ type: 'unlockBuzzers' });
+    pa.send({ t: 'buzz' });
+    await h.waitState((g) => g?.buzzer.winner?.profileId === alex.id);
+    await h.act({ type: 'judge', result: 'correct' });
+    await h.act({ type: 'endGame' });
+
+    expect((await api(s, 'GET', '/api/stats/leaderboard')).status).toBe(401);
+    const lb = (await api(s, 'GET', '/api/stats/leaderboard', undefined, jordan.token)).data as any[];
+    expect(lb.map((r) => r.name).sort()).toEqual(['Alex', 'Jordan']); // private profile excluded
+    const a = lb.find((r) => r.id === alex.id);
+    expect(a.solo).toMatchObject({ games: 1, wins: 1, winRate: 1, correct: 1, highestScore: 200 });
+    expect(a.team).toMatchObject({ games: 0, wins: 0 });
+    expect(a.contribution).toMatchObject({ games: 0, correct: 0, net: 0 });
+
+    // Jordan views Alex's public page
+    const page = (await api(s, 'GET', `/api/stats/profiles/${alex.id}`, undefined, jordan.token)).data;
+    expect(page.own).toBe(false);
+    expect(page.profile.name).toBe('Alex');
+    expect(page.stats.solo.games.wins).toBe(1);
+    expect(page.history[0]).toMatchObject({ finalScore: 200, isWinner: true });
+    const json = JSON.stringify(page);
+    for (const secret of ['pin', 'token', 'preferred', 'statsPrivate', 'failed_attempts', 'locked_until']) expect(json).not.toContain(secret);
+    expect((await api(s, 'GET', `/api/stats/profiles/${quiet.id}`, undefined, jordan.token)).status).toBe(403);
+    expect((await api(s, 'GET', `/api/stats/profiles/${quiet.id}`, undefined, quiet.token)).status).toBe(200);
+    expect((await api(s, 'GET', `/api/stats/profiles/${alex.id}`)).status).toBe(403); // must be signed in
+  });
+});

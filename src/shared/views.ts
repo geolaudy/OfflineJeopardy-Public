@@ -8,6 +8,7 @@ import type {
   GameRules,
   GameplayEvent,
   Id,
+  IntroState,
   MediaRef,
   Phase,
   TimerState,
@@ -53,6 +54,7 @@ export interface ClueView {
   wager: { competitorId: Id; amount: number; profileId: Id | null } | null;
   answerRevealed: boolean;
   resolved: boolean;
+  answeringEnded: boolean;
 }
 
 export interface FinalEntryView {
@@ -96,6 +98,7 @@ export interface GameView {
   buzzer: Omit<BuzzerState, 'lockouts' | 'attemptedProfiles'> & { attemptedProfiles: Id[] };
   final: FinalView | null;
   timer: TimerState | null;
+  intro: IntroState | null;
   showJoinQr: boolean;
   results: GameResult[] | null;
   startedAt: number | null;
@@ -113,6 +116,11 @@ export interface PlayerContext {
   competitorId: Id | null;
   pending: boolean;
   canBuzz: boolean;
+  /** The button is live: buzzers open, or the clue is showing and an early press would count
+   *  (so phones behave like physical buzzers, including early-buzz rules). */
+  canPress: boolean;
   buzzReason: string | null;
   sharedTeam: boolean;
+  /** End of an early-buzz lockout (server time); null = none. Very large = rest of the clue. */
+  lockedUntil: number | null;
 }

@@ -12,7 +12,10 @@ import {
   type BoardContent,
   type Id,
   type TimerState,
+  CLUE_LOCKOUT,
   findClue,
+  lockoutKey,
+  normalizeRules,
   scoresOf,
   timerRemaining,
   TEAM_COLORS,
@@ -51,6 +54,8 @@ const UNDOABLE = new Set([
   'judgeFinal',
   'endGame',
   'startGame',
+  'endAnswering',
+  'refundPenalty',
 ]);
 const UNDO_LIMIT = 100;
 
@@ -63,7 +68,18 @@ export function emptyBuzzer(): BuzzerState {
     attemptedCompetitors: [],
     attemptedProfiles: [],
     lockouts: {},
+    early: [],
   };
+}
+
+/** Bring a saved state from an older version up to the current shape (no data is dropped). */
+export function normalizeState(s: GameState): GameState {
+  s.rules = normalizeRules(s.rules);
+  s.buzzer = { ...emptyBuzzer(), ...(s.buzzer ?? {}) };
+  if (!Array.isArray(s.buzzer.early)) s.buzzer.early = [];
+  if (s.clue && typeof s.clue.answeringEnded !== 'boolean') s.clue.answeringEnded = s.clue.resolved;
+  if (s.intro === undefined) s.intro = null;
+  return s;
 }
 
 export function createGame(opts: {
@@ -80,7 +96,7 @@ export function createGame(opts: {
     title: opts.title,
     boardId: opts.boardId,
     mode: opts.mode,
-    rules: opts.rules,
+    rules: normalizeRules(opts.rules),
     board: opts.board,
     phase: 'lobby',
     paused: false,
@@ -94,6 +110,7 @@ export function createGame(opts: {
     buzzer: emptyBuzzer(),
     final: null,
     timer: null,
+    intro: null,
     events: [],
     seq: 0,
     showJoinQr: true,
@@ -167,14 +184,11 @@ export function computeResults(s: GameState): GameResult[] {
 }
 
 /** Can this competitor/profile buzz right now? Shared by engine and player projections. */
-export function buzzBlockReason(s: GameState, competitorId: Id, profileId: Id | null, controllerId: Id, now: number): string | null {
+export function buzzBlockReason(s: GameState, competitorId: Id, profileId: Id | null, now: number): string | null {
   if (s.phase !== 'clue' || !s.clue) return 'no-clue';
   if (s.paused) return 'paused';
-  if (s.clue.isDailyWager || s.clue.resolved) return 'not-buzzable';
-  const until = s.buzzer.lockouts[controllerId];
-  if (until && until > now) return 'locked-out';
-  if (s.buzzer.status === 'locked') return 'locked';
-  if (s.buzzer.status === 'buzzed') return 'taken';
+  if (s.clue.isDailyWager || s.clue.resolved || s.clue.stage !== 'question') return 'not-buzzable';
+  if (s.clue.answeringEnded) return 'ended';
   const c = s.competitors.find((x) => x.id === competitorId);
   if (!c) return 'not-playing';
   if (s.buzzer.attemptedCompetitors.includes(competitorId)) {
@@ -186,7 +200,15 @@ export function buzzBlockReason(s: GameState, competitorId: Id, profileId: Id | 
       !s.buzzer.attemptedProfiles.includes(profileId);
     if (!retryOk) return 'already-answered';
   }
+  if (lockoutUntil(s, competitorId, profileId) > now) return 'locked-out';
+  if (s.buzzer.status === 'locked') return 'locked';
+  if (s.buzzer.status === 'buzzed') return 'taken';
   return null;
+}
+
+/** End of the early-buzz lockout affecting this person (or shared-buzzer team); 0 when none. */
+export function lockoutUntil(s: GameState, competitorId: Id, profileId: Id | null): number {
+  return Math.max(s.buzzer.lockouts[lockoutKey(competitorId, profileId)] ?? 0, s.buzzer.lockouts[lockoutKey(competitorId, null)] ?? 0);
 }
 
 // ---------- event helpers ----------
@@ -220,7 +242,7 @@ function voidEvent(tx: Tx, ev: GameplayEvent, by: Id) {
 
 // ---------- undo ----------
 
-const RESTORABLE = ['phase', 'roundIndex', 'usedClueIds', 'controlCompetitorId', 'clue', 'buzzer', 'final', 'timer', 'endedAt', 'results', 'startedAt', 'paused'] as const;
+const RESTORABLE = ['phase', 'roundIndex', 'usedClueIds', 'controlCompetitorId', 'clue', 'buzzer', 'final', 'timer', 'intro', 'endedAt', 'results', 'startedAt', 'paused'] as const;
 
 function snapshot(s: GameState, label: string) {
   const data: Record<string, unknown> = {};
@@ -252,6 +274,8 @@ export function undoLabel(type: string): string {
     judgeFinal: 'Final judgement',
     endGame: 'end game',
     startGame: 'start game',
+    endAnswering: 'end answering',
+    refundPenalty: 'penalty refund',
   };
   return labels[type] ?? type;
 }
@@ -396,7 +420,8 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       return;
     }
     case 'updateRules': {
-      s.rules = a.rules;
+      // Takes effect from the next action/buzz; earlier events and penalties are never rewritten.
+      s.rules = normalizeRules(a.rules as Partial<GameRules>);
       return;
     }
     case 'showJoinQr': {
@@ -415,6 +440,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       s.showJoinQr = false;
       s.roundIndex = Math.max(0, s.board.rounds.findIndex((r) => r.kind === 'standard'));
       s.controlCompetitorId = s.competitors[0].id;
+      s.intro = s.rules.categoryIntro ? { roundIndex: s.roundIndex, step: -1, auto: false } : null;
       emit(tx, { type: 'game_start', roundIndex: s.roundIndex });
       return;
     }
@@ -448,7 +474,27 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       const scores = scoresOf(s.events);
       const sorted = [...s.competitors].sort((x, y) => (scores[x.id] ?? 0) - (scores[y.id] ?? 0));
       s.controlCompetitorId = sorted[0]?.id ?? s.controlCompetitorId;
+      s.intro = s.rules.categoryIntro ? { roundIndex: a.roundIndex, step: -1, auto: false } : null;
       emit(tx, { type: 'round_change', roundIndex: a.roundIndex });
+      return;
+    }
+    case 'startIntro': {
+      if (s.phase !== 'board') fail('Return to the board first');
+      const round = s.board.rounds[s.roundIndex];
+      if (!round || round.kind !== 'standard') fail('No round to introduce');
+      s.intro = { roundIndex: s.roundIndex, step: -1, auto: !!a.auto };
+      return;
+    }
+    case 'introNext': {
+      if (!s.intro) return { ignored: true };
+      const count = s.board.rounds[s.intro.roundIndex]?.categories.length ?? 0;
+      s.intro.step++;
+      if (s.intro.step >= count) s.intro = null;
+      return;
+    }
+    case 'introSkip': {
+      if (!s.intro) return { ignored: true };
+      s.intro = null;
       return;
     }
     case 'setControl': {
@@ -474,10 +520,12 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
         wager: null,
         answerRevealed: false,
         resolved: false,
+        answeringEnded: false,
       };
       s.buzzer = emptyBuzzer();
       s.phase = 'clue';
       s.timer = null;
+      s.intro = null; // picking a clue ends any category introduction
       if (dw) maybeAutoTimer(s, 'wager', now);
       emit(tx, { type: 'clue_open', clueId: a.clueId, roundIndex: f.r, result: dw ? 'daily_wager' : 'standard' });
       return;
@@ -507,11 +555,19 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       return;
     }
     case 'revealAnswer': {
-      if (s.phase === 'clue') {
-        activeClue(s).answerRevealed = true;
-        return;
-      }
-      fail('No clue is open');
+      if (a.clueId && s.clue?.clueId !== a.clueId) return { ignored: true, info: 'stale' };
+      const clue = activeClue(s);
+      clue.answerRevealed = true;
+      // Once the answer is public nobody may still buzz in.
+      finishAnswering(s, clue);
+      return;
+    }
+    case 'endAnswering': {
+      if (a.clueId && s.clue?.clueId !== a.clueId) return { ignored: true, info: 'stale' };
+      const clue = activeClue(s);
+      if (clue.isDailyWager && !clue.resolved) fail('Judge the Daily Wager first');
+      if (s.buzzer.winner) fail('Judge the buzzed-in answer first');
+      finishAnswering(s, clue);
       return;
     }
     case 'hideAnswer': {
@@ -522,6 +578,9 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       const clue = activeClue(s);
       if (clue.isDailyWager) fail('Daily Wagers do not use buzzers');
       if (clue.resolved) fail('This clue is already answered');
+      if (clue.stage !== 'question') fail('The clue is not showing yet');
+      if (clue.answerRevealed) fail('The answer is already showing');
+      clue.answeringEnded = false; // the host may re-open after time ran out
       s.buzzer.status = 'open';
       s.buzzer.openedAt = now;
       s.buzzer.winner = null;
@@ -537,7 +596,9 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       return;
     }
     case 'resetBuzzers': {
+      // Full reset of this clue's buzzing: attempts, queue and early-buzz lockouts are cleared.
       s.buzzer = emptyBuzzer();
+      if (s.clue && !s.clue.resolved && !s.clue.answerRevealed) s.clue.answeringEnded = false;
       if (s.timer && (s.timer.kind === 'buzz' || s.timer.kind === 'answer')) s.timer = null;
       return;
     }
@@ -582,6 +643,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       if (correct) {
         clue.resolved = true;
         clue.answerRevealed = true;
+        clue.answeringEnded = true;
         s.buzzer.status = 'locked';
         s.buzzer.winner = null;
         s.controlCompetitorId = c.id;
@@ -594,6 +656,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
         s.timer = null;
         if (clue.isDailyWager) {
           clue.resolved = true;
+          clue.answeringEnded = true;
         } else {
           const someoneLeft = s.competitors.some((x) => buzzBlockReasonIgnoringStatus(s, x) === null);
           if (s.rules.autoReopenAfterIncorrect && someoneLeft) {
@@ -602,15 +665,32 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
             maybeAutoTimer(s, 'buzz', now);
           } else {
             s.buzzer.status = 'locked';
+            // Nobody left to try → the host is guided to reveal the answer.
+            if (!someoneLeft) clue.answeringEnded = true;
           }
         }
       }
       return;
     }
     case 'closeClue': {
-      if (s.phase !== 'clue') fail('No clue is open');
-      closeActiveClue(tx, s.clue?.resolved ? 'answered' : 'skipped');
+      // A repeated tap (or a tap meant for a clue that is already closed) must not close the next clue.
+      if (a.clueId && s.clue?.clueId !== a.clueId) return { ignored: true, info: 'stale' };
+      if (s.phase !== 'clue' || !s.clue) fail('No clue is open');
+      const c = s.clue!;
+      const answered = s.events.some((e) => !e.voided && e.type === 'answer' && e.clueId === c.clueId && e.result === 'correct');
+      closeActiveClue(tx, answered ? 'answered' : c.answerRevealed || c.answeringEnded || c.resolved ? 'unanswered' : 'skipped');
       s.phase = 'board';
+      return;
+    }
+    case 'refundPenalty': {
+      const orig = s.events.find((e) => e.id === a.eventId);
+      if (!orig || orig.voided || orig.type !== 'buzz' || orig.result !== 'early' || !orig.scoreDelta) fail('That early-buzz penalty cannot be refunded');
+      const o = orig!;
+      // Audited correction: void the penalty and record an unpenalised early buzz in its place,
+      // so statistics still count the early press but the score is restored.
+      const corr = emit(tx, { type: 'score_adjust', competitorId: o.competitorId, profileId: o.profileId, clueId: o.clueId, roundIndex: o.roundIndex, note: 'early-buzz penalty refunded', correctsEventId: o.id });
+      voidEvent(tx, o, corr.id);
+      emit(tx, { type: 'buzz', result: 'early', clueId: o.clueId, roundIndex: o.roundIndex, competitorId: o.competitorId, profileId: o.profileId, controllerId: o.controllerId, sourceKind: o.sourceKind, correctsEventId: o.id, note: 'refunded' });
       return;
     }
     case 'restoreClue': {
@@ -704,7 +784,11 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       t.startedAt = null;
       t.running = false;
       t.expired = true;
-      if (t.kind === 'buzz' && s.buzzer.status === 'open') s.buzzer.status = 'locked';
+      if (t.kind === 'buzz' && s.buzzer.status === 'open') {
+        s.buzzer.status = 'locked';
+        // Time ran out with nobody buzzing: the answering period is over.
+        if (s.clue && !s.buzzer.winner) s.clue.answeringEnded = true;
+      }
       return;
     }
 
@@ -716,6 +800,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       const round = s.board.rounds[idx];
       if (!round.categories[0]?.clues[0]) fail('The Final round has no clue');
       closeActiveClue(tx, 'skipped');
+      s.intro = null;
       const scores = scoresOf(s.events);
       const eligible = s.competitors.filter((c) => s.rules.finalAllowNonPositive || (scores[c.id] ?? 0) > 0);
       s.phase = 'final';
@@ -805,6 +890,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       closeActiveClue(tx, 'skipped');
       s.phase = 'ended';
       s.timer = null;
+      s.intro = null;
       s.buzzer = emptyBuzzer();
       s.endedAt = now;
       s.results = computeResults(s);
@@ -820,6 +906,8 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       for (const k of RESTORABLE) (s as unknown as Record<string, unknown>)[k] = data[k];
       // Timers are not resurrected by undo; the host restarts them if needed.
       if (s.timer) s.timer = { ...s.timer, running: false, startedAt: null };
+      normalizeState(s); // snapshots taken by older versions may lack newer fields
+      if (s.intro) s.intro.auto = false;
       return { info: `Undid ${snap!.label}` };
     }
     default: {
@@ -847,7 +935,7 @@ function finalState(s: GameState) {
   return s.final!;
 }
 
-function closeActiveClue(tx: Tx, result: 'answered' | 'skipped') {
+function closeActiveClue(tx: Tx, result: 'answered' | 'unanswered' | 'skipped') {
   const s = tx.s;
   if (!s.clue) return;
   emit(tx, { type: 'clue_close', clueId: s.clue.clueId, roundIndex: s.clue.roundIndex, result });
@@ -856,28 +944,57 @@ function closeActiveClue(tx: Tx, result: 'answered' | 'skipped') {
   s.timer = null;
 }
 
+/** Close the answering opportunity: no more buzzing for this clue unless the host re-opens. */
+function finishAnswering(s: GameState, clue: ActiveClue) {
+  clue.answeringEnded = true;
+  if (s.buzzer.status === 'open') s.buzzer.status = 'locked';
+  if (s.timer && (s.timer.kind === 'buzz' || (s.timer.kind === 'answer' && !s.buzzer.winner))) s.timer = null;
+}
+
+/** Applies the current early-buzz rule. Detection is purely server-side: a buzz that arrives while
+ *  the question is showing but buzzers are not open for this answering opportunity. */
+function handleEarlyBuzz(tx: Tx, c: Competitor, a: Extract<EngineAction, { type: 'buzz' }>, clue: ActiveClue): ReduceExtra {
+  const { s, ctx } = tx;
+  const now = ctx.now;
+  const r = s.rules;
+  const key = lockoutKey(c.id, a.profileId);
+  let until: number | null = null;
+  let points = 0;
+  if (r.earlyBuzzPenalty === 'lockout') until = now + r.earlyBuzzLockoutMs;
+  else if (r.earlyBuzzPenalty === 'clue') until = CLUE_LOCKOUT;
+  else if (r.earlyBuzzPenalty === 'points') {
+    until = now + r.earlyBuzzLockoutMs; // stops button mashing
+    const already = s.buzzer.early.some((e) => e.points > 0 && lockoutKey(e.competitorId, e.profileId) === key);
+    if (!already) points = Math.max(0, r.earlyBuzzPoints);
+  }
+  if (until != null) s.buzzer.lockouts[key] = Math.max(s.buzzer.lockouts[key] ?? 0, until);
+  s.buzzer.early.push({ competitorId: c.id, profileId: a.profileId, at: now, penalty: r.earlyBuzzPenalty, until, points });
+  if (s.buzzer.early.length > 30) s.buzzer.early.splice(0, s.buzzer.early.length - 30);
+  emit(tx, {
+    type: 'buzz',
+    result: 'early',
+    clueId: clue.clueId,
+    roundIndex: clue.roundIndex,
+    competitorId: c.id,
+    profileId: a.profileId,
+    controllerId: a.controllerId,
+    sourceKind: a.sourceKind,
+    // Points belong to the competitor (team); the person's contribution is only charged when known.
+    scoreDelta: points ? -points : 0,
+    contributionDelta: points && a.profileId ? -points : 0,
+    note: r.earlyBuzzPenalty,
+  });
+  return { ignored: true, info: 'early' };
+}
+
 function handleBuzz(tx: Tx, a: Extract<EngineAction, { type: 'buzz' }>): ReduceExtra {
   const { s, ctx } = tx;
   const now = ctx.now;
   const c = s.competitors.find((x) => x.id === a.competitorId);
   if (!c) return { ignored: true, info: 'not-playing' };
-  const reason = buzzBlockReason(s, c.id, a.profileId, a.controllerId, now);
+  const reason = buzzBlockReason(s, c.id, a.profileId, now);
   const clue = s.clue;
-  if (reason === 'locked' && clue && !clue.resolved && !clue.isDailyWager && s.phase === 'clue') {
-    // Early buzz: buzzers not yet unlocked for this clue.
-    if (s.rules.earlyBuzzLockoutMs > 0) s.buzzer.lockouts[a.controllerId] = now + s.rules.earlyBuzzLockoutMs;
-    emit(tx, {
-      type: 'buzz',
-      result: 'early',
-      clueId: clue.clueId,
-      roundIndex: clue.roundIndex,
-      competitorId: c.id,
-      profileId: a.profileId,
-      controllerId: a.controllerId,
-      sourceKind: a.sourceKind,
-    });
-    return { ignored: true, info: 'early' };
-  }
+  if (reason === 'locked' && clue) return handleEarlyBuzz(tx, c, a, clue);
   if (reason === 'taken' && clue && s.buzzer.winner && s.buzzer.winner.competitorId !== c.id) {
     if (!s.buzzer.queue.some((q) => q.competitorId === c.id) && !s.buzzer.attemptedCompetitors.includes(c.id)) {
       s.buzzer.queue.push({ competitorId: c.id, profileId: a.profileId, at: now });

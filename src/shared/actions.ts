@@ -25,11 +25,15 @@ export const rulesSchema = z.object({
   incorrectDeducts: z.boolean(),
   autoReopenAfterIncorrect: z.boolean(),
   teamRetry: z.enum(['none', 'otherMembers']),
+  // New fields are optional so older clients/saves still validate; the engine normalises them.
+  earlyBuzzPenalty: z.enum(['none', 'lockout', 'clue', 'points']).optional(),
   earlyBuzzLockoutMs: z.number().int().min(0).max(5000),
+  earlyBuzzPoints: z.number().int().min(0).max(100000).optional(),
   buzzDebounceMs: z.number().int().min(0).max(2000),
   dailyWagerMin: z.number().int().min(0).max(100000),
   finalAllowNonPositive: z.boolean(),
   allowSelfJoin: z.boolean(),
+  categoryIntro: z.boolean().optional(),
   timers: timerRules,
 });
 
@@ -68,7 +72,8 @@ export const hostActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('startGame') }),
   z.object({ type: z.literal('selectClue'), clueId: id }),
   z.object({ type: z.literal('setDailyWager'), competitorId: id, amount: int, profileId: id.nullable().optional() }),
-  z.object({ type: z.literal('revealAnswer') }),
+  // clueId (optional) makes the action a no-op if a different clue is open (stale double taps).
+  z.object({ type: z.literal('revealAnswer'), clueId: id.optional() }),
   z.object({ type: z.literal('hideAnswer') }),
   z.object({ type: z.literal('unlockBuzzers') }),
   z.object({ type: z.literal('lockBuzzers') }),
@@ -79,7 +84,12 @@ export const hostActionSchema = z.discriminatedUnion('type', [
     competitorId: id.optional(),
     profileId: id.nullable().optional(),
   }),
-  z.object({ type: z.literal('closeClue') }),
+  z.object({ type: z.literal('closeClue'), clueId: id.optional() }),
+  z.object({ type: z.literal('endAnswering'), clueId: id.optional() }),
+  z.object({ type: z.literal('refundPenalty'), eventId: id }),
+  z.object({ type: z.literal('startIntro'), auto: z.boolean().optional() }),
+  z.object({ type: z.literal('introNext') }),
+  z.object({ type: z.literal('introSkip') }),
   z.object({ type: z.literal('restoreClue'), clueId: id }),
   z.object({
     type: z.literal('adjustScore'),

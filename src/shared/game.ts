@@ -66,6 +66,18 @@ export interface TimerRules {
   finalSeconds: number;
 }
 
+/** What happens when someone buzzes while the clue is showing but buzzers are not open yet.
+ *  none: recorded only · lockout: locked out for `earlyBuzzLockoutMs` · clue: locked out for the
+ *  rest of the clue · points: lose `earlyBuzzPoints` (once per player per clue) + short lockout. */
+export type EarlyBuzzPenalty = 'none' | 'lockout' | 'clue' | 'points';
+
+export const EARLY_BUZZ_OPTIONS: Record<EarlyBuzzPenalty, { label: string; description: string }> = {
+  none: { label: 'No penalty', description: 'Early presses are ignored (they still count in statistics).' },
+  lockout: { label: 'Short lockout', description: 'Buzzing early blocks that player for a moment, like on TV.' },
+  clue: { label: 'Out for this clue', description: 'Buzzing early blocks that player until the next clue.' },
+  points: { label: 'Lose points', description: 'Buzzing early costs points (once per player per clue) plus a short lockout.' },
+};
+
 export interface GameRules {
   preset: string;
   incorrectDeducts: boolean;
@@ -73,11 +85,14 @@ export interface GameRules {
   /** 'none': a competitor (team) gets one buzz opportunity per clue.
    *  'otherMembers': after an incorrect answer, a different member of the same team may buzz again. */
   teamRetry: 'none' | 'otherMembers';
-  earlyBuzzLockoutMs: number; // 0 = early buzzes are ignored without penalty
+  earlyBuzzPenalty: EarlyBuzzPenalty;
+  earlyBuzzLockoutMs: number; // duration for 'lockout' (and the anti-mash lockout of 'points')
+  earlyBuzzPoints: number; // points lost for 'points'
   buzzDebounceMs: number;
   dailyWagerMin: number;
   finalAllowNonPositive: boolean;
   allowSelfJoin: boolean; // players joining from phones are added without host approval
+  categoryIntro: boolean; // introduce the categories on the TV at the start of each round
   timers: TimerRules;
 }
 
@@ -86,11 +101,14 @@ export const DEFAULT_RULES: GameRules = {
   incorrectDeducts: true,
   autoReopenAfterIncorrect: true,
   teamRetry: 'none',
-  earlyBuzzLockoutMs: 0,
+  earlyBuzzPenalty: 'none',
+  earlyBuzzLockoutMs: 250,
+  earlyBuzzPoints: 100,
   buzzDebounceMs: 120,
   dailyWagerMin: 5,
   finalAllowNonPositive: false,
   allowSelfJoin: true,
+  categoryIntro: true,
   timers: { autoStart: true, buzzSeconds: 10, answerSeconds: 8, wagerSeconds: 30, finalSeconds: 30 },
 };
 
@@ -109,7 +127,8 @@ export const RULE_PRESETS: Record<string, { label: string; description: string; 
     label: 'Speed Trivia',
     description: 'Short timers and an early-buzz lockout.',
     rules: {
-      earlyBuzzLockoutMs: 250,
+      earlyBuzzPenalty: 'lockout',
+      earlyBuzzLockoutMs: 500,
       timers: { autoStart: true, buzzSeconds: 5, answerSeconds: 5, wagerSeconds: 20, finalSeconds: 20 },
     },
   },
@@ -124,6 +143,20 @@ export const RULE_PRESETS: Record<string, { label: string; description: string; 
     rules: { timers: { autoStart: false, buzzSeconds: 0, answerSeconds: 0, wagerSeconds: 0, finalSeconds: 0 } },
   },
 };
+
+/** Fill in rule fields added after a game was saved (older saves / older clients). */
+export function normalizeRules(r: Partial<GameRules> | null | undefined): GameRules {
+  const src = r ?? {};
+  const legacyMs = typeof src.earlyBuzzLockoutMs === 'number' ? src.earlyBuzzLockoutMs : undefined;
+  return {
+    ...DEFAULT_RULES,
+    ...src,
+    // Before 'earlyBuzzPenalty' existed, a non-zero lockout meant "short lockout".
+    earlyBuzzPenalty: src.earlyBuzzPenalty ?? (legacyMs ? 'lockout' : 'none'),
+    earlyBuzzLockoutMs: legacyMs || DEFAULT_RULES.earlyBuzzLockoutMs,
+    timers: { ...DEFAULT_RULES.timers, ...(src.timers ?? {}) },
+  };
+}
 
 export function rulesFromPreset(preset: string): GameRules {
   const p = RULE_PRESETS[preset] ?? RULE_PRESETS.classic;
@@ -177,6 +210,23 @@ export interface BuzzWinner {
   reactionMs: number | null;
 }
 
+export interface EarlyBuzz {
+  competitorId: Id;
+  profileId: Id | null;
+  at: number;
+  penalty: EarlyBuzzPenalty;
+  until: number | null; // lockout end (CLUE_LOCKOUT = rest of the clue)
+  points: number; // points deducted by this early buzz
+}
+
+/** Lockout value meaning "until the next clue" (JSON-safe). */
+export const CLUE_LOCKOUT = Number.MAX_SAFE_INTEGER;
+
+/** Penalties apply to the person (or to the whole team for a shared buzzer), never to a device. */
+export function lockoutKey(competitorId: Id, profileId: Id | null | undefined) {
+  return profileId ? `p:${profileId}` : `c:${competitorId}`;
+}
+
 export interface BuzzerState {
   status: 'locked' | 'open' | 'buzzed';
   openedAt: number | null;
@@ -185,7 +235,9 @@ export interface BuzzerState {
   queue: { competitorId: Id; profileId: Id | null; at: number }[];
   attemptedCompetitors: Id[];
   attemptedProfiles: Id[];
-  lockouts: Record<string, number>; // controllerId -> until (early-buzz penalty)
+  lockouts: Record<string, number>; // lockoutKey -> until (early-buzz penalty)
+  /** Early buzzes during this clue (most recent last). */
+  early: EarlyBuzz[];
 }
 
 export interface ActiveClue {
@@ -199,6 +251,16 @@ export interface ActiveClue {
   wager: { competitorId: Id; amount: number; profileId: Id | null } | null;
   answerRevealed: boolean;
   resolved: boolean; // correct answer given or host closed scoring
+  /** The answering opportunity is over (correct answer, time ran out, host ended it, or nobody
+   *  left to try). The host is then guided to reveal the answer and return to the board. */
+  answeringEnded: boolean;
+}
+
+/** Category introduction on the TV at the start of a round. step -1 = round title card. */
+export interface IntroState {
+  roundIndex: number;
+  step: number;
+  auto: boolean;
 }
 
 export interface FinalEntry {
@@ -294,6 +356,7 @@ export interface GameState {
   buzzer: BuzzerState;
   final: FinalState | null;
   timer: TimerState | null;
+  intro: IntroState | null;
   events: GameplayEvent[];
   seq: number;
   showJoinQr: boolean;

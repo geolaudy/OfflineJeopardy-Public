@@ -25,6 +25,7 @@ interface Client {
 export class Hub {
   private clients = new Set<Client>();
   private pending = false;
+  private closed = false;
 
   constructor(
     private db: DB,
@@ -61,11 +62,11 @@ export class Hub {
   }
 
   scheduleBroadcast() {
-    if (this.pending) return;
+    if (this.pending || this.closed) return;
     this.pending = true;
     setImmediate(() => {
       this.pending = false;
-      this.broadcast();
+      if (!this.closed) this.broadcast();
     });
   }
 
@@ -230,6 +231,7 @@ export class Hub {
   }
 
   closeAll() {
+    this.closed = true;
     for (const c of this.clients) c.ws.close(1001, 'server-shutdown');
   }
 }

@@ -89,11 +89,11 @@ export function profileStats(db: DB, profileId: string) {
 
   const buzzes = db
     .prepare(
-      `SELECT gc.kind, e.result, e.reaction_ms FROM gameplay_events e JOIN games g ON g.id = e.game_id
+      `SELECT gc.kind, e.result, e.reaction_ms, e.score_delta FROM gameplay_events e JOIN games g ON g.id = e.game_id
        JOIN game_competitors gc ON gc.game_id = e.game_id AND gc.competitor_id = e.competitor_id
        WHERE e.type = 'buzz' AND e.voided = 0 AND e.profile_id = ? AND ${COMPLETED}`,
     )
-    .all(profileId) as { kind: string; result: string; reaction_ms: number | null }[];
+    .all(profileId) as { kind: string; result: string; reaction_ms: number | null; score_delta: number }[];
 
   const buzzAgg = (kind: string) => {
     const b = buzzes.filter((x) => x.kind === kind && x.result !== 'early');
@@ -103,6 +103,7 @@ export function profileStats(db: DB, profileId: string) {
       attempts: b.length,
       successful: won.length,
       early: buzzes.filter((x) => x.kind === kind && x.result === 'early').length,
+      earlyPenaltyPoints: -buzzes.filter((x) => x.kind === kind && x.result === 'early').reduce((a, x) => a + (x.score_delta ?? 0), 0),
       averageReactionMs: reactions.length ? Math.round(reactions.reduce((a, c) => a + c, 0) / reactions.length) : null,
     };
   };
@@ -260,32 +261,51 @@ export function gameDetail(db: DB, gameId: string) {
   };
 }
 
+/** Leaderboard rows for every profile whose statistics are public. Solo games, team games and
+ *  individual contributions in team games are returned as separate groups — the client ranks
+ *  within one group at a time and never mixes them. */
 export function leaderboard(db: DB) {
-  const rows = db
-    .prepare(
-      `SELECT p.id, p.display_name AS name, p.color, p.avatar, p.picture_file AS pictureFile,
-        COUNT(DISTINCT gp.game_id) AS games,
-        SUM(CASE WHEN gc.is_winner = 1 THEN 1 ELSE 0 END) AS wins
-       FROM profiles p
-       LEFT JOIN game_participants gp ON gp.profile_id = p.id AND gp.game_id IN (SELECT id FROM games WHERE status = 'completed')
-       LEFT JOIN game_competitors gc ON gc.game_id = gp.game_id AND gc.competitor_id = gp.competitor_id
-       WHERE p.deleted_at IS NULL AND p.stats_private = 0 GROUP BY p.id ORDER BY wins DESC, games DESC LIMIT 50`,
-    )
-    .all() as Record<string, unknown>[];
-  const correct = db.prepare(
-    `SELECT SUM(CASE WHEN result='correct' THEN 1 ELSE 0 END) AS c, SUM(CASE WHEN result='incorrect' THEN 1 ELSE 0 END) AS i
-     FROM gameplay_events e JOIN games g ON g.id = e.game_id WHERE e.profile_id = ? AND e.type='answer' AND e.voided=0 AND ${COMPLETED}`,
-  );
-  return rows.map((r) => {
-    const a = correct.get(r.id as string) as { c: number | null; i: number | null };
-    const c = a.c ?? 0;
-    const i = a.i ?? 0;
+  const profiles = db
+    .prepare('SELECT id, display_name AS name, nickname, color, avatar, picture_file AS pictureFile FROM profiles WHERE deleted_at IS NULL AND stats_private = 0')
+    .all() as { id: string; name: string; nickname: string; color: string; avatar: string; pictureFile: string | null }[];
+  return profiles.map((p) => {
+    const st = profileStats(db, p.id);
     return {
-      ...r,
-      pictureUrl: r.pictureFile ? `/media/profiles/${r.pictureFile}` : null,
-      correct: c,
-      incorrect: i,
-      accuracy: c + i ? c / (c + i) : null,
+      id: p.id,
+      name: p.name,
+      nickname: p.nickname,
+      color: p.color,
+      avatar: p.avatar,
+      pictureUrl: p.pictureFile ? `/media/profiles/${p.pictureFile}` : null,
+      solo: {
+        games: st.solo.games.played,
+        wins: st.solo.games.wins,
+        winRate: st.solo.games.winRate,
+        averageScore: st.solo.games.averageScore,
+        highestScore: st.solo.games.highestScore,
+        correct: st.solo.answers.correct,
+        incorrect: st.solo.answers.incorrect,
+        accuracy: st.solo.answers.accuracy,
+      },
+      team: {
+        games: st.team.games.played,
+        wins: st.team.games.wins,
+        winRate: st.team.games.winRate,
+      },
+      contribution: {
+        games: st.team.games.played,
+        correct: st.team.contribution.correct,
+        incorrect: st.team.contribution.incorrect,
+        accuracy: st.team.contribution.accuracy,
+        earned: st.team.contribution.pointsEarned,
+        net: st.team.contribution.net,
+      },
+      // Kept for older dashboard code: totals across solo and team games (counts only, no averages).
+      games: st.combined.gamesPlayed,
+      wins: st.combined.wins,
+      correct: st.combined.correct,
+      incorrect: st.combined.incorrect,
+      accuracy: st.combined.correct + st.combined.incorrect ? st.combined.correct / (st.combined.correct + st.combined.incorrect) : null,
     };
   });
 }
