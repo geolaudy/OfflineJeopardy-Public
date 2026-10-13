@@ -19,7 +19,9 @@
 - Pushed 6fdda96.
 - **Milestone E: TV presentation effects (R2-22/23/24).** Classic board intro: screens light up in a checker pattern before the round title (skip/replay via the round-intro controls; speed setting also paces auto intros); checker fill when there is no intro. Buzzers-open indicator styles (side edges, top/bottom glow, status dot, brief pulse, none) with colour, intensity, duration, persist, label. Sound cues (13) with synthesised Classic/Arcade/Soft packs, Muted, and Custom (own files, validated, local) plus per-cue switches and Test buttons. All in Settings → TV presentation (previews; optimistic, serialised saves).
 - Tests: Vitest 109/109 (new tvfx.test.ts), Playwright 18/18 (practice.spec checks the reveal and dot indicator on the TV; settings test).
-- **Next:** R2-25 UX consistency pass; survival-mode UI (hearts on TV/host/phone); tournament mode; latency diagnostics.
+- Pushed 0765344.
+- **Survival UI (O8):** lives are now projected to every role; hearts on the TV podiums (OUT + greyed when eliminated), on the host score bar and on the phone. Tests: Vitest 110/110, Playwright 19/19 (new survival.spec.ts).
+- **Next:** R2-25 UX consistency pass (padding, headers, Safari/iPad checks); tournament mode; latency diagnostics.
 
 ## Session 3 — 2026-10-12 (roadmap continuation, auto-push workflow)
 

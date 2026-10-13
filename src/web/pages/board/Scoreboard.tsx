@@ -2,7 +2,7 @@
 // render); score changes get a brief one-shot highlight instead.
 import { useState, type CSSProperties } from 'react';
 import type { CompetitorView, GameView } from '../../../shared/views';
-import { Avatar, cx, fmtScore } from '../../components/ui';
+import { Avatar, Lives, cx, fmtScore } from '../../components/ui';
 import { competitorAvatar, competitorColor, competitorName, profileName } from '../../lib/view';
 import { useBoard, vhPx } from './common';
 import { T } from './timing';
@@ -28,7 +28,7 @@ export function Scoreboard({ g }: { g: GameView }) {
 function Podium({ c, g, winner, control, early }: { c: CompetitorView; g: GameView; winner: boolean; control: boolean; early: boolean }) {
   const ctx = useBoard();
   return (
-    <div className={cx('bt-podium', winner && 'is-winner')} style={{ '--pc': competitorColor(c, g) } as CSSProperties}>
+    <div className={cx('bt-podium', winner && 'is-winner', c.lives === 0 && 'is-out')} style={{ '--pc': competitorColor(c, g) } as CSSProperties} data-testid="podium">
       <div className="bt-podium-name">
         <Avatar profile={competitorAvatar(c, g)} size={vhPx(ctx, 2.8)} />
         <span className="truncate">{competitorName(c, g)}</span>
@@ -40,6 +40,7 @@ function Podium({ c, g, winner, control, early }: { c: CompetitorView; g: GameVi
       </div>
       {c.kind === 'team' && <div className="bt-podium-members">{c.memberIds.map((m) => profileName(g.profiles[m])).join(' · ')}</div>}
       <Score score={c.score} />
+      {c.lives !== undefined && (c.lives > 0 ? <Lives lives={c.lives} max={g.rules.survivalLives} size={vhPx(ctx, 1.9)} className="bt-podium-lives" /> : <span className="bt-out">OUT</span>)}
       {early && (
         <span className="bt-early" aria-label="Buzzed early">
           Early

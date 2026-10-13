@@ -632,6 +632,19 @@ describe('survival mode (O8)', () => {
     s = run(s, { type: 'endGame' });
     expect(s.results![0]).toMatchObject({ competitorId: cid(s, 'sam'), isWinner: true });
   });
+
+  it('every view shows lives left (and none when survival is off)', () => {
+    let s = withRules(soloGame(['alex', 'sam']), { survivalLives: 3 });
+    s = run(s, { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'unlockBuzzers' });
+    s = buzz(s, 'alex');
+    s = run(s, { type: 'judge', result: 'incorrect' });
+    for (const role of ['host', 'public', 'player'] as const) {
+      const v = projectState(s, role, {});
+      expect(v.competitors.find((c) => c.id === cid(s, 'alex'))?.lives).toBe(2);
+      expect(v.competitors.find((c) => c.id === cid(s, 'sam'))?.lives).toBe(3);
+    }
+    expect(projectState(soloGame(['alex']), 'public', {}).competitors[0].lives).toBeUndefined();
+  });
 });
 
 describe('media clues, answer media and automatic unlock (R2-13/14/16)', () => {

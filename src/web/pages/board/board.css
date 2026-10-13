@@ -802,3 +802,24 @@
   animation: none;
   box-shadow: inset 0 0 2.5vh 0.3vh var(--bt-ind-glow);
 }
+
+/* ---------- Survival mode: lives on the podiums ---------- */
+.bt-podium-lives {
+  justify-content: center;
+  margin-top: 0.3vh;
+  color: #fb7185;
+  filter: drop-shadow(0 0 0.3vh rgba(0, 0, 0, 0.5));
+}
+.bt-podium.is-out {
+  opacity: 0.45;
+  filter: grayscale(0.85);
+}
+.bt-out {
+  display: block;
+  margin-top: 0.3vh;
+  text-align: center;
+  font-weight: 900;
+  font-size: 1.5vh;
+  letter-spacing: 0.2em;
+  color: #fb7185;
+}

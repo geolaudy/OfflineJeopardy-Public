@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import { avatarEmoji, PLAYER_COLORS, readableOn, contrastRatio } from '../lib/avatars';
 import type { ProfilePublic } from '../../shared/views';
 import { tokens } from '../lib/api';
-import { ArrowLeft, Menu, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, Heart, Menu, type LucideIcon } from 'lucide-react';
 
 export function cx(...c: (string | false | null | undefined)[]) {
   return c.filter(Boolean).join(' ');
@@ -434,4 +434,23 @@ export function fmtScore(n: number) {
 
 export function pct(n: number | null | undefined) {
   return n == null ? '—' : `${Math.round(n * 1000) / 10}%`;
+}
+
+/** Survival mode: lives left as hearts (a number for long lives lists). */
+export function Lives({ lives, max, size = 14, className }: { lives: number; max: number; size?: number; className?: string }) {
+  const label = lives > 0 ? `${lives} of ${max} ${max === 1 ? 'life' : 'lives'} left` : 'Out of lives';
+  return (
+    <span className={cx('inline-flex items-center gap-[0.15em] text-rose-500', className)} role="img" aria-label={label} title={label} data-testid="lives" data-lives={lives}>
+      {max > 6 ? (
+        <>
+          <Heart size={size} className="fill-current" aria-hidden />
+          <span className="font-bold tabular-nums">
+            {lives}/{max}
+          </span>
+        </>
+      ) : (
+        Array.from({ length: max }).map((_, i) => <Heart key={i} size={size} className={i < lives ? 'fill-current' : 'opacity-35'} aria-hidden />)
+      )}
+    </span>
+  );
 }

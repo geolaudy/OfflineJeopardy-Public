@@ -1,7 +1,7 @@
 // Phone buzzer + current game participation.
 import { useEffect, useState } from 'react';
 import { send, useLive } from '../../lib/socket';
-import { Avatar, Button, cx, fmtScore, inputCls } from '../../components/ui';
+import { Avatar, Button, Lives, cx, fmtScore, inputCls } from '../../components/ui';
 import { competitorName, findCompetitor, profileName, useTimerSeconds } from '../../lib/view';
 import { CLUE_LOCKOUT } from '../../../shared/game';
 import { unlockAudio } from '../../lib/sound';
@@ -96,8 +96,11 @@ export default function PlayTab({ me }: { me: Me }) {
           <div className="truncate font-bold">{myComp.kind === 'team' ? myComp.name : 'Your score'}</div>
           {myComp.kind === 'team' && <div className="truncate text-xs text-slate-500">{myComp.memberIds.map((m) => profileName(g.profiles[m])).join(', ')}</div>}
         </div>
-        <div className={cx('text-2xl font-black tabular-nums', myComp.score < 0 && 'text-red-700')} data-testid="my-score">
-          {fmtScore(myComp.score)}
+        <div className="text-right">
+          <div className={cx('text-2xl font-black tabular-nums', myComp.score < 0 && 'text-red-700')} data-testid="my-score">
+            {fmtScore(myComp.score)}
+          </div>
+          {myComp.lives !== undefined && <div className="text-xs font-semibold text-slate-600">{myComp.lives > 0 ? <Lives lives={myComp.lives} max={g.rules.survivalLives} size={14} /> : 'Out of lives'}</div>}
         </div>
       </div>
 

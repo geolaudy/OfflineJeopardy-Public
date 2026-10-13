@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import type { CompetitorView, GameView } from '../../../shared/views';
 import type { HostAction } from '../../../shared/actions';
-import { ActionButton, Avatar, Button, Field, Modal, inputCls, cx, fmtScore } from '../../components/ui';
+import { ActionButton, Avatar, Button, Field, Lives, Modal, inputCls, cx, fmtScore } from '../../components/ui';
 import { competitorAvatar, competitorName, findCompetitor, profileName, useTimerSeconds, TIMER_LABELS } from '../../lib/view';
 import ControllersPanel, { AssignListener } from '../../components/ControllersPanel';
 import FinalControl from './FinalControl';
@@ -35,7 +35,7 @@ export default function Live({ g, run }: { g: GameView; run: Run }) {
             <button
               key={c.id}
               onClick={() => setAdjust(c)}
-              className={cx('flex min-w-36 items-center gap-2 rounded-xl border-2 px-3 py-2 text-left', g.controlCompetitorId === c.id ? 'border-blue-600' : 'border-slate-200')}
+              className={cx('flex min-w-36 items-center gap-2 rounded-xl border-2 px-3 py-2 text-left', g.controlCompetitorId === c.id ? 'border-blue-600' : 'border-slate-200', c.lives === 0 && 'opacity-50')}
               aria-label={`Adjust score for ${competitorName(c, g)}`}
               data-testid="host-score"
             >
@@ -43,6 +43,7 @@ export default function Live({ g, run }: { g: GameView; run: Run }) {
               <div className="min-w-0">
                 <div className="truncate text-sm font-semibold">{competitorName(c, g)}</div>
                 <div className={cx('text-lg font-black tabular-nums', c.score < 0 && 'text-red-700')}>{fmtScore(c.score)}</div>
+                {c.lives !== undefined && (c.lives > 0 ? <Lives lives={c.lives} max={g.rules.survivalLives} size={13} /> : <span className="text-xs font-bold text-slate-500 uppercase">Out</span>)}
               </div>
             </button>
           ))}

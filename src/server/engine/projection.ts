@@ -1,12 +1,13 @@
 // Server-side role projections. Secrets (answers, notes, hidden wagers, Daily Wager
 // locations) are removed here, before data ever leaves the server.
-import { findClue, scoresOf, type GameState, type Id } from '../../shared/game.js';
+import { findClue, livesOf, scoresOf, type GameState, type Id } from '../../shared/game.js';
 import type { GameView, PlayerContext, ProfilePublic, ViewRole } from '../../shared/views.js';
 import { buzzBlockReason, competitorForProfile, lockoutUntil } from './engine.js';
 
 export function projectState(s: GameState, role: ViewRole, profiles: Record<Id, ProfilePublic>): GameView {
   const host = role === 'host';
   const scores = scoresOf(s.events);
+  const lives = livesOf(s);
   const used = new Set(s.usedClueIds);
 
   const rounds = s.board.rounds.map((r) => ({
@@ -91,7 +92,7 @@ export function projectState(s: GameState, role: ViewRole, profiles: Record<Id, 
     roundIndex: s.roundIndex,
     rules: s.rules,
     rounds,
-    competitors: s.competitors.map((c) => ({ ...c, score: scores[c.id] ?? 0 })),
+    competitors: s.competitors.map((c) => ({ ...c, score: scores[c.id] ?? 0, ...(lives ? { lives: Math.max(0, lives[c.id] ?? 0) } : {}) })),
     unassigned: s.unassigned,
     // Controller ids (e.g. a Joy-Con's Bluetooth address) are for the host only.
     bindings: host ? s.bindings : s.bindings.map((b) => ({ ...b, controllerId: '' })),

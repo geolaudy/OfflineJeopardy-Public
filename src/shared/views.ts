@@ -85,6 +85,8 @@ export interface FinalView {
 
 export interface CompetitorView extends Competitor {
   score: number;
+  /** Survival mode: lives left (absent when survival is off). */
+  lives?: number;
 }
 
 export interface GameView {
