@@ -18,12 +18,18 @@
 - npm run test:e2e — 8/8 (game, PIN, offline, mobile phones ×6 configs, iPad ×3, teams/editor/Final).
 - Failing: none.
 
+### Packaging
+- Version 0.2.0. `npm run dist` → release/OfflineJeopardy-Setup-0.2.0.exe and release/OfflineJeopardy-Portable-0.2.0.exe (unsigned). Packaged exe smoke-tested against a scratch data folder (server start on :3000, UI assets, CSV export).
+
+### Git
+- fe20a7f requirements record · 4d14287 engine/server · a7d95a5 UI + TV board + tests · 3921bc5 release 0.2.0.
+
 ### Not verified (needs real hardware)
 - Real iPhone/iPad Safari (toolbars, notch, smoothness), real Joy-Cons after these changes (the controller path itself was not modified), TV frame rate of the zoom.
 
 ### Next recommended tasks
 1. Real-device pass: iPhone + iPad Safari (portal, buzzer, host), Joy-Cons early-buzz behaviour, TV zoom smoothness in the Electron board window.
-2. Rebuild Windows installer/portable (npm run dist) and smoke-test.
+2. (done) Installer/portable 0.2.0 rebuilt and smoke-tested; run the installer on the real PC.
 3. Roadmap: game-package export with media (L9), backup incl. media (K6), theme editor (O5), editor E2E (K5).
 
 ## Session 1 — 2026-10-12
