@@ -1,10 +1,13 @@
 import type { GameView } from '../../../shared/views';
 import { act } from '../../lib/socket';
 import { hostApi } from '../../lib/api';
-import { attempt } from '../../lib/hooks';
+import { attempt, useFetch } from '../../lib/hooks';
 import { ActionButton, Avatar, cx, fmtScore } from '../../components/ui';
 import { competitorAvatar, competitorName, findCompetitor, profileName } from '../../lib/view';
-import { Undo2 } from 'lucide-react';
+import { Monitor, Trophy, Undo2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { usePresent } from './AppShell';
+import type { StandingRow, Tournament } from '../../../shared/tournament';
 
 export default function Results({ g }: { g: GameView }) {
   return (
@@ -30,6 +33,7 @@ export default function Results({ g }: { g: GameView }) {
           );
         })}
       </div>
+      <TournamentStandings g={g} />
       <p className="text-sm text-slate-600">Results, statistics and the full game history are saved. Players can see them in their profile.</p>
       <div className="flex flex-wrap gap-2">
         <ActionButton size="lg" onAction={() => attempt(() => hostApi('POST', '/api/games/close'))}>
@@ -39,6 +43,42 @@ export default function Results({ g }: { g: GameView }) {
           <Undo2 size={18} aria-hidden /> Undo end of game
         </ActionButton>
       </div>
+    </div>
+  );
+}
+
+/** After a tournament game: the updated standings, with a button to show them on the TV. */
+function TournamentStandings({ g }: { g: GameView }) {
+  const { enabled, show } = usePresent();
+  const resultsKey = (g.results ?? []).map((r) => `${r.competitorId}:${r.score}`).join();
+  const d = useFetch(async () => {
+    const { tournament } = await hostApi<{ tournament: Tournament | null }>('GET', `/api/games/${g.id}/tournament`);
+    return tournament ? hostApi<{ tournament: Tournament; standings: StandingRow[] }>('GET', `/api/tournaments/${tournament.id}`) : null;
+  }, [g.id, resultsKey]);
+  const t = d.data;
+  if (!t) return null;
+  return (
+    <div className="space-y-2 rounded-2xl border border-amber-200 bg-amber-50 p-4" data-testid="tournament-results">
+      <div className="flex flex-wrap items-center gap-2">
+        <Trophy size={20} className="text-amber-500" aria-hidden />
+        <h3 className="min-w-0 flex-1 truncate text-lg font-bold">{t.tournament.name} — standings</h3>
+        <ActionButton size="sm" variant="secondary" disabled={!enabled} onAction={() => show({ page: 'tournament', tournamentId: t.tournament.id })} data-testid="present-standings">
+          <Monitor size={16} aria-hidden /> Show on TV
+        </ActionButton>
+      </div>
+      <ol className="space-y-1">
+        {t.standings.slice(0, 5).map((r) => (
+          <li key={r.key} className="flex items-center gap-2">
+            <span className="w-6 font-black text-slate-500 tabular-nums">{r.rank}</span>
+            <span className="h-3 w-3 rounded-full" style={{ background: r.color }} aria-hidden />
+            <span className="min-w-0 flex-1 truncate font-semibold">{r.name}</span>
+            <span className="font-bold tabular-nums">{t.tournament.scoring === 'placement' ? `${r.points} pts` : fmtScore(r.points)}</span>
+          </li>
+        ))}
+      </ol>
+      <Link to={`/host/tournaments/${t.tournament.id}`} className="text-sm font-semibold text-blue-700 underline">
+        Full standings
+      </Link>
     </div>
   );
 }

@@ -17,7 +17,7 @@ const ITEMS: { id: PresentPage; label: string; icon: LucideIcon }[] = [
 ];
 
 /** The rail entry a page belongs to (a single player is part of Players, a board of Boards). */
-export const railPage = (p: PresentPage): PresentPage => (p === 'player' ? 'players' : p === 'board' ? 'boards' : p);
+export const railPage = (p: PresentPage): PresentPage => (p === 'player' ? 'players' : p === 'board' ? 'boards' : p === 'tournament' ? 'leaderboard' : p);
 
 export function NavRail({ page }: { page: PresentPage }) {
   const current = railPage(page);

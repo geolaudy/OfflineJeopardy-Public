@@ -227,6 +227,24 @@ CREATE TABLE themes (
     name: 'practice games',
     sql: `ALTER TABLE games ADD COLUMN practice INTEGER NOT NULL DEFAULT 0;`,
   },
+  {
+    // Additive: tournaments group games; existing games belong to none.
+    version: 4,
+    name: 'tournaments',
+    sql: `
+CREATE TABLE tournaments (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  mode TEXT NOT NULL CHECK (mode IN ('solo', 'team')),
+  scoring TEXT NOT NULL CHECK (scoring IN ('placement', 'total')),
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'finished')),
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+ALTER TABLE games ADD COLUMN tournament_id TEXT REFERENCES tournaments(id) ON DELETE SET NULL;
+CREATE INDEX games_tournament ON games(tournament_id);
+`,
+  },
 ];
 
 export function openDatabase(file: string): DB {

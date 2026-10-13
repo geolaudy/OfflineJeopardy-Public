@@ -12,6 +12,7 @@ import { rankRows, secondaryLine, formatValue, VIEW_LABELS, type LeaderView } fr
 import type { PresentationState, PresentRequest, PublicLobby, PublicRoster, RosterRow } from '../shared/presentation.js';
 import { humanCount } from './engine/engine.js';
 import type { ControllerRegistry } from './controllers.js';
+import * as tour from './tournaments.js';
 
 export interface LobbySession {
   name: string;
@@ -100,6 +101,10 @@ export class LobbyManager {
         return { page: 'rules', rules: this.rules() };
       case 'buzzers':
         return { page: 'buzzers', buzzers: this.buzzers() };
+      case 'tournament': {
+        const t = req.tournamentId ? this.tournament(req.tournamentId) : null;
+        return t ? { page: 'tournament', tournament: t } : { page: 'lobby' };
+      }
       default:
         return { page: 'lobby' };
     }
@@ -168,6 +173,35 @@ export class LobbyManager {
         won: !!h.isWinner,
       })),
       topCategories: cats.map((c) => ({ name: c.category, accuracy: pctText(c.accuracy) })),
+    };
+  }
+
+  private tournament(id: string): PresentationState['tournament'] | null {
+    const t = tour.getTournament(this.db, id);
+    if (!t) return null;
+    const rows = tour.standings(this.db, t);
+    const played = tour.tournamentGames(this.db, id).filter((g) => g.status === 'completed').length;
+    const profiles = repo.profilesByIds(this.db, rows.map((r) => r.profileId).filter((x): x is string => !!x));
+    const teams = new Map(repo.listTeams(this.db).map((x) => [x.id, x]));
+    return {
+      id: t.id,
+      name: t.name,
+      finished: t.status === 'finished',
+      note: `${played} ${played === 1 ? 'game' : 'games'} played · ${t.scoring === 'placement' ? 'placement points' : 'total score'}${t.status === 'finished' ? ' · final standings' : ''}`,
+      rows: rows.map((r) => {
+        const p = r.profileId ? profiles[r.profileId] : null;
+        const team = r.teamId ? teams.get(r.teamId) : null;
+        return {
+          rank: r.rank,
+          id: r.key,
+          name: p ? p.nickname || p.name : r.name,
+          color: p?.color ?? team?.color ?? r.color,
+          avatar: p?.avatar ?? team?.avatar ?? 'shield',
+          pictureUrl: p?.pictureUrl ?? null,
+          value: t.scoring === 'placement' ? `${r.points} pts` : scoreText(r.points),
+          secondary: `${r.games} ${r.games === 1 ? 'game' : 'games'} · ${r.wins} ${r.wins === 1 ? 'win' : 'wins'}`,
+        };
+      }),
     };
   }
 

@@ -7,7 +7,7 @@
 import { z } from 'zod';
 import type { ProfilePublic } from './views.js';
 
-export const PRESENT_PAGES = ['lobby', 'leaderboard', 'players', 'player', 'teams', 'boards', 'board', 'rules', 'buzzers'] as const;
+export const PRESENT_PAGES = ['lobby', 'leaderboard', 'players', 'player', 'teams', 'boards', 'board', 'rules', 'buzzers', 'tournament'] as const;
 export type PresentPage = (typeof PRESENT_PAGES)[number];
 
 export const presentRequestSchema = z.object({
@@ -16,6 +16,7 @@ export const presentRequestSchema = z.object({
   metric: z.string().max(20).optional(),
   profileId: z.string().max(64).optional(),
   boardId: z.string().max(64).optional(),
+  tournamentId: z.string().max(64).optional(),
 });
 export type PresentRequest = z.infer<typeof presentRequestSchema>;
 
@@ -82,6 +83,8 @@ export interface PresentationState {
   board?: { id: string; title: string; description: string; rounds: { name: string; kind: 'standard' | 'final'; categories: string[] }[]; clues: number; media: number };
   rules?: { title: string; lines: { label: string; value: string }[] };
   buzzers?: { rows: RosterRow[]; phonesNote: string };
+  /** Tournament standings (names, avatars and points only). */
+  tournament?: { id: string; name: string; note: string; finished: boolean; rows: PresentedLeaderRow[] };
 }
 
 export const PAGE_LABELS: Record<PresentPage, string> = {
@@ -94,4 +97,5 @@ export const PAGE_LABELS: Record<PresentPage, string> = {
   board: 'Board',
   rules: 'Rules',
   buzzers: 'Buzzers',
+  tournament: 'Tournament',
 };

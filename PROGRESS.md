@@ -30,7 +30,8 @@
 - **Joy-Con feedback (Z12):** vibration when a Joy-Con buzzes in first (one pulse) or too early (two taps), Identify (lights + pulse) and Vibrate test buttons. Fixed: Identify did nothing when pressed on the iPad (it ran locally) — controller feedback is now routed by the server to the window that reads the Joy-Con. Setting on the Buzzers page. Rumble not yet felt on hardware (K25). Tests: Vitest 114/114.
 - **Buzzer check + connection quality (Z11):** Buzzers page / lobby Buzzers tab: start a 20-second check; phones show a TEST button; every phone, Joy-Con and key that presses is listed in order (+ms after the first) with each phone's round-trip delay (Good/OK/Slow) and who has not pressed yet; presses never reach the game. Phones connected are listed with their delay at any time; slow phones get a tip. Tests: Vitest 115/115, Playwright 20/20.
 - **Team balancing (T11):** in a team lobby, "Make balanced teams" splits the players without a team into 2+ evenly matched teams (ratings from past games, new players average; Shuffle for another fair split; only team strength is shown). Tests: Vitest 118/118, Playwright 21/21.
-- **Next:** tournament/series mode (O8), head-to-head comparison (T10).
+- **Tournaments (O8):** Tournaments page (create with individuals/teams and placement points or total score; standings, games, finish/reopen, rename, delete keeps the games); choose the tournament in "Set up a game"; standings on the host results screen with "Show on TV"; TV standings page (leaderboard layout, public names and points only). DB migration v4 (additive). Tests: Vitest 122/122, Playwright 22/22.
+- **Next:** head-to-head comparison (T10); phone view of tournament standings.
 
 ## Session 3 — 2026-10-12 (roadmap continuation, auto-push workflow)
 

@@ -33,6 +33,8 @@ interface SavedGame {
 export default function GamePicker() {
   const games = useFetch(() => hostApi<{ games: SavedGame[] }>('GET', '/api/games'), []);
   const boards = useFetch(() => hostApi<BoardSummary[]>('GET', '/api/boards'), []);
+  const tournaments = useFetch(() => hostApi<{ id: string; name: string; mode: 'solo' | 'team'; status: string; games: number }[]>('GET', '/api/tournaments'), []);
+  const [tournamentId, setTournamentId] = useState('');
   const { show } = usePresent();
   const [boardId, setBoardId] = useState<string | null>(null);
   const [mode, setMode] = useState<'solo' | 'team'>('solo');
@@ -43,7 +45,12 @@ export default function GamePicker() {
   const [practice, setPractice] = useState(false);
   const list = (boards.data ?? []).filter((b) => !b.archived).sort((a, b) => Number(b.favorite) - Number(a.favorite));
   const selected = list.find((b) => b.id === (boardId ?? list[0]?.id));
-  const summary = useMemo(() => summarizeRules(rules, { mode, boardTitle: selected?.title, practice: mode === 'solo' && practice }), [rules, mode, selected?.title, practice]);
+  const openTournaments = (tournaments.data ?? []).filter((t) => t.status === 'active' && t.mode === mode);
+  const tournament = !practice ? openTournaments.find((t) => t.id === tournamentId) : undefined;
+  const summary = useMemo(
+    () => [...(tournament ? [{ label: 'Tournament', value: `${tournament.name} (game ${tournament.games + 1})` }] : []), ...summarizeRules(rules, { mode, boardTitle: selected?.title, practice: mode === 'solo' && practice })],
+    [rules, mode, selected?.title, practice, tournament],
+  );
 
   // Choosing a board previews it on the TV (category names only) while presenting.
   useEffect(() => {
@@ -58,7 +65,7 @@ export default function GamePicker() {
   const openLobby = async () => {
     // The lobby session (pairing, TV lobby) exists before the game; creating it again is harmless.
     await attempt(() => hostApi('POST', '/api/lobby', {}));
-    const r = await attempt(() => hostApi('POST', '/api/games', { boardId: selected!.id, mode, rules, title: title.trim() || undefined, practice: mode === 'solo' && practice }));
+    const r = await attempt(() => hostApi('POST', '/api/games', { boardId: selected!.id, mode, rules, title: title.trim() || undefined, practice: mode === 'solo' && practice, tournamentId: tournament?.id ?? null }));
     if (r) show({ page: 'lobby' });
   };
 
@@ -103,6 +110,27 @@ export default function GamePicker() {
                 ))}
               </div>
             </Field>
+            {(openTournaments.length > 0 || (tournaments.data?.length ?? 0) > 0) && !(mode === 'solo' && practice) && (
+              <Field label="Tournament" hint={openTournaments.length ? 'The result counts towards the tournament standings.' : undefined}>
+                {openTournaments.length ? (
+                  <select className={inputCls} value={tournament?.id ?? ''} onChange={(e) => setTournamentId(e.target.value)} aria-label="Tournament" data-testid="tournament-select">
+                    <option value="">Not part of a tournament</option>
+                    {openTournaments.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name} — game {t.games + 1}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="text-sm text-slate-500">
+                    No open tournament for {mode === 'team' ? 'teams' : 'individuals'}.{' '}
+                    <Link to="/host/tournaments" className="font-semibold text-blue-700 underline">
+                      Start one
+                    </Link>
+                  </p>
+                )}
+              </Field>
+            )}
             <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
               <Field label="Rules" hint={RULE_PRESETS[preset]?.description}>
                 <select className={inputCls} value={preset} onChange={(e) => pickPreset(e.target.value)} aria-label="Rules preset">

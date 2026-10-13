@@ -22,6 +22,8 @@ export function pageKey(p: PresentationState | null): string {
       return `leaderboard:${p.leaderboard?.viewLabel ?? ''}:${p.leaderboard?.metricLabel ?? ''}`;
     case 'board':
       return `board:${p.board?.id ?? ''}`;
+    case 'tournament':
+      return `tournament:${p.tournament?.id ?? ''}`;
     default:
       return p.page;
   }
@@ -60,6 +62,9 @@ function PageBody({ p }: { p: PresentationState }) {
       return p.rules ? <RulesPage d={p.rules} /> : <Missing page={p.page} />;
     case 'buzzers':
       return p.buzzers ? <BuzzersPage d={p.buzzers} /> : <Missing page={p.page} />;
+    case 'tournament':
+      // Standings use the leaderboard layout.
+      return p.tournament ? <LeaderboardPage d={{ kicker: p.tournament.finished ? 'Tournament · final standings' : 'Tournament standings', viewLabel: '', metricLabel: p.tournament.name, minNote: p.tournament.note, rows: p.tournament.rows, unranked: 0, empty: 'No games finished yet' }} /> : <Missing page={p.page} />;
     default:
       return null;
   }
@@ -104,7 +109,7 @@ const item = (i: number) => ({
 
 // ---------------------------------------------------------------- Leaderboard
 
-function LeaderboardPage({ d }: { d: NonNullable<PresentationState['leaderboard']> }) {
+function LeaderboardPage({ d }: { d: NonNullable<PresentationState['leaderboard']> & { kicker?: string; empty?: string } }) {
   const ctx = useBoard();
   const n = d.rows.length;
   // Up to 7 rows in one column; more go into two columns (ranks run down the first column)
@@ -115,9 +120,9 @@ function LeaderboardPage({ d }: { d: NonNullable<PresentationState['leaderboard'
   const rowVh = Math.min(9, (66 - (perCol - 1) * 0.9) / perCol);
   return (
     <>
-      <Head kicker={`Leaderboard · ${d.viewLabel}`} title={d.metricLabel} sub={d.minNote} />
+      <Head kicker={d.kicker ?? `Leaderboard · ${d.viewLabel}`} title={d.metricLabel} sub={d.minNote} />
       {n === 0 ? (
-        <Empty title="No ranked players yet">Play a few games to appear on the leaderboard.</Empty>
+        d.empty ? <Empty title={d.empty} /> : <Empty title="No ranked players yet">Play a few games to appear on the leaderboard.</Empty>
       ) : (
         <ol className={cx('tvp-lb', two && 'is-two')} style={{ '--row': `${rowVh}vh`, '--per-col': perCol } as CSSProperties}>
           {d.rows.map((r, i) => (

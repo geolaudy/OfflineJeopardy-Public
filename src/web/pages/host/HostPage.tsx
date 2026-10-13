@@ -28,6 +28,7 @@ const Settings = lazy(() => import('../desk/Settings'));
 const Help = lazy(() => import('../desk/Help'));
 const Themes = lazy(() => import('../desk/Themes'));
 const ControllersPage = lazy(() => import('../desk/ControllersPage'));
+const Tournaments = lazy(() => import('../desk/Tournaments'));
 
 /** Pairing code passed by the lobby QR as a URL fragment (never sent to the server in the URL). */
 function readPairFragment(): string | null {
@@ -160,6 +161,8 @@ function HostApp() {
           <Route path="teams" element={<Teams />} />
           <Route path="buzzers" element={<ControllersPage />} />
           <Route path="history" element={<History />} />
+          <Route path="tournaments" element={<Tournaments />} />
+          <Route path="tournaments/:id" element={<Tournaments />} />
           <Route path="settings" element={<Settings />} />
           <Route path="themes" element={<Themes />} />
           <Route path="help" element={<Help />} />

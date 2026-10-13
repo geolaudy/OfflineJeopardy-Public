@@ -34,6 +34,7 @@ import { registerImportRoutes } from './importRoutes.js';
 import { LobbyManager } from './lobby.js';
 import { INTRO_STEP_MS, normalizeTvFx, SOUND_CUES, tvFxSchema } from '../shared/tvFx.js';
 import { ratingOf } from '../shared/teamBalance.js';
+import * as tour from './tournaments.js';
 import { normalizeRules, rulesFromPreset, RULE_PRESETS } from '../shared/game.js';
 import { customThemeSchema, isPreset, newThemeData, type ThemeFile } from '../shared/themes.js';
 import { rulesSchema } from '../shared/actions.js';
@@ -728,7 +729,7 @@ export async function startServer(opts: ServerOptions) {
   app.post('/api/games', async (req, reply) => {
     if (!requireHost(req, reply)) return;
     const body = parse(
-      z.object({ boardId: z.string(), title: z.string().trim().max(120).optional(), mode: z.enum(['solo', 'team']), preset: z.string().max(32).default('classic'), rules: rulesSchema.optional(), practice: z.boolean().default(false) }),
+      z.object({ boardId: z.string(), title: z.string().trim().max(120).optional(), mode: z.enum(['solo', 'team']), preset: z.string().max(32).default('classic'), rules: rulesSchema.optional(), practice: z.boolean().default(false), tournamentId: z.string().max(64).nullable().optional() }),
       req.body,
       reply,
     );
@@ -737,9 +738,63 @@ export async function startServer(opts: ServerOptions) {
     if (!b) return bad(reply, 'Board not found', 404);
     const errors = validateBoard(b.content).filter((i) => i.level === 'error');
     if (errors.length) return bad(reply, errors.map((e) => e.message).join(' '));
+    const t = body.tournamentId ? tour.getTournament(db, body.tournamentId) : null;
+    if (body.tournamentId) {
+      if (!t) return bad(reply, 'Tournament not found', 404);
+      if (t.status !== 'active') return bad(reply, 'That tournament is finished');
+      if (t.mode !== body.mode) return bad(reply, t.mode === 'team' ? 'This tournament is for teams' : 'This tournament is for individuals');
+      if (body.practice) return bad(reply, 'Practice games do not count in tournaments');
+    }
     const s = games.create({ title: body.title || b.title, boardId: b.id, board: structuredClone(b.content), mode: body.mode, rules: body.rules ? normalizeRules(body.rules) : rulesFromPreset(body.preset), practice: body.practice });
+    if (t) tour.attachGame(db, s.id, t.id);
     return { id: s.id };
   });
+  // ---------- tournaments (O8) ----------
+  const tournamentBody = z.object({ name: z.string().trim().min(1).max(60), mode: z.enum(['solo', 'team']), scoring: z.enum(['placement', 'total']) });
+  app.get('/api/tournaments', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    return tour.listTournaments(db).map((t) => {
+      const st = tour.standings(db, t);
+      return { ...t, games: tour.tournamentGames(db, t.id).filter((g) => g.status === 'completed').length, leader: st[0]?.name ?? null };
+    });
+  });
+  app.post('/api/tournaments', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const body = parse(tournamentBody, req.body, reply);
+    if (!body) return;
+    const t = tour.createTournament(db, body);
+    audit(db, 'host', 'tournament.create', { id: t.id, name: t.name });
+    return t;
+  });
+  app.get('/api/tournaments/:id', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const t = tour.getTournament(db, (req.params as { id: string }).id);
+    if (!t) return bad(reply, 'Tournament not found', 404);
+    return { tournament: t, standings: tour.standings(db, t), games: tour.tournamentGames(db, t.id) };
+  });
+  app.patch('/api/tournaments/:id', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const body = parse(z.object({ name: z.string().trim().min(1).max(60).optional(), status: z.enum(['active', 'finished']).optional(), scoring: z.enum(['placement', 'total']).optional() }), req.body, reply);
+    if (!body) return;
+    const t = tour.updateTournament(db, (req.params as { id: string }).id, body);
+    if (!t) return bad(reply, 'Tournament not found', 404);
+    lobby.refreshSoon();
+    return t;
+  });
+  app.delete('/api/tournaments/:id', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const id = (req.params as { id: string }).id;
+    tour.deleteTournament(db, id);
+    audit(db, 'host', 'tournament.delete', { id });
+    return { ok: true };
+  });
+  /** Which tournament a game belongs to (host). */
+  app.get('/api/games/:id/tournament', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const tid = tour.tournamentOfGame(db, (req.params as { id: string }).id);
+    return { tournament: tid ? tour.getTournament(db, tid) : null };
+  });
+
   // Lobby control: play a different board in the open game (before it starts). Players, teams and
   // buzzers stay; a title that was just the old board's name follows the new board.
   app.post('/api/games/current/board', async (req, reply) => {
