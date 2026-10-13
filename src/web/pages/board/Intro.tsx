@@ -5,9 +5,11 @@ import type { GameView } from '../../../shared/views';
 import { cx } from '../../components/ui';
 import { FitText, useBoard } from './common';
 import { EASE_OUT_ARR, T } from './timing';
+import { BoardReveal, revealSeconds, useFx } from './fx';
 
 export function Intro({ g }: { g: GameView }) {
   const { reduced } = useBoard();
+  const fx = useFx();
   const intro = g.intro!;
   const round = g.rounds[intro.roundIndex];
   if (!round) return null;
@@ -20,7 +22,7 @@ export function Intro({ g }: { g: GameView }) {
         <motion.div
           key={`${intro.roundIndex}:${step}`}
           className="absolute inset-0"
-          initial={reduced ? { opacity: 0 } : step < 0 ? { opacity: 0, scale: 0.9 } : { x: '100%' }}
+          initial={reduced ? { opacity: 0 } : step < 0 ? (fx.boardIntro ? { opacity: 1 } : { opacity: 0, scale: 0.9 }) : { x: '100%' }}
           animate={{ x: 0, opacity: 1, scale: 1 }}
           exit={reduced ? { opacity: 0 } : { x: '-100%' }}
           transition={{ duration: T.slide, ease: EASE_OUT_ARR }}
@@ -32,6 +34,19 @@ export function Intro({ g }: { g: GameView }) {
               </p>
               <FitText text={cat.name} max={15} min={5} className="bt-intro-cat" boxClassName="min-h-0 max-h-[52vh] flex-1" />
             </div>
+          ) : fx.boardIntro ? (
+            // Classic board intro (R2-23): the blank screens light up in a checker pattern, then the
+            // board dims and the round title appears over it.
+            <>
+              <motion.div className="absolute inset-0" animate={{ opacity: 0.22 }} transition={{ delay: revealSeconds(fx), duration: T.fade * 1.5 }}>
+                <BoardReveal g={g} />
+              </motion.div>
+              <motion.div className="bt-intro-card" initial={{ opacity: 0, scale: reduced ? 1 : 0.94 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: revealSeconds(fx) * 0.9, duration: T.fade * 1.4, ease: EASE_OUT_ARR }}>
+                <FitText text={round.name} max={16} min={6} className="bt-round-title" boxClassName="max-h-[40vh] flex-1 min-h-0" />
+                <div className="bt-rule" aria-hidden />
+                <p className="bt-intro-kicker">{n} categories</p>
+              </motion.div>
+            </>
           ) : (
             <div className="bt-intro-card">
               <FitText text={round.name} max={16} min={6} className="bt-round-title" boxClassName="max-h-[40vh] flex-1 min-h-0" />

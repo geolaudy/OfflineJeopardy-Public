@@ -3,9 +3,11 @@ import { Link } from 'react-router-dom';
 import { downloadFile, hostApi } from '../../lib/api';
 import { attempt, useFetch } from '../../lib/hooks';
 import { Button, Card, Field, cx } from '../../components/ui';
-import { configureSound, sfx } from '../../lib/sound';
+import { configureSound } from '../../lib/sound';
+import type { TvFx } from '../../../shared/tvFx';
+import { PresentationSettings } from './PresentationSettings';
 import { desktop } from '../../lib/desktop';
-import { Palette, ChevronRight, ChevronDown } from 'lucide-react';
+import { Palette, ChevronRight, ChevronDown, Download, Upload } from 'lucide-react';
 
 interface S {
   preferredAddress: string | null;
@@ -16,6 +18,7 @@ interface S {
   sound: boolean;
   volume: number;
   reducedMotion: boolean;
+  tvFx: TvFx;
 }
 
 export const BOARD_THEMES: [string, string][] = [
@@ -52,7 +55,7 @@ export default function Settings() {
     if (r) s.setData(r);
   };
   useEffect(() => {
-    if (s.data) configureSound({ enabled: s.data.sound, volume: s.data.volume });
+    if (s.data) configureSound({ enabled: s.data.sound, volume: s.data.volume, fx: s.data.tvFx });
   }, [s.data]);
   if (!s.data) return <div className="p-6">{s.error ?? 'Loading…'}</div>;
   const v = s.data;
@@ -75,18 +78,11 @@ export default function Settings() {
         <Field label={`Volume ${Math.round(v.volume * 100)}%`}>
           <input type="range" min={0} max={1} step={0.05} value={v.volume} onChange={(e) => s.setData({ ...v, volume: Number(e.target.value) })} onMouseUp={() => set({ volume: v.volume })} onTouchEnd={() => set({ volume: v.volume })} className="w-full" />
         </Field>
-        <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={() => sfx.buzz()}>
-            Test buzz
-          </Button>
-          <Button variant="secondary" size="sm" onClick={() => sfx.correct()}>
-            Test correct
-          </Button>
-          <Button variant="secondary" size="sm" onClick={() => sfx.dailyWager()}>
-            Test Daily Wager
-          </Button>
-        </div>
         <Toggle label="Reduce motion on the game board" checked={v.reducedMotion} onChange={(x) => set({ reducedMotion: x })} />
+      </Card>
+      <Card className="space-y-3" data-testid="tv-presentation-settings">
+        <h2 className="text-lg font-bold">TV presentation</h2>
+        <PresentationSettings fx={v.tvFx} sound={{ enabled: v.sound, volume: v.volume }} onSave={(tvFx) => set({ tvFx })} />
       </Card>
       <Card className="space-y-3">
         <h2 className="text-lg font-bold">Privacy</h2>
@@ -97,13 +93,13 @@ export default function Settings() {
         <p className="text-sm text-slate-600">A full backup (.zip) contains boards, players (PINs stay hashed), teams, statistics, history, profile pictures and clue media. Restoring accepts a full .zip backup or an older database-only .db backup.</p>
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onClick={() => attempt(() => downloadFile('/api/admin/backup', `offlinejeopardy-backup-${new Date().toISOString().slice(0, 10)}.zip`))} data-testid="backup-full">
-            ⬇ Download full backup
+            <Download size={18} aria-hidden /> Download full backup
           </Button>
           <Button variant="ghost" onClick={() => attempt(() => downloadFile('/api/admin/backup?media=0', `offlinejeopardy-database-${new Date().toISOString().slice(0, 10)}.db`))}>
             Database only
           </Button>
           <Button variant="secondary" onClick={() => restoreRef.current?.click()}>
-            ⬆ Restore from backup…
+            <Upload size={18} aria-hidden /> Restore from backup…
           </Button>
           {d && (
             <Button variant="ghost" onClick={() => d.openDataFolder()}>

@@ -737,3 +737,68 @@
 .reduce-motion .bt-flash-down > span {
   animation: none;
 }
+
+/* ---------- Board intro: checker reveal (R2-23) ---------- */
+.bt-reveal-grid {
+  position: absolute;
+  inset: 0;
+}
+@keyframes bt-reveal {
+  from { opacity: 0; transform: scale(0.86); filter: brightness(1.6); }
+  60% { opacity: 1; }
+  to { opacity: 1; transform: none; filter: none; }
+}
+.bt-reveal {
+  animation: bt-reveal var(--bt-reveal-dur, 0.4s) cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.reduce-motion .bt-reveal {
+  animation: bt-fill 0.3s ease-out both;
+  animation-delay: 0s !important;
+}
+
+/* ---------- Buzzer unlock indicator styles (R2-24) ---------- */
+.bt-ind-strip {
+  background: linear-gradient(to bottom, transparent 0%, var(--bt-ind-c) 12%, var(--bt-ind-c) 88%, transparent 100%);
+  box-shadow: 0 0 1.4vh 0.2vh var(--bt-ind-glow);
+}
+.bt-ind-glow {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 5vh;
+}
+.bt-ind-top {
+  top: 0;
+  background: linear-gradient(to bottom, var(--bt-ind-glow), transparent);
+  border-top: 0.45vh solid var(--bt-ind-c);
+}
+.bt-ind-bottom {
+  bottom: 0;
+  background: linear-gradient(to top, var(--bt-ind-glow), transparent);
+  border-bottom: 0.45vh solid var(--bt-ind-c);
+}
+.bt-ind-dot {
+  position: absolute;
+  top: 2.4vh;
+  right: 2.4vh;
+  width: 2.2vh;
+  height: 2.2vh;
+  border-radius: 50%;
+  background: var(--bt-ind-c);
+  box-shadow: 0 0 1.6vh var(--bt-ind-glow);
+}
+@keyframes bt-ind-pulse {
+  0% { box-shadow: inset 0 0 0 0 var(--bt-ind-glow); }
+  35% { box-shadow: inset 0 0 6vh 1.2vh var(--bt-ind-glow); }
+  100% { box-shadow: inset 0 0 2.5vh 0.3vh var(--bt-ind-glow); }
+}
+.bt-ind-pulse {
+  position: absolute;
+  inset: 0;
+  border: 0.35vh solid var(--bt-ind-c);
+  animation: bt-ind-pulse 1.1s ease-out both;
+}
+.reduce-motion .bt-ind-pulse {
+  animation: none;
+  box-shadow: inset 0 0 2.5vh 0.3vh var(--bt-ind-glow);
+}

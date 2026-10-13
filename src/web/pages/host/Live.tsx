@@ -244,7 +244,7 @@ function IntroControls({ g, run }: { g: GameView; run: Run }) {
     return (
       <div className="flex justify-end">
         <Button size="sm" variant="ghost" onClick={() => run({ type: 'startIntro' })} data-testid="intro-start">
-          <Play size={18} aria-hidden /> Introduce the categories on TV
+          <Play size={18} aria-hidden /> Play the round intro on TV
         </Button>
       </div>
     );
@@ -254,7 +254,7 @@ function IntroControls({ g, run }: { g: GameView; run: Run }) {
   return (
     <div className="space-y-3 rounded-2xl bg-blue-950 p-4 text-white shadow-sm" data-testid="intro-controls">
       <div>
-        <p className="text-xs font-bold tracking-wide text-blue-200 uppercase">Category introduction on TV{intro.auto ? ' · auto' : ''}</p>
+        <p className="text-xs font-bold tracking-wide text-blue-200 uppercase">Round intro on TV{intro.auto ? ' · auto' : ''}</p>
         <p className="text-lg font-bold" data-testid="intro-now">
           {now}
         </p>

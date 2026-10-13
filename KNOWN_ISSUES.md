@@ -24,3 +24,5 @@
 | K20 | TV lobby | Shared-buzzer team members on the TV lobby come from the game projection matched by team name (the server roster row has no member list); two teams with the same name would merge. | Give teams distinct names. |
 | K21 | TV lobby | Reduced-motion and light-theme variants of the lobby/presentation pages were not checked visually. | Report if anything looks off. |
 | K22 | Presentation | Leaderboard/player TV pages were verified with injected sample data and the live empty state, not with a long real history. | — |
+| K23 | Sounds | Sound cues are synthesised in the browser; automated tests check settings and triggers, not what is heard. Browsers may block audio on the TV until the page is clicked once (the Electron TV window allows autoplay). | Click the TV page once in a browser; use Settings → Test. |
+| K24 | Sounds | Custom sound files are kept in full backups but are not part of board packages (they are app settings, not board content). | Re-upload on another computer. |

@@ -5,14 +5,20 @@ import type { GameView } from '../../../shared/views';
 import { cx } from '../../components/ui';
 import { FitText, money, useBoard } from './common';
 import { T } from './timing';
+import { checkerDelays, useFx } from './fx';
+import { SPEED_FACTOR } from '../../../shared/tvFx';
 
 export function Grid({ g, activeId, activeOpen, fillIn }: { g: GameView; activeId: string | null; activeOpen: boolean; fillIn: boolean }) {
   const { prefix, scale } = useBoard();
+  const fx = useFx();
   const round = g.rounds[g.roundIndex];
   const cols = round?.categories.length ?? 0;
   const rows = round ? Math.max(0, ...round.categories.map((c) => c.clues.length)) : 0;
-  // Random but stable fill-in order for this mount (tiles light up like a real board).
+  // Stable fill-in order for this mount: a checker pattern with the board intro on, else random.
+  const checker = fx.boardIntro;
+  const factor = SPEED_FACTOR[fx.introSpeed];
   const delays = useMemo(() => {
+    if (checker) return checkerDelays(cols, rows, T.fillSpread * 1.3 * factor);
     const n = cols * rows;
     const order = Array.from({ length: n }, (_, i) => i);
     for (let i = n - 1; i > 0; i--) {
@@ -23,7 +29,7 @@ export function Grid({ g, activeId, activeOpen, fillIn }: { g: GameView; activeI
     const d: number[] = [];
     order.forEach((cell, rank) => (d[cell] = rank * step));
     return d;
-  }, [cols, rows]);
+  }, [cols, rows, checker, factor]);
   if (!round) return null;
 
   const fillStyle = (r: number, c: number): CSSProperties | undefined =>

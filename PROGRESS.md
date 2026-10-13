@@ -16,7 +16,10 @@
   - Emoji in menus and controls replaced by Lucide vector icons; Help rewritten for the new flow.
   - Fixed during testing: pairing code in the URL fragment was lost when React re-ran a state initialiser (now read without side effects, removed after mount); `Card` now forwards `data-testid`; TV phone-readiness dots refresh when phones connect/disconnect.
 - Tests: Vitest 107/107, Playwright 17/17 (new lobby.spec.ts: start screen → create lobby → QR pairing → present on TV / private view → lobby controls → close lobby; legacy redirects). Screenshots: test-results/screens/.
-- **Next:** Milestone E — board intro (checker reveal) + settings (R2-23), buzzer unlock indicator styles (R2-24), sound cues/packs (R2-22); then R2-25 UX pass, survival UI, tournament mode.
+- Pushed 6fdda96.
+- **Milestone E: TV presentation effects (R2-22/23/24).** Classic board intro: screens light up in a checker pattern before the round title (skip/replay via the round-intro controls; speed setting also paces auto intros); checker fill when there is no intro. Buzzers-open indicator styles (side edges, top/bottom glow, status dot, brief pulse, none) with colour, intensity, duration, persist, label. Sound cues (13) with synthesised Classic/Arcade/Soft packs, Muted, and Custom (own files, validated, local) plus per-cue switches and Test buttons. All in Settings → TV presentation (previews; optimistic, serialised saves).
+- Tests: Vitest 109/109 (new tvfx.test.ts), Playwright 18/18 (practice.spec checks the reveal and dot indicator on the TV; settings test).
+- **Next:** R2-25 UX consistency pass; survival-mode UI (hearts on TV/host/phone); tournament mode; latency diagnostics.
 
 ## Session 3 — 2026-10-12 (roadmap continuation, auto-push workflow)
 

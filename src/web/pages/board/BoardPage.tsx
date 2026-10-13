@@ -6,7 +6,11 @@ import { connect, useLive, reconnectNow } from '../../lib/socket';
 import { api, ensureLocalHost, tokens } from '../../lib/api';
 import { Avatar, QrImage, cx, fmtScore } from '../../components/ui';
 import { competitorAvatar, competitorColor, competitorName, findCompetitor } from '../../lib/view';
-import { configureSound, sfx, unlockAudio } from '../../lib/sound';
+import { configureSound, playCue, sfx, unlockAudio } from '../../lib/sound';
+import { DEFAULT_TV_FX, normalizeTvFx, type TvFx } from '../../../shared/tvFx';
+import type { PublicLobby } from '../../../shared/presentation';
+import { useTimerSeconds } from '../../lib/view';
+import { FxCtx } from './fx';
 import { reannounce, startInputBridge } from '../../lib/inputBridge';
 import type { GameView } from '../../../shared/views';
 import { avatarEmoji } from '../../lib/avatars';
@@ -28,6 +32,7 @@ interface PublicSettings {
   sound: boolean;
   volume: number;
   reducedMotion: boolean;
+  tvFx?: TvFx;
 }
 
 export default function BoardPage() {
@@ -55,8 +60,9 @@ export default function BoardPage() {
 
   useEffect(() => {
     api<PublicSettings>('GET', '/api/settings/public').then((s) => {
-      setSettings(s);
-      configureSound({ enabled: s.sound, volume: s.volume });
+      const tvFx = normalizeTvFx(s.tvFx);
+      setSettings({ ...s, tvFx });
+      configureSound({ enabled: s.sound, volume: s.volume, fx: tvFx });
     });
     api<{ urls: { join: string; host: string } }>('GET', '/api/info').then(setInfo);
   }, [profilesVersion]);
@@ -69,7 +75,8 @@ export default function BoardPage() {
     }
   }, [trusted, status]);
 
-  useSounds(game);
+  useSounds(game, lobby);
+  useCountdownCue(game);
 
   const osReduced = usePrefersReducedMotion();
   const vh = useViewportHeight();
@@ -94,6 +101,7 @@ export default function BoardPage() {
 
   return (
     <BoardCtx.Provider value={presentation}>
+      <FxCtx.Provider value={settings.tvFx ?? DEFAULT_TV_FX}>
       <MotionConfig reducedMotion={reduced ? 'always' : 'never'}>
         <div
           className={cx('board-theme relative flex h-screen w-screen flex-col overflow-hidden select-none', settings.reducedMotion && 'reduce-motion')}
@@ -139,6 +147,7 @@ export default function BoardPage() {
           <FullscreenButton />
         </div>
       </MotionConfig>
+      </FxCtx.Provider>
     </BoardCtx.Provider>
   );
 }
@@ -221,12 +230,28 @@ function FullscreenButton() {
   );
 }
 
-function useSounds(g: GameView | null) {
+/** Sound cues (R2-22) follow the authoritative state; each cue can be switched off in Settings. */
+function useSounds(g: GameView | null, lobby: PublicLobby | null) {
   const prev = useRef<GameView | null>(null);
+  const wasOpen = useRef<boolean | null>(null);
+  useEffect(() => {
+    const open = !!lobby?.open;
+    if (wasOpen.current === false && open) playCue('startup');
+    wasOpen.current = open;
+  }, [lobby?.open]);
   useEffect(() => {
     const p = prev.current;
     prev.current = g;
     if (!g || !p || p.id !== g.id) return;
+    // Board intro / categories / new round.
+    if (g.intro && (!p.intro || p.intro.roundIndex !== g.intro.roundIndex || g.intro.step < p.intro.step)) playCue('boardIntro');
+    else if (g.intro && p.intro && g.intro.step > p.intro.step && g.intro.step >= 0) playCue('categoryIntro');
+    if (p.phase === 'lobby') {
+      if (g.phase === 'board' && !g.intro) playCue('boardIntro'); // board appears without an intro
+    } else if (p.roundIndex !== g.roundIndex) playCue('roundEnd');
+    if (g.phase === 'final' && p.phase !== 'final') playCue('final');
+    if (g.clue && g.clue.clueId !== p.clue?.clueId && !g.clue.isDailyWager) playCue('clueSelect');
+    if (g.buzzer.status === 'open' && p.buzzer.status !== 'open' && g.phase === 'clue') playCue('unlock');
     if (g.buzzer.winner && g.buzzer.winner.at !== p.buzzer.winner?.at) sfx.buzz();
     if (g.clue?.isDailyWager && g.clue.clueId !== p.clue?.clueId) sfx.dailyWager();
     if (g.timer?.expired && !p.timer?.expired) sfx.timeUp();
@@ -322,4 +347,15 @@ function Results({ g }: { g: GameView }) {
       </div>
     </div>
   );
+}
+
+/** "Last seconds" cue: one soft tick per second for the final five seconds of a running timer. */
+function useCountdownCue(g: GameView | null) {
+  const secs = useTimerSeconds(g?.timer ?? null);
+  const last = useRef<number | null>(null);
+  useEffect(() => {
+    const running = !!g?.timer?.running && !g.paused;
+    if (running && secs != null && secs > 0 && secs <= 5 && secs !== last.current) playCue('countdown');
+    last.current = secs;
+  }, [secs, g?.timer?.running, g?.paused]);
 }

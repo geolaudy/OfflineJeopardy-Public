@@ -20,6 +20,9 @@ test('practice game: computer opponent, answer hidden until revealed, buzzers op
   const H = { authorization: `Bearer ${host}` };
   await api.post('/api/games/close', { headers: H });
   await api.post('/api/profiles', { data: { name: 'Solo Sue', color: '#1d4ed8', avatar: 'owl', pin: '1357' } });
+  // TV presentation (R2-23/24): classic board intro + a status-dot unlock indicator.
+  const fx = (await (await api.get('/api/settings/public')).json()).tvFx;
+  await api.put('/api/settings', { headers: H, data: { tvFx: { ...fx, boardIntro: true, unlock: { ...fx.unlock, style: 'dot', color: '#22c55e' } } } });
 
   const tv = await (await cr.newContext({ viewport: { width: 1280, height: 720 } })).newPage();
   await tv.goto(`${BASE}/board`);
@@ -39,7 +42,11 @@ test('practice game: computer opponent, answer hidden until revealed, buzzers op
   await expect(pc.getByTestId('setup-bot')).toContainText('Robo Rita');
   await expect(tv.getByText('Robo Rita')).toBeVisible(); // lobby shows the computer player
   await pc.getByTestId('start-game').click();
+  await expect(tv.getByTestId('tv-board-reveal')).toBeVisible(); // checker reveal before the round title
+  await tv.waitForTimeout(900);
+  await tv.screenshot({ path: 'test-results/screens/tv-board-reveal.png' });
   await pc.getByTestId('intro-skip').click();
+  await expect(tv.getByTestId('tv-board-reveal')).toHaveCount(0);
 
   await pc.getByRole('button', { name: 'History for 200' }).click();
   await expect(tv.getByTestId('clue-text')).toBeVisible();
@@ -48,6 +55,8 @@ test('practice game: computer opponent, answer hidden until revealed, buzzers op
   await expect(pc.getByTestId('host-answer')).toHaveCount(0);
   // Buzzers open automatically after a reading pause; B buzzes for the single human player.
   await expect(pc.getByText('Buzzers are open…')).toBeVisible({ timeout: 10_000 });
+  await expect(tv.getByTestId('tv-unlock-indicator')).toHaveAttribute('data-style', 'dot');
+  await tv.screenshot({ path: 'test-results/screens/tv-unlock-dot.png' });
   await pc.keyboard.press('b');
   await expect(pc.getByTestId('host-winner')).toHaveText('Solo Sue');
   await expect(tv.getByTestId('buzz-winner')).toContainText('Solo Sue');
@@ -61,5 +70,31 @@ test('practice game: computer opponent, answer hidden until revealed, buzzers op
   await pc.getByRole('button', { name: 'End game' }).click();
   await expect(tv.getByTestId('winner')).toContainText('Solo Sue wins!');
   await api.post('/api/games/close', { headers: H });
+  await api.put('/api/settings', { headers: H, data: { tvFx: fx } });
+  await api.dispose();
+});
+
+test('TV presentation settings: indicator style, board intro and sound cues save from the Settings page', async () => {
+  const api = await request.newContext({ baseURL: BASE });
+  const host = (await (await api.post('/api/host/local-login')).json()).token as string;
+  const H = { authorization: `Bearer ${host}` };
+  const before = (await (await api.get('/api/settings/public')).json()).tvFx;
+  const pc = await (await cr.newContext({ viewport: { width: 1366, height: 900 } })).newPage();
+  await pc.goto(`${BASE}/host/settings`);
+  const card = pc.getByTestId('tv-presentation-settings');
+  await expect(card).toBeVisible();
+  await card.getByTestId('fx-style-bottom').click();
+  await expect(card.getByTestId('fx-style-bottom')).toHaveAttribute('aria-checked', 'true');
+  await card.getByTestId('fx-board-intro').uncheck();
+  await card.getByTestId('fx-cue-buzz').uncheck();
+  await card.getByTestId('fx-sound-pack').selectOption('arcade');
+  await expect(card.getByTestId('fx-sound-pack')).toHaveValue('arcade');
+  await card.screenshot({ path: 'test-results/screens/settings-tv-presentation.png' });
+  const after = (await (await api.get('/api/settings/public')).json()).tvFx;
+  expect(after.unlock.style).toBe('bottom');
+  expect(after.boardIntro).toBe(false);
+  expect(after.cues.buzz).toBe(false);
+  expect(after.soundPack).toBe('arcade');
+  await api.put('/api/settings', { headers: H, data: { tvFx: before } });
   await api.dispose();
 });

@@ -32,6 +32,7 @@ import * as stats from './stats.js';
 import { createZip, isZip, readZip, ZipError, type ZipEntry } from './zip.js';
 import { registerImportRoutes } from './importRoutes.js';
 import { LobbyManager } from './lobby.js';
+import { INTRO_STEP_MS, normalizeTvFx, SOUND_CUES, tvFxSchema } from '../shared/tvFx.js';
 import { normalizeRules, rulesFromPreset, RULE_PRESETS } from '../shared/game.js';
 import { customThemeSchema, isPreset, newThemeData, type ThemeFile } from '../shared/themes.js';
 import { rulesSchema } from '../shared/actions.js';
@@ -61,8 +62,10 @@ export async function startServer(opts: ServerOptions) {
   const mediaDir = path.join(dataDir, 'media');
   const profileMediaDir = path.join(mediaDir, 'profiles');
   const clueMediaDir = path.join(mediaDir, 'clues');
+  const soundMediaDir = path.join(mediaDir, 'sounds');
   fs.mkdirSync(profileMediaDir, { recursive: true });
   fs.mkdirSync(clueMediaDir, { recursive: true });
+  fs.mkdirSync(soundMediaDir, { recursive: true });
 
   const dbFile = path.join(dataDir, 'offlinejeopardy.db');
   applyPendingRestore(dataDir, dbFile);
@@ -699,7 +702,7 @@ export async function startServer(opts: ServerOptions) {
   });
   app.get('/media/:dir/:file', async (req, reply) => {
     const { dir, file } = req.params as { dir: string; file: string };
-    const base = dir === 'profiles' ? profileMediaDir : dir === 'clues' ? clueMediaDir : null;
+    const base = dir === 'profiles' ? profileMediaDir : dir === 'clues' ? clueMediaDir : dir === 'sounds' ? soundMediaDir : null;
     const full = base ? safeJoin(base, file) : null;
     if (!full || !fs.existsSync(full)) return reply.code(404).send({ error: 'Not found' });
     const ext = path.extname(full).slice(1).toLowerCase();
@@ -840,15 +843,59 @@ export async function startServer(opts: ServerOptions) {
     volume: z.number().min(0).max(1).optional(),
     reducedMotion: z.boolean().optional(),
     keyboardBuzzers: z.boolean().optional(),
+    tvFx: tvFxSchema.optional(),
   });
   const SETTING_DEFAULTS = { preferredAddress: null, trustLocalhost: true, publicLeaderboard: true, theme: 'classic', boardTheme: 'classic', sound: true, volume: 0.7, reducedMotion: false, keyboardBuzzers: true };
-  const readSettings = () => Object.fromEntries(Object.entries(SETTING_DEFAULTS).map(([k, v]) => [k, getSetting(db, k, v)]));
+  const readSettings = () => {
+    const base: Record<string, string | boolean | number | null> = Object.fromEntries(Object.entries(SETTING_DEFAULTS).map(([k, v]) => [k, getSetting(db, k, v)]));
+    return Object.assign(base, { tvFx: normalizeTvFx(getSetting(db, 'tvFx', null)) });
+  };
+  // The automatic category-introduction pace follows the chosen intro speed.
+  games.introStepMs = INTRO_STEP_MS(readSettings().tvFx.introSpeed);
   app.get('/api/settings/public', async () => {
     const s = readSettings();
     // "custom:<id>" selects a saved custom theme; the TV gets its full definition (public look only).
     const customId = typeof s.boardTheme === 'string' && s.boardTheme.startsWith('custom:') ? s.boardTheme.slice(7) : null;
     const custom = customId ? repo.getTheme(db, customId) ?? null : null;
-    return { theme: custom ? custom.base : isPreset(String(s.boardTheme)) ? s.boardTheme : 'classic', custom, sound: s.sound, volume: s.volume, reducedMotion: s.reducedMotion };
+    return { theme: custom ? custom.base : isPreset(String(s.boardTheme)) ? s.boardTheme : 'classic', custom, sound: s.sound, volume: s.volume, reducedMotion: s.reducedMotion, tvFx: s.tvFx };
+  });
+
+  // ---------- custom sound cues (R2-22): the host's own audio files, stored locally ----------
+  const MAX_SOUND_BYTES = 2 * 1024 * 1024;
+  app.post('/api/sounds/:cue', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const cue = (req.params as { cue: string }).cue;
+    if (!(SOUND_CUES as readonly string[]).includes(cue)) return bad(reply, 'Unknown sound cue', 404);
+    const file = await req.file().catch(() => undefined);
+    if (!file) return bad(reply, 'No file uploaded');
+    const buf = await file.toBuffer().catch(() => null);
+    if (!buf || buf.length > MAX_SOUND_BYTES) return bad(reply, 'Sound files can be up to 2 MB', 413);
+    const kind = sniffMedia(buf);
+    if (!kind || kind.kind !== 'audio') return bad(reply, 'Choose an MP3, WAV, OGG or M4A audio file');
+    const name = `${cue}-${Date.now().toString(36)}.${kind.ext}`;
+    fs.writeFileSync(path.join(soundMediaDir, name), buf);
+    const fx = readSettings().tvFx;
+    const old = fx.customSounds[cue as keyof typeof fx.customSounds];
+    fx.customSounds = { ...fx.customSounds, [cue]: `/media/sounds/${name}` };
+    setSetting(db, 'tvFx', fx);
+    if (old) fs.rmSync(path.join(soundMediaDir, path.basename(old)), { force: true });
+    hub.profilesChanged();
+    return fx;
+  });
+  app.delete('/api/sounds/:cue', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const cue = (req.params as { cue: string }).cue;
+    const fx = readSettings().tvFx;
+    const old = fx.customSounds[cue as keyof typeof fx.customSounds];
+    if (old) {
+      const rest = { ...fx.customSounds };
+      delete rest[cue as keyof typeof rest];
+      fx.customSounds = rest;
+      setSetting(db, 'tvFx', fx);
+      fs.rmSync(path.join(soundMediaDir, path.basename(old)), { force: true });
+      hub.profilesChanged();
+    }
+    return fx;
   });
 
   // ---------- custom TV themes ----------
@@ -948,7 +995,10 @@ export async function startServer(opts: ServerOptions) {
     if (!requireHost(req, reply)) return;
     const body = parse(settingsSchema, req.body, reply);
     if (!body) return;
+    // Custom sound files are managed by /api/sounds only (a settings save cannot point at other files).
+    if (body.tvFx) body.tvFx = { ...body.tvFx, customSounds: readSettings().tvFx.customSounds };
     for (const [k, v] of Object.entries(body)) if (v !== undefined) setSetting(db, k, v);
+    if (body.tvFx) games.introStepMs = INTRO_STEP_MS(body.tvFx.introSpeed);
     hub.profilesChanged(); // nudges clients to refetch public settings
     return readSettings();
   });

@@ -13,6 +13,7 @@ import { FitText, useBoard, vhPx } from './common';
 import { TimerBar } from './TimerBar';
 import { QuestionCard } from './ClueMedia';
 import { EASE_IN_OUT, EASE_OUT, EASE_OUT_ARR, T } from './timing';
+import { UnlockIndicator } from './fx';
 
 /** Transform that maps the full-size panel onto the tile for `clueId` (null if not on screen). */
 function tileTransform(panel: HTMLElement, clueId: string): string | null {
@@ -108,7 +109,7 @@ export function CluePanel({ g, closing, zoomIn, onClosed }: { g: GameView; closi
     <div ref={panelRef} className="bt-panel" style={{ '--bt-fade': `${T.fade}s` } as CSSProperties} aria-live="polite" data-testid="tv-clue-panel">
       <div ref={contentRef} className={cx('bt-content', expanded && 'is-in')}>
         {clue.isDailyWager && clue.stage === 'wager' ? <DailyWagerCard key="wager" g={g} /> : <QuestionCard key="question" g={g} />}
-        <BuzzIndicator open={g.buzzer.status === 'open' && !closing} />
+        <UnlockIndicator open={g.buzzer.status === 'open' && !closing} />
         <BuzzWinner g={g} />
         <TimerBar timer={g.timer} />
       </div>
@@ -125,31 +126,6 @@ function DailyWagerCard({ g }: { g: GameView }) {
       <p className="bt-dw-cat">{clue.categoryName}</p>
       {controller && <p className="bt-dw-who">{competitorName(controller, g)} is wagering…</p>}
     </div>
-  );
-}
-
-/** Subtle, static "buzzers are live" cue: light strips on both side edges + a small label. */
-function BuzzIndicator({ open }: { open: boolean }) {
-  return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          key="buzz-open"
-          className="pointer-events-none absolute inset-0"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: T.fade }}
-        >
-          <span className="bt-strip left-0" aria-hidden />
-          <span className="bt-strip right-0" aria-hidden />
-          <div className="bt-buzz-label" role="status">
-            <span className="bt-buzz-dot" aria-hidden />
-            Buzzers open
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
   );
 }
 
