@@ -25,7 +25,9 @@
 - **UX pass (R2-25, part 1):** screenshot audit of all host pages on iPad and iPhone (WebKit). Fixed: Boards header actions overlapping the title on iPad portrait (shared PageTitleBar), duplicate host header before a game exists, start screen with no side padding on phones; consistent headers with icon buttons on Players/Teams/Themes/History. Tests: Vitest 110/110, Playwright 19/19.
 - Pushed 02dea95.
 - **UX pass part 2:** live game on iPhone SE/13 and iPad Mini, editor on iPad portrait. One header bar on phones during a game (navigation + TV switch in the game bar; icon-only Pause/Menu; distinct ⋮ game menu), short buzzer labels, wrapping editor category controls. Tests: Vitest 110/110, Playwright 19/19.
-- **Next:** tournament mode; latency diagnostics; real-device checks (iPad Safari, Joy-Con) remain manual.
+- Tagged **v0.4.0**.
+- **Real hardware verified by the user (2026-10-13):** host pairing by scanning the lobby QR with a real iPad, the host app on a real iPad, and real Joy-Cons on Windows all work (KNOWN_ISSUES K1, K2, K19 resolved; FEATURE_MATRIX H1, H9, Z7, R2-2, R2-3 updated).
+- **Next:** Joy-Con rumble feedback (Z12), latency diagnostics (Z11), team balancing (T11), tournament/series mode (O8), head-to-head comparison (T10).
 
 ## Session 3 — 2026-10-12 (roadmap continuation, auto-push workflow)
 

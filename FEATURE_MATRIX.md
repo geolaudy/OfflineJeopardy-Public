@@ -37,7 +37,7 @@ Last full run: 2026-10-12 (session 3) — Vitest 73/73, Playwright 12/12 passing
 
 | ID | Feature | Pri | Status | Source | Tests | Limitations |
 |---|---|---|---|---|---|---|
-| H1 | Host auth via pairing code; persistent host session; reconnect | P0 | TESTED | auth.ts, app.ts, host/HostPage.tsx | I, E (WebKit iPad) | Real iPad not yet verified |
+| H1 | Host auth via pairing code; persistent host session; reconnect | P0 | TESTED | auth.ts, app.ts, host/HostPage.tsx | I, E (WebKit iPad), **manual: real iPad (user, 2026-10-13)** | — |
 | H2 | Select clue → TV; private answer + notes | P0 | TESTED | host/Live.tsx | E | — |
 | H3 | Reveal/hide answer | P0 | TESTED | Live.tsx | E, U | — |
 | H4 | Unlock / lock / reset buzzers | P0 | TESTED | Live.tsx | E, I, U | — |
@@ -45,7 +45,7 @@ Last full run: 2026-10-12 (session 3) — Vitest 73/73, Playwright 12/12 passing
 | H6 | Correct / incorrect, award/deduct points, undo | P0 | TESTED | Live.tsx | E, U, I | — |
 | H7 | Skip / restore clue, rounds, board control | P1 | TESTED (engine) / IMPLEMENTED (UI) | Live.tsx | U | — |
 | H8 | Manage players & teams, per-team buzzer mode | P0 | TESTED | host/Setup.tsx | U, I, E2 | — |
-| H9 | Controller assignment by button press | P0 | TESTED | ControllersPanel.tsx, controllers.ts | I, E2 (keyboard key) | Joy-Con path simulated only |
+| H9 | Controller assignment by button press | P0 | TESTED | ControllersPanel.tsx, controllers.ts | I, E2 (keyboard key), **manual: real Joy-Cons (user, 2026-10-13)** | — |
 | H10 | Daily Wager & Final control | P0 | TESTED | Live.tsx, FinalControl.tsx | E, E2, U | — |
 | H11 | Save / resume / switch / end games | P0 | TESTED | GamePicker.tsx, app.ts | I, E (end) | — |
 | H12 | Event history + audited attribution correction | P1 | TESTED (engine) / IMPLEMENTED (UI) | EventLog.tsx | U | — |
@@ -85,7 +85,7 @@ Last full run: 2026-10-12 (session 3) — Vitest 73/73, Playwright 12/12 passing
 | Z4 | Early-buzz rules (none / lockout / clue / points), mid-game changes | P1 | TESTED | engine.ts | U, U2, I2 | — |
 | Z5 | Team-aware arbitration, configurable team retry | P0 | TESTED | engine.ts | U | — |
 | Z6 | Disconnection handling (devices marked disconnected; others keep working) | P0 | TESTED | controllers.ts, hub.ts | I | — |
-| Z7 | Joy-Con detection/recognition via WebHID (L/R, MAC id), button mapping, identify lights | P0 | IMPLEMENTED | web/lib/inputBridge.ts, electron/main.ts | I (simulated input only) | **Not verified with real Joy-Cons** (KNOWN_ISSUES K1) |
+| Z7 | Joy-Con detection/recognition via WebHID (L/R, MAC id), button mapping, identify lights | P0 | TESTED | web/lib/inputBridge.ts, electron/main.ts | I (simulated input), **manual: real Joy-Cons on Windows (user, 2026-10-13)** | Switch 2 Joy-Cons unsupported (different device ids); see K1 |
 | Z8 | Keyboard buzzers (TV window) | P1 | TESTED | inputBridge.ts | I, E2 | — |
 | Z9 | Other gamepads (Gamepad API) | P2 | IMPLEMENTED | inputBridge.ts | — | — |
 | Z10 | Mixed-device buzzing in one game | P0 | TESTED | — | U, I | — |
@@ -175,8 +175,8 @@ Last run 2026-10-12: Vitest 58/58 (43 unit, 15 integration), Playwright 8/8.
 | ID | Feature | Pri | Status | Source | Tests | Limitations |
 |---|---|---|---|---|---|---|
 | R2-1 | Startup landing + Create Lobby | P1 | TESTED | desk/DeskPage.tsx (start screen: Create lobby, Resume, Boards, Settings, Help, network help; opens the TV window on the second screen) | E = tests/e2e/lobby.spec.ts (start screen → lobby open → close) | Electron TV auto-open not covered by automated tests |
-| R2-2 | Per-lobby host pairing (QR + temporary code) | P1 | TESTED | server/lobby.ts (code per lobby), app.ts (/api/qr?target=hostPair requires host auth; login 409 without a lobby), host/HostPage.tsx (#pair= fragment one-step pairing, removed from the URL), hub observer flag | I (server.test pairing), E (QR pairing, host connected status, code rejected after close) | Physical iPad camera scan not verified on hardware |
-| R2-3 | Full host management UI on iPad | P1 | TESTED | host/AppShell.tsx (Home, Boards, Players, Teams, Buzzers, History, Settings, Help; drawer on narrow screens), host/HostPage.tsx routes reuse the desk pages | E (lobby.spec, mobile.spec on iPad Pro/Mini, teams-editor) | — |
+| R2-2 | Per-lobby host pairing (QR + temporary code) | P1 | TESTED | server/lobby.ts (code per lobby), app.ts (/api/qr?target=hostPair requires host auth; login 409 without a lobby), host/HostPage.tsx (#pair= fragment one-step pairing, removed from the URL), hub observer flag | I (server.test pairing), E (QR pairing, host connected status, code rejected after close), **manual: QR scanned with a real iPad (user, 2026-10-13)** | — |
+| R2-3 | Full host management UI on iPad | P1 | TESTED | host/AppShell.tsx (Home, Boards, Players, Teams, Buzzers, History, Settings, Help; drawer on narrow screens), host/HostPage.tsx routes reuse the desk pages | E (lobby.spec, mobile.spec on iPad Pro/Mini, teams-editor), **manual: real iPad (user, 2026-10-13)** | — |
 | R2-4 | Host Home = game setup + Open Lobby | P1 | TESTED | host/GamePicker.tsx (board list with preview, mode, preset, player limit, rules draft, summary via shared/rulesSummary.ts, Open lobby), Resume list | E (game, practice, roomcode, teams-editor via Open lobby) | — |
 | R2-5 | Full-screen public TV lobby | P1 | TESTED | board/Presenter.tsx, LobbyFull.tsx, lobbyModel.ts, presenter.css; server/lobby.ts roster (public fields, device types only) | E (lobby.spec: waiting state, Scan to join, host code never on TV; game/practice/roomcode specs) + screenshots 1080p, 1280×1024, 1024×768, 14-player and team lobbies | Shared-buzzer team members come from the game projection (roster row has no member list) |
 | R2-6 | Host lobby controls | P1 | TESTED | host/Setup.tsx LobbyControls (board, Individuals/Teams with a warning that names what is reset, player count/limit, rules), engine setMode + server-only setBoard, POST /api/games/current/board, Close lobby (menu + start screen) | U (setMode keeps everyone and personal buzzers, releases shared team buzzers; setBoard lobby-only), E (lobby.spec mode + board change) | Moving a player between teams uses the existing team editor |
