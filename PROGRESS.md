@@ -11,7 +11,8 @@
 - Tests: Vitest 71/71 (bots unit tests with fake timers, practice/bot integration test), Playwright 11/11 (practice.spec.ts). Pushed 982a9b0.
 - **Milestone: room codes (P17).** Optional per-game code (crypto-random, no look-alike letters), required to join when enabled, shown on TV lobby/join overlay and host setup, never in phone state, 5 wrong tries/min per connection, regenerate from host. Tests: unit, integration (hub), roomcode.spec.ts.
 - **E2E hygiene:** an intermittent failure was traced to leftover browser contexts (4 live pages from the first test made later WebKit tests ~7× slower: PIN test 38 s → 5 s). All specs now close contexts after each test. Idle-page CPU was profiled at the same time (TV lobby/intro/board/clue/results, host, portal: <1% main-thread busy, no layout churn) — no app-side busy loops.
-- Tests: Vitest 73/73, Playwright 12/12 (suite 2.3 min).
+- Tests: Vitest 73/73, Playwright 12/12 (suite 2.3 min). Pushed 3921a50.
+- **In progress: Survival mode (O8).** Engine done + unit-tested (rules.survivalLives, "Survival" preset, lives derived from non-voided incorrect answers, eliminated competitors cannot buzz / skip the Final / rank below survivors). **Next:** show lives (hearts) and eliminated state on TV scoreboard, host footer and phone (buzz reason "eliminated"), lives field in Rules dialog; then Tournament mode (series of games with cumulative standings — needs a tournaments table, migration v4). Vitest 74/74; E2E not re-run after this engine-only change.
 
 ## Session 2 — 2026-10-12 (user feedback round 1)
 

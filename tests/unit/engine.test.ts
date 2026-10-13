@@ -615,3 +615,21 @@ describe('room codes (P17)', () => {
     expect(projectState(s, 'player', {}).roomCode).toBeNull();
   });
 });
+
+describe('survival mode (O8)', () => {
+  it('wrong answers cost lives; eliminated players cannot buzz, skip the Final and rank below survivors; undo restores a life', () => {
+    let s = withRules(soloGame(['alex', 'sam']), { survivalLives: 1 });
+    s = run(s, { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'unlockBuzzers' });
+    s = buzz(s, 'alex');
+    s = run(s, { type: 'judge', result: 'incorrect' });
+    expect(tryBuzz(s, 'alex').ok && (tryBuzz(s, 'alex') as { info?: string }).info).toBe('eliminated');
+    s = run(s, { type: 'undo' });
+    expect(s.buzzer.winner?.competitorId).toBe(cid(s, 'alex')); // life restored with the undo
+    s = run(s, { type: 'judge', result: 'incorrect' });
+    s = run(s, { type: 'closeClue' }, { type: 'adjustScore', competitorId: cid(s, 'alex'), delta: 5000 }, { type: 'adjustScore', competitorId: cid(s, 'sam'), delta: 100 });
+    s = run(s, { type: 'startFinal' });
+    expect(s.final!.entries.map((e) => e.competitorId)).toEqual([cid(s, 'sam')]);
+    s = run(s, { type: 'endGame' });
+    expect(s.results![0]).toMatchObject({ competitorId: cid(s, 'sam'), isWinner: true });
+  });
+});

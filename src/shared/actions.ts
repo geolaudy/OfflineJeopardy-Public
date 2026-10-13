@@ -34,6 +34,7 @@ export const rulesSchema = z.object({
   finalAllowNonPositive: z.boolean(),
   allowSelfJoin: z.boolean(),
   requireRoomCode: z.boolean().optional(),
+  survivalLives: z.number().int().min(0).max(20).optional(),
   categoryIntro: z.boolean().optional(),
   timers: timerRules,
 });

@@ -94,6 +94,8 @@ export interface GameRules {
   allowSelfJoin: boolean; // players joining from phones are added without host approval
   categoryIntro: boolean; // introduce the categories on the TV at the start of each round
   requireRoomCode: boolean; // phones must type the room code shown on the TV to join this game
+  /** Survival mode: lives per player/team (0 = off). Each wrong answer costs a life; at 0 you are out. */
+  survivalLives: number;
   timers: TimerRules;
 }
 
@@ -111,6 +113,7 @@ export const DEFAULT_RULES: GameRules = {
   allowSelfJoin: true,
   categoryIntro: true,
   requireRoomCode: false,
+  survivalLives: 0,
   timers: { autoStart: true, buzzSeconds: 10, answerSeconds: 8, wagerSeconds: 30, finalSeconds: 30 },
 };
 
@@ -133,6 +136,11 @@ export const RULE_PRESETS: Record<string, { label: string; description: string; 
       earlyBuzzLockoutMs: 500,
       timers: { autoStart: true, buzzSeconds: 5, answerSeconds: 5, wagerSeconds: 20, finalSeconds: 20 },
     },
+  },
+  survival: {
+    label: 'Survival',
+    description: 'Everyone has 3 lives; each wrong answer costs one. Run out and you are out — last one standing wins.',
+    rules: { survivalLives: 3 },
   },
   teamBattle: {
     label: 'Team Battle',
@@ -396,6 +404,16 @@ export interface UndoSnapshot {
 /** Room codes avoid look-alike letters (no I, O, L, 0, 1). */
 export const ROOM_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ';
 export const ROOM_CODE_RE = /^[ABCDEFGHJKMNPQRSTUVWXYZ]{4}$/;
+
+/** Survival lives left per competitor, derived from non-voided incorrect answers (so undo stays exact). */
+export function livesOf(s: Pick<GameState, 'rules' | 'events' | 'competitors'>): Record<Id, number> | null {
+  const max = s.rules.survivalLives;
+  if (!max) return null;
+  const out: Record<Id, number> = {};
+  for (const c of s.competitors) out[c.id] = max;
+  for (const e of s.events) if (!e.voided && e.type === 'answer' && e.result === 'incorrect' && e.competitorId && e.competitorId in out) out[e.competitorId] = Math.max(0, out[e.competitorId] - 1);
+  return out;
+}
 
 export function scoresOf(events: GameplayEvent[]): Record<Id, number> {
   const out: Record<Id, number> = {};

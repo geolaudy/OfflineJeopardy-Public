@@ -14,6 +14,7 @@ import {
   type TimerState,
   CLUE_LOCKOUT,
   findClue,
+  livesOf,
   lockoutKey,
   ROOM_CODE_RE,
   normalizeRules,
@@ -180,11 +181,14 @@ function roundMaxValue(s: GameState): number {
 
 export function computeResults(s: GameState): GameResult[] {
   const scores = scoresOf(s.events);
-  const rows = s.competitors.map((c) => ({ competitorId: c.id, score: scores[c.id] ?? 0 }));
-  rows.sort((a, b) => b.score - a.score);
+  const lives = livesOf(s);
+  // Survival: players still in the game rank above eliminated ones, then by score.
+  const alive = (id: Id) => (lives ? (lives[id] > 0 ? 1 : 0) : 1);
+  const rows = s.competitors.map((c) => ({ competitorId: c.id, score: scores[c.id] ?? 0, alive: alive(c.id) }));
+  rows.sort((a, b) => b.alive - a.alive || b.score - a.score);
   const out: GameResult[] = [];
-  rows.forEach((r, i) => {
-    const placement = i > 0 && rows[i - 1].score === r.score ? out[i - 1].placement : i + 1;
+  rows.forEach(({ alive: _a, ...r }, i) => {
+    const placement = i > 0 && rows[i - 1].score === r.score && rows[i - 1].alive === rows[i].alive ? out[i - 1].placement : i + 1;
     out.push({ ...r, placement, isWinner: placement === 1 });
   });
   return out;
@@ -198,6 +202,7 @@ export function buzzBlockReason(s: GameState, competitorId: Id, profileId: Id | 
   if (s.clue.answeringEnded) return 'ended';
   const c = s.competitors.find((x) => x.id === competitorId);
   if (!c) return 'not-playing';
+  if (isEliminated(s, competitorId)) return 'eliminated';
   if (s.buzzer.attemptedCompetitors.includes(competitorId)) {
     const retryOk =
       s.rules.teamRetry === 'otherMembers' &&
@@ -211,6 +216,11 @@ export function buzzBlockReason(s: GameState, competitorId: Id, profileId: Id | 
   if (s.buzzer.status === 'locked') return 'locked';
   if (s.buzzer.status === 'buzzed') return 'taken';
   return null;
+}
+
+export function isEliminated(s: GameState, competitorId: Id) {
+  const lives = livesOf(s);
+  return !!lives && (lives[competitorId] ?? 1) <= 0;
 }
 
 /** End of the early-buzz lockout affecting this person (or shared-buzzer team); 0 when none. */
@@ -849,7 +859,8 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       closeActiveClue(tx, 'skipped');
       s.intro = null;
       const scores = scoresOf(s.events);
-      const eligible = s.competitors.filter((c) => s.rules.finalAllowNonPositive || (scores[c.id] ?? 0) > 0);
+      const lives = livesOf(s);
+      const eligible = s.competitors.filter((c) => (!lives || lives[c.id] > 0) && (s.rules.finalAllowNonPositive || (scores[c.id] ?? 0) > 0));
       s.phase = 'final';
       s.roundIndex = idx;
       s.final = {
@@ -965,6 +976,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
 }
 
 function buzzBlockReasonIgnoringStatus(s: GameState, c: Competitor): string | null {
+  if (isEliminated(s, c.id)) return 'eliminated';
   if (!s.buzzer.attemptedCompetitors.includes(c.id)) return null;
   if (s.rules.teamRetry === 'otherMembers' && c.kind === 'team' && c.buzzerMode === 'individual') {
     return c.memberIds.some((m) => !s.buzzer.attemptedProfiles.includes(m)) ? null : 'all-tried';
