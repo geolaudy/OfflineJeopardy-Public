@@ -33,7 +33,8 @@
 - **Tournaments (O8):** Tournaments page (create with individuals/teams and placement points or total score; standings, games, finish/reopen, rename, delete keeps the games); choose the tournament in "Set up a game"; standings on the host results screen with "Show on TV"; TV standings page (leaderboard layout, public names and points only). DB migration v4 (additive). Tests: Vitest 122/122, Playwright 22/22.
 - **Head to head (T10):** phone "Compare with me" on another player's page and a Compare dialog on the host's Players page: record against each other (who finished ahead), games as teammates, side-by-side games/wins/accuracy/best score/buzz speed, recent games; private statistics respected. E2E selectors made exact (the phone shows a name search once there are many profiles). Tests: Vitest 123/123, Playwright 23/23.
 - **Tournaments on phones:** new Tournaments page in the phone menu (standings, your row highlighted; names and points only; follows the leaderboard setting). Tests: Vitest 123/123, Playwright 23/23.
-- **Next:** polish pass on the new screens; tag a baseline.
+- **Polish:** visible note when "Show on TV" is unavailable (touch screens have no tooltips), tournament hint only when one is chosen, Help covers buzzer check, Joy-Con vibration, team balancing and tournaments. Tagged **v0.5.0**. Tests: Vitest 123/123, Playwright 23/23.
+- **Next:** user to feel Joy-Con vibration on hardware (K25); further ideas: TV presentation of head-to-head, tournament brackets, sound volume per cue.
 
 ## Session 3 — 2026-10-12 (roadmap continuation, auto-push workflow)
 

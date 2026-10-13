@@ -111,7 +111,7 @@ export default function GamePicker() {
               </div>
             </Field>
             {(openTournaments.length > 0 || (tournaments.data?.length ?? 0) > 0) && !(mode === 'solo' && practice) && (
-              <Field label="Tournament" hint={openTournaments.length ? 'The result counts towards the tournament standings.' : undefined}>
+              <Field label="Tournament" hint={tournament ? 'The result counts towards the tournament standings.' : undefined}>
                 {openTournaments.length ? (
                   <select className={inputCls} value={tournament?.id ?? ''} onChange={(e) => setTournamentId(e.target.value)} aria-label="Tournament" data-testid="tournament-select">
                     <option value="">Not part of a tournament</option>

@@ -22,6 +22,14 @@ export default function Help() {
       <Section title="The TV while you set up">
         <p>While a lobby is open and <b>Present on TV</b> is on, the TV follows what you open on the iPad: the lobby, the leaderboard, a player's public statistics, teams, boards (categories only), the rules or the buzzer overview. Switch to <b>Private view</b> to browse without changing the TV. Answers, PINs, settings and device details are never shown on the TV.</p>
       </Section>
+      <Section title="Before you start: buzzer check">
+        <p>On the Buzzers page (or the lobby's Buzzers tab) press <b>Start check</b> and ask everyone to press their buzzer once. You see who registered, in which order, and how quick each phone's connection is. These presses never count in the game.</p>
+        <p>Joy-Cons give a short vibration when their player buzzes in first, and two taps when someone buzzes too early. You can turn this off on the Buzzers page; <b>Identify</b> and <b>Vibrate</b> help find which Joy-Con is which.</p>
+      </Section>
+      <Section title="Teams and tournaments">
+        <p>In a team game, <b>Make balanced teams</b> splits the players who joined into evenly matched teams based on their past games (new players count as average). Press Shuffle for another fair split.</p>
+        <p>A <b>tournament</b> is a series of games with running standings. Create one under Tournaments, then choose it when you set up each game. Players see the standings on their phones, and you can show them on the TV.</p>
+      </Section>
       <Section title="Scoring">
         <p>Correct answers add the clue value; incorrect answers subtract it (unless the Classroom preset is used). Scores can go negative. Tap a score on the iPad to award or deduct points by hand.</p>
         <p>In team games, points always go to the team. When a team member answers, they get personal credit as a statistic — the team never gets extra points for it. For shared buzzers, the host picks who answered or chooses "Team only / unknown".</p>

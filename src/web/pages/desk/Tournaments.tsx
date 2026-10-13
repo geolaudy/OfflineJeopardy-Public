@@ -149,6 +149,7 @@ function TournamentDetail({ id }: { id: string }) {
           </>
         }
       />
+      {!enabled && <p className="-mt-2 text-sm text-slate-500">To show the standings on the TV, open a lobby and turn on “Present on TV”.</p>}
       <Card className="space-y-3">
         <h2 className="text-lg font-bold">Standings</h2>
         {standings.length === 0 ? (
