@@ -2,6 +2,7 @@
 import { z } from 'zod';
 import type { BindingTarget, InputKind } from './game.js';
 import type { GameView, PlayerContext } from './views.js';
+import { presentRequestSchema, type PresentationState, type PublicLobby } from './presentation.js';
 
 export const ControllerEventSchema = z.discriminatedUnion('type', [
   z.object({
@@ -41,6 +42,8 @@ export const ClientMessageSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('assignListen'), target: target.nullable(), label: z.string().max(60).optional() }),
   z.object({ t: z.literal('controllerConfig'), controllerId: z.string(), label: z.string().max(60).optional(), buzzButtons: z.string().max(200).optional() }),
   z.object({ t: z.literal('controllerForget'), controllerId: z.string() }),
+  // Host: show a public page on the TV (the server builds the public payload).
+  z.object({ t: z.literal('present'), req: presentRequestSchema }),
 ]);
 export type ClientMessage = z.infer<typeof ClientMessageSchema>;
 
@@ -64,6 +67,7 @@ export type ServerMessage =
   | { t: 'controllerInput'; controllerId: string; button: string; at: number }
   | { t: 'buzzResult'; ok: boolean; info?: string }
   | { t: 'profilesChanged' }
+  | { t: 'presentation'; lobby: PublicLobby | null; p: PresentationState }
   | { t: 'pong'; c: number; s: number }
   | { t: 'error'; message: string };
 

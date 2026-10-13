@@ -31,6 +31,7 @@ import { ImageError, MAX_UPLOAD_BYTES, processClueImage, processProfilePicture, 
 import * as stats from './stats.js';
 import { createZip, isZip, readZip, ZipError, type ZipEntry } from './zip.js';
 import { registerImportRoutes } from './importRoutes.js';
+import { LobbyManager } from './lobby.js';
 import { normalizeRules, rulesFromPreset, RULE_PRESETS } from '../shared/game.js';
 import { customThemeSchema, isPreset, newThemeData, type ThemeFile } from '../shared/themes.js';
 import { rulesSchema } from '../shared/actions.js';
@@ -78,9 +79,11 @@ export async function startServer(opts: ServerOptions) {
     debounceMs: () => games.current?.rules.buzzDebounceMs ?? 120,
   });
   const hub = new Hub(db, games, controllers);
+  const lobby = new LobbyManager(db, () => games.current, controllers, () => hub.onlineProfiles());
+  hub.lobby = lobby;
+  lobby.onChange = () => hub.sendPresentation();
   games.recover();
 
-  let pairingCode = newPairingCode();
   const pinLimiter = new RateLimiter(20, 60_000);
   const hostLimiter = new RateLimiter(10, 60_000);
 
@@ -143,8 +146,16 @@ export async function startServer(opts: ServerOptions) {
   });
   app.get('/api/qr', async (req, reply) => {
     const q = req.query as { target?: string };
+    if (q.target === 'hostPair') {
+      // Host pairing QR (shown only on the game computer): includes the temporary lobby code in the
+      // URL fragment so scanning pairs the iPad in one step. Requires a host session to fetch.
+      if (!requireHost(req, reply)) return;
+      if (!lobby.lobby) return bad(reply, 'Create a lobby first', 409);
+      const svg = await QRCode.toString(`${baseUrl()}/host#pair=${lobby.lobby.pairingCode}`, { type: 'svg', margin: 1, errorCorrectionLevel: 'M' });
+      return reply.header('content-type', 'image/svg+xml').header('cache-control', 'no-store').send(svg);
+    }
     const target = q.target === 'host' ? 'host' : q.target === 'board' ? 'board' : 'join';
-    // QR codes only ever contain plain URLs — never credentials.
+    // Public QR codes only ever contain plain URLs — never credentials.
     const svg = await QRCode.toString(`${baseUrl()}/${target}`, { type: 'svg', margin: 1, errorCorrectionLevel: 'M' });
     reply.header('content-type', 'image/svg+xml').header('cache-control', 'no-store').send(svg);
   });
@@ -155,7 +166,9 @@ export async function startServer(opts: ServerOptions) {
     if (wait) return bad(reply, `Too many attempts. Try again in ${Math.ceil(wait / 1000)}s.`, 429);
     const body = parse(z.object({ code: z.string().regex(/^\d{6}$/), label: z.string().max(60).optional() }), req.body, reply);
     if (!body) return;
-    if (body.code !== pairingCode) return bad(reply, 'Incorrect host code', 401);
+    // Pairing codes belong to the current lobby and stop working when it closes.
+    if (!lobby.lobby) return bad(reply, 'No lobby is open. Create a lobby on the game computer first.', 409);
+    if (body.code !== lobby.lobby.pairingCode) return bad(reply, 'Incorrect host code', 401);
     audit(db, 'host', 'host.login', { ip: req.ip });
     return { token: createSession(db, 'host', null, body.label ?? 'Host device') };
   });
@@ -171,17 +184,39 @@ export async function startServer(opts: ServerOptions) {
   });
   app.get('/api/host/pairing-code', async (req, reply) => {
     if (!requireHost(req, reply)) return;
-    return { code: pairingCode };
+    return { code: lobby.lobby?.pairingCode ?? null };
   });
   app.post('/api/host/pairing-code', async (req, reply) => {
     if (!requireHost(req, reply)) return;
-    pairingCode = newPairingCode();
-    return { code: pairingCode };
+    return { code: lobby.newPairingCode() };
+  });
+
+  // ---------- lobby session ----------
+  app.get('/api/lobby', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const l = lobby.lobby;
+    return { lobby: l ? { name: l.name, createdAt: l.createdAt } : null, pairingCode: l?.pairingCode ?? null, hostUrl: `${baseUrl()}/host`, joinUrl: `${baseUrl()}/join` };
+  });
+  app.post('/api/lobby', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const body = parse(z.object({ name: z.string().trim().max(60).optional() }), req.body ?? {}, reply);
+    if (!body) return;
+    const l = lobby.lobby ?? lobby.create(body.name);
+    audit(db, 'host', 'lobby.create', { name: l.name });
+    return { lobby: { name: l.name, createdAt: l.createdAt }, pairingCode: l.pairingCode };
+  });
+  app.delete('/api/lobby', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    lobby.close();
+    // The game (if any) stays saved; the TV goes back to its start screen.
+    games.unload();
+    audit(db, 'host', 'lobby.close');
+    return { ok: true };
   });
   app.post('/api/host/revoke-devices', async (req, reply) => {
     if (!requireHost(req, reply)) return;
     db.prepare(`DELETE FROM sessions WHERE kind = 'host' AND token_hash <> ?`).run(tokenHash(bearer(req)!));
-    pairingCode = newPairingCode();
+    lobby.newPairingCode();
     return { ok: true };
   });
 
@@ -998,10 +1033,13 @@ export async function startServer(opts: ServerOptions) {
     hub,
     port,
     url: `http://127.0.0.1:${port}`,
+    lobby,
+    /** Current lobby pairing code (null when no lobby is open). */
     get pairingCode() {
-      return pairingCode;
+      return lobby.lobby?.pairingCode ?? null;
     },
     async close() {
+      lobby.dispose();
       games.dispose();
       hub.closeAll();
       await app.close();

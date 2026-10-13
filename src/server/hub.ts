@@ -10,6 +10,7 @@ import type { ControllerRegistry } from './controllers.js';
 import { playerContext, projectState } from './engine/projection.js';
 import { getProfile } from './repos.js';
 import type { GameView } from '../shared/views.js';
+import type { LobbyManager } from './lobby.js';
 
 interface Client {
   ws: WebSocket;
@@ -28,12 +29,17 @@ export class Hub {
   private pending = false;
   private closed = false;
 
+  lobby: LobbyManager | null = null;
+
   constructor(
     private db: DB,
     private games: GameManager,
     private controllers: ControllerRegistry,
   ) {
-    games.onChange = () => this.scheduleBroadcast();
+    games.onChange = () => {
+      this.scheduleBroadcast();
+      this.lobby?.refreshSoon();
+    };
     controllers.onChange = () => this.sendControllers();
     controllers.onInput = (controllerId, button, at) => this.toHosts({ t: 'controllerInput', controllerId, button, at });
   }
@@ -49,6 +55,7 @@ export class Hub {
     ws.on('close', () => {
       this.clients.delete(c);
       if (c.role === 'player') this.scheduleBroadcast();
+      if (c.role === 'host') this.sendPresentation();
       if (c.deviceIds.size) this.controllers.disconnectAll(c.deviceIds);
     });
     ws.on('error', () => {});
@@ -101,6 +108,24 @@ export class Hub {
   profilesChanged() {
     for (const c of this.clients) this.send(c, { t: 'profilesChanged' });
     this.scheduleBroadcast();
+    this.lobby?.refreshSoon();
+  }
+
+  /** Profiles with a connected phone/portal. */
+  onlineProfiles() {
+    return [...new Set([...this.clients].filter((c) => c.role === 'player' && c.profileId).map((c) => c.profileId!))];
+  }
+
+  private hostCount() {
+    return [...this.clients].filter((c) => c.role === 'host').length;
+  }
+
+  /** Public lobby info + presentation to the TV(s) and hosts (never to phones). */
+  sendPresentation(only?: Client) {
+    if (!this.lobby) return;
+    const m: ServerMessage = { t: 'presentation', lobby: this.lobby.publicLobby(this.hostCount() > 0), p: this.lobby.presentation };
+    if (only) return this.send(only, m);
+    for (const c of this.clients) if (c.role === 'host' || c.role === 'public') this.send(c, m);
   }
 
   /** Revoke live connections of a profile (e.g. after a PIN reset or deletion). */
@@ -150,6 +175,8 @@ export class Hub {
       if (c.role === 'player') this.scheduleBroadcast();
       else this.broadcastTo(c);
       if (c.trusted) this.send(c, { t: 'controllers', list: this.controllers.list(), listening: this.controllers.listening });
+      if (c.role === 'host') this.sendPresentation();
+      else if (c.role === 'public') this.sendPresentation(c);
       return;
     }
     if (!c.role) return this.send(c, { t: 'error', message: 'Say hello first' });
@@ -206,6 +233,11 @@ export class Hub {
       case 'controllerConfig': {
         if (c.role !== 'host') return;
         this.controllers.configure(m.controllerId, { label: m.label, buzzButtons: m.buzzButtons });
+        return;
+      }
+      case 'present': {
+        if (c.role !== 'host') return;
+        this.lobby?.present(m.req);
         return;
       }
       case 'controllerForget': {

@@ -41,6 +41,7 @@ test('full game: iPad host pairing, phone profiles + buzzing, private answers, l
   const { ctx, token } = await hostApiToken();
   const auth = { authorization: `Bearer ${token}` };
   await ctx.put('/api/settings', { headers: auth, data: { trustLocalhost: false } });
+  await ctx.post('/api/lobby', { headers: auth, data: { name: 'E2E night' } }); // pairing codes belong to a lobby
   const { code } = await (await ctx.get('/api/host/pairing-code', { headers: auth })).json();
 
   // TV board

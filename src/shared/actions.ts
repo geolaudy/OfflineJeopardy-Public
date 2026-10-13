@@ -36,6 +36,7 @@ export const rulesSchema = z.object({
   requireRoomCode: z.boolean().optional(),
   survivalLives: z.number().int().min(0).max(20).optional(),
   autoUnlock: z.enum(['off', 'all', 'mediaOnly', 'perClue']).optional(),
+  maxPlayers: z.number().int().min(0).max(200).optional(),
   categoryIntro: z.boolean().optional(),
   timers: timerRules,
 });

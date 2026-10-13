@@ -38,6 +38,11 @@ describe('server basics and host authentication', () => {
 
   it('pairs a remote host with the desktop pairing code and rejects wrong codes', async () => {
     const s = await start();
+    // Pairing codes belong to a lobby: none exists yet.
+    expect(s.pairingCode).toBeNull();
+    expect((await api(s, 'POST', '/api/host/login', { code: '123456' })).status).toBe(409);
+    await api(s, 'POST', '/api/lobby', { name: 'Test night' }, await hostToken(s));
+    expect(s.pairingCode).toMatch(/^\d{6}$/);
     expect((await api(s, 'POST', '/api/host/login', { code: '000000' === s.pairingCode ? '111111' : '000000' })).status).toBe(401);
     const ok = await api(s, 'POST', '/api/host/login', { code: s.pairingCode });
     expect(ok.status).toBe(200);
@@ -423,6 +428,75 @@ describe('boards: import, export, versions', () => {
     expect(buf.subarray(0, 15).toString()).toBe('SQLite format 3');
     const diag = await api(s, 'GET', '/api/admin/diagnostics', undefined, host);
     expect(diag.data.integrity).toBe('ok');
+  });
+});
+
+describe('lobby session and public presentation (R2-1/2/7/8, R2-A)', () => {
+  it('lobby-scoped pairing; the TV only ever receives public presentation data; phones get none', async () => {
+    const s = await start();
+    const host = await hostToken(s);
+    const [alex, quiet] = await Promise.all([createProfile(s, 'Alex'), createProfile(s, 'Quiet')]);
+    await api(s, 'PATCH', '/api/me', { statsPrivate: true }, quiet.token);
+    const created = (await api(s, 'POST', '/api/lobby', { name: 'Friday quiz' }, host)).data;
+    const oldCode = created.pairingCode;
+    const ipad = (await api(s, 'POST', '/api/host/login', { code: oldCode, label: 'iPad' })).data.token as string;
+    expect(ipad).toBeTruthy();
+
+    const tv = await client(s, 'public');
+    const phone = await client(s, 'player', alex.token);
+    const h = await client(s, 'host', ipad);
+    await tv.wait((m) => m.t === 'presentation' && !!(m as any).lobby?.hostConnected);
+    const last = () => [...tv.messages].reverse().find((m) => m.t === 'presentation') as any;
+    expect(last().lobby).toMatchObject({ open: true, name: 'Friday quiz' });
+    expect(last().p.page).toBe('lobby');
+
+    // Board preview on the TV: category names only — never clue text or answers.
+    const boardId = await sampleBoardId(s, host);
+    h.send({ t: 'present', req: { page: 'board', boardId } });
+    await tv.wait((m) => m.t === 'presentation' && (m as any).p.page === 'board');
+    const bjson = JSON.stringify(last().p);
+    expect(last().p.board.rounds[0].categories).toContain('History');
+    for (const secret of ['Machu Picchu', 'The Inca', 'question', 'answer', 'dailyWager']) expect(bjson).not.toContain(secret);
+
+    // Player pages respect privacy.
+    h.send({ t: 'present', req: { page: 'player', profileId: quiet.id } });
+    await tv.wait((m) => m.t === 'presentation' && (m as any).p.page === 'player');
+    expect(last().p.player).toMatchObject({ private: true, profile: { name: 'Quiet' } });
+    expect(last().p.player.stats).toBeUndefined();
+    h.send({ t: 'present', req: { page: 'leaderboard', view: 'solo', metric: 'wins' } });
+    await tv.wait((m) => m.t === 'presentation' && (m as any).p.page === 'leaderboard');
+    expect(JSON.stringify(last().p)).not.toContain('Quiet');
+
+    // Players (and the public TV itself) cannot drive the presentation.
+    phone.send({ t: 'present', req: { page: 'teams' } });
+    tv.send({ t: 'present', req: { page: 'teams' } });
+    await new Promise((r) => setTimeout(r, 200));
+    expect(last().p.page).toBe('leaderboard');
+    expect(phone.messages.some((m) => m.t === 'presentation')).toBe(false);
+
+    // Rules summary + buzzer overview come from the current game (no device ids).
+    await api(s, 'POST', '/api/games', { boardId, mode: 'solo' }, host);
+    await h.act({ type: 'addPlayer', profileId: alex.id });
+    h.send({ t: 'present', req: { page: 'buzzers' } });
+    await tv.wait((m) => m.t === 'presentation' && (m as any).p.page === 'buzzers');
+    expect(last().p.buzzers.rows).toEqual([expect.objectContaining({ name: 'Alex', device: 'Phone' })]);
+    expect(JSON.stringify(last().p)).not.toContain('phone:');
+    h.send({ t: 'present', req: { page: 'rules' } });
+    await tv.wait((m) => m.t === 'presentation' && (m as any).p.page === 'rules');
+    expect(last().p.rules.lines.map((l: { label: string }) => l.label)).toContain('Early buzzing');
+
+    // Player limit is enforced.
+    await h.act({ type: 'updateRules', rules: { ...h.state!.rules, maxPlayers: 1 } });
+    const pq = await client(s, 'player', quiet.token);
+    pq.send({ t: 'join' });
+    expect(((await pq.wait((m) => m.t === 'result')) as any).error).toMatch(/full/);
+
+    // Closing the lobby invalidates its pairing code; the paired iPad session keeps working.
+    await api(s, 'DELETE', '/api/lobby', undefined, host);
+    expect((await api(s, 'POST', '/api/host/login', { code: oldCode })).status).toBe(409);
+    expect((await api(s, 'GET', '/api/host/check', undefined, ipad)).data.host).toBe(true);
+    await api(s, 'POST', '/api/lobby', {}, host);
+    expect((await api(s, 'POST', '/api/host/login', { code: oldCode === s.pairingCode ? '999999' : oldCode })).status).toBe(401);
   });
 });
 

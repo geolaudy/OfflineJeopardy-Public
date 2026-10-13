@@ -4,6 +4,7 @@ import type { ControllerInfo, ServerMessage } from '../../shared/protocol';
 import type { GameView, PlayerContext } from '../../shared/views';
 import type { HostAction } from '../../shared/actions';
 import type { BindingTarget } from '../../shared/game';
+import type { PresentationState, PresentRequest, PublicLobby } from '../../shared/presentation';
 
 type Role = 'host' | 'public' | 'player';
 export type ConnStatus = 'connecting' | 'open' | 'reconnecting' | 'unauthorized';
@@ -23,6 +24,9 @@ interface LiveState {
   lastBuzz: { ok: boolean; info?: string; at: number } | null;
   /** True once the first state snapshot has arrived on this connection. */
   ready: boolean;
+  /** Lobby session and public TV presentation (hosts and TVs only). */
+  lobby: PublicLobby | null;
+  presentation: PresentationState | null;
 }
 
 export const useLive = create<LiveState>(() => ({
@@ -39,6 +43,8 @@ export const useLive = create<LiveState>(() => ({
   profilesVersion: 0,
   lastBuzz: null,
   ready: false,
+  lobby: null,
+  presentation: null,
 }));
 
 let ws: WebSocket | null = null;
@@ -138,6 +144,11 @@ function handle(m: ServerMessage) {
     case 'buzzResult':
       useLive.setState({ lastBuzz: { ok: m.ok, info: m.info, at: Date.now() } });
       break;
+    case 'presentation': {
+      const prev = useLive.getState();
+      useLive.setState({ lobby: replaceEqualDeep(prev.lobby, m.lobby), presentation: replaceEqualDeep(prev.presentation, m.p) });
+      break;
+    }
     case 'profilesChanged':
       useLive.setState((s) => ({ profilesVersion: s.profilesVersion + 1 }));
       break;
@@ -153,6 +164,11 @@ export function send(msg: unknown) {
     return true;
   }
   return false;
+}
+
+/** Host: ask the TV to present a public page (the server builds the public payload). */
+export function present(req: PresentRequest) {
+  return send({ t: 'present', req });
 }
 
 /** Send a host action and await the server's verdict. */

@@ -326,6 +326,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
     // ----- setup -----
     case 'addPlayer': {
       if (isParticipant(s, a.profileId) && competitorForProfile(s, a.profileId)) fail('Player is already in this game');
+      if (!isParticipant(s, a.profileId)) checkRoom(s);
       s.unassigned = s.unassigned.filter((u) => u.profileId !== a.profileId);
       if (s.mode === 'team') {
         s.unassigned.push({ profileId: a.profileId, joinedAt: now, pending: false });
@@ -447,6 +448,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       if (competitorForProfile(s, a.profileId) || s.unassigned.some((u) => u.profileId === a.profileId))
         return { ignored: true, info: 'already-joined' };
       if (s.phase === 'ended') fail('This game has ended');
+      checkRoom(s);
       if (s.rules.requireRoomCode && (a.code ?? '').trim().toUpperCase() !== s.roomCode) fail('That room code is not right — check the code on the TV');
       if (s.mode === 'solo' && s.rules.allowSelfJoin) return reduce(tx, { type: 'addPlayer', profileId: a.profileId });
       s.unassigned.push({ profileId: a.profileId, joinedAt: now, pending: !s.rules.allowSelfJoin });
@@ -1032,6 +1034,15 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       fail(`Unknown action ${(never as { type: string }).type}`);
     }
   }
+}
+
+/** Number of people in the game (computer opponents do not count). */
+export function humanCount(s: GameState) {
+  return new Set([...s.competitors.flatMap((c) => c.memberIds), ...s.unassigned.map((u) => u.profileId)]).size;
+}
+
+function checkRoom(s: GameState) {
+  if (s.rules.maxPlayers > 0 && humanCount(s) >= s.rules.maxPlayers) fail('This game is full (' + s.rules.maxPlayers + ' players)');
 }
 
 function buzzBlockReasonIgnoringStatus(s: GameState, c: Competitor): string | null {

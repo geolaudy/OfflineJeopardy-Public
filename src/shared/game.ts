@@ -109,6 +109,8 @@ export interface GameRules {
   /** Automatic buzzer unlock when a clue opens: off (host unlocks), all clues, only clues that are
    *  media without text, or follow each clue's own setting. Per-clue settings apply unless 'off'. */
   autoUnlock: AutoUnlock;
+  /** Maximum number of (human) players in this game; 0 = no limit. */
+  maxPlayers: number;
   timers: TimerRules;
 }
 
@@ -128,6 +130,7 @@ export const DEFAULT_RULES: GameRules = {
   requireRoomCode: false,
   survivalLives: 0,
   autoUnlock: 'off',
+  maxPlayers: 0,
   timers: { autoStart: true, buzzSeconds: 10, answerSeconds: 8, wagerSeconds: 30, finalSeconds: 30 },
 };
 
