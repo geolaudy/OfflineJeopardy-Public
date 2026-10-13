@@ -99,6 +99,7 @@ export default function BoardPage() {
                       Scan to join
                       <br />
                       <span className="font-mono text-[1.3vh] font-normal break-all">{info.urls.join}</span>
+                      <RoomCode g={game} className="mt-[0.6vh] text-[1.6vh]" />
                     </div>
                   </div>
                 )}
@@ -221,6 +222,16 @@ function useSounds(g: GameView | null) {
   }, [g]);
 }
 
+/** Room code players must type to join (only when the host requires it). */
+function RoomCode({ g, className }: { g: GameView; className?: string }) {
+  if (!g.rules.requireRoomCode || !g.roomCode) return null;
+  return (
+    <p className={cx('font-semibold', className)} data-testid="tv-room-code">
+      Room code <span className="rounded-md bg-slate-900 px-[0.6em] py-[0.1em] font-mono font-black tracking-[0.3em] text-white">{g.roomCode}</span>
+    </p>
+  );
+}
+
 /** A custom theme's logo (decorative), shown on title screens. */
 export function ThemeLogo({ className }: { className?: string }) {
   const { logo } = useBoard();
@@ -260,6 +271,7 @@ function Lobby({ g, info }: { g: GameView; info: { urls: { join: string } } | nu
           <QrImage target="join" className="h-[38vh] w-[38vh]" />
           <p className="mt-[2vh] text-[3.4vh] font-bold">Scan to join</p>
           {info && <p className="font-mono text-[2.2vh]">{info.urls.join}</p>}
+          <RoomCode g={g} className="mt-[2vh] text-[2.6vh]" />
         </div>
         <div className="min-h-0 overflow-hidden">
           <p className="mb-[2vh] text-[3vh] font-semibold opacity-90">{g.mode === 'team' ? 'Teams' : 'Players'} ({g.competitors.length})</p>

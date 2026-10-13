@@ -20,6 +20,7 @@ interface Client {
   lastBuzz: number;
   msgCount: number;
   msgWindow: number;
+  joinFails: number[]; // timestamps of wrong room codes (rate limiting)
 }
 
 export class Hub {
@@ -42,7 +43,7 @@ export class Hub {
   }
 
   attach(ws: WebSocket) {
-    const c: Client = { ws, role: null, profileId: null, trusted: false, deviceIds: new Set(), lastBuzz: 0, msgCount: 0, msgWindow: Date.now() };
+    const c: Client = { ws, role: null, profileId: null, trusted: false, deviceIds: new Set(), lastBuzz: 0, msgCount: 0, msgWindow: Date.now(), joinFails: [] };
     this.clients.add(c);
     ws.on('message', (raw) => this.onMessage(c, raw.toString()));
     ws.on('close', () => {
@@ -86,7 +87,7 @@ export class Hub {
       if (!c.role) continue;
       if (c.role === 'host') this.send(c, { t: 'state', game: host, serverTime: now });
       else if (c.role === 'player') {
-        const view = s ? { ...pub!, role: 'player' as const } : null;
+        const view = s ? { ...pub!, role: 'player' as const, roomCode: null } : null;
         this.send(c, { t: 'state', game: view, me: s && c.profileId ? playerContext(s, c.profileId, now) : null, serverTime: now });
       } else this.send(c, { t: 'state', game: pub, serverTime: now });
     }
@@ -172,7 +173,10 @@ export class Hub {
       }
       case 'join': {
         if (c.role !== 'player' || !c.profileId) return this.send(c, { t: 'result', ok: false, error: 'Sign in first' });
-        const res = this.games.dispatch({ type: 'playerJoin', profileId: c.profileId }, `profile:${c.profileId}`);
+        c.joinFails = c.joinFails.filter((t) => now - t < 60_000);
+        if (c.joinFails.length >= 5) return this.send(c, { t: 'result', ok: false, error: 'Too many wrong room codes — wait a minute and try again' });
+        const res = this.games.dispatch({ type: 'playerJoin', profileId: c.profileId, code: m.code }, `profile:${c.profileId}`);
+        if (!res.ok && /room code/.test(res.error)) c.joinFails.push(now);
         return this.send(c, res.ok ? { t: 'result', ok: true, info: res.info } : { t: 'result', ok: false, error: res.error });
       }
       case 'finalWager':

@@ -93,6 +93,7 @@ export interface GameRules {
   finalAllowNonPositive: boolean;
   allowSelfJoin: boolean; // players joining from phones are added without host approval
   categoryIntro: boolean; // introduce the categories on the TV at the start of each round
+  requireRoomCode: boolean; // phones must type the room code shown on the TV to join this game
   timers: TimerRules;
 }
 
@@ -109,6 +110,7 @@ export const DEFAULT_RULES: GameRules = {
   finalAllowNonPositive: false,
   allowSelfJoin: true,
   categoryIntro: true,
+  requireRoomCode: false,
   timers: { autoStart: true, buzzSeconds: 10, answerSeconds: 8, wagerSeconds: 30, finalSeconds: 30 },
 };
 
@@ -373,6 +375,8 @@ export interface GameState {
   showJoinQr: boolean;
   /** Practice game: playable and kept in history, but not counted in statistics or leaderboards. */
   practice: boolean;
+  /** Short code shown on the TV; required to join when rules.requireRoomCode (never sent to phones). */
+  roomCode: string;
   createdAt: number;
   startedAt: number | null;
   endedAt: number | null;
@@ -388,6 +392,10 @@ export interface UndoSnapshot {
 }
 
 // ---------- Helpers shared by client and server ----------
+
+/** Room codes avoid look-alike letters (no I, O, L, 0, 1). */
+export const ROOM_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ';
+export const ROOM_CODE_RE = /^[ABCDEFGHJKMNPQRSTUVWXYZ]{4}$/;
 
 export function scoresOf(events: GameplayEvent[]): Record<Id, number> {
   const out: Record<Id, number> = {};

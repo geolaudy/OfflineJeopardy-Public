@@ -8,7 +8,10 @@
 - **Milestone: custom TV themes (O5).** shared/themes.ts model (base preset + overrides), DB migration v2 (themes table, additive), /api/themes CRUD + export/import (images embedded and re-validated, only local media URLs allowed), TV applies overrides as CSS variables + value prefix + text scales + logo, live update when the active theme is edited; desk **TV themes** page with real-TV live preview (/board/preview in an iframe via postMessage). Settings now links to it.
 - Tests: Vitest 65/65, Playwright 10/10 (new themes.spec.ts). Pushed c674ea9.
 - **Milestone: computer opponents + practice mode (O3).** server/bots.ts BotDriver (schedules buzz/answer/Daily Wager/Final actions through the normal engine; difficulty = knowledge × value, reaction window, risk, wager style; never early; respects undo), engine addBot / hostBuzz / bot difficulty, DB migration v3 (games.practice) with statistics counting only non-practice games, host UI (practice toggle, computer-opponent dialog, answer spoiler guard, Buzz-for buttons, B shortcut), practice badges in history.
-- Tests: Vitest 71/71 (bots unit tests with fake timers, practice/bot integration test), Playwright 11/11 (practice.spec.ts).
+- Tests: Vitest 71/71 (bots unit tests with fake timers, practice/bot integration test), Playwright 11/11 (practice.spec.ts). Pushed 982a9b0.
+- **Milestone: room codes (P17).** Optional per-game code (crypto-random, no look-alike letters), required to join when enabled, shown on TV lobby/join overlay and host setup, never in phone state, 5 wrong tries/min per connection, regenerate from host. Tests: unit, integration (hub), roomcode.spec.ts.
+- **E2E hygiene:** an intermittent failure was traced to leftover browser contexts (4 live pages from the first test made later WebKit tests ~7× slower: PIN test 38 s → 5 s). All specs now close contexts after each test. Idle-page CPU was profiled at the same time (TV lobby/intro/board/clue/results, host, portal: <1% main-thread busy, no layout churn) — no app-side busy loops.
+- Tests: Vitest 73/73, Playwright 12/12 (suite 2.3 min).
 
 ## Session 2 — 2026-10-12 (user feedback round 1)
 

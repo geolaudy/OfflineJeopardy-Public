@@ -33,6 +33,7 @@ export const rulesSchema = z.object({
   dailyWagerMin: z.number().int().min(0).max(100000),
   finalAllowNonPositive: z.boolean(),
   allowSelfJoin: z.boolean(),
+  requireRoomCode: z.boolean().optional(),
   categoryIntro: z.boolean().optional(),
   timers: timerRules,
 });
@@ -129,6 +130,7 @@ export const hostActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('resumeGame') }),
   z.object({ type: z.literal('showJoinQr'), show: z.boolean() }),
   z.object({ type: z.literal('undo') }),
+  z.object({ type: z.literal('newRoomCode') }),
 ]);
 
 export type HostAction = z.infer<typeof hostActionSchema>;
@@ -143,6 +145,7 @@ export type SystemAction =
       sourceKind: 'joycon' | 'phone' | 'keyboard' | 'gamepad' | 'host' | 'bot';
     }
   | { type: 'timerExpire' }
-  | { type: 'playerJoin'; profileId: string };
+  | { type: 'playerJoin'; profileId: string; code?: string }
+  | { type: 'setRoomCode'; code: string };
 
 export type EngineAction = HostAction | SystemAction;

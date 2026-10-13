@@ -6,6 +6,10 @@ let cr: Browser;
 test.beforeAll(async () => {
   cr = await chromium.launch();
 });
+// Close every page after each test: lingering WebKit contexts slow down later tests on Windows.
+test.afterEach(async () => {
+  for (const b of [cr]) for (const c of b?.contexts() ?? []) await c.close();
+});
 test.afterAll(async () => {
   await cr?.close();
 });

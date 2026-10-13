@@ -1,5 +1,6 @@
 // Data access for profiles, teams, boards and games.
 import crypto from 'node:crypto';
+import { ROOM_CODE_ALPHABET } from '../shared/game.js';
 import type { DB } from './db/db.js';
 import { tx } from './db/db.js';
 import type { Board, BoardContent, BoardMeta, GameState, GameplayEvent } from '../shared/game.js';
@@ -39,6 +40,11 @@ export interface ProfilePrivate extends ProfilePublic {
   statsPrivate: boolean;
   createdAt: number;
   updatedAt: number;
+}
+
+/** Random 4-letter room code (cryptographic randomness; not derivable from public data). */
+export function newRoomCode() {
+  return Array.from({ length: 4 }, () => ROOM_CODE_ALPHABET[crypto.randomInt(ROOM_CODE_ALPHABET.length)]).join('');
 }
 
 export function pictureUrl(row: Pick<ProfileRow, 'picture_file'>) {
@@ -404,7 +410,9 @@ export function loadGame(db: DB, id: string): GameState | undefined {
     voidedBy: (r.voided_by as string) ?? undefined,
   }));
   // Saves from older versions are upgraded in memory (missing fields get defaults; nothing is dropped).
-  return normalizeState({ ...state, events } as GameState);
+  const s = normalizeState({ ...state, events } as GameState);
+  if (!s.roomCode) s.roomCode = newRoomCode();
+  return s;
 }
 
 export function listGames(db: DB, statuses: GameRow['status'][]) {

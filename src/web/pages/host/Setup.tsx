@@ -41,13 +41,32 @@ export default function Setup({ g }: { g: GameView }) {
   );
 }
 
-function JoinHint() {
+function JoinHint({ g }: { g: GameView }) {
+  const r = g.rules;
   return (
-    <Card className="flex items-center gap-4">
+    <Card className="flex flex-wrap items-center gap-4">
       <QrImage target="join" className="h-24 w-24 shrink-0" />
-      <p className="text-sm text-slate-600">
-        Players can join by scanning the QR code on the TV with their phone, signing in to their profile and tapping <b>Join game</b>. You can also add them here.
-      </p>
+      <div className="min-w-0 flex-1 space-y-2">
+        <p className="text-sm text-slate-600">
+          Players can join by scanning the QR code on the TV with their phone, signing in to their profile and tapping <b>Join game</b>. You can also add them here.
+        </p>
+        <label className="flex min-h-11 cursor-pointer items-center gap-3">
+          <input type="checkbox" className="h-6 w-6 accent-blue-700" checked={r.requireRoomCode} onChange={(e) => run({ type: 'updateRules', rules: { ...r, requireRoomCode: e.target.checked } })} data-testid="require-room-code" />
+          <span className="text-sm">
+            <b>Require the room code</b> to join (only people who can see the TV can join)
+          </span>
+        </label>
+        {r.requireRoomCode && g.roomCode && (
+          <div className="flex items-center gap-3">
+            <span className="rounded-lg bg-slate-900 px-3 py-1 font-mono text-2xl font-black tracking-[0.3em] text-white" data-testid="host-room-code">
+              {g.roomCode}
+            </span>
+            <Button size="sm" variant="ghost" onClick={() => run({ type: 'newRoomCode' })}>
+              ↻ New code
+            </Button>
+          </div>
+        )}
+      </div>
     </Card>
   );
 }
@@ -130,7 +149,7 @@ function SoloSetup({ g }: { g: GameView }) {
   const [addingBot, setAddingBot] = useState(false);
   return (
     <div className="space-y-4">
-      <JoinHint />
+      <JoinHint g={g} />
       <PendingList g={g} />
       {g.practice && (
         <p className="rounded-xl bg-violet-50 p-3 text-sm text-violet-900" data-testid="practice-note">
@@ -235,7 +254,7 @@ function TeamSetup({ g }: { g: GameView }) {
 
   return (
     <div className="space-y-4">
-      <JoinHint />
+      <JoinHint g={g} />
       <PendingList g={g} />
       {unassigned.length > 0 && (
         <Card>

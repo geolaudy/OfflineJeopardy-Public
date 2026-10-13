@@ -9,7 +9,7 @@ import { CLUE_LOCKOUT, timerRemaining } from '../shared/game.js';
 import { applyAction, createGame, type EngineResult } from './engine/engine.js';
 import { resolveInput } from './engine/buzzer.js';
 import { getSetting, setSetting } from './db/db.js';
-import { loadGame, newId, persistGame, profilesByIds, recordParticipants, snapshotClues } from './repos.js';
+import { loadGame, newId, newRoomCode, persistGame, profilesByIds, recordParticipants, snapshotClues } from './repos.js';
 import type { ProfilePublic } from '../shared/views.js';
 import { BotDriver } from './bots.js';
 
@@ -61,7 +61,7 @@ export class GameManager {
   }
 
   create(opts: { title: string; boardId: string | null; board: BoardContent; mode: 'solo' | 'team'; rules: GameRules; practice?: boolean }) {
-    const s = createGame({ id: newId(), now: this.clock(), ...opts });
+    const s = createGame({ id: newId(), now: this.clock(), roomCode: newRoomCode(), ...opts });
     persistGame(this.db, s, []);
     snapshotClues(this.db, s);
     this.setCurrent(s);
@@ -92,6 +92,8 @@ export class GameManager {
   dispatch(action: EngineAction, actor = 'host'): EngineResult {
     const s = this.current;
     if (!s) return { ok: false, error: 'No game is loaded' };
+    // Randomness stays out of the pure engine: the server picks the new code.
+    if (action.type === 'newRoomCode') action = { type: 'setRoomCode', code: newRoomCode() };
     const res = applyAction(s, action, { now: this.clock(), newId });
     if (!res.ok) return res;
     if (res.ignored && res.touchedEvents.length === 0 && action.type === 'buzz') {

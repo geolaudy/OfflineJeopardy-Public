@@ -24,6 +24,7 @@
 11. When the board is cleared: **Start Final Wager** → open wagers (players enter them on their phones) → show the clue → reveal and judge → **Show the winner**.
 
 ## Players
+- **Room code (optional):** in game setup tick **Require the room code**. The TV shows a 4-letter code that players type on their phone before **Join game** — only people who can see the TV can join. **↻ New code** changes it.
 - Profiles keep their statistics forever — renaming, new photos or different buzzers never lose history.
 - Forgot a PIN? Dashboard → Players → Edit → Reset PIN.
 - On their phone, players open the **☰ menu** for: Current game (buzzer), My profile, My statistics, Game history (tap a game for every clue you buzzed on, your points and wagers), Leaderboard (Solo / Team games / Contributions, ranked by the criterion you choose), Players (other players' public stats) and Settings (buzzer preferences, privacy, PIN, sign out). The browser Back button works throughout.

@@ -100,6 +100,8 @@ export interface GameView {
   timer: TimerState | null;
   intro: IntroState | null;
   practice: boolean;
+  /** Shown on the TV and to the host; always null for phones. */
+  roomCode: string | null;
   showJoinQr: boolean;
   results: GameResult[] | null;
   startedAt: number | null;

@@ -47,9 +47,7 @@ export default function PlayTab({ me }: { me: Me }) {
         {pending ? (
           <p className="rounded-2xl bg-amber-100 p-4 font-semibold text-amber-900">{g.mode === 'team' ? 'You joined! The host will put you on a team.' : 'Waiting for the host to let you in…'}</p>
         ) : (
-          <Button size="xl" className="w-full" onClick={() => send({ t: 'join' })} data-testid="join-game">
-            Join game
-          </Button>
+          <JoinForm needsCode={g.rules.requireRoomCode} />
         )}
       </div>
     );
@@ -201,6 +199,50 @@ function FinalForm({ me }: { me: Me }) {
         </>
       )}
       {(f.stage === 'reveal' || f.stage === 'done') && <p className="text-center text-lg">Watch the TV for the reveal! {entry.judged ? (entry.correct ? '✅' : '❌') : ''}</p>}
+    </div>
+  );
+}
+
+/** Join the current game; asks for the room code shown on the TV when the host requires it. */
+function JoinForm({ needsCode }: { needsCode: boolean }) {
+  const [code, setCode] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    const onErr = (e: Event) => setError((e as CustomEvent<string>).detail);
+    window.addEventListener('oj-error', onErr);
+    return () => window.removeEventListener('oj-error', onErr);
+  }, []);
+  const join = () => {
+    setError(null);
+    send({ t: 'join', ...(needsCode ? { code } : {}) });
+  };
+  return (
+    <div className="space-y-3">
+      {needsCode && (
+        <label className="block text-left">
+          <span className="mb-1 block text-sm font-semibold text-slate-700">Room code (shown on the TV)</span>
+          <input
+            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-center font-mono text-3xl font-black tracking-[0.4em] uppercase"
+            value={code}
+            maxLength={4}
+            autoCapitalize="characters"
+            autoComplete="off"
+            spellCheck={false}
+            inputMode="text"
+            onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z]/g, ''))}
+            aria-label="Room code"
+            data-testid="room-code-input"
+          />
+        </label>
+      )}
+      <Button size="xl" className="w-full" disabled={needsCode && code.length !== 4} onClick={join} data-testid="join-game">
+        Join game
+      </Button>
+      {error && (
+        <p className="rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-800" role="alert" data-testid="join-error">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

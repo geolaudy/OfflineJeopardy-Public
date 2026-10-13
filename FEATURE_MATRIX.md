@@ -2,7 +2,7 @@
 
 Statuses: NOT STARTED · IN PROGRESS · IMPLEMENTED (code exists, no automated test) · TESTED (relevant automated tests pass) · BLOCKED.
 Test keys: **U** = `tests/unit/engine.test.ts` · **I** = `tests/integration/server.test.ts` · **E** = `tests/e2e/game.spec.ts`, **E2** = `tests/e2e/teams-editor.spec.ts` (Playwright: Chromium TV/desktop/Android, WebKit iPad/iPhone).
-Last full run: 2026-10-12 (session 3) — Vitest 71/71, Playwright 11/11 passing. **L** = tests/e2e/library.spec.ts, **T** = tests/e2e/themes.spec.ts, **P** = tests/e2e/practice.spec.ts.
+Last full run: 2026-10-12 (session 3) — Vitest 73/73, Playwright 12/12 passing. **L** = tests/e2e/library.spec.ts, **T** = tests/e2e/themes.spec.ts, **P** = tests/e2e/practice.spec.ts, **R** = tests/e2e/roomcode.spec.ts.
 
 ## Core architecture & desktop
 
@@ -73,7 +73,7 @@ Last full run: 2026-10-12 (session 3) — Vitest 71/71, Playwright 11/11 passing
 | P14 | Personal stats dashboard (solo vs team separated) | P0 | TESTED (API) / TESTED (renders) | stats.ts, StatsView.tsx | I, E | — |
 | P15 | Game history + per-game detail (clue by clue) | P0 | TESTED | stats.ts, StatsView.tsx | I, E | — |
 | P16 | Profile export, delete (soft), stats privacy | P1 | IMPLEMENTED | app.ts | — | Profile import not implemented |
-| P17 | Room-code joining | P2 | NOT STARTED | — | — | QR / URL only |
+| P17 | Room codes: optional 4-letter code shown on the TV, required to join the current game (typed on the phone; never sent to phones; wrong codes rate-limited; host can regenerate). QR stays a plain URL | P2 | TESTED | shared/game.ts, engine playerJoin/setRoomCode, projection, hub, host/Setup, join/PlayTab, board/BoardPage | U, I, R = tests/e2e/roomcode.spec.ts | A code is per game; it gates joining, not reconnecting players already in the game |
 
 ## Buzzers & controllers
 

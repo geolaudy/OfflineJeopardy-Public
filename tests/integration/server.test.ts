@@ -426,6 +426,41 @@ describe('boards: import, export, versions', () => {
   });
 });
 
+describe('room codes (P17)', () => {
+  it('phones never receive the code; wrong codes are rejected and rate-limited; the host can make a new code', async () => {
+    const s = await start();
+    const host = await hostToken(s);
+    const [alex, eve] = await Promise.all([createProfile(s, 'Alex'), createProfile(s, 'Eve')]);
+    const boardId = await sampleBoardId(s, host);
+    await api(s, 'POST', '/api/games', { boardId, mode: 'solo' }, host);
+    const h = await client(s, 'host', host);
+    await h.act({ type: 'updateRules', rules: { ...h.state!.rules, requireRoomCode: true } });
+    const code = h.state!.roomCode!;
+    expect(code).toMatch(/^[A-Z]{4}$/);
+    const tv = await client(s, 'public');
+    await tv.waitState((g) => g?.roomCode === code);
+    const pe = await client(s, 'player', eve.token);
+    await pe.waitState((g) => !!g?.rules.requireRoomCode);
+    expect(pe.state!.roomCode).toBeNull();
+    expect(JSON.stringify(pe.messages)).not.toContain(code);
+    // Wrong codes: rejected, then rate-limited even for the right code.
+    for (let i = 0; i < 5; i++) {
+      pe.send({ t: 'join', code: 'ZZZZ' === code ? 'YYYY' : 'ZZZZ' });
+      const r = await pe.wait((m) => m.t === 'result');
+      expect((r as { error?: string }).error).toMatch(/room code is not right/);
+    }
+    pe.send({ t: 'join', code });
+    expect(((await pe.wait((m) => m.t === 'result')) as { error?: string }).error).toMatch(/Too many/);
+    // Alex (separate connection) joins with the right code.
+    const pa = await client(s, 'player', alex.token);
+    pa.send({ t: 'join', code: code.toLowerCase() });
+    await h.waitState((g) => !!g?.competitors.some((c) => c.profileId === alex.id));
+    await h.act({ type: 'newRoomCode' });
+    expect(h.state!.roomCode).not.toBe(code);
+    expect((await h.tryAct({ type: 'setRoomCode', code: 'ABCD' })).ok).toBe(false); // not a host action
+  });
+});
+
 describe('computer opponents and practice games (O3)', () => {
   it('a practice game vs a computer opponent is kept in history but not counted in statistics', async () => {
     const s = await start();

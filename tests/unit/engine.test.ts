@@ -597,3 +597,21 @@ describe('saved-game compatibility (FB-E2)', () => {
     expect(off.rules.earlyBuzzPenalty).toBe('none');
   });
 });
+
+describe('room codes (P17)', () => {
+  it('gates joining only when required, validates codes, and never shows the code to phones', () => {
+    let s = createGame({ id: 'g', title: 'T', boardId: null, board: SAMPLE_BOARD, mode: 'solo', rules: { ...DEFAULT_RULES }, now: clock, roomCode: 'KXZQ' });
+    s = run(s, { type: 'playerJoin', profileId: 'free' }); // not required: no code needed
+    s = withRules(s, { requireRoomCode: true });
+    expect(tryRun(s, { type: 'playerJoin', profileId: 'alex', code: 'AAAA' })).toMatchObject({ ok: false });
+    expect(tryRun(s, { type: 'playerJoin', profileId: 'alex' })).toMatchObject({ ok: false });
+    s = run(s, { type: 'playerJoin', profileId: 'alex', code: 'kxzq' }); // case-insensitive
+    expect(s.competitors.map((c) => c.profileId)).toEqual(['free', 'alex']);
+    expect(tryRun(s, { type: 'setRoomCode', code: 'AB1' }).ok).toBe(false);
+    expect(tryRun(s, { type: 'setRoomCode', code: 'ABIO' }).ok).toBe(false); // look-alike letters excluded
+    s = run(s, { type: 'setRoomCode', code: 'MNPQ' });
+    expect(projectState(s, 'public', {}).roomCode).toBe('MNPQ');
+    expect(projectState(s, 'host', {}).roomCode).toBe('MNPQ');
+    expect(projectState(s, 'player', {}).roomCode).toBeNull();
+  });
+});

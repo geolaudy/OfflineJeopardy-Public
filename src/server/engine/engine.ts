@@ -15,6 +15,7 @@ import {
   CLUE_LOCKOUT,
   findClue,
   lockoutKey,
+  ROOM_CODE_RE,
   normalizeRules,
   scoresOf,
   timerRemaining,
@@ -80,6 +81,7 @@ export function normalizeState(s: GameState): GameState {
   if (s.clue && typeof s.clue.answeringEnded !== 'boolean') s.clue.answeringEnded = s.clue.resolved;
   if (s.intro === undefined) s.intro = null;
   if (typeof s.practice !== 'boolean') s.practice = false;
+  if (typeof s.roomCode !== 'string') s.roomCode = ''; // filled with a random code on load
   return s;
 }
 
@@ -92,6 +94,7 @@ export function createGame(opts: {
   rules: GameRules;
   now: number;
   practice?: boolean;
+  roomCode?: string;
 }): GameState {
   return {
     id: opts.id,
@@ -117,6 +120,7 @@ export function createGame(opts: {
     seq: 0,
     showJoinQr: true,
     practice: !!opts.practice,
+    roomCode: opts.roomCode ?? '',
     createdAt: opts.now,
     startedAt: null,
     endedAt: null,
@@ -428,6 +432,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       if (competitorForProfile(s, a.profileId) || s.unassigned.some((u) => u.profileId === a.profileId))
         return { ignored: true, info: 'already-joined' };
       if (s.phase === 'ended') fail('This game has ended');
+      if (s.rules.requireRoomCode && (a.code ?? '').trim().toUpperCase() !== s.roomCode) fail('That room code is not right — check the code on the TV');
       if (s.mode === 'solo' && s.rules.allowSelfJoin) return reduce(tx, { type: 'addPlayer', profileId: a.profileId });
       s.unassigned.push({ profileId: a.profileId, joinedAt: now, pending: !s.rules.allowSelfJoin });
       return;
@@ -453,6 +458,14 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       s.rules = normalizeRules(a.rules as Partial<GameRules>);
       return;
     }
+    case 'setRoomCode': {
+      if (!ROOM_CODE_RE.test(a.code)) fail('Invalid room code');
+      s.roomCode = a.code;
+      return;
+    }
+    case 'newRoomCode':
+      fail('A new room code is created by the game computer');
+      return;
     case 'showJoinQr': {
       s.showJoinQr = a.show;
       return;

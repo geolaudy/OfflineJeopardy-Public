@@ -10,6 +10,10 @@ test.beforeAll(async () => {
   wk = await webkit.launch();
   cr = await chromium.launch();
 });
+// Close every page after each test: lingering WebKit contexts slow down later tests on Windows.
+test.afterEach(async () => {
+  for (const b of [wk, cr]) for (const c of b?.contexts() ?? []) await c.close();
+});
 test.afterAll(async () => {
   await wk?.close();
   await cr?.close();
