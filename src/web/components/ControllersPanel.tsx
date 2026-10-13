@@ -1,14 +1,14 @@
 // Controller management: detected devices, assignment by button press, testing,
 // buzzer-button mapping and troubleshooting. Used in game setup and live menus.
 import { useEffect, useState } from 'react';
-import { send, useLive } from '../lib/socket';
-import { identifyJoyCon, scanJoyCons, webHidAvailable } from '../lib/inputBridge';
+import { controllerFx, send, useLive } from '../lib/socket';
+import { scanJoyCons, webHidAvailable } from '../lib/inputBridge';
 import type { GameView } from '../../shared/views';
 import type { BindingTarget } from '../../shared/game';
 import { Avatar, Button, Modal, cx } from './ui';
 import { competitorName, profileName } from '../lib/view';
 import { act } from '../lib/socket';
-import { Gamepad2, UsersRound } from 'lucide-react';
+import { Gamepad2, Lightbulb, UsersRound, Vibrate } from 'lucide-react';
 
 const BUTTON_CHOICES: Record<string, string[]> = {
   joycon: ['any', 'SL,SR', 'A', 'B', 'X', 'Y', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'L,ZL', 'R,ZR'],
@@ -108,9 +108,15 @@ export default function ControllersPanel({ g }: { g: GameView | null }) {
                 </select>
               </label>
               {c.kind === 'joycon' && c.connected && (
-                <Button variant="ghost" size="sm" onClick={() => void identifyJoyCon(c.id)} title="Flash the lights on this Joy-Con">
-                  Identify
-                </Button>
+                <>
+                  {/* Routed through the server, so this works from the iPad as well as on the game computer. */}
+                  <Button variant="ghost" size="sm" onClick={() => controllerFx(c.id, 'identify')} title="Flash the lights on this Joy-Con" data-testid="identify-controller">
+                    <Lightbulb size={16} aria-hidden /> Identify
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => controllerFx(c.id, 'test')} title="Vibrate this Joy-Con" data-testid="vibrate-controller">
+                    <Vibrate size={16} aria-hidden /> Vibrate
+                  </Button>
+                </>
               )}
               {b && (
                 <Button variant="ghost" size="sm" onClick={() => act({ type: 'unbindController', controllerId: c.id })}>

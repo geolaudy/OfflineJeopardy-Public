@@ -90,7 +90,7 @@ Last full run: 2026-10-12 (session 3) — Vitest 73/73, Playwright 12/12 passing
 | Z9 | Other gamepads (Gamepad API) | P2 | IMPLEMENTED | inputBridge.ts | — | — |
 | Z10 | Mixed-device buzzing in one game | P0 | TESTED | — | U, I | — |
 | Z11 | Buzzer delay settings / latency diagnostics | P2 | IN PROGRESS | reactionMs recorded | U | No diagnostics UI |
-| Z12 | Vibration feedback on Joy-Con | P3 | NOT STARTED | — | — | Optional per spec |
+| Z12 | Vibration feedback on Joy-Con | P3 | IMPLEMENTED | shared/joyconRumble.ts (HD-rumble encoding, patterns), web/lib/inputBridge.ts (enable 0x48, output report 0x10), protocol controllerFx, hub.controllerFx (routed to the window that reads the device), app.ts onPress (first buzz / too early), Buzzers page toggle + Identify/Vibrate buttons (work from the iPad) | U (encoding vs documented values), I (routing, host-only, setting off) | Not felt on real Joy-Cons yet (K25) |
 
 ## Teams, scoring, contributions, statistics
 

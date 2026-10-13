@@ -74,7 +74,14 @@ export async function startServer(opts: ServerOptions) {
 
   const games = new GameManager(db);
   const controllers = new ControllerRegistry(db, {
-    onPress: (p) => games.buzz({ controllerId: p.controllerId, kind: p.kind }),
+    onPress: (p) => {
+      const r = games.buzz({ controllerId: p.controllerId, kind: p.kind });
+      // Joy-Con feedback (Z12): a firm pulse for the first buzz, two taps when too early.
+      if (p.kind === 'joycon' && getSetting(db, 'joyconRumble', true)) {
+        if (r.ok) hub.controllerFx(p.controllerId, 'buzzWin');
+        else if (r.info === 'early') hub.controllerFx(p.controllerId, 'early');
+      }
+    },
     onAssign: (p) => {
       const res = games.dispatch({ type: 'bindController', controllerId: p.controllerId, kind: p.kind as 'joycon' | 'keyboard' | 'gamepad', label: p.label, target: p.target });
       if (!res.ok) hub.sendControllers();
@@ -843,9 +850,10 @@ export async function startServer(opts: ServerOptions) {
     volume: z.number().min(0).max(1).optional(),
     reducedMotion: z.boolean().optional(),
     keyboardBuzzers: z.boolean().optional(),
+    joyconRumble: z.boolean().optional(),
     tvFx: tvFxSchema.optional(),
   });
-  const SETTING_DEFAULTS = { preferredAddress: null, trustLocalhost: true, publicLeaderboard: true, theme: 'classic', boardTheme: 'classic', sound: true, volume: 0.7, reducedMotion: false, keyboardBuzzers: true };
+  const SETTING_DEFAULTS = { preferredAddress: null, trustLocalhost: true, publicLeaderboard: true, theme: 'classic', boardTheme: 'classic', sound: true, volume: 0.7, reducedMotion: false, keyboardBuzzers: true, joyconRumble: true };
   const readSettings = () => {
     const base: Record<string, string | boolean | number | null> = Object.fromEntries(Object.entries(SETTING_DEFAULTS).map(([k, v]) => [k, getSetting(db, k, v)]));
     return Object.assign(base, { tvFx: normalizeTvFx(getSetting(db, 'tvFx', null)) });

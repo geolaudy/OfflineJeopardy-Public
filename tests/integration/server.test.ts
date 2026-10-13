@@ -241,6 +241,31 @@ describe('live game over WebSockets', () => {
     expect(g!.buzzer.winner).toMatchObject({ profileId: jordan.id, controllerId: 'joycon:R:bb', sourceKind: 'joycon' });
     expect(g!.events!.filter((e) => e.type === 'buzz' && e.result === 'won')).toHaveLength(1);
 
+    // Feedback (Z12): the winning Joy-Con gets a vibration, routed only to the window that reads it;
+    // the host's Identify / Vibrate buttons reach that window too (e.g. from the iPad).
+    await bridge.seen((m) => m.t === 'controllerFx' && m.controllerId === 'joycon:R:bb' && m.fx === 'buzzWin');
+    expect(bridge.messages.some((m) => m.t === 'controllerFx' && m.controllerId === 'joycon:L:aa')).toBe(false);
+    expect(h.messages.some((m) => m.t === 'controllerFx')).toBe(false);
+    h.send({ t: 'controllerFx', controllerId: 'joycon:L:aa', fx: 'identify' });
+    await bridge.seen((m) => m.t === 'controllerFx' && m.controllerId === 'joycon:L:aa' && m.fx === 'identify');
+    const viewer = await client(s, 'public');
+    viewer.send({ t: 'controllerFx', controllerId: 'joycon:L:aa', fx: 'test' }); // not a host: ignored
+    await new Promise((r) => setTimeout(r, 100));
+    expect(bridge.messages.some((m) => m.t === 'controllerFx' && m.fx === 'test')).toBe(false);
+    // Turned off in settings: no vibration for the next winner.
+    await api(s, 'PUT', '/api/settings', { joyconRumble: false }, host);
+    await h.act({ type: 'judge', result: 'correct' });
+    await h.act({ type: 'closeClue' });
+    await h.act({ type: 'selectClue', clueId: 'sci_2' });
+    await h.act({ type: 'unlockBuzzers' });
+    bridge.send({ t: 'controller', ev: { type: 'button', controllerId: 'joycon:L:aa', button: 'UP', pressed: false } });
+    await new Promise((r) => setTimeout(r, 200)); // past the button debounce
+    const before = bridge.messages.filter((m) => m.t === 'controllerFx').length;
+    bridge.send({ t: 'controller', ev: { type: 'button', controllerId: 'joycon:L:aa', button: 'SL', pressed: true } });
+    await h.waitState((x) => x?.buzzer.winner?.controllerId === 'joycon:L:aa');
+    await new Promise((r) => setTimeout(r, 100));
+    expect(bridge.messages.filter((m) => m.t === 'controllerFx').length).toBe(before);
+
     // bridge disconnects -> devices marked disconnected; phones still work for others
     bridge.close();
     await h.wait((m) => m.t === 'controllers' && m.list.every((d) => !d.connected));

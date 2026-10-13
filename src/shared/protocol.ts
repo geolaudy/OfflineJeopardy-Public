@@ -42,6 +42,8 @@ export const ClientMessageSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('assignListen'), target: target.nullable(), label: z.string().max(60).optional() }),
   z.object({ t: z.literal('controllerConfig'), controllerId: z.string(), label: z.string().max(60).optional(), buzzButtons: z.string().max(200).optional() }),
   z.object({ t: z.literal('controllerForget'), controllerId: z.string() }),
+  // Host: feedback on a physical controller (flash lights / test vibration). Routed to the window that reads it.
+  z.object({ t: z.literal('controllerFx'), controllerId: z.string().min(1).max(80), fx: z.enum(['identify', 'test']) }),
   // Host: show a public page on the TV (the server builds the public payload).
   z.object({ t: z.literal('present'), req: presentRequestSchema }),
 ]);
@@ -65,6 +67,8 @@ export type ServerMessage =
   | { t: 'result'; id?: number; ok: boolean; error?: string; info?: string }
   | { t: 'controllers'; list: ControllerInfo[]; listening: { target: BindingTarget; label?: string } | null }
   | { t: 'controllerInput'; controllerId: string; button: string; at: number }
+  /** To the window reading this controller: play feedback (lights / vibration). */
+  | { t: 'controllerFx'; controllerId: string; fx: 'identify' | 'test' | 'buzzWin' | 'early' }
   | { t: 'buzzResult'; ok: boolean; info?: string }
   | { t: 'profilesChanged' }
   | { t: 'presentation'; lobby: PublicLobby | null; p: PresentationState }

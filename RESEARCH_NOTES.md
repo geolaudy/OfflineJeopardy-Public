@@ -80,3 +80,11 @@ Assumed / NOT verified (no real shareable board was available):
 - The endpoint is undocumented and may change without notice.
 
 Decision: implement the `buzzinga` plugin for public share links, because the access is public, unauthenticated, authorised by the owner ("Shareable"), allowed by robots.txt and not restricted by the Terms we read. It makes one request per user action, sends no cookies or credentials, identifies itself in the User-Agent, never retries, and stops on 401/403/404/429 with an explanation. Private boards and anything behind a sign-in or paid plan are never accessed — the user is told to ask the owner to make the board shareable or to export it as CSV. The plugin also imports the official CSV export (and a saved board JSON), which is the recommended path when links fail. YouTube videos are not downloaded (the link is kept in the host notes).
+
+## Joy-Con rumble (Z12, 2026-10-13)
+
+- Vibration must be enabled once with subcommand **0x48, arg 0x01** (sent after the 0x03 input-mode and 0x30 player-light subcommands).
+- Rumble-only output report **0x10**: `[packet counter (0-15), 4 bytes left, 4 bytes right]`. A single Joy-Con uses its own half; we send the same 4 bytes in both halves.
+- Each half encodes a high band (81.75–1252 Hz) and a low band (40.875–626 Hz) plus amplitude. Encoding (community documentation, dekuNukem *Nintendo_Switch_Reverse_Engineering* `rumble_data_table.md`, also used by JoyconLib): `hf = (round(32·log2(f/10)) − 0x60)·4`, `lf = round(32·log2(f/10)) − 0x40`, amplitude piecewise from `log2(amp·1000)·32 − 0x60`. Neutral = `00 01 40 40` (320 Hz / 160 Hz, amplitude 0); amplitude 1.0 → high-band amplitude code `0xC8`. Implemented in `src/shared/joyconRumble.ts` with unit tests for these documented values.
+- Joy-Cons stop vibrating after a short time without new rumble data, so patterns resend every ≤80 ms and always end with the neutral packet.
+- Not verified on hardware yet (see KNOWN_ISSUES K25).

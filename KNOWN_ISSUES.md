@@ -26,3 +26,4 @@
 | K22 | Presentation | Leaderboard/player TV pages were verified with injected sample data and the live empty state, not with a long real history. | — |
 | K23 | Sounds | Sound cues are synthesised in the browser; automated tests check settings and triggers, not what is heard. Browsers may block audio on the TV until the page is clicked once (the Electron TV window allows autoplay). | Click the TV page once in a browser; use Settings → Test. |
 | K24 | Sounds | Custom sound files are kept in full backups but are not part of board packages (they are app settings, not board content). | Re-upload on another computer. |
+| K25 | Joy-Con rumble | Vibration feedback (first buzz / too early / Identify / Vibrate test) follows the documented HD-rumble encoding but has **not been felt on real Joy-Cons yet**. | Try Buzzers → Vibrate; turn off "Joy-Cons vibrate…" on the Buzzers page if it misbehaves. |

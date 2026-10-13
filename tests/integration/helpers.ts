@@ -92,6 +92,12 @@ export class TestClient {
     });
   }
 
+  /** Like wait(), but also matches a message that already arrived. */
+  seen(pred: (m: ServerMessage) => boolean, timeout = 3000): Promise<ServerMessage> {
+    const past = this.messages.find(pred);
+    return past ? Promise.resolve(past) : this.wait(pred, timeout);
+  }
+
   waitState(pred: (g: GameView | null, me: any) => boolean, timeout = 3000) {
     if (pred(this.state, this.me)) return Promise.resolve(this.state);
     return this.wait((m) => m.t === 'state' && pred(m.game, m.me ?? null), timeout).then((m) => (m as any).game as GameView);

@@ -120,6 +120,11 @@ export class Hub {
     return [...new Set([...this.clients].filter((c) => c.role === 'player' && c.profileId).map((c) => c.profileId!))];
   }
 
+  /** Feedback on a physical controller, sent only to the trusted window(s) that read it. */
+  controllerFx(controllerId: string, fx: 'identify' | 'test' | 'buzzWin' | 'early') {
+    for (const c of this.clients) if (c.trusted && c.deviceIds.has(controllerId)) this.send(c, { t: 'controllerFx', controllerId, fx });
+  }
+
   private hostCount() {
     return [...this.clients].filter((c) => c.role === 'host' && !c.observer).length;
   }
@@ -231,6 +236,11 @@ export class Hub {
         const ev = m.ev;
         if (ev.type !== 'disconnected') c.deviceIds.add(ev.controllerId);
         this.controllers.handle(ev);
+        return;
+      }
+      case 'controllerFx': {
+        if (c.role !== 'host') return;
+        this.controllerFx(m.controllerId, m.fx);
         return;
       }
       case 'assignListen': {

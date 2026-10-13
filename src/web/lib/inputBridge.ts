@@ -1,7 +1,8 @@
 // Input bridge for trusted local windows (the Electron app on the game PC).
 // Reads Nintendo Joy-Cons via WebHID, other controllers via the Gamepad API and
 // keyboard keys, and forwards raw button edges to the server's unified buzzer engine.
-import { send } from './socket';
+import { onControllerFx, send } from './socket';
+import { encodeRumble, RUMBLE_OFF, RUMBLE_PATTERNS, type RumbleFx } from '../../shared/joyconRumble';
 import type { ControllerEvent } from '../../shared/protocol';
 
 const NINTENDO = 0x057e;
@@ -46,6 +47,7 @@ interface JoyConHandle {
   label: string;
   pressed: Set<string>;
   packet: number;
+  rumbling?: boolean;
   onReport: (e: { reportId: number; data: DataView }) => void;
 }
 
@@ -53,9 +55,36 @@ const joycons = new Map<HIDDeviceLike, JoyConHandle>();
 let seq = 0;
 
 async function subcommand(h: JoyConHandle, cmd: number, args: number[] = []) {
-  const rumble = [0x00, 0x01, 0x40, 0x40, 0x00, 0x01, 0x40, 0x40];
+  const rumble = [...RUMBLE_OFF, ...RUMBLE_OFF];
   h.packet = (h.packet + 1) & 0x0f;
   await h.device.sendReport(0x01, new Uint8Array([h.packet, ...rumble, cmd, ...args]));
+}
+
+/** Rumble-only output report (0x10): same 4 bytes for both halves (a single Joy-Con uses its own). */
+async function rumbleReport(h: JoyConHandle, amp: number) {
+  const side = amp > 0 ? encodeRumble(320, 160, amp) : [...RUMBLE_OFF];
+  h.packet = (h.packet + 1) & 0x0f;
+  await h.device.sendReport(0x10, new Uint8Array([h.packet, ...side, ...side]));
+}
+
+async function playRumble(h: JoyConHandle, fx: RumbleFx) {
+  if (h.rumbling) return; // never stack patterns
+  h.rumbling = true;
+  try {
+    for (const [amp, ms] of RUMBLE_PATTERNS[fx]) {
+      // Joy-Cons stop vibrating on their own after a moment, so long steps are refreshed.
+      const end = Date.now() + ms;
+      do {
+        await rumbleReport(h, amp);
+        await new Promise((r) => setTimeout(r, Math.min(80, Math.max(0, end - Date.now()))));
+      } while (Date.now() < end);
+    }
+  } catch {
+    /* device went away */
+  } finally {
+    await rumbleReport(h, 0).catch(() => {});
+    h.rumbling = false;
+  }
 }
 
 function decodeButtons(h: JoyConHandle, e: { reportId: number; data: DataView }): Set<string> | null {
@@ -127,6 +156,7 @@ async function attachJoyCon(device: HIDDeviceLike) {
   try {
     await subcommand(h, 0x03, [0x30]); // standard full input report mode
     await subcommand(h, 0x30, [0x01]); // player light 1 so players see it's connected
+    await subcommand(h, 0x48, [0x01]); // enable vibration (feedback when buzzing)
   } catch {
     /* ignore — simple mode still works */
   }
@@ -143,6 +173,7 @@ function detachJoyCon(device: HIDDeviceLike) {
 export async function identifyJoyCon(controllerId: string) {
   for (const h of joycons.values())
     if (h.id === controllerId) {
+      void playRumble(h, 'identify');
       // flash the player lights for ~2 seconds
       for (let i = 0; i < 4; i++) {
         await subcommand(h, 0x30, [i % 2 ? 0x0f : 0x00]).catch(() => {});
@@ -232,6 +263,10 @@ export async function startInputBridge(opts: { keyboard: boolean; devices: boole
   if (!opts.devices || devicesStarted) return;
   devicesStarted = true;
   padTimer = setInterval(pollPads, 16);
+  // Feedback the server routes to this window (host taps Identify/Test, or a Joy-Con buzzes).
+  onControllerFx((id, fx) => {
+    for (const h of joycons.values()) if (h.id === id) void (fx === 'identify' ? identifyJoyCon(id) : playRumble(h, fx));
+  });
   const h = hid();
   if (h) {
     h.addEventListener('connect', (e) => void attachJoyCon(e.device));

@@ -140,6 +140,9 @@ function handle(m: ServerMessage) {
     case 'controllers':
       useLive.setState({ controllers: m.list, listening: m.listening });
       break;
+    case 'controllerFx':
+      for (const cb of fxListeners) cb(m.controllerId, m.fx);
+      break;
     case 'controllerInput':
       useLive.setState({ lastInput: { controllerId: m.controllerId, button: m.button, at: m.at } });
       break;
@@ -158,6 +161,18 @@ function handle(m: ServerMessage) {
       if (m.message === 'host-auth-required') useLive.setState({ status: 'unauthorized' });
       break;
   }
+}
+
+type FxListener = (controllerId: string, fx: 'identify' | 'test' | 'buzzWin' | 'early') => void;
+const fxListeners = new Set<FxListener>();
+/** The input bridge plays controller feedback the server routes to this window. */
+export function onControllerFx(cb: FxListener) {
+  fxListeners.add(cb);
+  return () => fxListeners.delete(cb);
+}
+/** Host: flash / vibrate a controller, wherever it is connected. */
+export function controllerFx(controllerId: string, fx: 'identify' | 'test') {
+  send({ t: 'controllerFx', controllerId, fx });
 }
 
 export function send(msg: unknown) {
