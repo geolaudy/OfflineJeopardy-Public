@@ -169,3 +169,33 @@ Last run 2026-10-12: Vitest 58/58 (43 unit, 15 integration), Playwright 8/8.
 | FB-E2 | Saved-game backward compatibility | — | TESTED | engine.normalizeState, repos.loadGame | U2 | — |
 | H15 | Host keyboard shortcuts (Space, C, X, E, R, Enter, N, Ctrl+Z) | P2 | TESTED | host/shortcuts.ts, Live.tsx | U2 | Disabled while dialogs/menu are open; shared-buzzer judgements need the buttons |
 | O11b | Host CSV exports (players, game results) | P2 | TESTED | stats.playersCsv/gamesCsv, desk/History.tsx | I2 | — |
+
+## User feedback round 2 (2026-10-13) — see USER_FEEDBACK.md "Round 2"
+
+| ID | Feature | Pri | Status | Source | Tests | Limitations |
+|---|---|---|---|---|---|---|
+| R2-1 | Startup landing + Create Lobby | P1 | NOT STARTED | — | — | — |
+| R2-2 | Per-lobby host pairing (QR + temporary code) | P1 | NOT STARTED | — | — | — |
+| R2-3 | Full host management UI on iPad | P1 | NOT STARTED | — | — | — |
+| R2-4 | Host Home = game setup + Open Lobby | P1 | NOT STARTED | — | — | — |
+| R2-5 | Full-screen public TV lobby | P1 | NOT STARTED | — | — | — |
+| R2-6 | Host lobby controls | P1 | NOT STARTED | — | — | — |
+| R2-7 | Synchronized public presentation pages | P1 | NOT STARTED | — | — | — |
+| R2-8 | Private View / Present on TV | P1 | NOT STARTED | — | — | — |
+| R2-9 | Compact lobby panel + transitions | P1 | NOT STARTED | — | — | — |
+| R2-10 | Public navigation rail + branding | P2 | NOT STARTED | — | — | — |
+| R2-11 | Return to start from local host mode | P1 | NOT STARTED | — | — | — |
+| R2-12 | Media-first clue layout + per-clue layout option | P1 | NOT STARTED | — | — | — |
+| R2-13 | Host audio/video controls (synced) | P1 | NOT STARTED | — | — | — |
+| R2-14 | Separate clue / answer media | P1 | NOT STARTED | — | — | — |
+| R2-15 | Image captions fixed end to end | P1 | NOT STARTED | — | — | — |
+| R2-16 | Automatic buzzer unlock (game + per clue) | P1 | NOT STARTED | — | — | — |
+| R2-17 | Board and clue preview without a game | P1 | NOT STARTED | — | — | — |
+| R2-18 | Vector icon set replacing emoji | P2 | NOT STARTED | — | — | — |
+| R2-19 | Shared page header / Boards alignment | P2 | NOT STARTED | — | — | — |
+| R2-20 | Buzzinga.io share-link import (where legitimate) | P2 | NOT STARTED | — | — | — |
+| R2-21 | Extensible importer + Jeopardy-style data | P2 | NOT STARTED | — | — | — |
+| R2-22 | Sound cues + sound packs | P2 | NOT STARTED | — | — | — |
+| R2-23 | Board intro (checker reveal) animation + settings | P2 | NOT STARTED | — | — | — |
+| R2-24 | Buzzer unlock indicator styles | P2 | NOT STARTED | — | — | — |
+| R2-25 | UX consistency pass | P3 | NOT STARTED | — | — | — |

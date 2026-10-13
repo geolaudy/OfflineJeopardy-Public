@@ -41,3 +41,14 @@ Details/acceptance criteria: USER_FEEDBACK.md. Order (dependencies first):
    detail → 7. host UI: early-buzz controls, reveal→return flow, intro controls → 8. TV: classic
    theme, clue zoom, intro, subtle indicator, polish → 9. E2E updates + mobile layout screenshot
    tests → 10. docs, commit → continue roadmap (IMPLEMENTATION_PLAN "Next tasks").
+
+## Milestone 16 — User feedback round 2 (started 2026-10-13, session 4)
+
+Rollback point: tag v0.3.0. Order (dependencies first; see USER_FEEDBACK.md Round 2):
+- **B — Immediate fixes:** R2-15 captions, R2-19 page header, R2-11 return to start, R2-12 media layout, R2-18 icons.
+- **C — Media:** R2-14 clue/answer media (data model first, backward compatible), R2-13 host media controls (authoritative media state), R2-16 auto-unlock, R2-17 board/clue preview (reuses /board/preview components).
+- **D — Lobby and presentation:** lobby state + per-lobby pairing (R2-1/2), host app shell with desktop navigation (R2-3/4/6), presentation state + TV presenter with compact lobby, rail, transitions (R2-5/7/8/9/10).
+- **E — Polish:** R2-23 board intro, R2-24 indicator styles, R2-22 sound packs.
+- **F — Import:** R2-21 importer architecture, R2-20 Buzzinga investigation + import.
+- Unfinished from the round-1 roadmap: survival UI (O8), tournament mode.
+

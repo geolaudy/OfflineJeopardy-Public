@@ -86,3 +86,45 @@ Priority: P1 highest. Status values as in FEATURE_MATRIX.md.
 |---|---|---|
 | FB-E1 | Fix teardown race (AF15). | `npm test` shows no unhandled errors. |
 | FB-E2 | Backward compatibility of saved games. | Saved `state_json` without the new fields loads and plays (rules normalised, missing state fields defaulted). Covered by a unit test. |
+
+---
+
+# User Feedback — Round 2 (received 2026-10-13, session 4)
+
+Rollback point before this work: tag **v0.3.0** (Vitest 74/74, Playwright 12/12).
+Must keep working: Windows app, TV board, iPad host, Joy-Cons, phone portal, profiles, teams,
+local multiplayer, sync, scoring/buzzers, saved games and boards (backward compatible).
+
+Statuses are tracked in FEATURE_MATRIX.md → "User feedback round 2".
+
+| ID | Requirement (summary) | Pri | Acceptance criteria |
+|---|---|---|---|
+| R2-1 | **Startup flow**: landing page with **Create Lobby** (primary), Resume, Settings, Help — no lobby exposed before creation | P1 | App opens on a clean landing page; Create Lobby starts a lobby session, shows host QR + short temporary pairing code scoped to that lobby, and waits for a host |
+| R2-2 | **Host pairing per lobby**: iPad scans QR → host controller; temporary code invalidated when the lobby closes | P1 | Pairing works only for the current lobby; old codes rejected; existing host sessions still reconnect |
+| R2-3 | **Full host management UI on iPad** with the desktop navigation (Home, Boards, Players, Teams, Buzzers, History, Settings, Help), touch-optimised | P1 | Host never needs the PC to configure a game |
+| R2-4 | **Host Home = game setup**: board, mode, solo/team, player limit, teams, buzzer/early-buzz rules, timers, wagers; configuration summary; **Open Lobby** (does not start play) | P1 | Settings editable before/after Open Lobby; summary accurate |
+| R2-5 | **Open Lobby → full-screen public TV lobby**: title, board, mode, player count/limit, joined players (avatars, colours), teams, controller status (subtle), join QR + instructions; real-time | P1 | No private/device identifiers shown |
+| R2-6 | **Host lobby controls**: change board/mode/rules/limit, assign Joy-Cons/controllers, move/remove players, connection status, leaderboard, stats, start game, close lobby, back to start; warn when a change invalidates assignments | P1 | — |
+| R2-7 | **Synchronized public presentation**: host navigation can drive public TV pages (Leaderboard + metric + player stats, Boards preview, Players, Teams, Settings summary, Buzzers overview) | P1 | TV receives only explicit public presentation state, never host UI state |
+| R2-8 | **Private View / Present on TV** toggle | P1 | Private browsing never changes the TV; auth/settings/sensitive pages never broadcast |
+| R2-9 | **Compact lobby panel** while other pages are presented (QR, count, avatars, board, mode, controller readiness) + smooth full/compact transitions (shared element, transform/opacity, reduced motion) | P1 | No remounts or jumps; joining stays active |
+| R2-10 | **Public navigation rail** (left, subtle, current page) + branding top-right | P2 | Presentation only; nobody touches the TV |
+| R2-11 | **Return to start** from "Host on this computer" and anywhere; confirm before abandoning; saved state preserved | P1 | No restart needed |
+| R2-12 | **Media-first clue layout**: larger images (contain, no distortion/cropping), image above text, combined composition centred, responsive (wide/tall/square, TV/phone), no layout shift; per-clue layout option (auto / media / balanced / text) | P1 | Screenshots at TV sizes show images using most of the screen |
+| R2-13 | **Host media controls** (audio/video): play, pause, resume, restart, stop, mute; state/position/duration; TV is the playback device; synchronized; stops when the clue closes; reconnect-safe | P1 | No duplicate playback; no media left playing |
+| R2-14 | **Separate clue media and answer media** (text, image, audio, video, caption each side); answer reveal crossfades to answer media and answer text; editor sections "Clue presentation" / "Answer reveal"; old boards unchanged | P1 | Wrong media never flashes |
+| R2-15 | **Fix image captions** end to end (editor → save → export/import → render on TV/preview) | P1 | Caption visible in gameplay; survives save/export/import |
+| R2-16 | **Automatic buzzer unlock**: game setting (off / all clues / media-only clues / per clue) + per-clue (game default / immediately / wait for host / after media starts / after media ends); via the authoritative engine; applies to subsequent clues | P1 | Default preserves current behaviour (off) |
+| R2-17 | **Board and clue preview without a game** (library + editor): real presentation components; open clue, reveal answer (answer media), back, exit; no events/scores/stats | P1 | Preview never touches game state |
+| R2-18 | **Replace emoji with a consistent minimalist vector icon set** across desktop, host, portal, settings, editor, menus | P2 | One icon style; accessible labels |
+| R2-19 | **Boards page header alignment**: reusable page header; actions top-right with consistent padding; check other pages | P2 | — |
+| R2-20 | **Import Buzzinga.io boards** from a share link where publicly/legitimately accessible; preview, missing-media report, duplicate detection, rollback; never bypass paywalls/auth/protections | P2 | Investigation documented in RESEARCH_NOTES.md; best supported import with stated limits |
+| R2-21 | **Extensible importer architecture** (parse → normalise → media acquisition → validate → create) + Jeopardy-style structured data (JSON/CSV/datasets/user media folders); no unlicensed show content bundled | P2 | — |
+| R2-22 | **Sound design**: configurable cues (startup, board intro, category intro, clue select, unlock, buzz, right, wrong, Daily Wager, Final, countdown, round end, winner); sound packs (default, alternative, custom import, muted), volumes; offline; no unauthorized copyrighted audio | P2 | — |
+| R2-23 | **Classic board intro animation** (board/checker reveal before the category intro); settings: board intro / category intro on-off, speed, skip, replay; reduced motion; no flashing | P2 | — |
+| R2-24 | **Buzzer unlock indicator styles**: top glow, bottom glow, status dot, edge accent, brief pulse, none; colour, intensity, duration, persist while unlocked, optional sound; reflects authoritative state | P2 | Never obscures the clue |
+| R2-25 | UX consistency pass (padding, buttons, icons, transitions, responsive tablet/phone, Safari) | P3 | — |
+
+Architecture requirement (R2-A): keep separate state for game, lobby, host navigation, public
+presentation, profiles, controller assignments and media playback. The TV receives only
+authorised public presentation data via explicit presentation state.

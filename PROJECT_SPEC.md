@@ -3514,3 +3514,9 @@ controller, existing profiles / saved games / DB records / controller assignment
    completed; no accidental double completion.
 6. **Presentation polish (P6)** — consistent, deliberate transitions for board, clue open/close,
    reveals, score updates, buzzer indicators, rounds, Final Wager and winner announcement.
+
+---
+
+# 44. USER FEEDBACK REQUIREMENTS — ROUND 2 (added 2026-10-13)
+
+Binding requirements; details and acceptance criteria in **USER_FEEDBACK.md → Round 2** (IDs R2-1 … R2-25, R2-A). Summary: lobby-first startup (Create Lobby, per-lobby host pairing, full iPad management UI with the desktop navigation, Open Lobby → full-screen public lobby); synchronized public presentation driven by the host (Present on TV / private view, compact lobby panel, public nav rail, smooth transitions); return-to-start navigation; media-first clue layout; host media playback controls; separate clue and answer media; working captions; automatic buzzer unlock; board/clue preview without a game; vector icons instead of emoji; consistent page headers; legitimate board importing via an extensible importer; sound packs; classic board-intro animation; selectable buzzer-unlock indicators. The TV only ever receives public presentation state.
