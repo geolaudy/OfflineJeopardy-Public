@@ -15,15 +15,20 @@
 2. Players scan the QR code on the TV, pick their profile and enter their PIN (or tap **I'm new**), then **Join game**.
 3. Teams: create teams, add players, and choose for **each team**: "Each player buzzes" or "One shared buzzer".
 4. Buzzers tab: tap **Assign controller** next to a player (or a shared team) and press a button on their Joy-Con or a key on the PC keyboard. Phones need no setup.
-5. **Start game**. Tap a clue — it appears on the TV; only you see the answer.
-6. **Unlock buzzers** → the first buzz wins → **Correct** or **Incorrect**. For shared buzzers, pick who answered (or "Team only").
-7. Use **Undo** for mistakes; tap a score to award/deduct points.
-8. When the board is cleared: **Start Final Wager** → open wagers (players enter them on their phones) → show the clue → reveal and judge → **Show the winner**.
+5. **Start game**. The TV introduces the round and its categories one at a time: tap **Next** for each category (or **Auto**, or **Skip**). You can replay it from the board screen ("Introduce the categories on TV"); turn it off in Menu → Rules & timers.
+6. Tap a clue — it zooms out of its tile on the TV; only you see the answer (and the category/value).
+7. **Unlock buzzers** → the first buzz wins → **Correct** or **Incorrect**. For shared buzzers, pick who answered (or "Team only").
+8. **Nobody knows it?** When time runs out (or you tap **Nobody knows**), tap **Reveal answer** — the answer shows on the TV — then **Return to board**. No points change. **Skip** is still there for exceptional cases.
+9. **Early buzzing:** the chip "Early buzz: …" in the clue panel (or Menu → Rules & timers) sets what happens when someone buzzes before you unlock: *No penalty*, *Short lockout*, *Out for this clue* or *Lose points*. It applies from the next buzz, the same for Joy-Cons, phones and keyboards. Early buzzes are listed in the clue panel; point penalties can be refunded there or in the event history.
+10. Use **Undo** for mistakes; tap a score to award/deduct points.
+11. When the board is cleared: **Start Final Wager** → open wagers (players enter them on their phones) → show the clue → reveal and judge → **Show the winner**.
 
 ## Players
 - Profiles keep their statistics forever — renaming, new photos or different buzzers never lose history.
 - Forgot a PIN? Dashboard → Players → Edit → Reset PIN.
-- Players can see their stats (solo and team separately), past games clue by clue, and edit their name, nickname, photo, avatar and color — changes appear on the TV instantly.
+- On their phone, players open the **☰ menu** for: Current game (buzzer), My profile, My statistics, Game history (tap a game for every clue you buzzed on, your points and wagers), Leaderboard (Solo / Team games / Contributions, ranked by the criterion you choose), Players (other players' public stats) and Settings (buzzer preferences, privacy, PIN, sign out). The browser Back button works throughout.
+- Players who tick "Keep my statistics private" are hidden from the leaderboard and their stats page shows as private.
+- Edits to name, nickname, photo, avatar and color appear on the TV instantly.
 
 ## Boards
 Dashboard → Boards: create, edit, duplicate, archive, import (CSV/JSON) and export.

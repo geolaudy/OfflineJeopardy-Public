@@ -482,6 +482,11 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       if (s.phase !== 'board') fail('Return to the board first');
       const round = s.board.rounds[s.roundIndex];
       if (!round || round.kind !== 'standard') fail('No round to introduce');
+      // "Auto" while an introduction is running continues from the current category.
+      if (s.intro && s.intro.roundIndex === s.roundIndex && a.auto) {
+        s.intro.auto = true;
+        return;
+      }
       s.intro = { roundIndex: s.roundIndex, step: -1, auto: !!a.auto };
       return;
     }

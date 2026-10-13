@@ -1,9 +1,9 @@
 // Windows desktop dashboard (also usable from any browser with a host session).
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
+import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { ensureLocalHost, tokens } from '../../lib/api';
 import { connect, disconnect, useLive } from '../../lib/socket';
-import { cx } from '../../components/ui';
+import { Drawer, cx } from '../../components/ui';
 import { phaseLabel } from '../../lib/view';
 import Connect from './Connect';
 import { isDesktopApp } from '../../lib/desktop';
@@ -31,8 +31,11 @@ const NAV = [
 
 export default function DeskPage() {
   const [auth, setAuth] = useState<'checking' | 'ok' | 'denied'>('checking');
+  const [menu, setMenu] = useState(false);
+  const location = useLocation();
   const game = useLive((s) => s.game);
   const status = useLive((s) => s.status);
+  useEffect(() => setMenu(false), [location.pathname]);
   useEffect(() => {
     // The desktop window is the controller reader (Joy-Cons via WebHID, other gamepads).
     if (status === 'open' && isDesktopApp()) {
@@ -49,7 +52,7 @@ export default function DeskPage() {
     return () => disconnect();
   }, [auth]);
 
-  if (auth === 'checking') return <div className="flex h-full items-center justify-center text-slate-500">Loading…</div>;
+  if (auth === 'checking') return <div className="app-screen flex items-center justify-center text-slate-500">Loading…</div>;
   if (auth === 'denied')
     return (
       <div className="mx-auto max-w-md p-8 text-center">
@@ -61,25 +64,46 @@ export default function DeskPage() {
       </div>
     );
 
+  const links = (
+    <>
+      {NAV.map(([to, icon, label, end]) => (
+        <NavLink key={to} to={to} end={end} className={({ isActive }) => cx('flex min-h-11 items-center gap-3 rounded-xl px-3 font-semibold', isActive ? 'bg-blue-50 text-blue-800' : 'text-slate-700 hover:bg-slate-50')}>
+          <span aria-hidden>{icon}</span>
+          {label}
+        </NavLink>
+      ))}
+    </>
+  );
+  const current = NAV.find(([to, , , end]) => (end ? location.pathname === to : location.pathname.startsWith(to)))?.[2] ?? (location.pathname.startsWith('/desk/boards') ? 'Board editor' : 'Dashboard');
   return (
-    <div className="flex h-full">
-      <nav className="flex w-56 shrink-0 flex-col gap-1 border-r border-slate-200 bg-white p-3" aria-label="Main">
+    <div className="app-screen flex flex-col md:flex-row">
+      {/* Narrow windows: top bar with a menu button; the sidebar becomes a drawer. */}
+      <header className="safe-top flex min-h-14 shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-2 md:hidden">
+        <button onClick={() => setMenu(true)} className="flex h-11 w-11 items-center justify-center rounded-full text-2xl hover:bg-slate-100" aria-label="Open menu">
+          ☰
+        </button>
+        <span className="truncate text-lg font-bold">{current}</span>
+      </header>
+      <nav className="hidden w-56 shrink-0 flex-col gap-1 border-r border-slate-200 bg-white p-3 md:flex" aria-label="Main">
         <div className="mb-3 px-2">
           <div className="text-lg font-black">OfflineJeopardy</div>
           {game && <div className="truncate text-xs text-slate-500">▶ {game.title} · {phaseLabel(game)}</div>}
         </div>
-        {NAV.map(([to, icon, label, end]) => (
-          <NavLink key={to} to={to} end={end} className={({ isActive }) => cx('flex min-h-11 items-center gap-3 rounded-xl px-3 font-semibold', isActive ? 'bg-blue-50 text-blue-800' : 'text-slate-700 hover:bg-slate-50')}>
-            <span aria-hidden>{icon}</span>
-            {label}
-          </NavLink>
-        ))}
+        {links}
         <div className="flex-1" />
         <a href="/host" className="flex min-h-12 items-center justify-center rounded-xl bg-blue-700 px-3 font-bold text-white hover:bg-blue-800">
           🎛️ Host the game here
         </a>
       </nav>
-      <main className="min-w-0 flex-1 overflow-auto">
+      <Drawer open={menu} onClose={() => setMenu(false)} title={<span className="font-black">OfflineJeopardy</span>}>
+        <div className="grid gap-1">
+          {links}
+          <a href="/host" className="mt-3 flex min-h-12 items-center justify-center rounded-xl bg-blue-700 px-3 font-bold text-white">
+            🎛️ Host the game here
+          </a>
+        </div>
+      </Drawer>
+      <main className="scroll-area min-h-0 min-w-0 flex-1">
         <Suspense fallback={<div className="p-6 text-slate-500">Loading…</div>}>
           <Routes>
             <Route index element={<Connect />} />

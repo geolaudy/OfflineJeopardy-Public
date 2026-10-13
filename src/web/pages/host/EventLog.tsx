@@ -20,12 +20,14 @@ function describe(e: GameplayEvent, g: GameView) {
     case 'clue_close':
       return `Clue ${e.result}`;
     case 'buzz':
+      if (e.result === 'early') return `${who}${person} buzzed too early${e.scoreDelta ? ` ${fmtScore(e.scoreDelta)}` : ''}${e.note === 'refunded' ? ' (penalty refunded)' : ''}`;
       return `${who}${person} buzzed — ${e.result}${e.reactionMs != null ? ` (${(e.reactionMs / 1000).toFixed(2)}s, ${e.sourceKind})` : ''}`;
     case 'answer':
       return `${who}${person} ${e.result} ${fmtScore(e.scoreDelta)}`;
     case 'wager':
       return `${who} wagered ${e.wager} (${e.result})`;
     case 'score_adjust':
+      if (e.correctsEventId) return `${who}: ${e.note ?? 'correction'}`;
       return `${who} adjusted ${e.scoreDelta > 0 ? '+' : ''}${fmtScore(e.scoreDelta)}`;
     case 'attribution_correction':
       return `Attribution corrected for ${who}`;
@@ -41,10 +43,11 @@ export default function EventLog({ open, onClose, g, run }: { open: boolean; onC
   const events = [...(g.events ?? [])].reverse();
   return (
     <Modal open={open} onClose={onClose} title="Event history" wide>
-      <ul className="max-h-[65vh] divide-y divide-slate-100 overflow-auto">
+      <ul className="divide-y divide-slate-100">
         {events.map((e) => {
           const c = findCompetitor(g, e.competitorId);
           const canFix = !e.voided && c?.kind === 'team' && (e.type === 'answer' || e.type === 'wager');
+          const canRefund = !e.voided && e.type === 'buzz' && e.result === 'early' && e.scoreDelta < 0;
           return (
             <li key={e.id} className={cx('flex items-center gap-3 py-2 text-sm', e.voided && 'text-slate-400 line-through')}>
               <span className="w-16 shrink-0 text-xs text-slate-400 tabular-nums">{new Date(e.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
@@ -52,6 +55,11 @@ export default function EventLog({ open, onClose, g, run }: { open: boolean; onC
               {canFix && (
                 <Button size="sm" variant="ghost" onClick={() => setFixing(e)}>
                   Change who answered
+                </Button>
+              )}
+              {canRefund && (
+                <Button size="sm" variant="ghost" onClick={() => confirm(`Give back ${Math.abs(e.scoreDelta)} points?`) && run({ type: 'refundPenalty', eventId: e.id })}>
+                  Refund penalty
                 </Button>
               )}
             </li>

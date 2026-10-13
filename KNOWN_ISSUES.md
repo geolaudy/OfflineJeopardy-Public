@@ -14,4 +14,9 @@
 | K10 | Sessions | Bearer tokens live in localStorage; private browsing may lose them per page session. | Sign in again. |
 | K11 | Board editor | No in-app navigation blocker for an unsaved *new* board except the "← Library" link (existing boards autosave). | Save new boards once before navigating away. |
 | K12 | Profiles | Profile preferences (preferred buzzer/button) are informational; the host still assigns controllers explicitly (by design, to avoid wrong assignments). | — |
-| K13 | Spec gaps | Not started: computer opponents, theme editor/import, workspaces, offline AI, room codes, tournament/survival modes, plugins, game-package export, host keyboard shortcuts. | See FEATURE_MATRIX.md. |
+| K13 | Spec gaps | Not started: computer opponents, theme editor/import, workspaces, offline AI, room codes, tournament/survival modes, plugins, game-package export. (Host keyboard shortcuts done in session 2.) | See FEATURE_MATRIX.md. |
+| K14 | Mobile | Layout fixes (dvh, safe areas, dialogs) verified with Playwright WebKit device emulation only; emulation has no Safari toolbars or notch insets. | Validate on a real iPhone + iPad (portrait/landscape, Home-Screen mode). |
+| K15 | TV | Clue zoom / intro animations judged from screenshots; not measured for frame rate on TV hardware or 16:10 / non-classic themes. | Watch a round on the real TV; Settings → reduced motion falls back to fades. |
+| K16 | Early buzz | Early detection is by arrival at the server: a press sent just before the host unlocks but arriving just after counts as on time (and vice versa). Inherent to server-authoritative timing (D15). | Use "Short lockout" rather than "Out for this clue" for latency-tolerant play. |
+| K17 | Leaderboard | Ranking thresholds are fixed (3 games for win %/average, 10 answers for accuracy). | Configurable thresholds not implemented. |
+| K18 | Navigation | Host back arrow appears only on setup/results (returns to the game list); during live play the drawer is the navigation (deliberately no accidental exit). | — |

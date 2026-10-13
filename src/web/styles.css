@@ -25,6 +25,11 @@ body,
 #root {
   height: 100%;
 }
+html {
+  /* iOS Safari enlarges text on rotation without this, which makes layouts jump. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
 body {
   margin: 0;
   background: var(--app-bg);
@@ -32,6 +37,34 @@ body {
   font-family: var(--font-sans);
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
+  /* No rubber-band bounce / pull-to-refresh fighting with the app's own scroll areas. */
+  overscroll-behavior: none;
+}
+
+/* Full-screen app shells: the *visible* viewport on mobile (dvh), with a vh fallback.
+   Content scrolls inside the shell, so Safari's collapsing toolbars never resize fixed bars. */
+.app-screen {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+.scroll-area {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+/* Safe areas (notch, home indicator, landscape side insets) — viewport-fit=cover is set.
+   These are unlayered, so they override Tailwind padding utilities: only use them on elements
+   without their own padding on that side (use max(…, env(safe-area-inset-*)) otherwise). */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.safe-x {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 /* Visible focus indicator for keyboard users */
@@ -217,10 +250,41 @@ button {
   color: var(--b-accent);
 }
 
-@keyframes pulse-ring {
-  0% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.7); }
-  100% { box-shadow: 0 0 0 28px rgba(250, 204, 21, 0); }
+/* Halo pulse that runs on the compositor (transform + opacity of a pseudo-element) instead of
+   repainting a box-shadow every frame — box-shadow keyframes caused jank on iPhone/iPad. */
+@keyframes pulse-halo {
+  0% { transform: scale(1); opacity: 0.55; }
+  100% { transform: scale(1.18); opacity: 0; }
 }
 .pulse-ring {
-  animation: pulse-ring 1.2s ease-out infinite;
+  position: relative;
+  isolation: isolate;
+}
+.pulse-ring::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--halo, currentColor);
+  z-index: -1;
+  pointer-events: none;
+  will-change: transform, opacity;
+  animation: pulse-halo 1.4s ease-out infinite;
+}
+
+/* Slide-in navigation drawer */
+@keyframes drawer-in {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.drawer-panel {
+  animation: drawer-in 0.22s ease-out;
+  will-change: transform;
+}
+.fade-in {
+  animation: fade-in 0.18s ease-out;
 }

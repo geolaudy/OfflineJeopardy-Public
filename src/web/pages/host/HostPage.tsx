@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { api, ensureLocalHost, hostApi, tokens } from '../../lib/api';
 import { connect, disconnect, useLive, act } from '../../lib/socket';
-import { Button, ConnectionBadge, Modal, toast, cx } from '../../components/ui';
+import { Button, ConnectionBadge, Drawer, toast, cx } from '../../components/ui';
 import { phaseLabel } from '../../lib/view';
 import { attempt } from '../../lib/hooks';
 import GamePicker from './GamePicker';
@@ -44,7 +44,7 @@ export default function HostPage() {
     return () => window.removeEventListener('oj-error', onErr);
   }, []);
 
-  if (auth === 'checking') return <div className="flex h-full items-center justify-center text-slate-500">Loading…</div>;
+  if (auth === 'checking') return <div className="app-screen flex items-center justify-center text-slate-500">Loading…</div>;
   if (auth === 'login') return <HostLogin onDone={() => setAuth('ok')} />;
   return <HostShell />;
 }
@@ -73,8 +73,8 @@ function HostLogin({ onDone }: { onDone: () => void }) {
     if (next.length === 6) void submit(next);
   };
   return (
-    <div className="flex min-h-full items-center justify-center p-6">
-      <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-lg">
+    <div className="app-screen scroll-area flex items-center justify-center px-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+      <div className="my-auto w-full max-w-sm rounded-3xl bg-white p-6 shadow-lg">
         <h1 className="text-center text-2xl font-black">Host controller</h1>
         <p className="mt-2 text-center text-slate-600">Enter the 6-digit host code shown on the game computer (Dashboard → Connect).</p>
         <div className="my-5 flex justify-center gap-2" aria-label={`${code.length} of 6 digits`}>
@@ -131,32 +131,57 @@ function HostShell() {
     return r;
   };
 
+  const switchGame = async () => {
+    setMenu(false);
+    await attempt(() => hostApi('POST', '/api/games/close'));
+  };
+  // Back arrow where it is meaningful: from setup or results back to the list of games.
+  const canGoBack = !!game && (game.phase === 'lobby' || game.phase === 'ended');
+
   return (
-    <div className="flex h-full flex-col bg-slate-100">
-      <header className="flex shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 py-2">
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-lg font-bold">{game?.title ?? 'OfflineJeopardy'}</div>
-          <div className="flex items-center gap-3 text-sm text-slate-600">
-            <ConnectionBadge status={status} />
-            {game && <span data-testid="phase">{phaseLabel(game)}</span>}
+    <div className="app-screen flex flex-col bg-slate-100">
+      <header className="safe-top safe-x shrink-0 border-b border-slate-200 bg-white">
+        <div className="flex min-h-14 items-center gap-2 px-2 py-1.5">
+          {canGoBack ? (
+            <button onClick={switchGame} className="flex h-11 w-11 items-center justify-center rounded-full text-2xl text-slate-700 hover:bg-slate-100" aria-label="Back to games" data-testid="nav-back">
+              ←
+            </button>
+          ) : (
+            <span className="w-1" />
+          )}
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-lg leading-tight font-bold">{game?.title ?? 'Host controller'}</h1>
+            <div className="flex items-center gap-3 text-sm text-slate-600">
+              <ConnectionBadge status={status} />
+              {game && <span data-testid="phase">{phaseLabel(game)}</span>}
+            </div>
           </div>
+          {game && game.phase !== 'lobby' && game.phase !== 'ended' && (
+            <Button variant={game.paused ? 'warning' : 'secondary'} onClick={() => run({ type: game.paused ? 'resumeGame' : 'pauseGame' })}>
+              {game.paused ? '▶ Resume' : '❚❚ Pause'}
+            </Button>
+          )}
+          {game && (
+            <Button variant="secondary" onClick={() => setMenu(true)} aria-label="Game menu" data-testid="nav-menu">
+              ☰ Menu
+            </Button>
+          )}
         </div>
-        {game && game.phase !== 'lobby' && game.phase !== 'ended' && (
-          <Button variant={game.paused ? 'warning' : 'secondary'} onClick={() => run({ type: game.paused ? 'resumeGame' : 'pauseGame' })}>
-            {game.paused ? '▶ Resume' : '❚❚ Pause'}
-          </Button>
-        )}
-        {game && (
-          <Button variant="secondary" onClick={() => setMenu(true)} aria-label="Game menu">
-            ☰ Menu
-          </Button>
-        )}
       </header>
-      <main className="min-h-0 flex-1 overflow-auto">
+      <main className="scroll-area safe-x min-h-0 flex-1">
         {!ready ? <div className="p-6 text-center text-slate-500">Connecting to the game computer…</div> : !game ? <GamePicker /> : game.phase === 'lobby' ? <Setup g={game} /> : game.phase === 'ended' ? <Results g={game} /> : <Live g={game} run={run} />}
       </main>
       {game && (
-        <Modal open={menu} onClose={() => setMenu(false)} title="Game menu">
+        <Drawer
+          open={menu}
+          onClose={() => setMenu(false)}
+          title={
+            <div className="min-w-0">
+              <div className="truncate font-bold">{game.title}</div>
+              <div className="text-xs text-slate-500">{phaseLabel(game)}</div>
+            </div>
+          }
+        >
           <div className="grid gap-2">
             <Button
               variant="secondary"
@@ -204,18 +229,11 @@ function HostShell() {
                 End game
               </Button>
             )}
-            <Button
-              variant="ghost"
-              size="lg"
-              onClick={async () => {
-                setMenu(false);
-                await attempt(() => hostApi('POST', '/api/games/close'));
-              }}
-            >
+            <Button variant="ghost" size="lg" onClick={switchGame} data-testid="switch-game">
               Switch game (this one stays saved)
             </Button>
           </div>
-        </Modal>
+        </Drawer>
       )}
       {game && <EventLog open={log} onClose={() => setLog(false)} g={game} run={run} />}
       {game && <RulesEditor open={rules} onClose={() => setRules(false)} g={game} run={run} />}

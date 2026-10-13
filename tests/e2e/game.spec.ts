@@ -71,6 +71,17 @@ test('full game: iPad host pairing, phone profiles + buzzing, private answers, l
   await expect(tv.getByText('Alex')).toBeVisible();
   await ipad.getByTestId('start-game').click();
 
+  // Category introduction (FB-4.5): round title, then categories one at a time, host-driven.
+  await expect(ipad.getByTestId('intro-controls')).toBeVisible();
+  await expect(tv.getByTestId('board-tile')).toHaveCount(0);
+  await ipad.getByTestId('intro-next').click();
+  await expect(ipad.getByTestId('intro-now')).toContainText('Category 1 of 6: History');
+  await expect(tv.getByText('History', { exact: true })).toBeVisible();
+  await ipad.getByTestId('intro-next').click();
+  await expect(ipad.getByTestId('intro-now')).toContainText('Category 2 of 6');
+  await ipad.getByTestId('intro-skip').click();
+  await expect(ipad.getByTestId('intro-start')).toBeVisible(); // can be replayed
+
   // Board on TV
   await expect(tv.getByTestId('board-category').first()).toHaveText('History');
   await expect(tv.getByTestId('board-tile')).toHaveCount(30);
@@ -83,11 +94,26 @@ test('full game: iPad host pairing, phone profiles + buzzing, private answers, l
   expect(await tv.content()).not.toContain('The Inca');
   expect(await iphone.content()).not.toContain('The Inca');
 
+  // Full-screen question shows neither the category nor the value (FB-4.3)
+  await expect(tv.getByTestId('clue-text')).toBeVisible();
+  await expect(tv.getByTestId('tv-clue-panel').getByText('History', { exact: true })).toHaveCount(0);
+  await expect(tv.getByTestId('tv-clue-panel').getByText('200')).toHaveCount(0);
+
+  // Phones are armed before the buzzers open: an early press is recorded server-side (FB-3.2)
+  await expect(iphone.getByTestId('buzzer')).toHaveAttribute('data-state', 'armed');
+  await iphone.getByTestId('buzzer').dispatchEvent('pointerdown');
+  await expect(iphone.getByTestId('buzz-status')).toContainText('Too early');
+  await expect(ipad.getByTestId('early-list')).toContainText('Alex');
+  await expect(ipad.getByTestId('early-rule-chip')).toContainText('No penalty');
+
   // Buzzers: locked → unlock → Sam (Android) buzzes first, Alex second
-  await expect(iphone.getByTestId('buzzer')).toBeDisabled();
   await ipad.getByTestId('unlock').click();
   await expect(tv.getByText('BUZZERS OPEN')).toBeVisible();
   await expect(android.getByTestId('buzzer')).toBeEnabled();
+  await expect(android.getByTestId('buzzer')).toHaveAttribute('data-state', 'open');
+  await iphone.screenshot({ path: 'test-results/screens/iphone-buzzer-open.png' });
+  await ipad.screenshot({ path: 'test-results/screens/ipad-clue-panel.png' });
+  await tv.screenshot({ path: 'test-results/screens/tv-buzzers-open.png' });
   await android.getByTestId('buzzer').dispatchEvent('pointerdown');
   await expect(tv.getByTestId('buzz-winner')).toContainText('Sam');
   await expect(ipad.getByTestId('host-winner')).toHaveText('Sam');
@@ -116,10 +142,20 @@ test('full game: iPad host pairing, phone profiles + buzzing, private answers, l
   await ipad.getByTestId('undo').click();
   await expect(iphone.getByTestId('my-score')).toHaveText('0');
   await ipad.getByTestId('incorrect').click();
+  // Nobody else answers: host ends answering → reveals the answer → returns to the board (FB-5.1)
+  await expect(ipad.getByTestId('back-to-board')).toHaveCount(0);
+  await ipad.getByTestId('end-answering').click();
+  await expect(ipad.getByTestId('answering-ended')).toBeVisible();
+  await expect(tv.getByTestId('clue-answer')).toHaveCount(0);
+  await ipad.getByTestId('reveal-answer').click();
+  await expect(tv.getByTestId('clue-answer')).toBeVisible();
   await ipad.getByTestId('back-to-board').click();
+  await expect(ipad.getByTestId('phase')).toContainText('choose a clue');
 
   // Profile change on the phone syncs live to TV and host without refresh
-  await iphone.getByRole('tab', { name: /Profile/ }).click();
+  await iphone.getByTestId('nav-menu').click();
+  await iphone.getByTestId('nav-profile').click();
+  await expect(iphone.getByTestId('page-title')).toHaveText('My profile');
   await iphone.getByLabel('Name', { exact: true }).fill('AlexTheWizard');
   await iphone.getByTestId('save-profile').click();
   await expect(tv.getByTestId('scoreboard')).toContainText('AlexTheWizard');
@@ -146,17 +182,32 @@ test('full game: iPad host pairing, phone profiles + buzzing, private answers, l
   ipad.once('dialog', (d) => d.accept());
   await ipad.getByRole('button', { name: 'End game' }).click();
   await expect(tv.getByTestId('winner')).toContainText('wins!');
-  await iphone.getByRole('tab', { name: /Play/ }).click();
+  await iphone.getByTestId('nav-menu').click();
+  await iphone.getByTestId('nav-play').click();
   await expect(iphone.getByText(/Game over|You won/)).toBeVisible();
 
-  // History & stats on the phone
-  await iphone.getByRole('tab', { name: /History/ }).click();
+  // History & stats on the phone (FB-2.3): list → detail page → browser-style back
+  await iphone.getByTestId('nav-menu').click();
+  await iphone.getByTestId('nav-history').click();
   await expect(iphone.getByTestId('history-row')).toHaveCount(1);
   await iphone.getByTestId('history-row').click();
   await expect(iphone.getByText('Clue by clue')).toBeVisible();
-  await iphone.keyboard.press('Escape');
-  await iphone.getByRole('tab', { name: /Stats/ }).click();
+  await expect(iphone.getByTestId('history-clue').first()).toBeVisible(); // Alex's own clues
+  await iphone.getByTestId('nav-back').click();
+  await expect(iphone.getByTestId('page-title')).toHaveText('Game history');
+  await iphone.goBack();
+  await expect(iphone.getByTestId('page-title')).not.toHaveText('Game history');
+  await iphone.getByTestId('nav-menu').click();
+  await iphone.getByTestId('nav-stats').click();
   await expect(iphone.getByText('Games played')).toBeVisible();
+
+  // Leaderboard + another player's public page (FB-2.1, FB-2.2)
+  await iphone.getByTestId('nav-menu').click();
+  await iphone.getByTestId('nav-leaderboard').click();
+  await expect(iphone.getByTestId('leaderboard-row')).toHaveCount(2);
+  await iphone.getByTestId('leaderboard-row').filter({ hasText: 'Sam' }).click();
+  await expect(iphone.getByTestId('player-name')).toHaveText('Sam');
+  await expect(iphone.getByText('Recent games')).toBeVisible();
 
   await ctx.put('/api/settings', { headers: auth, data: { trustLocalhost: true } });
   await ctx.dispose();
@@ -165,7 +216,8 @@ test('full game: iPad host pairing, phone profiles + buzzing, private answers, l
 test('PIN sign-in on a phone: wrong PIN rejected, correct PIN accepted, session survives reload', async () => {
   const phone = await (await wk.newContext({ ...devices['iPhone 13'] })).newPage();
   await createProfileOnPhone(phone, 'Jordan', '1357');
-  await phone.getByRole('tab', { name: /Profile/ }).click();
+  await phone.getByTestId('nav-menu').click();
+  await phone.getByTestId('nav-settings').click();
   await phone.getByTestId('sign-out').click();
   await phone.getByTestId('profile-tile').filter({ hasText: 'Jordan' }).click();
   for (const d of '0000') await phone.getByRole('button', { name: d, exact: true }).click();

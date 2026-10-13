@@ -39,7 +39,7 @@ export default function App() {
           <Route path="/" element={<Launcher />} />
           <Route path="/board" element={<BoardPage />} />
           <Route path="/host" element={<HostPage />} />
-          <Route path="/join" element={<JoinPage />} />
+          <Route path="/join/*" element={<JoinPage />} />
           <Route path="/players" element={<Navigate to="/join" replace />} />
           <Route path="/desk/*" element={<DeskPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />

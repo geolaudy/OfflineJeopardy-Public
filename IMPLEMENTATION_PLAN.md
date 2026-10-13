@@ -25,11 +25,11 @@ Order follows CLAUDE.md §31. ✅ done · 🔶 partial · ⬜ not started.
 2. Real-hardware validation session: pair 2+ Joy-Cons on Windows, verify detection/MAC ids/assign/buzz/reconnect; fix offsets if needed. Real iPad Safari pass.
 3. Game-package export/import with media (zip), backup including media.
 4. Theme editor (custom colors/fonts/background/logo) + theme import/export.
-5. Host keyboard shortcuts; latency diagnostics view; statistics export (CSV).
+5. ✅ Host keyboard shortcuts; ✅ statistics export (CSV); latency diagnostics view still open.
 6. Computer opponents / practice mode; room codes; tournament & survival modes.
 7. Optional: Ollama-based question generation with manual fallback; workspaces.
 
-## Milestone 15 — User feedback round 1 (started 2026-10-12, session 2)
+## Milestone 15 — User feedback round 1 — ✅ implemented & tested 2026-10-12 (session 2); real-device validation pending (K14, K15)
 
 Details/acceptance criteria: USER_FEEDBACK.md. Order (dependencies first):
 

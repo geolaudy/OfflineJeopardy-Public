@@ -264,9 +264,9 @@ export function gameDetail(db: DB, gameId: string) {
 /** Leaderboard rows for every profile whose statistics are public. Solo games, team games and
  *  individual contributions in team games are returned as separate groups — the client ranks
  *  within one group at a time and never mixes them. */
-export function leaderboard(db: DB) {
+export function leaderboard(db: DB, opts: { includePrivate?: boolean } = {}) {
   const profiles = db
-    .prepare('SELECT id, display_name AS name, nickname, color, avatar, picture_file AS pictureFile FROM profiles WHERE deleted_at IS NULL AND stats_private = 0')
+    .prepare(`SELECT id, display_name AS name, nickname, color, avatar, picture_file AS pictureFile FROM profiles WHERE deleted_at IS NULL${opts.includePrivate ? '' : ' AND stats_private = 0'}`)
     .all() as { id: string; name: string; nickname: string; color: string; avatar: string; pictureFile: string | null }[];
   return profiles.map((p) => {
     const st = profileStats(db, p.id);
@@ -308,4 +308,47 @@ export function leaderboard(db: DB) {
       accuracy: st.combined.correct + st.combined.incorrect ? st.combined.correct / (st.combined.correct + st.combined.incorrect) : null,
     };
   });
+}
+
+// ---------- CSV export (host) ----------
+
+function csv(rows: (string | number | null | undefined)[][]) {
+  const cell = (v: string | number | null | undefined) => {
+    if (v == null) return '';
+    const s = String(v);
+    // Quote when needed; prefix formula-like text so spreadsheets never execute it.
+    const safe = /^[=+\-@\t\r]/.test(s) && typeof v === 'string' ? `'${s}` : s;
+    return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
+  };
+  return rows.map((r) => r.map(cell).join(',')).join('\r\n') + '\r\n';
+}
+
+const ratio = (n: number | null) => (n == null ? '' : (Math.round(n * 1000) / 10).toFixed(1));
+
+/** One row per player; solo, team and contribution columns are kept in separate groups. */
+export function playersCsv(db: DB) {
+  const rows = leaderboard(db, { includePrivate: true });
+  return csv([
+    ['player', 'nickname', 'solo_games', 'solo_wins', 'solo_win_pct', 'solo_avg_score', 'solo_high_score', 'solo_correct', 'solo_incorrect', 'solo_accuracy_pct',
+      'team_games', 'team_wins', 'team_win_pct', 'contrib_correct', 'contrib_incorrect', 'contrib_accuracy_pct', 'contrib_points_earned', 'contrib_net'],
+    ...rows.map((r) => [
+      r.name, r.nickname, r.solo.games, r.solo.wins, ratio(r.solo.winRate), r.solo.averageScore, r.solo.highestScore, r.solo.correct, r.solo.incorrect, ratio(r.solo.accuracy),
+      r.team.games, r.team.wins, ratio(r.team.winRate), r.contribution.correct, r.contribution.incorrect, ratio(r.contribution.accuracy), r.contribution.earned, r.contribution.net,
+    ]),
+  ]);
+}
+
+/** One row per competitor per completed game (historical names). */
+export function gamesCsv(db: DB) {
+  const rows = db
+    .prepare(
+      `SELECT g.title, g.mode, g.ended_at AS endedAt, gc.name_snapshot AS name, gc.kind, gc.final_score AS score, gc.placement, gc.is_winner AS winner,
+         (SELECT GROUP_CONCAT(gp.name_snapshot, ' / ') FROM game_participants gp WHERE gp.game_id = g.id AND gp.competitor_id = gc.competitor_id) AS members
+       FROM game_competitors gc JOIN games g ON g.id = gc.game_id WHERE ${COMPLETED} ORDER BY g.ended_at, gc.placement`,
+    )
+    .all() as { title: string; mode: string; endedAt: number; name: string; kind: string; score: number | null; placement: number | null; winner: number | null; members: string | null }[];
+  return csv([
+    ['game', 'mode', 'ended_at', 'competitor', 'kind', 'members', 'final_score', 'placement', 'winner'],
+    ...rows.map((r) => [r.title, r.mode, new Date(r.endedAt).toISOString(), r.name, r.kind, r.members, r.score, r.placement, r.winner ? 'yes' : 'no']),
+  ]);
 }

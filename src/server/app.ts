@@ -644,6 +644,14 @@ export async function startServer(opts: ServerOptions) {
     if (s.kind !== 'host' && !getSetting(db, 'publicLeaderboard', true)) return bad(reply, 'The host has turned off the leaderboard', 403);
     return stats.leaderboard(db);
   });
+  app.get('/api/stats/export/:kind', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const { kind } = req.params as { kind: string };
+    if (kind !== 'players.csv' && kind !== 'games.csv') return bad(reply, 'Unknown export', 404);
+    const body = kind === 'players.csv' ? stats.playersCsv(db) : stats.gamesCsv(db);
+    reply.header('content-disposition', `attachment; filename="offlinejeopardy-${kind}"`);
+    return reply.type('text/csv; charset=utf-8').send('\uFEFF' + body); // BOM so Excel reads UTF-8
+  });
   app.get('/api/history', async (req, reply) => {
     if (!requireHost(req, reply)) return;
     return stats.listHistory(db);

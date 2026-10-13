@@ -50,9 +50,9 @@
 | `src/server/stats.ts` | Statistics + history derived from events. |
 | `src/server/auth.ts` | scrypt PIN hashing, sessions, lockouts, rate limiter, pairing code. |
 | `src/server/images.ts` | sharp-based image validation/resizing; media sniffing; safe paths. |
-| `src/web/pages/board` | Public TV board. |
+| `src/web/pages/board` | Public TV board: BoardPage (stage), Grid, ClueZoom (FLIP zoom from tile), Intro, Scoreboard, TimerBar (WAAPI), FinalScreen, board.css (classic look), timing.ts. |
 | `src/web/pages/host` | iPad host controller (picker, setup, live, final, results). |
-| `src/web/pages/join` | Phone player portal (profiles, PIN, buzzer, stats, history, profile). |
+| `src/web/pages/join` | Phone player portal. Routes: `/join` (buzzer), `/join/profile`, `/join/stats`, `/join/history[/:gameId]`, `/join/leaderboard`, `/join/players[/:id]`, `/join/settings`; drawer + back arrow. |
 | `src/web/pages/desk` | Desktop dashboard (connect, library, editor, players, teams, buzzers, history, settings, help). |
 | `src/web/lib/inputBridge.ts` | Joy-Con (WebHID) / gamepad / keyboard reader → server. |
 | `src/electron/` | Electron main + preload. |
@@ -89,6 +89,18 @@ Daily Wager clues have a `wager` stage (question hidden from public) before the 
 3. `resolveInput` maps the device to a competitor (+ profile when identifiable). Phones of shared-buzzer team members are rejected; shared teams buzz only via their team-bound device.
 4. The engine `buzz` action: first valid buzz while `open` wins; later buzzes are queued as `late`; buzzes while locked are `early` (optional lockout penalty); competitors that already attempted are blocked (team-aware, with optional `teamRetry: otherMembers`).
 5. The server processes messages sequentially, so simultaneous presses are resolved deterministically by arrival order at the server. Client timestamps are never trusted.
+
+### Clue sub-states and unanswered clues
+Within phase `clue`: question (or Daily Wager wager stage) → buzzers `open`/`buzzed`/`locked` → **`answeringEnded`** (correct answer, buzz timer expired, host `endAnswering`, or nobody left to try) → `answerRevealed` → `closeClue` (event `clue_close` with result `answered`/`unanswered`/`skipped`). `revealAnswer`, `endAnswering` and `closeClue` accept an optional `clueId` and are ignored when it no longer matches (stale double taps).
+
+### Early buzzes
+A buzz is *early* when the question is showing, answering has not ended, the competitor may still answer and buzzers are locked. The rule in force at that moment (`rules.earlyBuzzPenalty`: none / lockout / clue / points) is applied. Lockouts are stored per person (`p:<profileId>`) or per shared-buzzer team (`c:<competitorId>`), never per device. Point penalties are `buzz`/`early` events with a negative `scoreDelta` (once per player per clue) and can be refunded (`refundPenalty`: void + unpenalised replacement event). `buzzer.early` lists the clue's early buzzes for host/TV/phone feedback; the lockout table never leaves the server. The GameManager re-broadcasts when the next temporary lockout expires.
+
+### Category introduction
+`state.intro = {roundIndex, step, auto}` (step -1 = round title card) is set by `startGame`/`setRound` when `rules.categoryIntro`, or by `startIntro`; `introNext`, `introSkip` and `selectClue` advance or end it. Auto mode is paced by the GameManager (3.5 s per step).
+
+### Saved-game compatibility
+`normalizeState` upgrades states loaded from SQLite (and undo snapshots) to the current shape; `normalizeRules` maps the legacy `earlyBuzzLockoutMs > 0` to the `lockout` rule.
 
 ### Timers
 Server-authoritative `{durationMs, remainingMs, startedAt, running}`. Clients render using a
@@ -128,3 +140,10 @@ See RESEARCH_NOTES.md. The desktop window reads Nintendo HID devices (vendor 0x0
 switches them to the standard full input report (0x30), reads the Bluetooth MAC (subcommand 0x02)
 for a stable controller id, and forwards button edges over the WebSocket. Electron grants WebHID
 permission for Nintendo devices automatically.
+
+## Client rendering notes (mobile)
+
+- App shells use the `.app-screen` class (100dvh) with an internal `.scroll-area`; headers and footers pad with the safe-area insets.
+- `Modal` and `Drawer` are bounded by the visible viewport, lock body scroll, and move focus only when they open.
+- `lib/socket.ts` applies structural sharing (`replaceEqualDeep`) to every state message, so unchanged subtrees keep identity.
+- Countdown text uses `useTimerSeconds` (one re-render per second); the TV timer bar is a Web Animation on `transform`.

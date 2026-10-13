@@ -78,6 +78,7 @@ export function ProfileStats({ stats }: { stats: Stats }) {
             <Stat label="Points lost" value={fmtScore(s.answers.pointsLost)} />
             <Stat label="Buzzes (won / tried)" value={`${s.buzzer.successful} / ${s.buzzer.attempts}`} hint="Tried = buzzed while buzzers were open" />
             <Stat label="Avg buzz speed" value={s.buzzer.averageReactionMs == null ? null : `${(s.buzzer.averageReactionMs / 1000).toFixed(2)}s`} />
+            <Stat label="Early buzzes" value={s.buzzer.early ?? 0} hint="Buzzed before the host opened the buzzers" />
             <Stat label="Daily Wagers won / lost" value={`${s.dailyWagers.won} / ${s.dailyWagers.lost}`} />
             <Stat label="Final Wagers won / lost" value={`${s.finalWagers.won} / ${s.finalWagers.lost}`} />
           </div>
@@ -100,6 +101,7 @@ export function ProfileStats({ stats }: { stats: Stats }) {
             <Stat label="Net contribution" value={fmtScore(t.contribution.net)} />
             <Stat label="My buzzes (won / tried)" value={`${t.buzzer.successful} / ${t.buzzer.attempts}`} />
             <Stat label="Avg buzz speed" value={t.buzzer.averageReactionMs == null ? null : `${(t.buzzer.averageReactionMs / 1000).toFixed(2)}s`} />
+            <Stat label="My early buzzes" value={t.buzzer.early ?? 0} />
           </div>
           <Card>
             <h4 className="mb-2 font-bold">Categories (my team answers)</h4>

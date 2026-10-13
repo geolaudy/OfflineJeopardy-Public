@@ -5,7 +5,8 @@ import { Avatar, Button, ColorPicker, Field, Modal, inputCls, toast } from '../.
 import { AvatarPicker } from '../../components/ProfileForm';
 import type { Me } from './JoinPage';
 
-export default function ProfileTab({ me, setMe, signOut }: { me: Me; setMe: (m: Me) => void; signOut: (forget: boolean) => void }) {
+/** view 'profile': identity (photo, name, avatar, colour) · view 'settings': buzzer preferences, privacy, PIN, sign-out. */
+export default function ProfileTab({ me, setMe, signOut, view = 'profile' }: { me: Me; setMe: (m: Me) => void; signOut: (forget: boolean) => void; view?: 'profile' | 'settings' }) {
   const [name, setName] = useState(me.name);
   const [nickname, setNickname] = useState(me.nickname);
   const [color, setColor] = useState(me.color);
@@ -45,6 +46,8 @@ export default function ProfileTab({ me, setMe, signOut }: { me: Me; setMe: (m: 
 
   return (
     <div className="space-y-6">
+      {view === 'profile' && (
+      <>
       <section className="flex flex-col items-center gap-3">
         <Avatar profile={{ ...me, color, avatar }} size={112} />
         <div className="flex gap-2">
@@ -94,6 +97,11 @@ export default function ProfileTab({ me, setMe, signOut }: { me: Me; setMe: (m: 
           Save changes
         </Button>
       </section>
+      </>
+      )}
+
+      {view === 'settings' && (
+      <>
 
       <section className="space-y-3 rounded-2xl bg-white p-4 shadow-sm">
         <h3 className="font-bold">Buzzer preferences</h3>
@@ -156,6 +164,8 @@ export default function ProfileTab({ me, setMe, signOut }: { me: Me; setMe: (m: 
           Delete my profile
         </Button>
       </section>
+      </>
+      )}
       {file && (
         <CropModal
           file={file}

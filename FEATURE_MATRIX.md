@@ -2,7 +2,7 @@
 
 Statuses: NOT STARTED · IN PROGRESS · IMPLEMENTED (code exists, no automated test) · TESTED (relevant automated tests pass) · BLOCKED.
 Test keys: **U** = `tests/unit/engine.test.ts` · **I** = `tests/integration/server.test.ts` · **E** = `tests/e2e/game.spec.ts`, **E2** = `tests/e2e/teams-editor.spec.ts` (Playwright: Chromium TV/desktop/Android, WebKit iPad/iPhone).
-Last full run: 2026-10-12 — U 25/25, I 13/13, E2E 4/4 passing.
+Last full run: 2026-10-12 (session 2) — Vitest 58/58, Playwright 8/8 passing.
 
 ## Core architecture & desktop
 
@@ -51,7 +51,7 @@ Last full run: 2026-10-12 — U 25/25, I 13/13, E2E 4/4 passing.
 | H12 | Event history + audited attribution correction | P1 | TESTED (engine) / IMPLEMENTED (UI) | EventLog.tsx | U | — |
 | H13 | Rules & timers settings, presets (Classic, Classroom, Speed, Team Battle, Casual) | P1 | TESTED (engine) / IMPLEMENTED (UI) | RulesEditor.tsx, shared/game.ts | U | — |
 | H14 | Pause / resume game | P1 | TESTED | engine | U | — |
-| H15 | Keyboard shortcuts for host | P2 | NOT STARTED | — | — | — |
+| H15 | Keyboard shortcuts for host | P2 | TESTED | host/shortcuts.ts | U2 | See feedback table |
 
 ## Player portal, profiles, PINs
 
@@ -82,7 +82,7 @@ Last full run: 2026-10-12 — U 25/25, I 13/13, E2E 4/4 passing.
 | Z1 | Unified buzzer engine (first valid buzz, lockout, queue) | P0 | TESTED | engine.ts handleBuzz | U, I, E | — |
 | Z2 | Simultaneous buzzes deterministic (server arrival order) | P0 | TESTED | engine/hub | U, I | — |
 | Z3 | Duplicate prevention, debounce, held buttons (edge-triggered) | P0 | TESTED | buzzer.ts InputFilter, controllers.ts | U, I | — |
-| Z4 | Early-buzz rule (optional lockout) | P1 | TESTED | engine.ts | U | — |
+| Z4 | Early-buzz rules (none / lockout / clue / points), mid-game changes | P1 | TESTED | engine.ts | U, U2, I2 | — |
 | Z5 | Team-aware arbitration, configurable team retry | P0 | TESTED | engine.ts | U | — |
 | Z6 | Disconnection handling (devices marked disconnected; others keep working) | P0 | TESTED | controllers.ts, hub.ts | I | — |
 | Z7 | Joy-Con detection/recognition via WebHID (L/R, MAC id), button mapping, identify lights | P0 | IMPLEMENTED | web/lib/inputBridge.ts, electron/main.ts | I (simulated input only) | **Not verified with real Joy-Cons** (KNOWN_ISSUES K1) |
@@ -104,7 +104,7 @@ Last full run: 2026-10-12 — U 25/25, I 13/13, E2E 4/4 passing.
 | T6 | Historical team membership preserved | P0 | TESTED | repos.recordParticipants | I | — |
 | T7 | Solo stats / individual team contributions / team stats kept separate | P0 | TESTED | stats.ts | I | — |
 | T8 | Category performance (no merging of different names) | P1 | TESTED | stats.ts | I | Only case/whitespace normalisation, no alias UI |
-| T9 | Leaderboard (respects privacy) | P2 | IMPLEMENTED | stats.leaderboard, History.tsx | — | — |
+| T9 | Leaderboard (respects privacy; solo/team/contribution separated) | P2 | TESTED | stats.leaderboard, join/Leaderboard.tsx | I2, E | — |
 | T10 | Player comparison / head-to-head | P3 | NOT STARTED | — | — | — |
 | T11 | Automatic team balancing | P3 | NOT STARTED | — | — | — |
 
@@ -137,30 +137,35 @@ Last full run: 2026-10-12 — U 25/25, I 13/13, E2E 4/4 passing.
 | O8 | Additional modes: Double/Triple rounds via multi-round boards, presets | P2 | IN PROGRESS | multi-round boards + rule presets; no survival/tournament |
 | O9 | Accessibility (focus rings, ARIA, contrast, reduced motion, high-contrast theme) | P1 | IN PROGRESS | No screen-reader audit yet |
 | O10 | Spectator mode | P3 | IMPLEMENTED | /board can be opened on any device |
-| O11 | Statistics export, score export | P2 | IN PROGRESS | profile export only |
+| O11 | Statistics export, score export | P2 | TESTED | profile export + host CSV (players, games) — I2 |
 | O12 | Multiple save slots / save-file export | P2 | TESTED (multiple games resumable) / IMPLEMENTED (export) | I |
 | O13 | Plugin system | P3 | NOT STARTED | |
 
 ## User feedback round 1 (2026-10-12) — see USER_FEEDBACK.md
 
+Test keys added: **U2** = tests/unit/engine.test.ts feedback blocks + tests/unit/shortcuts.test.ts · **I2** = tests/integration/server.test.ts "user feedback round 1" · **M** = tests/e2e/mobile.spec.ts (iPhone SE/13/15 Pro Max portrait+landscape, iPad Pro 11 portrait+landscape, iPad Mini; WebKit) · **E/E2** updated flows.
+Last run 2026-10-12: Vitest 58/58 (43 unit, 15 integration), Playwright 8/8.
+
 | ID | Feature / bug | Pri | Status | Source | Tests | Limitations |
 |---|---|---|---|---|---|---|
-| FB-1.1 | Phone/tablet top clipping (safe areas, dvh, dialogs) | P1 | IN PROGRESS | ui.tsx, styles.css, index.html | — | — |
-| FB-1.2 | Smooth mobile UI (no focus stealing, cheap animations, fewer re-renders) | P1 | IN PROGRESS | ui.tsx, socket.ts, PlayTab, BoardPage | — | — |
-| FB-1.3 | Consistent navigation (back arrow, drawer, titles, browser Back) | P1 | NOT STARTED | — | — | — |
-| FB-2.1 | Leaderboard (solo / team / contribution views) | P2 | NOT STARTED | — | — | — |
-| FB-2.2 | Other players' public profiles & stats | P2 | NOT STARTED | — | — | — |
-| FB-2.3 | Personal game history + detailed game page | P2 | NOT STARTED | — | — | — |
-| FB-2.4 | Phone drawer links (profile, stats, leaderboard, players, history, game, settings) | P2 | NOT STARTED | — | — | — |
-| FB-3.1 | Early-buzz rule options, editable mid-game | P3 | NOT STARTED | — | — | — |
-| FB-3.2 | Consistent server-side early detection across devices/team modes | P3 | NOT STARTED | — | — | — |
-| FB-3.3 | Early-buzz feedback (host/TV/phone), lockout expiry refresh, refunds | P3 | NOT STARTED | — | — | — |
-| FB-4.1 | Classic board appearance | P4 | NOT STARTED | — | — | — |
-| FB-4.2 | Clue zoom from tile (FLIP) + reverse | P4 | NOT STARTED | — | — | — |
-| FB-4.3 | Full-screen question without category/value | P4 | NOT STARTED | — | — | — |
-| FB-4.4 | Subtle buzzers-open indicator | P4 | NOT STARTED | — | — | — |
-| FB-4.5 | Category introduction per round | P4 | NOT STARTED | — | — | — |
-| FB-5.1 | Unanswered clue: Reveal answer → Return to board | P5 | NOT STARTED | — | — | — |
-| FB-6.1 | Presentation polish | P6 | NOT STARTED | — | — | — |
-| FB-E1 | Test teardown race (unhandled errors) | — | NOT STARTED | — | — | — |
-| FB-E2 | Saved-game backward compatibility | — | NOT STARTED | — | — | — |
+| FB-1.1 | Phone/tablet top clipping (dvh shells, safe areas, dialogs bounded by visible viewport) | P1 | TESTED | components/ui.tsx (Modal, Drawer, PageHeader), styles.css, JoinPage, HostPage | M (header/dialog/close button inside viewport on 6 iPhone + 3 iPad configs) | Emulated viewports only — no real Safari toolbars/notch in Playwright; real iPhone/iPad check pending (K2, K14) |
+| FB-1.2 | Smooth mobile UI: no focus stealing, compositor-only animations, structural sharing, second-resolution timers | P1 | TESTED (focus regression) / IMPLEMENTED (smoothness) | ui.tsx, lib/socket.ts, lib/view.ts, PlayTab, styles.css, board/TimerBar.tsx | M (host keeps focus + typed value during a live update) | Frame-rate smoothness judged from code + screenshots, not measured on devices |
+| FB-1.3 | Consistent navigation (back arrow, drawer, titles, browser Back, current page) | P1 | TESTED | ui.tsx, JoinPage (routes /join/*), HostPage, DeskPage | E, M | — |
+| FB-2.1 | Leaderboard: Solo / Team games / Contributions, explicit ranking criteria, minimum samples | P2 | TESTED | stats.leaderboard, join/Leaderboard.tsx, desk/History.tsx | I2, E | Thresholds fixed (3 games / 10 answers) |
+| FB-2.2 | Other players' public profiles & stats; private profiles hidden | P2 | TESTED | app.ts /api/stats/profiles/:id, join/Players.tsx | I2 (no secrets in payload, 403 private), E, M | Game details only for games you played |
+| FB-2.3 | Personal history + detailed game page (participants, teams, scores, categories, my clues, ± points, wagers) | P2 | TESTED | join/HistoryPages.tsx, stats.gameDetail | E | — |
+| FB-2.4 | Drawer links: Current game, My profile, My statistics, Game history, Leaderboard, Players, Settings | P2 | TESTED | JoinPage JOIN_NAV | M | — |
+| FB-3.1 | Early-buzz rules: none / short lockout / out for clue / lose points; editable before & during game; never retroactive | P3 | TESTED | shared/game.ts, engine.ts handleEarlyBuzz, host/EarlyBuzzRule.tsx, RulesEditor | U2, I2 | — |
+| FB-3.2 | Consistent server-side detection for Joy-Con / phone / keyboard, shared & individual team buzzers; lockout per person | P3 | TESTED | engine.ts buzzBlockReason/lockoutUntil, projection.playerContext | U2, I2 (simulated Joy-Con + keyboard + phone in one clue), E | Joy-Con path simulated (real Joy-Cons confirmed working by user before this change; re-check recommended) |
+| FB-3.3 | Feedback: host list + refunds, TV "Early" tag, phone "Too early"/lockout text, lockout-expiry rebroadcast | P3 | TESTED | Live.tsx EarlyBuzzes, EventLog, board/Scoreboard.tsx, PlayTab, gameManager.scheduleLockoutRefresh | I2, E | — |
+| FB-4.1 | Classic board appearance (TV only) | P4 | IMPLEMENTED | board/board.css, Grid.tsx, Scoreboard.tsx | E (renders), screenshots 16:9, 4:3, 21:9 | Original system-font styling; no proprietary fonts/assets |
+| FB-4.2 | Clue zoom from tile (FLIP, WAAPI transform/opacity) + reverse; reduced motion = fade | P4 | IMPLEMENTED | board/ClueZoom.tsx, timing.ts | E (clue shows), agent screenshot checks incl. close→open race | Smoothness not measured on TV hardware |
+| FB-4.3 | Full-screen question without category/value | P4 | TESTED | board/ClueZoom.tsx | E (panel has no category/value) | — |
+| FB-4.4 | Subtle buzzers-open indicator (edge strips + small label) | P4 | TESTED | board/ClueZoom.tsx, board.css | E | — |
+| FB-4.5 | Category introduction per round (start/next/auto/skip/replay) | P4 | TESTED | engine intro actions, gameManager.scheduleIntro, board/Intro.tsx, Live.tsx IntroControls | U2, E | — |
+| FB-5.1 | Unanswered clue: Nobody knows/time up → Reveal answer → Return to board; skip secondary; stale taps ignored | P5 | TESTED | engine (answeringEnded, clueId guards), Live.tsx ClueFlow | U2, I2, E, E2 | — |
+| FB-6.1 | Presentation polish (timing constants, fill-in, score flash, Final/winner styling) | P6 | IMPLEMENTED | board/* | E | Visual review from screenshots only |
+| FB-E1 | Test teardown race | — | TESTED | hub.ts closed flag, gameManager.dispose | npm test: no unhandled errors | — |
+| FB-E2 | Saved-game backward compatibility | — | TESTED | engine.normalizeState, repos.loadGame | U2 | — |
+| H15 | Host keyboard shortcuts (Space, C, X, E, R, Enter, N, Ctrl+Z) | P2 | TESTED | host/shortcuts.ts, Live.tsx | U2 | Disabled while dialogs/menu are open; shared-buzzer judgements need the buttons |
+| O11b | Host CSV exports (players, game results) | P2 | TESTED | stats.playersCsv/gamesCsv, desk/History.tsx | I2 | — |

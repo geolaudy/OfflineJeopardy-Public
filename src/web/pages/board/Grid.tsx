@@ -1,0 +1,61 @@
+// The board grid: category headers + clue tiles. Every tile carries data-clue-id so the clue
+// panel can measure it for the zoom (FLIP) animation.
+import { useMemo, type CSSProperties } from 'react';
+import type { GameView } from '../../../shared/views';
+import { cx } from '../../components/ui';
+import { FitText, money, useBoard } from './common';
+import { T } from './timing';
+
+export function Grid({ g, activeId, activeOpen, fillIn }: { g: GameView; activeId: string | null; activeOpen: boolean; fillIn: boolean }) {
+  const { theme } = useBoard();
+  const round = g.rounds[g.roundIndex];
+  const cols = round?.categories.length ?? 0;
+  const rows = round ? Math.max(0, ...round.categories.map((c) => c.clues.length)) : 0;
+  // Random but stable fill-in order for this mount (tiles light up like a real board).
+  const delays = useMemo(() => {
+    const n = cols * rows;
+    const order = Array.from({ length: n }, (_, i) => i);
+    for (let i = n - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    const step = n > 1 ? T.fillSpread / (n - 1) : 0;
+    const d: number[] = [];
+    order.forEach((cell, rank) => (d[cell] = rank * step));
+    return d;
+  }, [cols, rows]);
+  if (!round) return null;
+
+  const fillStyle = (r: number, c: number): CSSProperties | undefined =>
+    fillIn ? ({ animationDelay: `${delays[r * cols + c].toFixed(3)}s`, '--bt-fill-dur': `${T.fillTile}s` } as CSSProperties) : undefined;
+
+  return (
+    <div className="bt-grid" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gridTemplateRows: `1.3fr repeat(${rows}, minmax(0, 1fr))` }}>
+      {round.categories.map((c) => (
+        <div key={c.id} className="bt-cell bt-cat" data-testid="board-category">
+          <FitText text={c.name} max={4.4} min={1.5} className="bt-cat-text" />
+        </div>
+      ))}
+      {Array.from({ length: rows }).map((_, r) =>
+        round.categories.map((c, ci) => {
+          const q = c.clues[r];
+          if (!q) return <div key={`${c.id}-${r}`} className="bt-cell bt-used" aria-hidden />;
+          const active = q.id === activeId;
+          // The open clue's tile keeps its value (zoom source) but is not an available tile.
+          const showValue = active ? activeOpen : !q.used;
+          return (
+            <div
+              key={q.id}
+              data-clue-id={q.id}
+              className={cx('bt-cell', showValue ? 'bt-tile' : 'bt-used', fillIn && 'bt-fill')}
+              style={fillStyle(r, ci)}
+              data-testid={!q.used && !active ? 'board-tile' : undefined}
+            >
+              {showValue && <span className="bt-value">{money(theme, q.value)}</span>}
+            </div>
+          );
+        }),
+      )}
+    </div>
+  );
+}

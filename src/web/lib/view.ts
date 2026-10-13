@@ -46,6 +46,24 @@ export function useTimer(t: TimerState | null) {
   return timerRemaining(t, serverNow());
 }
 
+/** Whole seconds remaining on a server timer. Re-renders only when the displayed second changes
+ *  (cheaper than useTimer on phones/tablets). Returns null when there is no timer. */
+export function useTimerSeconds(t: TimerState | null) {
+  const calc = () => (t ? Math.ceil(timerRemaining(t, serverNow()) / 1000) : null);
+  const [secs, setSecs] = useState(calc);
+  useEffect(() => {
+    setSecs(calc());
+    if (!t?.running) return;
+    const id = setInterval(() => {
+      const v = calc();
+      setSecs((old) => (old === v ? old : v));
+    }, 200);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t?.running, t?.startedAt, t?.remainingMs, !!t]);
+  return t ? secs : null;
+}
+
 export const TIMER_LABELS: Record<string, string> = { buzz: 'Buzz in', answer: 'Answer', wager: 'Wager', final: 'Final', custom: 'Timer' };
 
 export function phaseLabel(g: GameView) {

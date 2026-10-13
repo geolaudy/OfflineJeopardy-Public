@@ -3,6 +3,7 @@ import type { GameView } from '../../../shared/views';
 import type { HostAction } from '../../../shared/actions';
 import { RULE_PRESETS, rulesFromPreset, type GameRules } from '../../../shared/game';
 import { Button, Field, Modal, inputCls } from '../../components/ui';
+import { EarlyBuzzFields } from './EarlyBuzzRule';
 
 function Toggle({ label, hint, checked, onChange }: { label: string; hint?: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -19,9 +20,11 @@ function Toggle({ label, hint, checked, onChange }: { label: string; hint?: stri
 export default function RulesEditor({ open, onClose, g, run }: { open: boolean; onClose: () => void; g: GameView; run: (a: HostAction) => Promise<{ ok: boolean }> }) {
   const [r, setR] = useState<GameRules>(g.rules);
   const [advanced, setAdvanced] = useState(false);
+  // Copy the rules when the dialog opens only — live updates must not wipe edits in progress.
   useEffect(() => {
     if (open) setR(g.rules);
-  }, [open, g.rules]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
   const t = r.timers;
   const setT = (k: keyof GameRules['timers'], v: number | boolean) => setR({ ...r, timers: { ...t, [k]: v } });
   return (
@@ -54,6 +57,11 @@ export default function RulesEditor({ open, onClose, g, run }: { open: boolean; 
         <Toggle label="Wrong answers lose points" checked={r.incorrectDeducts} onChange={(v) => setR({ ...r, incorrectDeducts: v })} />
         <Toggle label="Re-open buzzers after a wrong answer" checked={r.autoReopenAfterIncorrect} onChange={(v) => setR({ ...r, autoReopenAfterIncorrect: v })} />
         <Toggle label="Players can join from their phones without approval" checked={r.allowSelfJoin} onChange={(v) => setR({ ...r, allowSelfJoin: v })} />
+        <Toggle label="Introduce the categories on the TV at the start of each round" hint="You can skip or replay the introduction any time." checked={r.categoryIntro} onChange={(v) => setR({ ...r, categoryIntro: v })} />
+        <div className="rounded-xl bg-slate-50 p-3">
+          <h3 className="mb-2 font-bold">Early buzzing</h3>
+          <EarlyBuzzFields rules={r} onChange={setR} />
+        </div>
         <button className="text-sm font-semibold text-blue-700" onClick={() => setAdvanced((a) => !a)}>
           {advanced ? '▾ Hide advanced rules' : '▸ Advanced rules'}
         </button>
@@ -66,10 +74,7 @@ export default function RulesEditor({ open, onClose, g, run }: { open: boolean; 
               onChange={(v) => setR({ ...r, teamRetry: v ? 'otherMembers' : 'none' })}
             />
             <Toggle label="Everyone plays the Final (even with zero or negative scores)" checked={r.finalAllowNonPositive} onChange={(v) => setR({ ...r, finalAllowNonPositive: v })} />
-            <div className="grid grid-cols-3 gap-3">
-              <Field label="Early-buzz lockout" hint="ms penalty for buzzing before unlock (0 = none)">
-                <input className={inputCls} inputMode="numeric" value={r.earlyBuzzLockoutMs} onChange={(e) => setR({ ...r, earlyBuzzLockoutMs: Math.min(5000, Number(e.target.value.replace(/\D/g, '') || 0)) })} />
-              </Field>
+            <div className="grid grid-cols-2 gap-3">
               <Field label="Button debounce" hint="ms (Joy-Con / keyboard)">
                 <input className={inputCls} inputMode="numeric" value={r.buzzDebounceMs} onChange={(e) => setR({ ...r, buzzDebounceMs: Math.min(2000, Number(e.target.value.replace(/\D/g, '') || 0)) })} />
               </Field>

@@ -529,5 +529,15 @@ describe('user feedback round 1 (server level)', () => {
     expect((await api(s, 'GET', `/api/stats/profiles/${quiet.id}`, undefined, jordan.token)).status).toBe(403);
     expect((await api(s, 'GET', `/api/stats/profiles/${quiet.id}`, undefined, quiet.token)).status).toBe(200);
     expect((await api(s, 'GET', `/api/stats/profiles/${alex.id}`)).status).toBe(403); // must be signed in
+
+    // Host CSV exports (O11): include private profiles for the host, separate solo/team columns.
+    expect((await api(s, 'GET', '/api/stats/export/players.csv', undefined, jordan.token)).status).toBe(401);
+    const players = (await api(s, 'GET', '/api/stats/export/players.csv', undefined, host)).data as string;
+    const lines = players.replace(/^﻿/, '').trim().split('\r\n');
+    expect(lines[0]).toContain('solo_games,solo_wins');
+    expect(lines.find((l) => l.startsWith('Alex,'))).toContain(',1,1,100.0,200,200,1,0,100.0,0,0,');
+    expect(lines.some((l) => l.startsWith('Quiet,'))).toBe(true);
+    const games = (await api(s, 'GET', '/api/stats/export/games.csv', undefined, host)).data as string;
+    expect(games).toMatch(/Alex,player,Alex,200,1,yes/);
   });
 });

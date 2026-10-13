@@ -107,9 +107,16 @@ function handle(m: ServerMessage) {
     case 'welcome':
       useLive.setState({ status: 'open', role: m.role, profileId: m.profileId, trustedDevice: m.trustedDevice });
       break;
-    case 'state':
-      useLive.setState({ game: m.game, me: m.me ?? null, ready: true });
+    case 'state': {
+      // Structural sharing: keep the previous object for every unchanged part of the state so
+      // React/Zustand selectors see stable references and only the changed parts re-render.
+      const prev = useLive.getState();
+      const game = replaceEqualDeep(prev.game, m.game);
+      const me = replaceEqualDeep(prev.me, m.me ?? null);
+      if (game === prev.game && me === prev.me && prev.ready) break;
+      useLive.setState({ game, me, ready: true });
       break;
+    }
     case 'pong': {
       const now = Date.now();
       const rtt = now - m.c;
@@ -164,3 +171,33 @@ export function act(action: HostAction): Promise<{ ok: boolean; error?: string; 
 }
 
 export const serverNow = () => Date.now() + useLive.getState().offset;
+
+/** Returns `prev` (or parts of it) wherever `next` is deep-equal, so unchanged subtrees keep identity. */
+export function replaceEqualDeep<T>(prev: unknown, next: T): T {
+  if (prev === next) return prev as T;
+  if (Array.isArray(prev) && Array.isArray(next)) {
+    let same = prev.length === next.length;
+    const out = next.map((v, i) => {
+      const r = replaceEqualDeep(prev[i], v);
+      if (r !== prev[i]) same = false;
+      return r;
+    });
+    return (same ? prev : out) as T;
+  }
+  if (isPlainObject(prev) && isPlainObject(next)) {
+    const pk = Object.keys(prev);
+    const nk = Object.keys(next);
+    let same = pk.length === nk.length;
+    const out: Record<string, unknown> = {};
+    for (const k of nk) {
+      out[k] = replaceEqualDeep(prev[k], next[k]);
+      if (out[k] !== prev[k] || !(k in prev)) same = false;
+    }
+    return (same ? prev : out) as T;
+  }
+  return next;
+}
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v) && Object.getPrototypeOf(v) === Object.prototype;
+}

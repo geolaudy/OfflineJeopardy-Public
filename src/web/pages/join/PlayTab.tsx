@@ -2,17 +2,20 @@
 import { useEffect, useState } from 'react';
 import { send, useLive } from '../../lib/socket';
 import { Avatar, Button, cx, fmtScore, inputCls } from '../../components/ui';
-import { competitorName, findCompetitor, profileName, useTimer } from '../../lib/view';
+import { competitorName, findCompetitor, profileName, useTimerSeconds } from '../../lib/view';
+import { CLUE_LOCKOUT } from '../../../shared/game';
 import { unlockAudio } from '../../lib/sound';
 import type { Me } from './JoinPage';
 
 const REASONS: Record<string, string> = {
   'no-clue': 'Waiting for the next clue…',
-  locked: 'Get ready…',
+  locked: 'Wait for the host to open the buzzers…',
+  ended: "Time's up for this clue",
   paused: 'The game is paused',
   'not-buzzable': 'No buzzing on this clue',
   'already-answered': 'Your answer is in — wait for the next clue',
   'locked-out': 'Too early! Wait a moment…',
+  taken: 'Someone buzzed first',
   'not-playing': 'You are not in this game yet',
   'shared-team': 'Your team uses a shared buzzer',
 };
@@ -22,6 +25,13 @@ export default function PlayTab({ me }: { me: Me }) {
   const ctx = useLive((s) => s.me);
   const lastBuzz = useLive((s) => s.lastBuzz);
   const [pressed, setPressed] = useState(false);
+  const [, force] = useState(0);
+  // Re-render once when the "Too early" flash should disappear.
+  useEffect(() => {
+    if (!lastBuzz || lastBuzz.info !== 'early') return;
+    const t = setTimeout(() => force((x) => x + 1), 2100 - (Date.now() - lastBuzz.at));
+    return () => clearTimeout(t);
+  }, [lastBuzz]);
 
   if (!g) return <Idle text="No game is running right now. Stay on this page — it updates automatically when the host starts one." />;
   if (g.phase === 'ended') {
@@ -56,12 +66,21 @@ export default function PlayTab({ me }: { me: Me }) {
     send({ t: 'buzz' });
   };
 
+  const earlyFlash = !!lastBuzz && lastBuzz.info === 'early' && Date.now() - lastBuzz.at < 2000;
   let label = 'BUZZ';
   let tone = 'bg-slate-300 text-slate-600';
   let sub = REASONS[ctx.buzzReason ?? ''] ?? '';
   if (ctx.canBuzz) {
-    tone = 'bg-red-600 text-white shadow-[0_10px_0_#7f1d1d] active:translate-y-2 active:shadow-[0_2px_0_#7f1d1d]';
+    tone = 'bg-red-600 text-white shadow-[0_10px_0_#7f1d1d]';
     sub = 'Tap to buzz in!';
+  } else if (ctx.buzzReason === 'locked-out') {
+    tone = 'bg-amber-400 text-amber-950';
+    label = 'WAIT';
+    sub = ctx.lockedUntil != null && ctx.lockedUntil >= CLUE_LOCKOUT ? 'You buzzed too early — you are out for this clue' : 'Too early! Locked for a moment…';
+  } else if (ctx.canPress) {
+    // Buzzers not open yet: the button is live (early presses count, like a real buzzer) but dimmed.
+    tone = 'bg-red-900/80 text-red-100 shadow-[0_10px_0_#450a0a]';
+    sub = earlyFlash ? 'Too early! Wait for the host to open the buzzers.' : REASONS.locked;
   } else if (iWon) {
     label = "YOU'RE IN!";
     tone = 'bg-green-600 text-white';
@@ -95,10 +114,17 @@ export default function PlayTab({ me }: { me: Me }) {
           )}
           <div className="flex justify-center py-4">
             <button
-              onPointerDown={ctx.canBuzz ? buzz : undefined}
-              disabled={!ctx.canBuzz}
-              className={cx('flex h-64 w-64 items-center justify-center rounded-full text-4xl font-black transition-all select-none', tone, pressed && 'scale-95', ctx.canBuzz && 'pulse-ring')}
+              onPointerDown={ctx.canPress ? buzz : undefined}
+              onContextMenu={(e) => e.preventDefault()}
+              disabled={!ctx.canPress}
+              className={cx(
+                'flex size-[min(16rem,42dvh)] items-center justify-center rounded-full text-4xl font-black transition-transform duration-100 select-none [-webkit-touch-callout:none] [touch-action:manipulation]',
+                tone,
+                pressed && 'translate-y-1.5 scale-[0.97]',
+                ctx.canBuzz && 'pulse-ring [--halo:#ef4444]',
+              )}
               aria-label="Buzz"
+              data-state={ctx.canBuzz ? 'open' : ctx.canPress ? 'armed' : 'off'}
               data-testid="buzzer"
             >
               {label}
@@ -107,7 +133,6 @@ export default function PlayTab({ me }: { me: Me }) {
           <p className="text-center text-lg font-semibold" role="status" data-testid="buzz-status">
             {sub}
           </p>
-          {lastBuzz && !lastBuzz.ok && Date.now() - lastBuzz.at < 2000 && lastBuzz.info === 'early' && <p className="text-center text-sm text-amber-700">Too early — wait for the host to open the buzzers.</p>}
           <TimerLine />
         </>
       )}
@@ -116,10 +141,10 @@ export default function PlayTab({ me }: { me: Me }) {
 }
 
 function TimerLine() {
-  const g = useLive((s) => s.game);
-  const remaining = useTimer(g?.timer ?? null);
-  if (!g?.timer || remaining == null) return null;
-  return <p className="text-center text-2xl font-black tabular-nums">{g.timer.expired ? "Time's up" : `${Math.ceil(remaining / 1000)}s`}</p>;
+  const timer = useLive((s) => s.game?.timer ?? null);
+  const secs = useTimerSeconds(timer);
+  if (!timer || secs == null) return null;
+  return <p className="text-center text-2xl font-black tabular-nums">{timer.expired ? "Time's up" : `${secs}s`}</p>;
 }
 
 function FinalForm({ me }: { me: Me }) {

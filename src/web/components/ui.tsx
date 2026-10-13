@@ -143,28 +143,139 @@ export function ColorPicker({ value, onChange, colors = PLAYER_COLORS }: { value
   );
 }
 
+/** Keeps the latest callback without re-running effects when a parent passes a new inline function. */
+function useLatest<T>(value: T) {
+  const ref = useRef(value);
+  ref.current = value;
+  return ref;
+}
+
+/** Locks page scrolling behind overlays (prevents the background jumping on iOS). */
+function useScrollLock(active: boolean) {
+  useEffect(() => {
+    if (!active) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [active]);
+}
+
+const isTouch = () => typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
+
 export function Modal({ open, onClose, title, children, wide }: { open: boolean; onClose: () => void; title: string; children: ReactNode; wide?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
+  const close = useLatest(onClose);
+  useScrollLock(open);
+  // Runs only when the dialog opens — NOT on every re-render. (It used to depend on the inline
+  // onClose, so every live state update re-focused the first input and popped the iPad keyboard.)
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close.current();
     window.addEventListener('keydown', onKey);
-    ref.current?.querySelector<HTMLElement>('input,button,select,textarea')?.focus();
+    const first = ref.current?.querySelector<HTMLElement>('[data-autofocus],input,select,textarea,button:not([aria-label="Close"])');
+    // On touch devices focus the dialog itself so the on-screen keyboard doesn't jump up uninvited.
+    if (isTouch() && first && /^(INPUT|TEXTAREA|SELECT)$/.test(first.tagName)) ref.current?.focus();
+    else (first ?? ref.current)?.focus({ preventScroll: true });
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+  }, [open, close]);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-4" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div ref={ref} role="dialog" aria-modal="true" aria-label={title} className={cx('max-h-[92vh] w-full overflow-auto rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-2xl', wide ? 'sm:max-w-3xl' : 'sm:max-w-md')}>
-        <div className="mb-4 flex items-center justify-between gap-4">
+    <div
+      className="fade-in fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 sm:items-center sm:p-4"
+      style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)' }}
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+    >
+      {/* Height is bounded by the *visible* viewport (dvh) so the title and close button can never
+          end up above the top of the screen on iPhone Safari; the body scrolls inside. */}
+      <div
+        ref={ref}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className={cx('safe-x flex max-h-[calc(100dvh-max(env(safe-area-inset-top),12px))] w-full flex-col rounded-t-2xl bg-white shadow-xl outline-none sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl', wide ? 'sm:max-w-3xl' : 'sm:max-w-md')}
+      >
+        <div className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-100 px-5 py-3">
           <h2 className="text-xl font-bold">{title}</h2>
-          <button onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-full text-2xl text-slate-500 hover:bg-slate-100" aria-label="Close">
+          <button onClick={onClose} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-2xl text-slate-500 hover:bg-slate-100" aria-label="Close">
             ×
           </button>
         </div>
-        {children}
+        <div className="scroll-area min-h-0 flex-1 px-5 pt-4 pb-[max(env(safe-area-inset-bottom),20px)]">{children}</div>
       </div>
     </div>
+  );
+}
+
+export interface NavItem {
+  to: string;
+  label: string;
+  icon: string;
+  /** Exact match only (for index routes). */
+  end?: boolean;
+  testId?: string;
+}
+
+/** Slide-in navigation drawer used by the phone portal, the host controller and the narrow desktop. */
+export function Drawer({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: ReactNode; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const close = useLatest(onClose);
+  useScrollLock(open);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close.current();
+    window.addEventListener('keydown', onKey);
+    ref.current?.querySelector<HTMLElement>('a,button')?.focus({ preventScroll: true });
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, close]);
+  if (!open) return null;
+  return (
+    <div className="fade-in fixed inset-0 z-50 bg-slate-900/50" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <nav
+        ref={ref}
+        aria-label="Main menu"
+        className="drawer-panel safe-top safe-bottom flex h-full w-[min(20rem,85vw)] flex-col bg-white shadow-2xl"
+        style={{ paddingLeft: 'env(safe-area-inset-left)' }}
+      >
+        <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3">
+          <div className="min-w-0 flex-1">{title}</div>
+          <button onClick={onClose} className="flex h-11 w-11 items-center justify-center rounded-full text-2xl text-slate-500 hover:bg-slate-100" aria-label="Close menu">
+            ×
+          </button>
+        </div>
+        <div className="scroll-area min-h-0 flex-1 p-2">{children}</div>
+      </nav>
+    </div>
+  );
+}
+
+/** Consistent top bar: back arrow (sub-pages) or menu button, page title, optional right slot. */
+export function PageHeader({ title, subtitle, onBack, onMenu, right, testId }: { title: ReactNode; subtitle?: ReactNode; onBack?: () => void; onMenu?: () => void; right?: ReactNode; testId?: string }) {
+  return (
+    <header className="safe-top safe-x z-20 shrink-0 border-b border-slate-200 bg-white">
+      <div className="flex min-h-14 items-center gap-1 px-2">
+        {onBack ? (
+          <button onClick={onBack} className="flex h-11 w-11 items-center justify-center rounded-full text-2xl text-slate-700 hover:bg-slate-100 active:bg-slate-200" aria-label="Back" data-testid="nav-back">
+            ←
+          </button>
+        ) : onMenu ? (
+          <button onClick={onMenu} className="flex h-11 w-11 items-center justify-center rounded-full text-2xl text-slate-700 hover:bg-slate-100 active:bg-slate-200" aria-label="Open menu" data-testid="nav-menu">
+            ☰
+          </button>
+        ) : (
+          <span className="w-2" />
+        )}
+        <div className="min-w-0 flex-1 px-1">
+          <h1 className="truncate text-lg leading-tight font-bold" data-testid={testId ?? 'page-title'}>
+            {title}
+          </h1>
+          {subtitle ? <div className="truncate text-xs text-slate-500">{subtitle}</div> : null}
+        </div>
+        {right}
+      </div>
+    </header>
   );
 }
 
