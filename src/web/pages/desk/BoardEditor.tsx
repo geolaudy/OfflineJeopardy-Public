@@ -5,7 +5,8 @@ import { attempt } from '../../lib/hooks';
 import { ActionButton, Button, Field, Modal, cx, inputCls, toast } from '../../components/ui';
 import { blankBoard, blankCategory, blankClue, blankFinal, blankRound, boardStats, uid, validateBoard } from '../../../shared/boardUtils';
 import { boardContentSchema } from '../../../shared/boardIO';
-import type { BoardContent, Category, Clue, MediaRef, Round } from '../../../shared/game';
+import type { BoardContent, Category, Clue, ClueLayout, ClueUnlock, MediaRef, Round } from '../../../shared/game';
+import { Plus, Star } from 'lucide-react';
 
 // ---------- types & helpers ----------
 
@@ -929,27 +930,11 @@ function IconBtn({ label, onClick, disabled, children }: { label: string; onClic
 }
 
 function ClueFields({ clue, onChange, final }: { clue: Clue; onChange: (p: Partial<Clue>) => void; final?: boolean }) {
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
   const media = clue.media ?? [];
-
-  const upload = async (e: ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    e.target.value = '';
-    if (!f) return;
-    if (media.length >= MAX_MEDIA) return toast(`At most ${MAX_MEDIA} media items per clue.`, 'error');
-    const fd = new FormData();
-    fd.append('file', f);
-    setUploading(true);
-    const r = await attempt(() => hostApi<{ id: string; kind: MediaRef['kind']; url: string }>('POST', '/api/media', undefined, fd), 'Media added');
-    setUploading(false);
-    if (r) onChange({ media: [...media, { kind: r.kind, url: r.url }] });
-  };
-
-  const setMedia = (next: MediaRef[]) => onChange({ media: next.length ? next : undefined });
-
+  const answerMedia = clue.answerMedia ?? [];
+  const hasMedia = media.length > 0 || answerMedia.length > 0;
   return (
-    <div className="grid gap-3">
+    <div className="grid gap-4">
       {!final ? (
         <div className="flex flex-wrap items-end gap-4">
           <div className="w-36">
@@ -971,55 +956,125 @@ function ClueFields({ clue, onChange, final }: { clue: Clue; onChange: (p: Parti
           </div>
           <label className="flex min-h-11 cursor-pointer items-center gap-2 font-medium">
             <input type="checkbox" className="h-5 w-5" checked={Boolean(clue.dailyWager)} onChange={(e) => onChange({ dailyWager: e.target.checked || undefined })} />
-            ★ Daily Wager
+            <Star size={16} aria-hidden className="text-amber-500" /> Daily Wager
           </label>
         </div>
       ) : null}
-      <Field label="Question (shown on the board)">
-        <textarea className={inputCls} rows={3} maxLength={2000} value={clue.question} onChange={(e) => onChange({ question: e.target.value })} />
-      </Field>
-      <Field label="Answer (host only until revealed)">
-        <input className={inputCls} maxLength={1000} value={clue.answer} onChange={(e) => onChange({ answer: e.target.value })} />
-      </Field>
+
+      <section className="space-y-3 rounded-xl border border-slate-200 p-3" aria-labelledby="clue-presentation">
+        <h3 id="clue-presentation" className="font-bold">
+          Clue presentation
+        </h3>
+        <Field label="Question (shown on the board)" hint={media.length ? 'Optional when the clue is a picture, sound or video.' : undefined}>
+          <textarea className={inputCls} rows={3} maxLength={2000} value={clue.question} onChange={(e) => onChange({ question: e.target.value })} />
+        </Field>
+        <MediaList
+          label="Clue media"
+          hint="Captions appear under the picture on the TV (for example a hint)."
+          items={media}
+          onItems={(next) => onChange({ media: next.length ? next : undefined })}
+          testId="clue-media"
+        />
+      </section>
+
+      <section className="space-y-3 rounded-xl border border-slate-200 p-3" aria-labelledby="answer-reveal">
+        <h3 id="answer-reveal" className="font-bold">
+          Answer reveal
+        </h3>
+        <Field label="Answer (host only until revealed)">
+          <input className={inputCls} maxLength={1000} value={clue.answer} onChange={(e) => onChange({ answer: e.target.value })} />
+        </Field>
+        <MediaList
+          label="Answer media (optional)"
+          hint="Shown instead of the clue media when you reveal the answer — e.g. the uncovered picture."
+          items={answerMedia}
+          onItems={(next) => onChange({ answerMedia: next.length ? next : undefined })}
+          testId="answer-media"
+        />
+      </section>
+
+      <details className="rounded-xl border border-slate-200 p-3" open={hasMedia || !!clue.unlock}>
+        <summary className="cursor-pointer font-bold">Layout & buzzers</summary>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <Field label="Layout on the TV">
+            <select className={inputCls} value={clue.layout ?? 'auto'} onChange={(e) => onChange({ layout: e.target.value === 'auto' ? undefined : (e.target.value as ClueLayout) })} aria-label="Layout on the TV">
+              <option value="auto">Automatic (media first when there is a picture)</option>
+              <option value="media">Media emphasized</option>
+              <option value="balanced">Balanced media and text</option>
+              <option value="text">Text emphasized</option>
+            </select>
+          </Field>
+          <Field label="Buzzer unlock" hint="Used when the game's automatic unlock setting is not Off.">
+            <select className={inputCls} value={clue.unlock ?? 'default'} onChange={(e) => onChange({ unlock: e.target.value === 'default' ? undefined : (e.target.value as ClueUnlock) })} aria-label="Buzzer unlock">
+              <option value="default">Use the game setting</option>
+              <option value="immediate">Unlock as soon as the clue opens</option>
+              <option value="host">Wait for the host</option>
+              <option value="mediaStart">Unlock when the media starts</option>
+              <option value="mediaEnd">Unlock when the media finishes</option>
+            </select>
+          </Field>
+        </div>
+      </details>
+
       <Field label="Host notes" hint="Only visible on the host controller">
         <textarea className={inputCls} rows={2} maxLength={2000} value={clue.notes ?? ''} onChange={(e) => onChange({ notes: e.target.value || undefined })} />
       </Field>
+    </div>
+  );
+}
 
-      <div>
-        <p className="mb-1 text-sm font-semibold text-slate-700">Media</p>
-        {media.length ? (
-          <ul className="mb-2 grid gap-2 sm:grid-cols-2">
-            {media.map((m, i) => (
-              <li key={`${m.url}-${i}`} className="rounded-xl border border-slate-200 p-2">
-                {m.kind === 'image' ? (
-                  <img src={m.url} alt={m.caption ?? ''} className="mb-2 max-h-36 w-full rounded-lg bg-slate-100 object-contain" />
-                ) : m.kind === 'audio' ? (
-                  <audio src={m.url} controls className="mb-2 w-full" />
-                ) : (
-                  <video src={m.url} controls className="mb-2 max-h-36 w-full rounded-lg bg-black" />
-                )}
-                <div className="flex gap-2">
-                  <input
-                    className={cx(inputCls, 'py-1.5 text-sm')}
-                    aria-label={`Caption for media ${i + 1}`}
-                    placeholder="Caption (optional)"
-                    maxLength={200}
-                    value={m.caption ?? ''}
-                    onChange={(e) => setMedia(media.map((x, k) => (k === i ? { ...x, caption: e.target.value || undefined } : x)))}
-                  />
-                  <Button size="sm" variant="ghost" className="text-red-700" aria-label={`Remove media ${i + 1}`} onClick={() => setMedia(media.filter((_, k) => k !== i))}>
-                    Remove
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        <input ref={fileRef} type="file" accept="image/*,audio/*,video/*" className="hidden" aria-hidden tabIndex={-1} onChange={(e) => void upload(e)} />
-        <Button size="sm" variant="secondary" busy={uploading} disabled={media.length >= MAX_MEDIA} onClick={() => fileRef.current?.click()}>
-          + Add image, audio or video
-        </Button>
-      </div>
+/** Upload / caption / remove media for one side of a clue. */
+function MediaList({ label, hint, items, onItems, testId }: { label: string; hint: string; items: MediaRef[]; onItems: (m: MediaRef[]) => void; testId: string }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const upload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    if (items.length >= MAX_MEDIA) return toast(`At most ${MAX_MEDIA} media items here.`, 'error');
+    const fd = new FormData();
+    fd.append('file', f);
+    setUploading(true);
+    const r = await attempt(() => hostApi<{ id: string; kind: MediaRef['kind']; url: string }>('POST', '/api/media', undefined, fd), 'Media added');
+    setUploading(false);
+    if (r) onItems([...items, { kind: r.kind, url: r.url }]);
+  };
+  return (
+    <div data-testid={testId}>
+      <p className="text-sm font-semibold text-slate-700">{label}</p>
+      <p className="mb-2 text-xs text-slate-500">{hint}</p>
+      {items.length ? (
+        <ul className="mb-2 grid gap-2 sm:grid-cols-2">
+          {items.map((m, i) => (
+            <li key={`${m.url}-${i}`} className="rounded-xl border border-slate-200 p-2">
+              {m.kind === 'image' ? (
+                <img src={m.url} alt={m.caption ?? ''} className="mb-2 max-h-36 w-full rounded-lg bg-slate-100 object-contain" />
+              ) : m.kind === 'audio' ? (
+                <audio src={m.url} controls className="mb-2 w-full" />
+              ) : (
+                <video src={m.url} controls className="mb-2 max-h-36 w-full rounded-lg bg-black" />
+              )}
+              <div className="flex gap-2">
+                <input
+                  className={cx(inputCls, 'py-1.5 text-sm')}
+                  aria-label={`${label}: caption ${i + 1}`}
+                  placeholder="Caption (optional)"
+                  maxLength={200}
+                  value={m.caption ?? ''}
+                  onChange={(e) => onItems(items.map((x, k) => (k === i ? { ...x, caption: e.target.value || undefined } : x)))}
+                />
+                <Button size="sm" variant="ghost" className="text-red-700" aria-label={`${label}: remove ${i + 1}`} onClick={() => onItems(items.filter((_, k) => k !== i))}>
+                  Remove
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <input ref={fileRef} type="file" accept="image/*,audio/*,video/*" className="hidden" aria-hidden tabIndex={-1} onChange={(e) => void upload(e)} />
+      <Button size="sm" variant="secondary" busy={uploading} disabled={items.length >= MAX_MEDIA} onClick={() => fileRef.current?.click()}>
+        <Plus size={16} aria-hidden /> Add image, audio or video
+      </Button>
     </div>
   );
 }

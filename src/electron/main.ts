@@ -147,6 +147,8 @@ function openBoardWindow(opts: { displayId?: number; fullscreen?: boolean }) {
       contextIsolation: true,
       sandbox: true,
       backgroundThrottling: false,
+      // The host starts clue audio/video from the iPad; nobody clicks on the TV.
+      autoplayPolicy: 'no-user-gesture-required',
       additionalArguments: [`--oj-data-dir=${resolveDataDir()}`, `--oj-version=${app.getVersion()}`],
     },
   });

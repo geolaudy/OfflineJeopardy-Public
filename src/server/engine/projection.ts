@@ -46,6 +46,9 @@ export function projectState(s: GameState, role: ViewRole, profiles: Record<Id, 
       answerRevealed: s.clue.answerRevealed,
       resolved: s.clue.resolved,
       answeringEnded: s.clue.answeringEnded,
+      answerMedia: host || s.clue.answerRevealed ? (f?.clue.answerMedia ?? []) : [],
+      layout: f?.clue.layout ?? 'auto',
+      unlockMode: s.clue.unlockMode,
     };
   }
 
@@ -96,6 +99,7 @@ export function projectState(s: GameState, role: ViewRole, profiles: Record<Id, 
     final,
     timer: s.timer,
     intro: s.intro,
+    media: s.media && s.clue && s.media.clueId === s.clue.clueId && (s.media.side === 'clue' || s.clue.answerRevealed || host) ? s.media : null,
     practice: s.practice,
     roomCode: role === 'player' ? null : s.roomCode,
     showJoinQr: s.showJoinQr,

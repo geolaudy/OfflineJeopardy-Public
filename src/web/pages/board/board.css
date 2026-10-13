@@ -215,6 +215,80 @@
   box-shadow: 0 1vh 3vh rgba(0, 0, 0, 0.5);
 }
 
+/* Media-first clue layout (ClueMedia.tsx). Sizes are computed from the real clue area and the
+   media's aspect ratio; CSS only styles. Both reveal sides share one grid cell to cross-fade. */
+.bt-xfade {
+  display: grid;
+}
+.bt-xfade > * {
+  grid-area: 1 / 1;
+  min-height: 0;
+}
+.bt-media-img {
+  display: block;
+  object-fit: contain;
+  border-radius: var(--b-radius);
+  box-shadow: 0 1vh 3vh rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.15);
+  transition: opacity 0.25s ease-out;
+}
+.bt-media-missing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0.3vh dashed rgba(255, 255, 255, 0.4);
+  border-radius: var(--b-radius);
+  font-size: 2.4vh;
+  opacity: 0.8;
+}
+.bt-caption {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding-top: 1vh;
+  font-family: var(--b-clue-font);
+  font-size: min(3vh, 2vw);
+  font-style: italic;
+  line-height: 1.2;
+  text-align: center;
+  text-wrap: balance;
+  opacity: 0.92;
+  text-shadow: var(--bt-clue-shadow);
+}
+.bt-answer-text {
+  color: var(--b-accent);
+}
+.bt-audio-big,
+.bt-audio-small {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--b-accent);
+}
+.bt-audio-big {
+  width: 22vh;
+  height: 22vh;
+}
+.bt-audio-big svg {
+  width: 11vh;
+  height: 11vh;
+}
+.bt-audio-small {
+  width: 7vh;
+  height: 7vh;
+}
+.bt-audio-small svg {
+  width: 3.6vh;
+  height: 3.6vh;
+}
+.bt-audio-big[data-playing='true'],
+.bt-audio-small[data-playing='true'] {
+  box-shadow: 0 0 0 0.5vh var(--b-accent);
+}
+
 /* Daily Wager card */
 .bt-dw-title {
   font-family: var(--b-font);

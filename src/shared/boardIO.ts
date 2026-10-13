@@ -5,6 +5,11 @@ import { uid } from './boardUtils.js';
 
 export const CSV_HEADER = ['round', 'category', 'value', 'question', 'answer', 'daily_wager', 'notes'];
 
+const mediaListSchema = z
+  .array(z.object({ kind: z.enum(['image', 'audio', 'video']), url: z.string().max(300).regex(/^\/media\/[a-zA-Z0-9_./-]+$/), caption: z.string().max(200).optional() }))
+  .max(6)
+  .optional();
+
 const clueSchema = z.object({
   id: z.string().min(1).max(64),
   value: z.number().int().min(0).max(1_000_000),
@@ -12,10 +17,10 @@ const clueSchema = z.object({
   answer: z.string().max(1000),
   notes: z.string().max(2000).optional(),
   dailyWager: z.boolean().optional(),
-  media: z
-    .array(z.object({ kind: z.enum(['image', 'audio', 'video']), url: z.string().max(300).regex(/^\/media\/[a-zA-Z0-9_./-]+$/), caption: z.string().max(200).optional() }))
-    .max(6)
-    .optional(),
+  media: mediaListSchema,
+  answerMedia: mediaListSchema,
+  layout: z.enum(['auto', 'media', 'balanced', 'text']).optional(),
+  unlock: z.enum(['default', 'immediate', 'host', 'mediaStart', 'mediaEnd']).optional(),
 });
 export const boardContentSchema = z.object({
   rounds: z

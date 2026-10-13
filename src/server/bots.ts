@@ -92,7 +92,7 @@ export class BotDriver {
     const clue = s.clue;
 
     // Practice games run themselves: open the buzzers once the question has been read.
-    if (s.practice && s.phase === 'clue' && clue && clue.stage === 'question' && !clue.isDailyWager && !clue.resolved && !clue.answerRevealed && !clue.answeringEnded && s.buzzer.status === 'locked' && s.buzzer.openedAt == null) {
+    if (s.practice && s.phase === 'clue' && clue && clue.unlockMode === 'host' && clue.stage === 'question' && !clue.isDailyWager && !clue.resolved && !clue.answerRevealed && !clue.answeringEnded && s.buzzer.status === 'locked' && s.buzzer.openedAt == null) {
       const len = (clueText(s, clue.clueId) ?? '').length;
       out.set(`unlock:${clue.clueId}`, { delay: Math.min(6000, 1500 + 35 * len), action: () => ({ type: 'unlockBuzzers' }) });
     }

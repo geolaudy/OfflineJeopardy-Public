@@ -2,7 +2,8 @@ import { useCallback, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { downloadFile, hostApi } from '../../lib/api';
 import { attempt, useFetch } from '../../lib/hooks';
-import { ActionButton, Button, Card, Empty, Field, Modal, cx, inputCls, toast } from '../../components/ui';
+import { ActionButton, Button, Card, Empty, Field, Modal, PageTitleBar, cx, inputCls, toast } from '../../components/ui';
+import { Plus, Upload } from 'lucide-react';
 import { CSV_HEADER } from '../../../shared/boardIO';
 import type { BoardContent, Clue } from '../../../shared/game';
 
@@ -118,21 +119,25 @@ export default function Library() {
       : attempt(() => downloadFile(`/api/boards/${b.id}/export?format=${format}`, `${safeName(b.title)}.${format}`), `Exported ${format.toUpperCase()}`);
 
   return (
-    <div className="mx-auto max-w-6xl">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Board library</h1>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => setImportOpen(true)}>
-            Import
-          </Button>
-          {templates.length > 0 ? (
-            <Button variant="secondary" onClick={() => setTemplatesOpen(true)}>
-              From template
+    <div className="mx-auto max-w-6xl p-6">
+      <PageTitleBar
+        title="Board library"
+        actions={
+          <>
+            <Button variant="secondary" onClick={() => setImportOpen(true)}>
+              <Upload size={18} aria-hidden /> Import
             </Button>
-          ) : null}
-          <Button onClick={() => navigate('/desk/boards/new')}>+ New board</Button>
-        </div>
-      </div>
+            {templates.length > 0 ? (
+              <Button variant="secondary" onClick={() => setTemplatesOpen(true)}>
+                From template
+              </Button>
+            ) : null}
+            <Button onClick={() => navigate('/desk/boards/new')}>
+              <Plus size={18} aria-hidden /> New board
+            </Button>
+          </>
+        }
+      />
 
       {/* Search + filters */}
       <Card className="mb-4">

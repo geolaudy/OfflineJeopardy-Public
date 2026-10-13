@@ -52,11 +52,12 @@ function demoGame(view: PreviewView): GameView {
     controlCompetitorId: 'c0',
     clue:
       view === 'clue'
-        ? { clueId: clue.id, categoryName: round.categories[1].name, value: clue.value, isDailyWager: false, stage: 'question', question: clue.question, answer: null, notes: null, media: [], wager: null, answerRevealed: false, resolved: false, answeringEnded: false }
+        ? { clueId: clue.id, categoryName: round.categories[1].name, value: clue.value, isDailyWager: false, stage: 'question', question: clue.question, answer: null, notes: null, media: [], wager: null, answerRevealed: false, resolved: false, answeringEnded: false, answerMedia: [], layout: 'auto', unlockMode: 'host' }
         : null,
     buzzer: { status: view === 'clue' ? 'open' : 'locked', openedAt: null, winner: null, queue: [], attemptedCompetitors: [], attemptedProfiles: [], early: [] },
     final: null,
     timer: null,
+    media: null,
     intro: view === 'intro' ? { roundIndex: 0, step: 0, auto: false } : view === 'title' ? { roundIndex: 0, step: -1, auto: false } : null,
     practice: false,
     roomCode: null,

@@ -90,6 +90,7 @@ export function FitText({
   min,
   className,
   boxClassName,
+  boxStyle,
   testId,
 }: {
   text: string;
@@ -97,6 +98,7 @@ export function FitText({
   min: number;
   className?: string;
   boxClassName?: string;
+  boxStyle?: CSSProperties;
   testId?: string;
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
@@ -134,7 +136,7 @@ export function FitText({
     return () => ro.disconnect();
   }, [text, max, min]);
   return (
-    <div ref={boxRef} className={cx('bt-fit-box', boxClassName)}>
+    <div ref={boxRef} className={cx('bt-fit-box', boxClassName)} style={boxStyle}>
       <div ref={ref} className={cx('bt-fit', className)} style={{ fontSize: `${max}vh` }} data-testid={testId}>
         {text}
       </div>

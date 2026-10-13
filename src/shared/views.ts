@@ -9,6 +9,9 @@ import type {
   GameplayEvent,
   Id,
   IntroState,
+  ClueLayout,
+  MediaPlayback,
+  UnlockMode,
   MediaRef,
   Phase,
   TimerState,
@@ -55,6 +58,10 @@ export interface ClueView {
   answerRevealed: boolean;
   resolved: boolean;
   answeringEnded: boolean;
+  /** Answer-side media: host always; others only once the answer is revealed. */
+  answerMedia: MediaRef[];
+  layout: ClueLayout;
+  unlockMode: UnlockMode;
 }
 
 export interface FinalEntryView {
@@ -99,6 +106,7 @@ export interface GameView {
   final: FinalView | null;
   timer: TimerState | null;
   intro: IntroState | null;
+  media: MediaPlayback | null;
   practice: boolean;
   /** Shown on the TV and to the host; always null for phones. */
   roomCode: string | null;

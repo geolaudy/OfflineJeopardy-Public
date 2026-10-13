@@ -11,6 +11,7 @@ import { Avatar, cx } from '../../components/ui';
 import { competitorAvatar, competitorColor, competitorName, findCompetitor, profileName } from '../../lib/view';
 import { FitText, useBoard, vhPx } from './common';
 import { TimerBar } from './TimerBar';
+import { QuestionCard } from './ClueMedia';
 import { EASE_IN_OUT, EASE_OUT, EASE_OUT_ARR, T } from './timing';
 
 /** Transform that maps the full-size panel onto the tile for `clueId` (null if not on screen). */
@@ -123,59 +124,6 @@ function DailyWagerCard({ g }: { g: GameView }) {
       <p className="bt-dw-title">DAILY WAGER!</p>
       <p className="bt-dw-cat">{clue.categoryName}</p>
       {controller && <p className="bt-dw-who">{competitorName(controller, g)} is wagering…</p>}
-    </div>
-  );
-}
-
-/** Question only: no category and no value on the TV (the host still sees both). */
-function QuestionCard({ g }: { g: GameView }) {
-  const { scale } = useBoard();
-  const clue = g.clue!;
-  const images = clue.media.filter((m) => m.kind === 'image');
-  const others = clue.media.filter((m) => m.kind !== 'image');
-  const revealed = clue.answerRevealed && !!clue.answer;
-  return (
-    <div className="bt-stage flex min-h-0 flex-1 flex-col items-center px-[6vw] pt-[9vh] pb-[6vh]">
-      {images.length > 0 && (
-        <div className="mb-[2.5vh] flex shrink-0 justify-center gap-[1vw]">
-          {images.map((m) => (
-            <img key={m.url} src={m.url} alt={m.caption ?? ''} className="bt-media" />
-          ))}
-        </div>
-      )}
-      {others.map((m) =>
-        m.kind === 'video' ? (
-          <video key={m.url} src={m.url} controls autoPlay className="bt-media mb-[2.5vh] shrink-0" />
-        ) : (
-          <audio key={m.url} src={m.url} controls autoPlay className="mb-[2.5vh] shrink-0" />
-        ),
-      )}
-      <FitText
-        text={clue.question ?? ''}
-        max={(images.length || others.length ? 6 : 8.2) * scale.clue}
-        min={2.4 * Math.min(1, scale.clue)}
-        className="bt-question"
-        boxClassName="min-h-0 flex-1"
-        testId="clue-text"
-      />
-      {/* Fixed slot so revealing the answer never re-flows the question. */}
-      <div className="bt-answer-slot w-full pt-[2vh]">
-        <AnimatePresence>
-          {revealed && (
-            <motion.p
-              key="answer"
-              initial={{ opacity: 0, y: '3vh' }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: T.reveal, ease: EASE_OUT_ARR }}
-              className="bt-answer"
-              data-testid="clue-answer"
-            >
-              {clue.answer}
-            </motion.p>
-          )}
-        </AnimatePresence>
-      </div>
     </div>
   );
 }

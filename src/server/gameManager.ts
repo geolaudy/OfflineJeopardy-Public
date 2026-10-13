@@ -18,6 +18,7 @@ export class GameManager {
   private timerHandle: NodeJS.Timeout | null = null;
   private lockoutHandle: NodeJS.Timeout | null = null;
   private introHandle: NodeJS.Timeout | null = null;
+  private mediaHandle: NodeJS.Timeout | null = null;
   /** Delay between automatic category-introduction steps. */
   introStepMs = 3500;
   onChange: () => void = () => {};
@@ -115,6 +116,7 @@ export class GameManager {
     if (action.type === 'buzz' || action.type === 'unlockBuzzers' || action.type === 'undo') this.scheduleLockoutRefresh();
     if (action.type === 'startIntro' || action.type === 'introNext' || action.type === 'introSkip' || action.type === 'undo') this.scheduleIntro();
     this.bots.sync(this.current);
+    this.scheduleMediaEnd();
     this.onChange();
     return res;
   }
@@ -132,6 +134,21 @@ export class GameManager {
       this.onChange();
       this.scheduleLockoutRefresh();
     }, next - now + 5);
+  }
+
+  /** Media playback is authoritative on the server: when the playing item reaches its known
+   *  duration, record the end (which may unlock buzzers for "after media finishes" clues). */
+  private scheduleMediaEnd() {
+    if (this.mediaHandle) clearTimeout(this.mediaHandle);
+    this.mediaHandle = null;
+    const m = this.current?.media;
+    if (!m || m.status !== 'playing' || m.durationMs == null || m.startedAt == null) return;
+    const left = m.durationMs - (m.positionMs + (this.clock() - m.startedAt));
+    const clueId = m.clueId;
+    this.mediaHandle = setTimeout(() => {
+      this.mediaHandle = null;
+      if (this.current?.media?.clueId === clueId) this.dispatch({ type: 'mediaEnded', clueId }, 'media');
+    }, Math.max(0, left) + 20);
   }
 
   /** Server-paced automatic category introduction (host chose "Auto"). */
@@ -170,8 +187,8 @@ export class GameManager {
 
   dispose() {
     this.bots.stop();
-    for (const h of [this.timerHandle, this.lockoutHandle, this.introHandle]) if (h) clearTimeout(h);
-    this.timerHandle = this.lockoutHandle = this.introHandle = null;
+    for (const h of [this.timerHandle, this.lockoutHandle, this.introHandle, this.mediaHandle]) if (h) clearTimeout(h);
+    this.timerHandle = this.lockoutHandle = this.introHandle = this.mediaHandle = null;
     this.onChange = () => {};
   }
 }

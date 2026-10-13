@@ -35,6 +35,7 @@ export const rulesSchema = z.object({
   allowSelfJoin: z.boolean(),
   requireRoomCode: z.boolean().optional(),
   survivalLives: z.number().int().min(0).max(20).optional(),
+  autoUnlock: z.enum(['off', 'all', 'mediaOnly', 'perClue']).optional(),
   categoryIntro: z.boolean().optional(),
   timers: timerRules,
 });
@@ -132,6 +133,12 @@ export const hostActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('showJoinQr'), show: z.boolean() }),
   z.object({ type: z.literal('undo') }),
   z.object({ type: z.literal('newRoomCode') }),
+  // Media playback (the TV plays; the host controls). durationMs comes from the host's metadata load.
+  z.object({ type: z.literal('mediaPlay'), clueId: id, side: z.enum(['clue', 'answer']), index: z.number().int().min(0).max(10), durationMs: z.number().int().min(0).max(36_000_000).nullable().optional() }),
+  z.object({ type: z.literal('mediaPause') }),
+  z.object({ type: z.literal('mediaRestart') }),
+  z.object({ type: z.literal('mediaStop') }),
+  z.object({ type: z.literal('mediaMute'), muted: z.boolean() }),
 ]);
 
 export type HostAction = z.infer<typeof hostActionSchema>;
@@ -147,6 +154,7 @@ export type SystemAction =
     }
   | { type: 'timerExpire' }
   | { type: 'playerJoin'; profileId: string; code?: string }
-  | { type: 'setRoomCode'; code: string };
+  | { type: 'setRoomCode'; code: string }
+  | { type: 'mediaEnded'; clueId: string };
 
 export type EngineAction = HostAction | SystemAction;

@@ -20,8 +20,18 @@ export interface Clue {
   answer: string;
   notes?: string; // host-only notes
   dailyWager?: boolean;
+  /** Clue-side media (shown with the question). Captions appear under images. */
   media?: MediaRef[];
+  /** Answer-side media: replaces the clue media when the answer is revealed (optional). */
+  answerMedia?: MediaRef[];
+  /** How the TV balances media and text (default auto = media first when there is an image). */
+  layout?: ClueLayout;
+  /** When buzzers unlock for this clue (default: follow the game rule). */
+  unlock?: ClueUnlock;
 }
+
+export type ClueLayout = 'auto' | 'media' | 'balanced' | 'text';
+export type ClueUnlock = 'default' | 'immediate' | 'host' | 'mediaStart' | 'mediaEnd';
 
 export interface Category {
   id: Id;
@@ -96,6 +106,9 @@ export interface GameRules {
   requireRoomCode: boolean; // phones must type the room code shown on the TV to join this game
   /** Survival mode: lives per player/team (0 = off). Each wrong answer costs a life; at 0 you are out. */
   survivalLives: number;
+  /** Automatic buzzer unlock when a clue opens: off (host unlocks), all clues, only clues that are
+   *  media without text, or follow each clue's own setting. Per-clue settings apply unless 'off'. */
+  autoUnlock: AutoUnlock;
   timers: TimerRules;
 }
 
@@ -114,6 +127,7 @@ export const DEFAULT_RULES: GameRules = {
   categoryIntro: true,
   requireRoomCode: false,
   survivalLives: 0,
+  autoUnlock: 'off',
   timers: { autoStart: true, buzzSeconds: 10, answerSeconds: 8, wagerSeconds: 30, finalSeconds: 30 },
 };
 
@@ -275,6 +289,43 @@ export interface ActiveClue {
   /** The answering opportunity is over (correct answer, time ran out, host ended it, or nobody
    *  left to try). The host is then guided to reveal the answer and return to the board. */
   answeringEnded: boolean;
+  /** How buzzers open for this clue (decided when it opened, from the clue and the game rule). */
+  unlockMode: UnlockMode;
+}
+
+export type AutoUnlock = 'off' | 'all' | 'mediaOnly' | 'perClue';
+export type UnlockMode = 'host' | 'immediate' | 'mediaStart' | 'mediaEnd';
+
+/** Authoritative playback of a clue's audio/video. The TV plays it; the host controls it. */
+export interface MediaPlayback {
+  clueId: Id;
+  side: 'clue' | 'answer';
+  index: number; // index into that side's media list
+  status: 'playing' | 'paused' | 'stopped' | 'ended';
+  positionMs: number; // position at startedAt (or when paused)
+  startedAt: number | null; // server time playback (re)started; null unless playing
+  durationMs: number | null;
+  muted: boolean;
+  started: boolean; // has played at least once (for "unlock after media starts")
+}
+
+export function hasText(s: string | null | undefined) {
+  return !!s && s.trim().length > 0;
+}
+
+/** Decide how buzzers open for a clue when it is selected. */
+export function unlockModeFor(rule: AutoUnlock, clue: Pick<Clue, 'question' | 'media' | 'unlock'>): UnlockMode {
+  if (rule === 'off') return 'host';
+  const own = clue.unlock && clue.unlock !== 'default' ? clue.unlock : null;
+  if (own) return own;
+  if (rule === 'all') return 'immediate';
+  if (rule === 'mediaOnly') return (clue.media?.length ?? 0) > 0 && !hasText(clue.question) ? 'immediate' : 'host';
+  return 'host';
+}
+
+export function mediaPosition(m: MediaPlayback, now: number) {
+  const p = m.status === 'playing' && m.startedAt != null ? m.positionMs + (now - m.startedAt) : m.positionMs;
+  return m.durationMs != null ? Math.min(p, m.durationMs) : p;
 }
 
 /** Category introduction on the TV at the start of a round. step -1 = round title card. */
@@ -378,6 +429,7 @@ export interface GameState {
   final: FinalState | null;
   timer: TimerState | null;
   intro: IntroState | null;
+  media: MediaPlayback | null;
   events: GameplayEvent[];
   seq: number;
   showJoinQr: boolean;

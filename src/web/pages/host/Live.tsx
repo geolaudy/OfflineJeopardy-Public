@@ -8,6 +8,7 @@ import ControllersPanel, { AssignListener } from '../../components/ControllersPa
 import FinalControl from './FinalControl';
 import { EarlyBuzzQuick } from './EarlyBuzzRule';
 import { HOST_SHORTCUTS, useHostShortcuts } from './shortcuts';
+import { MediaControls, MediaThumbs } from './MediaControls';
 
 type Run = (a: HostAction) => Promise<{ ok: boolean }>;
 
@@ -346,8 +347,11 @@ function CluePanel({ g, run }: { g: GameView; run: Run }) {
         <span className="text-sm font-bold text-slate-500 uppercase">{clue.categoryName}</span>
         <span className="text-xl font-black text-blue-800">{clue.isDailyWager ? `Daily Wager${clue.wager ? ` · ${clue.wager.amount}` : ''}` : clue.value}</span>
       </div>
-      <p className="text-xl leading-snug">{clue.question}</p>
+      {clue.question?.trim() ? <p className="text-xl leading-snug">{clue.question}</p> : <p className="text-sm text-slate-500 italic">Media-only clue (no text)</p>}
+      <MediaThumbs list={clue.media} label="On the TV" />
       <HostAnswer g={g} />
+      {!g.practice || clue.answerRevealed ? <MediaThumbs list={clue.answerMedia} label="Answer reveal shows" /> : null}
+      <MediaControls g={g} run={run} />
 
       {clue.isDailyWager && clue.stage === 'wager' ? (
         <DailyWagerForm g={g} run={run} />

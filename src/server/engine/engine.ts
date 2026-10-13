@@ -15,6 +15,8 @@ import {
   CLUE_LOCKOUT,
   findClue,
   livesOf,
+  mediaPosition,
+  unlockModeFor,
   lockoutKey,
   ROOM_CODE_RE,
   normalizeRules,
@@ -81,6 +83,8 @@ export function normalizeState(s: GameState): GameState {
   if (!Array.isArray(s.buzzer.early)) s.buzzer.early = [];
   if (s.clue && typeof s.clue.answeringEnded !== 'boolean') s.clue.answeringEnded = s.clue.resolved;
   if (s.intro === undefined) s.intro = null;
+  if (s.media === undefined) s.media = null;
+  if (s.clue && !s.clue.unlockMode) s.clue.unlockMode = 'host';
   if (typeof s.practice !== 'boolean') s.practice = false;
   if (typeof s.roomCode !== 'string') s.roomCode = ''; // filled with a random code on load
   return s;
@@ -117,6 +121,7 @@ export function createGame(opts: {
     final: null,
     timer: null,
     intro: null,
+    media: null,
     events: [],
     seq: 0,
     showJoinQr: true,
@@ -476,6 +481,58 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
     case 'newRoomCode':
       fail('A new room code is created by the game computer');
       return;
+    case 'mediaPlay': {
+      const clue = activeClue(s);
+      if (a.clueId !== clue.clueId) return { ignored: true, info: 'stale' };
+      if (a.side === 'answer' && !clue.answerRevealed) fail('Reveal the answer first');
+      const found = findClue(s.board, clue.clueId);
+      const list = (a.side === 'answer' ? found?.clue.answerMedia : found?.clue.media) ?? [];
+      const item = list[a.index];
+      if (!item || (item.kind !== 'audio' && item.kind !== 'video')) fail('Nothing to play');
+      const same = s.media && s.media.clueId === clue.clueId && s.media.side === a.side && s.media.index === a.index;
+      const prev = same ? s.media! : null;
+      const resume = prev && (prev.status === 'paused' || prev.status === 'playing');
+      s.media = {
+        clueId: clue.clueId,
+        side: a.side,
+        index: a.index,
+        status: 'playing',
+        positionMs: resume ? mediaPosition(prev, now) : 0,
+        startedAt: now,
+        durationMs: a.durationMs ?? prev?.durationMs ?? null,
+        muted: prev?.muted ?? false,
+        started: true,
+      };
+      if (a.side === 'clue' && clue.unlockMode === 'mediaStart') maybeAutoOpen(s, clue, now);
+      return;
+    }
+    case 'mediaPause': {
+      if (s.media?.status !== 'playing') return { ignored: true };
+      s.media = { ...s.media, status: 'paused', positionMs: mediaPosition(s.media, now), startedAt: null };
+      return;
+    }
+    case 'mediaRestart': {
+      if (!s.media) return { ignored: true };
+      s.media = { ...s.media, status: 'playing', positionMs: 0, startedAt: now, started: true };
+      return;
+    }
+    case 'mediaStop': {
+      if (!s.media) return { ignored: true };
+      s.media = { ...s.media, status: 'stopped', positionMs: 0, startedAt: null };
+      return;
+    }
+    case 'mediaMute': {
+      if (!s.media) return { ignored: true };
+      s.media = { ...s.media, muted: a.muted };
+      return;
+    }
+    case 'mediaEnded': {
+      const m = s.media;
+      if (!m || m.clueId !== a.clueId || m.status !== 'playing' || m.durationMs == null || mediaPosition(m, now) < m.durationMs - 50) return { ignored: true };
+      s.media = { ...m, status: 'ended', positionMs: m.durationMs, startedAt: null };
+      if (m.side === 'clue' && s.clue?.clueId === m.clueId && s.clue.unlockMode === 'mediaEnd') maybeAutoOpen(s, s.clue, now);
+      return;
+    }
     case 'showJoinQr': {
       s.showJoinQr = a.show;
       return;
@@ -498,6 +555,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
     }
     case 'pauseGame': {
       s.paused = true;
+      if (s.media?.status === 'playing') s.media = { ...s.media, status: 'paused', positionMs: mediaPosition(s.media, now), startedAt: null };
       if (s.timer?.running) {
         s.timer.remainingMs = timerRemaining(s.timer, now);
         s.timer.startedAt = null;
@@ -578,12 +636,16 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
         answerRevealed: false,
         resolved: false,
         answeringEnded: false,
+        // Decided once, when the clue opens: later rule changes apply to the next clue.
+        unlockMode: dw ? 'host' : unlockModeFor(s.rules.autoUnlock, f.clue),
       };
       s.buzzer = emptyBuzzer();
       s.phase = 'clue';
       s.timer = null;
+      s.media = null;
       s.intro = null; // picking a clue ends any category introduction
       if (dw) maybeAutoTimer(s, 'wager', now);
+      else if (s.clue.unlockMode === 'immediate') openBuzzers(s, now);
       emit(tx, { type: 'clue_open', clueId: a.clueId, roundIndex: f.r, result: dw ? 'daily_wager' : 'standard' });
       return;
     }
@@ -617,6 +679,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       clue.answerRevealed = true;
       // Once the answer is public nobody may still buzz in.
       finishAnswering(s, clue);
+      if (s.media?.side === 'clue') s.media = { ...s.media, status: 'stopped', positionMs: 0, startedAt: null };
       return;
     }
     case 'endAnswering': {
@@ -638,11 +701,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       if (clue.stage !== 'question') fail('The clue is not showing yet');
       if (clue.answerRevealed) fail('The answer is already showing');
       clue.answeringEnded = false; // the host may re-open after time ran out
-      s.buzzer.status = 'open';
-      s.buzzer.openedAt = now;
-      s.buzzer.winner = null;
-      s.buzzer.queue = [];
-      maybeAutoTimer(s, 'buzz', now);
+      openBuzzers(s, now);
       return;
     }
     case 'lockBuzzers': {
@@ -999,8 +1058,25 @@ function closeActiveClue(tx: Tx, result: 'answered' | 'unanswered' | 'skipped') 
   if (!s.clue) return;
   emit(tx, { type: 'clue_close', clueId: s.clue.clueId, roundIndex: s.clue.roundIndex, result });
   s.clue = null;
+  s.media = null;
   s.buzzer = emptyBuzzer();
   s.timer = null;
+}
+
+/** Open the buzzers for a new answering opportunity (host unlock or an automatic unlock). */
+function openBuzzers(s: GameState, now: number) {
+  s.buzzer.status = 'open';
+  s.buzzer.openedAt = now;
+  s.buzzer.winner = null;
+  s.buzzer.queue = [];
+  maybeAutoTimer(s, 'buzz', now);
+}
+
+/** Automatic unlock tied to media: only the first time, and never after answering ended. */
+function maybeAutoOpen(s: GameState, clue: ActiveClue, now: number) {
+  if (s.paused || clue.resolved || clue.answeringEnded || clue.answerRevealed || clue.stage !== 'question') return;
+  if (s.buzzer.openedAt != null || s.buzzer.status !== 'locked') return;
+  openBuzzers(s, now);
 }
 
 /** Close the answering opportunity: no more buzzing for this clue unless the host re-opens. */

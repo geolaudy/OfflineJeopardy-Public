@@ -633,3 +633,72 @@ describe('survival mode (O8)', () => {
     expect(s.results![0]).toMatchObject({ competitorId: cid(s, 'sam'), isWinner: true });
   });
 });
+
+describe('media clues, answer media and automatic unlock (R2-13/14/16)', () => {
+  const mediaBoard = () => {
+    const b = structuredClone(SAMPLE_BOARD);
+    const cats = b.rounds[0].categories;
+    cats[0].clues[0].media = [{ kind: 'audio', url: '/media/clues/a.mp3' }]; // hist_1: audio + text
+    cats[0].clues[1].media = [{ kind: 'image', url: '/media/clues/i.webp', caption: 'Hint' }]; // hist_2: image only
+    cats[0].clues[1].question = '';
+    cats[0].clues[1].answerMedia = [{ kind: 'image', url: '/media/clues/full.webp', caption: 'Uncovered' }];
+    cats[0].clues[2].media = [{ kind: 'audio', url: '/media/clues/b.mp3' }];
+    cats[0].clues[2].unlock = 'mediaEnd'; // hist_3
+    return b;
+  };
+  const mk = (autoUnlock: GameRules['autoUnlock']) => {
+    let s = createGame({ id: 'gm', title: 'M', boardId: null, board: mediaBoard(), mode: 'solo', rules: { ...DEFAULT_RULES, autoUnlock, categoryIntro: false }, now: clock });
+    s = run(s, { type: 'addPlayer', profileId: 'alex' }, { type: 'startGame' });
+    return s;
+  };
+
+  it('default (off) keeps the host in charge, even for clues with their own setting', () => {
+    let s = run(mk('off'), { type: 'selectClue', clueId: 'hist_2' });
+    expect(s.clue?.unlockMode).toBe('host');
+    expect(s.buzzer.status).toBe('locked');
+  });
+
+  it('media-only clues unlock immediately when the rule says so; text clues wait', () => {
+    let s = run(mk('mediaOnly'), { type: 'selectClue', clueId: 'hist_2' });
+    expect(s.buzzer.status).toBe('open');
+    s = run(s, { type: 'closeClue' }, { type: 'selectClue', clueId: 'hist_1' });
+    expect(s.buzzer.status).toBe('locked');
+    s = run(s, { type: 'closeClue' }, { type: 'updateRules', rules: { ...s.rules, autoUnlock: 'all' } }, { type: 'selectClue', clueId: 'hist_4' });
+    expect(s.buzzer.status).toBe('open'); // rule change applies to the next clue
+  });
+
+  it('per-clue "after media finishes": play → end opens the buzzers; pause/resume keeps position', () => {
+    let s = run(mk('perClue'), { type: 'selectClue', clueId: 'hist_3' });
+    expect(s.clue?.unlockMode).toBe('mediaEnd');
+    s = run(s, { type: 'mediaPlay', clueId: 'hist_3', side: 'clue', index: 0, durationMs: 4000 });
+    expect(s.buzzer.status).toBe('locked');
+    clock += 1000;
+    s = run(s, { type: 'mediaPause' });
+    expect(s.media).toMatchObject({ status: 'paused', positionMs: 1000 });
+    clock += 5000;
+    s = run(s, { type: 'mediaPlay', clueId: 'hist_3', side: 'clue', index: 0 }); // resume
+    expect(s.media).toMatchObject({ status: 'playing', positionMs: 1000, durationMs: 4000 });
+    clock += 1000;
+    expect(tryRun(s, { type: 'mediaEnded', clueId: 'hist_3' })).toMatchObject({ ok: true, ignored: true }); // too early
+    clock += 2100;
+    s = run(s, { type: 'mediaEnded', clueId: 'hist_3' });
+    expect(s.media?.status).toBe('ended');
+    expect(s.buzzer.status).toBe('open');
+  });
+
+  it('answer media is hidden from the TV until reveal; reveal stops clue audio; closing clears media', () => {
+    let s = run(mk('off'), { type: 'selectClue', clueId: 'hist_2' });
+    expect(projectState(s, 'public', {}).clue?.answerMedia).toEqual([]);
+    expect(projectState(s, 'host', {}).clue?.answerMedia).toHaveLength(1);
+    expect(JSON.stringify(projectState(s, 'public', {}))).not.toContain('full.webp');
+    expect(tryRun(s, { type: 'mediaPlay', clueId: 'hist_2', side: 'answer', index: 0 }).ok).toBe(false);
+    s = run(s, { type: 'revealAnswer' });
+    expect(projectState(s, 'public', {}).clue?.answerMedia[0]).toMatchObject({ url: '/media/clues/full.webp', caption: 'Uncovered' });
+    s = run(s, { type: 'closeClue' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'mediaPlay', clueId: 'hist_1', side: 'clue', index: 0, durationMs: 9000 });
+    s = run(s, { type: 'revealAnswer' });
+    expect(s.media?.status).toBe('stopped');
+    s = run(s, { type: 'closeClue' });
+    expect(s.media).toBeNull();
+    expect(tryRun(s, { type: 'mediaPlay', clueId: 'nope', side: 'clue', index: 0 }).ok).toBe(false);
+  });
+});

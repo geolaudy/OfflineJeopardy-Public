@@ -63,6 +63,19 @@ export function ActionButton({ onAction, ...rest }: Omit<Parameters<typeof Butto
   );
 }
 
+/** Shared page title row for dashboard pages: title (and optional subtitle) left, actions top-right. */
+export function PageTitleBar({ title, subtitle, actions }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode }) {
+  return (
+    <div className="mb-5 flex flex-wrap items-start gap-3">
+      <div className="min-w-0 flex-1">
+        <h1 className="text-3xl font-black">{title}</h1>
+        {subtitle ? <p className="mt-1 text-slate-600">{subtitle}</p> : null}
+      </div>
+      {actions ? <div className="ml-auto flex flex-wrap items-center justify-end gap-2">{actions}</div> : null}
+    </div>
+  );
+}
+
 export function Card({ children, className }: { children: ReactNode; className?: string }) {
   return <div className={cx('rounded-2xl border border-slate-200 bg-white p-4 shadow-sm', className)}>{children}</div>;
 }

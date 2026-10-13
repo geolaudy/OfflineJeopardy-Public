@@ -58,6 +58,14 @@ export default function RulesEditor({ open, onClose, g, run }: { open: boolean; 
         <Toggle label="Re-open buzzers after a wrong answer" checked={r.autoReopenAfterIncorrect} onChange={(v) => setR({ ...r, autoReopenAfterIncorrect: v })} />
         <Toggle label="Players can join from their phones without approval" checked={r.allowSelfJoin} onChange={(v) => setR({ ...r, allowSelfJoin: v })} />
         <Toggle label="Introduce the categories on the TV at the start of each round" hint="You can skip or replay the introduction any time." checked={r.categoryIntro} onChange={(v) => setR({ ...r, categoryIntro: v })} />
+        <Field label="Unlock buzzers automatically when a clue opens" hint="Applies to the next clue that opens. Clues can also have their own setting in the board editor.">
+          <select className={inputCls} value={r.autoUnlock} onChange={(e) => setR({ ...r, autoUnlock: e.target.value as GameRules['autoUnlock'] })} aria-label="Automatic buzzer unlock">
+            <option value="off">Off — I unlock the buzzers</option>
+            <option value="all">All clues</option>
+            <option value="mediaOnly">Only picture / sound / video clues without text</option>
+            <option value="perClue">Follow each clue's own setting</option>
+          </select>
+        </Field>
         <div className="rounded-xl bg-slate-50 p-3">
           <h3 className="mb-2 font-bold">Early buzzing</h3>
           <EarlyBuzzFields rules={r} onChange={setR} />
