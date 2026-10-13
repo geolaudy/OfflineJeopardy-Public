@@ -69,6 +69,18 @@ describe('tournaments (O8)', () => {
     ]);
     expect(JSON.stringify(m.p)).not.toMatch(/pin|token/i);
 
+    // Phones: names and points, your own row marked; follows the leaderboard setting.
+    const mine = (await api(s, 'GET', '/api/tournaments/public', undefined, alex.token)).data;
+    expect(mine[0].rows.map((r: { name: string; points: number; me: boolean }) => [r.name, r.points, r.me])).toEqual([
+      ['Sam', 8, false],
+      ['Alex', 8, true],
+    ]);
+    expect(JSON.stringify(mine)).not.toContain(alex.id); // no profile ids on phones
+    expect((await api(s, 'GET', '/api/tournaments/public')).status).toBe(401);
+    await api(s, 'PUT', '/api/settings', { publicLeaderboard: false }, host);
+    expect((await api(s, 'GET', '/api/tournaments/public', undefined, alex.token)).status).toBe(403);
+    await api(s, 'PUT', '/api/settings', { publicLeaderboard: true }, host);
+
     // Finished tournaments refuse new games; deleting keeps the games in history.
     await api(s, 'PATCH', `/api/tournaments/${t.id}`, { status: 'finished' }, host);
     expect((await api(s, 'POST', '/api/games', { boardId, mode: 'solo', tournamentId: t.id }, host)).status).toBe(400);

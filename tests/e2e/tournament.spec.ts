@@ -58,6 +58,19 @@ test('tournament: create, choose it for a game, standings after the game on host
   await tv.waitForTimeout(800);
   await tv.screenshot({ path: 'test-results/screens/tv-tournament.png' });
 
+  // The player sees the standings on their phone, with their own row marked.
+  const phone = await (await cr.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })).newPage();
+  await phone.goto(`${BASE}/join`);
+  const search = phone.getByLabel('Find your name');
+  if (await search.isVisible().catch(() => false)) await search.fill('Tori');
+  await phone.getByTestId('profile-tile').filter({ hasText: 'Tori Tourney' }).click();
+  for (const d of '4680') await phone.getByRole('button', { name: d, exact: true }).click();
+  await expect(phone.getByTestId('me-name')).toHaveText('Tori Tourney');
+  await phone.goto(`${BASE}/join/tournaments`);
+  await expect(phone.getByTestId('phone-standing').first()).toContainText('Tori Tourney');
+  await expect(phone.getByTestId('phone-standing').first()).toContainText('(you)');
+  await phone.screenshot({ path: 'test-results/screens/phone-tournament.png' });
+
   // The tournament page lists the game.
   await pc.getByRole('link', { name: 'Full standings' }).click();
   await expect(pc.getByTestId('standings')).toContainText('Tori Tourney');

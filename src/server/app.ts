@@ -788,6 +788,47 @@ export async function startServer(opts: ServerOptions) {
     audit(db, 'host', 'tournament.delete', { id });
     return { ok: true };
   });
+  /**
+   * Tournament standings for players' phones: names, colours, avatars and points only (the same
+   * game results the TV shows). Follows the host's "players can see the leaderboard" setting.
+   */
+  app.get('/api/tournaments/public', async (req, reply) => {
+    const s = sessionOf(req);
+    if (!s) return bad(reply, 'Sign in first', 401);
+    if (s.kind !== 'host' && !getSetting(db, 'publicLeaderboard', true)) return bad(reply, 'The host has turned off the leaderboard', 403);
+    const me = s.kind === 'profile' ? s.profileId : null;
+    const teams = new Map(repo.listTeams(db).map((t) => [t.id, t]));
+    return tour
+      .listTournaments(db)
+      .slice(0, 10)
+      .map((t) => {
+        const rows = tour.standings(db, t);
+        const profiles = repo.profilesByIds(db, rows.map((r) => r.profileId).filter((x): x is string => !!x));
+        return {
+          id: t.id,
+          name: t.name,
+          mode: t.mode,
+          scoring: t.scoring,
+          status: t.status,
+          games: tour.tournamentGames(db, t.id).filter((g) => g.status === 'completed').length,
+          rows: rows.map((r) => {
+            const p = r.profileId ? profiles[r.profileId] : null;
+            const team = r.teamId ? teams.get(r.teamId) : null;
+            return {
+              rank: r.rank,
+              name: p ? p.nickname || p.name : r.name,
+              color: p?.color ?? team?.color ?? r.color,
+              avatar: p?.avatar ?? team?.avatar ?? 'shield',
+              pictureUrl: p?.pictureUrl ?? null,
+              points: r.points,
+              games: r.games,
+              wins: r.wins,
+              me: !!me && (r.profileId === me || !!team?.memberIds.includes(me)),
+            };
+          }),
+        };
+      });
+  });
   /** Which tournament a game belongs to (host). */
   app.get('/api/games/:id/tournament', async (req, reply) => {
     if (!requireHost(req, reply)) return;

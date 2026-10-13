@@ -32,7 +32,8 @@
 - **Team balancing (T11):** in a team lobby, "Make balanced teams" splits the players without a team into 2+ evenly matched teams (ratings from past games, new players average; Shuffle for another fair split; only team strength is shown). Tests: Vitest 118/118, Playwright 21/21.
 - **Tournaments (O8):** Tournaments page (create with individuals/teams and placement points or total score; standings, games, finish/reopen, rename, delete keeps the games); choose the tournament in "Set up a game"; standings on the host results screen with "Show on TV"; TV standings page (leaderboard layout, public names and points only). DB migration v4 (additive). Tests: Vitest 122/122, Playwright 22/22.
 - **Head to head (T10):** phone "Compare with me" on another player's page and a Compare dialog on the host's Players page: record against each other (who finished ahead), games as teammates, side-by-side games/wins/accuracy/best score/buzz speed, recent games; private statistics respected. E2E selectors made exact (the phone shows a name search once there are many profiles). Tests: Vitest 123/123, Playwright 23/23.
-- **Next:** phone view of tournament standings; polish pass on new screens.
+- **Tournaments on phones:** new Tournaments page in the phone menu (standings, your row highlighted; names and points only; follows the leaderboard setting). Tests: Vitest 123/123, Playwright 23/23.
+- **Next:** polish pass on the new screens; tag a baseline.
 
 ## Session 3 — 2026-10-12 (roadmap continuation, auto-push workflow)
 

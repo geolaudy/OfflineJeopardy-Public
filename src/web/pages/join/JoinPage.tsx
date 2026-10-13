@@ -13,7 +13,8 @@ import type { ProfilePublic } from '../../../shared/views';
 import PlayTab from './PlayTab';
 import ProfileTab from './ProfileTab';
 import { ProfileStats } from '../../components/StatsView';
-import { BellRing, CircleUserRound, ChartColumn, History, Trophy, Users, Settings, LogOut } from 'lucide-react';
+import Tournaments from './Tournaments';
+import { BellRing, CircleUserRound, ChartColumn, History, Trophy, Users, Settings, LogOut, Medal } from 'lucide-react';
 
 const Leaderboard = lazy(() => import('./Leaderboard'));
 const PlayersList = lazy(() => import('./Players').then((m) => ({ default: m.PlayersList })));
@@ -36,6 +37,7 @@ export const JOIN_NAV: NavItem[] = [
   { to: '/join/stats', label: 'My statistics', icon: ChartColumn, testId: 'nav-stats' },
   { to: '/join/history', label: 'Game history', icon: History, testId: 'nav-history' },
   { to: '/join/leaderboard', label: 'Leaderboard', icon: Trophy, testId: 'nav-leaderboard' },
+  { to: '/join/tournaments', label: 'Tournaments', icon: Medal, testId: 'nav-tournaments' },
   { to: '/join/players', label: 'Players', icon: Users, testId: 'nav-players' },
   { to: '/join/settings', label: 'Settings', icon: Settings, testId: 'nav-settings' },
 ];
@@ -48,6 +50,7 @@ const PAGES: { path: string; title: string; parent?: string }[] = [
   { path: '/join/history', title: 'Game history' },
   { path: '/join/history/:gameId', title: 'Game details', parent: '/join/history' },
   { path: '/join/leaderboard', title: 'Leaderboard' },
+  { path: '/join/tournaments', title: 'Tournaments' },
   { path: '/join/players', title: 'Players' },
   { path: '/join/players/:id', title: 'Player', parent: '/join/players' },
   { path: '/join/settings', title: 'Settings' },
@@ -243,6 +246,7 @@ function Portal({ me, setMe, signOut }: { me: Me; setMe: (m: Me) => void; signOu
               <Route path="history" element={<HistoryPage me={me} />} />
               <Route path="history/:gameId" element={<GameDetailPage me={me} />} />
               <Route path="leaderboard" element={<Leaderboard me={me} />} />
+              <Route path="tournaments" element={<Tournaments />} />
               <Route path="players" element={<PlayersList me={me} />} />
               <Route path="players/:id" element={<PlayerPage me={me} />} />
               <Route path="*" element={<Navigate to="/join" replace />} />
