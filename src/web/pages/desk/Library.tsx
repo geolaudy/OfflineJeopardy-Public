@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { downloadFile, hostApi } from '../../lib/api';
 import { attempt, useFetch } from '../../lib/hooks';
 import { ActionButton, Button, Card, Empty, Field, Modal, PageTitleBar, cx, inputCls, toast } from '../../components/ui';
-import { Link2, Plus, Upload } from 'lucide-react';
+import { Eye, Link2, Plus, Upload } from 'lucide-react';
 import { ImportFromSourceModal } from './ImportFromSource';
 import { CSV_HEADER } from '../../../shared/boardIO';
 import type { BoardContent, Clue } from '../../../shared/game';
@@ -262,7 +262,8 @@ export default function Library() {
             <BoardCard
               board={b}
               onEdit={() => navigate(`/desk/boards/${b.id}`)}
-              onPreview={() => setPreviewId(b.id)}
+              onPreview={() => navigate(`/board/preview/${b.id}`)}
+              onQuickLook={() => setPreviewId(b.id)}
               onFavorite={() => void patch(b, { favorite: !b.favorite })}
               onArchive={() => void patch(b, { archived: !b.archived }, b.archived ? 'Board restored' : 'Board archived')}
               onDuplicate={() => duplicate(b)}
@@ -337,6 +338,7 @@ function BoardCard({
   board: b,
   onEdit,
   onPreview,
+  onQuickLook,
   onFavorite,
   onArchive,
   onDuplicate,
@@ -346,6 +348,7 @@ function BoardCard({
   board: BoardSummary;
   onEdit: () => void;
   onPreview: () => void;
+  onQuickLook: () => void;
   onFavorite: () => void;
   onArchive: () => void;
   onDuplicate: () => Promise<unknown>;
@@ -408,8 +411,8 @@ function BoardCard({
         <Button size="sm" onClick={onEdit}>
           Edit
         </Button>
-        <Button size="sm" variant="secondary" onClick={onPreview}>
-          Preview
+        <Button size="sm" variant="secondary" onClick={onPreview} data-testid="board-preview-button">
+          <Eye size={16} aria-hidden /> Preview
         </Button>
         <Button size="sm" variant="ghost" aria-expanded={moreOpen} onClick={() => setMoreOpen((o) => !o)}>
           {moreOpen ? 'Less ▴' : 'More ▾'}
@@ -417,6 +420,9 @@ function BoardCard({
       </div>
       {moreOpen ? (
         <div className="mt-2 flex flex-wrap gap-2 border-t border-slate-100 pt-2">
+          <Button size="sm" variant="secondary" onClick={onQuickLook}>
+            Quick look (list)
+          </Button>
           <ActionButton size="sm" variant="secondary" onAction={onDuplicate}>
             Duplicate
           </ActionButton>

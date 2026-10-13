@@ -130,7 +130,7 @@ export default function BoardPage() {
  * tile. After the server closes a clue we keep the last clue snapshot only for the length of the
  * closing animation; any newer state (another clue, a new round, the Final) replaces it at once.
  */
-function Stage({ g }: { g: GameView }) {
+export function Stage({ g }: { g: GameView }) {
   const live = g.phase === 'clue' && g.clue ? g : null;
   const [prevLive, setPrevLive] = useState<GameView | null>(live);
   const [closing, setClosing] = useState<GameView | null>(null);

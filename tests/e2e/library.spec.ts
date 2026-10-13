@@ -23,6 +23,37 @@ const card = (page: Page, title: string) =>
     .filter({ has: page.getByRole('button', { name: 'Edit', exact: true }) })
     .last();
 
+test('preview a board and its clues without starting a game (R2-17)', async () => {
+  const api = await request.newContext({ baseURL: BASE });
+  const host = (await (await api.post('/api/host/local-login')).json()).token as string;
+  const H = { authorization: `Bearer ${host}` };
+  await api.post('/api/games/close', { headers: H });
+  const before = await (await api.get('/api/games', { headers: H })).json();
+  const historyBefore = (await (await api.get('/api/history', { headers: H })).json()).length;
+
+  const desk = await (await cr.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
+  await desk.goto(`${BASE}/desk/library`);
+  await card(desk, 'Starter Trivia Night').getByTestId('board-preview-button').click();
+  await expect(desk.getByTestId('board-preview')).toBeVisible();
+  await expect(desk.getByTestId('board-category').first()).toHaveText('History');
+  await desk.locator('[data-clue-id="hist_1"]').click();
+  await expect(desk.getByTestId('clue-text')).toContainText('Machu Picchu', { ignoreCase: true });
+  await expect(desk.getByTestId('clue-answer')).toHaveCount(0);
+  await desk.getByTestId('preview-reveal').click();
+  await expect(desk.getByTestId('clue-answer')).toHaveText('The Inca');
+  await desk.getByTestId('preview-back').click();
+  await expect(desk.locator('[data-clue-id="hist_1"][data-testid="board-tile"]')).toHaveCount(0); // played in the preview only
+  await desk.getByTestId('preview-exit').click();
+  await expect(desk).toHaveURL(/\/desk\/library$/);
+
+  // Nothing was created or changed.
+  const after = await (await api.get('/api/games', { headers: H })).json();
+  expect(after.current).toBeNull();
+  expect(after.games.length).toBe(before.games.length);
+  expect((await (await api.get('/api/history', { headers: H })).json()).length).toBe(historyBefore);
+  await api.dispose();
+});
+
 test('import a clue dataset file through the "From link or dataset" dialog (R2-21)', async () => {
   const api = await request.newContext({ baseURL: BASE });
   const host = (await (await api.post('/api/host/local-login')).json()).token as string;

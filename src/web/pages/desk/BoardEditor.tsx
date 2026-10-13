@@ -6,7 +6,7 @@ import { ActionButton, Button, Field, Modal, cx, inputCls, toast } from '../../c
 import { blankBoard, blankCategory, blankClue, blankFinal, blankRound, boardStats, uid, validateBoard } from '../../../shared/boardUtils';
 import { boardContentSchema } from '../../../shared/boardIO';
 import type { BoardContent, Category, Clue, ClueLayout, ClueUnlock, MediaRef, Round } from '../../../shared/game';
-import { Plus, Star } from 'lucide-react';
+import { Eye, Plus, Star } from 'lucide-react';
 
 // ---------- types & helpers ----------
 
@@ -502,6 +502,12 @@ export default function BoardEditor() {
     new: 'bg-slate-400',
   };
 
+  /** Save pending edits, then show the real TV preview (no game is created). */
+  const openPreview = async (clueId?: string) => {
+    if (status !== 'saved' && !(await persist(false))) return toast('Save the board first — it has a problem that prevents saving.', 'error');
+    navigate(`/board/preview/${boardIdRef.current}${clueId ? `?clue=${encodeURIComponent(clueId)}` : ''}`);
+  };
+
   const editingClue = editing ? content.rounds[editing.ri]?.categories[editing.ci]?.clues[editing.qi] : undefined;
 
   return (
@@ -540,6 +546,11 @@ export default function BoardEditor() {
           <Button variant="secondary" onClick={() => setVersionsOpen(true)}>
             History
           </Button>
+        ) : null}
+        {boardIdRef.current ? (
+          <ActionButton variant="secondary" onAction={() => openPreview()} data-testid="editor-preview">
+            <Eye size={18} aria-hidden /> Preview board
+          </ActionButton>
         ) : null}
         <ActionButton onAction={manualSave} title="Save (Ctrl+S)">
           Save
@@ -852,6 +863,11 @@ export default function BoardEditor() {
                 Clear clue
               </Button>
               <span className="flex-1" />
+              {boardIdRef.current ? (
+                <ActionButton variant="secondary" onAction={() => openPreview(content.rounds[editing.ri].categories[editing.ci].clues[editing.qi]?.id)} data-testid="clue-preview">
+                  <Eye size={16} aria-hidden /> Preview this clue
+                </ActionButton>
+              ) : null}
               <Button onClick={closeEditing}>Done</Button>
             </div>
           </div>
