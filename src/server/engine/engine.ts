@@ -308,7 +308,7 @@ export function undoLabel(type: string): string {
     startFinal: 'start Final',
     finalNext: 'Final step',
     setFinalWager: 'Final Jeopardy! wager',
-    setFinalAnswer: 'Final answer',
+    setFinalAnswer: 'Final Jeopardy! answer',
     judgeFinal: 'Final judgement',
     endGame: 'end game',
     startGame: 'start game',
@@ -1036,7 +1036,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       } else if (f.stage === 'clue') {
         startFinalReveal(tx);
       } else if (f.stage === 'reveal') {
-        if (f.entries.some((e) => !e.judged)) fail('Judge every Final answer first');
+        if (f.entries.some((e) => !e.judged)) fail('Judge every Final Jeopardy! answer first');
         f.stage = 'done';
       } else fail('The Final is complete — end the game');
       return;
@@ -1082,7 +1082,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
     }
     case 'judgeFinal': {
       const f = finalState(s);
-      if (f.stage !== 'reveal') fail('Reveal the Final answers first');
+      if (f.stage !== 'reveal') fail('Reveal the Final Jeopardy! answers first');
       const e = f.entries.find((x) => x.competitorId === a.competitorId);
       if (!e) fail('Not playing in the Final');
       if (e!.judged) fail('Already judged — use Undo to change it');

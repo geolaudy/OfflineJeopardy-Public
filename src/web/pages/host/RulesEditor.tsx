@@ -63,7 +63,7 @@ export default function RulesEditor({
               ['buzzSeconds', 'Buzz-in time'],
               ['answerSeconds', 'Answer time'],
               ['wagerSeconds', 'Wager time'],
-              ['finalSeconds', 'Final time'],
+              ['finalSeconds', 'Final Jeopardy! think time'],
             ] as const
           ).map(([k, label]) => (
             <Field key={k} label={label} hint="seconds, 0 = off">

@@ -74,7 +74,7 @@ export function publicSettings(r: GameRules, ctx: PublicSettingsContext): { titl
     { label: 'Time to buzz in', value: secs(r.timers.buzzSeconds) },
     { label: 'Time to answer', value: secs(r.timers.answerSeconds) },
     { label: 'Time to wager', value: secs(r.timers.wagerSeconds) },
-    { label: 'Final answer', value: secs(r.timers.finalSeconds) },
+    { label: 'Final Jeopardy! think time', value: secs(r.timers.finalSeconds) },
   ];
   const scoring = [
     { label: 'Wrong answers', value: r.incorrectDeducts ? 'Lose the clue value' : 'No penalty' },

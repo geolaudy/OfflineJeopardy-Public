@@ -21,7 +21,7 @@ export function PreLobby({ setup, lobbyName }: { setup: NonNullable<Presentation
   if (sel && !shown.includes(sel)) shown = [sel, ...shown.slice(0, cap - 1)];
   const firstRound = board?.rounds.find((r) => r.kind === 'standard');
   // The settings that matter most at a glance (no hints; the full page is under Settings).
-  const settings = rules.sections.flatMap((s) => s.items.map((i) => ({ ...i, section: s.title }))).slice(0, 12);
+  const settings = rules.sections.flatMap((s) => s.items.map((i) => ({ ...i, section: s.title }))).slice(0, 9);
   return (
     <div className="tvp-pre" data-testid="tv-prelobby">
       <header className="tvp-head">
