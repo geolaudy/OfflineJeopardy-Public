@@ -1,7 +1,7 @@
 {
   "name": "offline-jeopardy",
   "productName": "OfflineJeopardy",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "description": "Fully offline, customizable Jeopardy-style game for Windows with LAN host controller and buzzers.",
   "type": "module",
@@ -38,6 +38,7 @@
     "zustand": "^5.0.15"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
     "@fastify/multipart": "^10.1.3",
     "@fastify/static": "^10.1.6",
     "@fastify/websocket": "^11.3.4",

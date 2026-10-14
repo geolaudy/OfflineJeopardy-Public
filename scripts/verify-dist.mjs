@@ -45,6 +45,7 @@ if (fs.existsSync(archive)) {
   check('app.asar has the web app', has('/dist/web/index.html'));
   check('app.asar has the Electron main + preload', has('/dist/electron/main.cjs') && has('/dist/electron/preload.cjs'));
   check('app.asar has package.json', has('/package.json'));
+  check('app.asar has the runtime dependencies (Fastify, AI SDK)', has('/node_modules/fastify/package.json') && has('/node_modules/@anthropic-ai/sdk/package.json'));
   const bad = files.filter((f) => /\.(db|db-wal|db-shm|log|env|pem|key)$/i.test(f) || /\/(data|test-results|release|\.git)\//.test(f) || /OfflineJeopardyData/.test(f));
   check('app.asar has no databases, logs, keys or test data', bad.length === 0, bad.slice(0, 5).join(', '));
   check('app.asar has no source maps', !files.some((f) => f.startsWith('/dist/') && f.endsWith('.map')));

@@ -376,6 +376,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
         buzzerMode: 'individual',
         memberIds: [],
         bot: a.level,
+        ...(a.ai ? { botAi: true } : {}),
       });
       return;
     }
@@ -407,6 +408,10 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       if (a.botLevel !== undefined) {
         if (!c.bot) fail('Only computer opponents have a difficulty');
         c.bot = a.botLevel;
+      }
+      if (a.botAi !== undefined) {
+        if (!c.bot) fail('Only computer opponents can use AI answers');
+        c.botAi = a.botAi;
       }
       return;
     }
@@ -566,7 +571,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       if (!owner || owner !== a.competitorId) return { ignored: true, info: 'not-answering' };
       const answer = a.answer.replace(/\s+/g, ' ').trim().slice(0, 200);
       if (!answer) fail('Empty answer');
-      clue.submission = { competitorId: a.competitorId, answer, at: now };
+      clue.submission = { competitorId: a.competitorId, answer, at: now, ...(a.via ? { via: a.via } : {}), ...(a.warning ? { warning: a.warning.slice(0, 200) } : {}) };
       // The answer is in: stop the answer timer so it can never run out while the host decides.
       if (s.timer && s.timer.kind === 'answer') s.timer = null;
       emit(tx, { type: 'submission', clueId: clue.clueId, roundIndex: clue.roundIndex, competitorId: a.competitorId, sourceKind: 'bot', note: answer });

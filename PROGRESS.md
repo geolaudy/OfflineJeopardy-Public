@@ -11,7 +11,9 @@
 - Tests: Vitest 128/128, Playwright 25/25 (new lobby-stats.spec.ts). Pushed 28b59a0.
 - **Release v0.6.0 published** (tag pushed → GitHub Actions Windows build: tests, packaging, verification incl. headless start of both executables on the runner) — https://github.com/geolaudy/OfflineJeopardy/releases/tag/v0.6.0 with OfflineJeopardy-Setup-0.6.0.exe, OfflineJeopardy-Portable-0.6.0.exe, SHA256SUMS.txt (verified via the API).
 - **Milestone C (R3-9…R3-13):** bots pick clues on their turn with difficulty-based strategies; bots *submit* answers (new engine action, `submission` event) instead of judging themselves — the answer timer stops, host and TV see the answer, the host judges (also Daily Wager; Final answers are written by bots and judged by the host); plausible local wrong answers from related clues / near-miss numbers; per-bot pace. Fixed: bots were labelled "(team)" in solo game history.
-- Tests: Vitest 133/133, Playwright 26/26 (new bots.spec.ts; shared tests/e2e/hostSocket.ts).
+- Tests: Vitest 133/133, Playwright 26/26 (new bots.spec.ts; shared tests/e2e/hostSocket.ts). Pushed 6a47019.
+- **Milestone D (R3-14): optional AI answers for bots.** `@anthropic-ai/sdk` added (runtime dependency). Server-side AiService (structured JSON output, low effort, server-side refusal fallback, hard timeout capped by the answer timer, per-game limit, response cache, scrubbed error messages, rejects a "wrong" answer that is actually right). Key stored write-only outside the database (DPAPI-encrypted in the Windows app). Settings card (enable, provider, model list, key save/replace/remove, test connection, timeout, per-game limit, fallback: offline answer or pass) and a per-bot "AI answers" switch; the host sees whether an answer came from the AI and why it fell back. **Not tested against the real API (no key) — K26.**
+- Tests: Vitest 139/139 (new ai.test.ts, aiKey.test.ts), Playwright 27/27.
 
 ## Session 4 — 2026-10-13 (user feedback round 2)
 

@@ -54,7 +54,7 @@ export const hostActionSchema = z.discriminatedUnion('type', [
     memberIds: z.array(id).max(50),
   }),
   z.object({ type: z.literal('removeCompetitor'), competitorId: id }),
-  z.object({ type: z.literal('addBot'), name, level: z.enum(['easy', 'medium', 'hard', 'expert']), color: color.optional() }),
+  z.object({ type: z.literal('addBot'), name, level: z.enum(['easy', 'medium', 'hard', 'expert']), color: color.optional(), ai: z.boolean().optional() }),
   // The host buzzes on behalf of a competitor (single-player practice, or a player whose device failed).
   z.object({ type: z.literal('hostBuzz'), competitorId: id }),
   z.object({
@@ -65,6 +65,7 @@ export const hostActionSchema = z.discriminatedUnion('type', [
     avatar: z.string().max(64).optional(),
     buzzerMode: z.enum(['individual', 'shared']).optional(),
     botLevel: z.enum(['easy', 'medium', 'hard', 'expert']).optional(),
+    botAi: z.boolean().optional(),
   }),
   z.object({ type: z.literal('assignMember'), profileId: id, competitorId: id.nullable() }),
   z.object({ type: z.literal('approvePlayer'), profileId: id }),
@@ -161,7 +162,7 @@ export type SystemAction =
   | { type: 'setRoomCode'; code: string }
   | { type: 'mediaEnded'; clueId: string }
   /** A computer opponent gives its answer; the host still judges it. */
-  | { type: 'submitAnswer'; competitorId: string; answer: string }
+  | { type: 'submitAnswer'; competitorId: string; answer: string; via?: 'ai' | 'local'; warning?: string }
   /** Lobby only: play a different board (loaded and validated by the server). */
   | { type: 'setBoard'; boardId: string; board: BoardContent; title?: string };
 

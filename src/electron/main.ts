@@ -1,6 +1,6 @@
 // Electron main process: starts the local game server automatically, opens the
 // desktop dashboard and the TV board window, and grants WebHID access to Joy-Cons.
-import { app, BrowserWindow, dialog, ipcMain, screen, session, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, safeStorage, screen, session, shell } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 import { startServer, type RunningServer } from '../server/app.js';
@@ -18,6 +18,12 @@ function log(...args: unknown[]) {
   } catch {
     /* ignore */
   }
+}
+
+/** Saved secrets (the optional AI key) are encrypted for this Windows user with DPAPI. */
+function secretCodec() {
+  if (!safeStorage.isEncryptionAvailable()) return null;
+  return { encrypt: (s: string) => safeStorage.encryptString(s), decrypt: (b: Buffer) => safeStorage.decryptString(b) };
 }
 
 /** Data lives in %APPDATA%/OfflineJeopardy/data, or next to the portable .exe. */
@@ -44,7 +50,7 @@ async function boot() {
   let lastErr: unknown;
   for (let port = 3000; port <= 3010; port++) {
     try {
-      server = await startServer({ dataDir, port, host: '0.0.0.0', webDir });
+      server = await startServer({ dataDir, port, host: '0.0.0.0', webDir, secretCodec: secretCodec() });
       break;
     } catch (e) {
       lastErr = e;

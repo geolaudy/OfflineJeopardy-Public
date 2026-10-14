@@ -36,8 +36,17 @@ export interface AnswerRequest {
   /** Answers this bot already gave in this game. */
   avoid: Set<string>;
   final: boolean;
+  gameId: string;
+  /** How long an answer may take (a running answer timer), if limited. */
+  budgetMs?: number;
 }
-export type AnswerSource = (req: AnswerRequest, fallback: () => string) => Promise<string>;
+export interface AnswerResult {
+  text: string;
+  via: 'ai' | 'local';
+  /** Shown to the host only (e.g. why the AI was not used). */
+  warning?: string;
+}
+export type AnswerSource = (req: AnswerRequest, fallback: () => string) => Promise<AnswerResult>;
 
 type Task = { delay: number; action: () => EngineAction | null | Promise<EngineAction | null> };
 
@@ -51,7 +60,9 @@ export class BotDriver {
   /** Multiplies every delay (tests use a small value). */
   speed = 1;
   /** Where answer texts come from (AI bots plug in here; must always resolve). */
-  answerSource: AnswerSource = async (_req, fallback) => fallback();
+  answerSource: AnswerSource = async (_req, fallback) => ({ text: fallback(), via: 'local' });
+  /** Answers being prepared (started when the bot wins the buzz, so an AI reply has time). */
+  private pending = new Map<string, Promise<AnswerResult>>();
   /** Latest state (async answers check it is still their turn). */
   private latest: GameState | null = null;
 
@@ -122,23 +133,43 @@ export class BotDriver {
     return this.decide(`know:${s.id}:${clueId}:${bot.id}`, chance);
   }
 
-  /** The bot's answer text (AI source if configured, local generator otherwise). */
-  private async answerText(s: GameState, bot: Competitor, clueId: string, correct: boolean, final = false): Promise<string> {
+  /** The bot's answer (AI source if configured for this bot, local generator otherwise). */
+  private async answerText(s: GameState, bot: Competitor, clueId: string, correct: boolean, final = false, budgetMs?: number): Promise<AnswerResult> {
     const ctx = clueContext(s.board, clueId);
-    if (!ctx) return 'Pass';
+    if (!ctx) return { text: 'Pass', via: 'local' };
     const key = `${s.id}:${bot.id}`;
     const avoid = this.given.get(key) ?? new Set<string>();
     const fallback = () => localAnswer(ctx, { correct, level: bot.bot!, random: this.random, avoid });
-    let text: string;
+    let r: AnswerResult;
     try {
-      text = (await this.answerSource({ bot, level: bot.bot!, clueId, ctx, correct, avoid, final }, fallback)).trim() || fallback();
+      r = await this.answerSource({ bot, level: bot.bot!, clueId, ctx, correct, avoid, final, gameId: s.id, budgetMs }, fallback);
+      if (!r.text.trim()) r = { text: fallback(), via: 'local', warning: r.warning };
     } catch {
-      text = fallback();
+      r = { text: fallback(), via: 'local' };
     }
-    avoid.add(text);
+    avoid.add(r.text);
     this.given.set(key, avoid);
     if (this.given.size > 200) this.given.clear();
-    return text.slice(0, 200);
+    return { ...r, text: r.text.trim().slice(0, 200) };
+  }
+
+  /** Start preparing an answer now; the scheduled task picks it up after the bot's thinking time. */
+  private prepare(key: string, make: () => Promise<AnswerResult>) {
+    let p = this.pending.get(key);
+    if (!p) {
+      p = make();
+      this.pending.set(key, p);
+      if (this.pending.size > 100) this.pending.delete(this.pending.keys().next().value!);
+    }
+    return p;
+  }
+
+  private submit(bot: Competitor, r: AnswerResult): EngineAction {
+    return { type: 'submitAnswer', competitorId: bot.id, answer: r.text, via: r.via, ...(r.warning ? { warning: r.warning } : {}) };
+  }
+
+  private answerBudget(s: GameState) {
+    return s.timer?.running && s.timer.kind === 'answer' ? timerRemaining(s.timer, Date.now()) * 0.8 : undefined;
   }
 
   private memory(s: GameState, botId: string): PickMemory {
@@ -193,7 +224,9 @@ export class BotDriver {
       const wb = w ? bots.find((b) => b.id === w.competitorId) : undefined;
       if (w && wb && s.buzzer.status === 'buzzed' && !clue.submission) {
         const knows = this.knows(s, wb, clue.clueId, clue.value);
-        out.set(`answer:${clue.clueId}:${w.at}`, { delay: this.thinkTime(s, wb), action: async () => ({ type: 'submitAnswer', competitorId: wb.id, answer: await this.answerText(s, wb, clue.clueId, knows) }) });
+        const key = `answer:${clue.clueId}:${w.at}`;
+        const ready = this.prepare(key, () => this.answerText(s, wb, clue.clueId, knows, false, this.answerBudget(s)));
+        out.set(key, { delay: this.thinkTime(s, wb), action: async () => this.submit(wb, await ready) });
       }
     }
 
@@ -206,7 +239,9 @@ export class BotDriver {
         const owner = bots.find((b) => b.id === clue.wager!.competitorId);
         if (owner) {
           const knows = this.knows(s, owner, clue.clueId, clue.value);
-          out.set(`dwanswer:${clue.clueId}`, { delay: 2500 + this.thinkTime(s, owner), action: async () => ({ type: 'submitAnswer', competitorId: owner.id, answer: await this.answerText(s, owner, clue.clueId, knows) }) });
+          const key = `dwanswer:${clue.clueId}`;
+          const ready = this.prepare(key, () => this.answerText(s, owner, clue.clueId, knows));
+          out.set(key, { delay: 2500 + this.thinkTime(s, owner), action: async () => this.submit(owner, await ready) });
         }
       }
     }
@@ -221,8 +256,11 @@ export class BotDriver {
         if ((f.stage === 'category' || f.stage === 'wagers') && e.wager == null)
           out.set(`fw:${s.id}:${b.id}`, { delay: 2000 + this.between([0, 1500], b), action: () => ({ type: 'setFinalWager', competitorId: b.id, amount: this.finalWager(s, b) }) });
         const knows = this.decide(`fknow:${s.id}:${b.id}`, Math.min(0.95, BOT_PARAMS[b.bot!].know * 0.85));
-        if (f.stage === 'clue' && !e.answer)
-          out.set(`fa:${s.id}:${b.id}`, { delay: 4000 + this.between([0, 3000], b), action: async () => ({ type: 'setFinalAnswer', competitorId: b.id, answer: await this.answerText(s, b, fc.id, knows, true) }) });
+        if (f.stage === 'clue' && !e.answer) {
+          const key = `fa:${s.id}:${b.id}`;
+          const ready = this.prepare(key, () => this.answerText(s, b, fc.id, knows, true));
+          out.set(key, { delay: 4000 + this.between([0, 3000], b), action: async () => ({ type: 'setFinalAnswer', competitorId: b.id, answer: (await ready).text }) });
+        }
       }
     }
   }

@@ -50,7 +50,8 @@ export function projectState(s: GameState, role: ViewRole, profiles: Record<Id, 
       answerMedia: host || s.clue.answerRevealed ? (f?.clue.answerMedia ?? []) : [],
       layout: f?.clue.layout ?? 'auto',
       unlockMode: s.clue.unlockMode,
-      submission: s.clue.submission ?? null,
+      // Where a bot's answer came from is for the host only.
+      submission: s.clue.submission ? (host ? s.clue.submission : { competitorId: s.clue.submission.competitorId, answer: s.clue.submission.answer, at: s.clue.submission.at }) : null,
     };
   }
 

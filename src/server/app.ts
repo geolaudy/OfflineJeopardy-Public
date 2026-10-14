@@ -42,6 +42,8 @@ import { boardContentSchema, exportBoardCsv, exportBoardJson, importBoardCsv, im
 import { reassignIds, validateBoard } from '../shared/boardUtils.js';
 import { SAMPLE_BOARD, SAMPLE_BOARD_TITLE } from '../shared/sampleBoards.js';
 import { formatList, isMediaKind, type MediaKind } from '../shared/mediaTypes.js';
+import { AiService, type SecretCodec } from './ai.js';
+import { aiConfigSchema } from '../shared/ai.js';
 
 declare const __APP_VERSION__: string | undefined;
 /** Injected from package.json by the Electron build; npm sets it when running scripts in development. */
@@ -56,6 +58,8 @@ export interface ServerOptions {
   webDir?: string | null; // built web app
   logger?: boolean;
   seed?: boolean;
+  /** Encrypts saved secrets (Electron safeStorage in the Windows app). */
+  secretCodec?: SecretCodec | null;
 }
 
 const COLOR = z.string().regex(/^#[0-9a-fA-F]{6}$/);
@@ -96,6 +100,16 @@ export async function startServer(opts: ServerOptions) {
   });
   const hub = new Hub(db, games, controllers);
   const lobby = new LobbyManager(db, () => games.current, controllers, () => hub.onlineProfiles());
+  // Optional AI answers for computer opponents (R3-14): only bots set to "AI" use it, and every
+  // failure falls back to the offline answer generator (or a pass), so the game never waits.
+  const ai = new AiService(db, dataDir, opts.secretCodec ?? null);
+  games.bots.answerSource = async (req, fallback) => {
+    if (!req.bot.botAi) return { text: fallback(), via: 'local' };
+    const r = await ai.answer({ gameId: req.gameId, level: req.level, ctx: req.ctx, correct: req.correct, avoid: req.avoid, final: req.final, budgetMs: req.budgetMs });
+    if (r.text !== null) return { text: r.text, via: 'ai' };
+    const pass = ai.config().fallback === 'pass';
+    return { text: pass ? 'Pass' : fallback(), via: 'local', warning: `${r.reason} — ${pass ? 'the bot passed' : 'offline answer used'}.` };
+  };
   hub.lobby = lobby;
   lobby.onChange = () => hub.sendPresentation();
   games.recover();
@@ -205,6 +219,35 @@ export async function startServer(opts: ServerOptions) {
   app.post('/api/host/pairing-code', async (req, reply) => {
     if (!requireHost(req, reply)) return;
     return { code: lobby.newPairingCode() };
+  });
+
+  // ---------- optional AI answers (host only; the key is write-only) ----------
+  app.get('/api/ai', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    return ai.status(games.current?.id ?? null);
+  });
+  app.put('/api/ai', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const body = parse(z.object({ config: aiConfigSchema.optional(), apiKey: z.string().trim().min(10).max(400).optional(), clearKey: z.boolean().optional() }), req.body, reply);
+    if (!body) return;
+    if (body.config) ai.setConfig(body.config);
+    if (body.clearKey) ai.setKey(null);
+    else if (body.apiKey) ai.setKey(body.apiKey);
+    // Audit what changed, never the key itself.
+    audit(db, 'host', 'ai.update', { config: body.config ?? null, key: body.clearKey ? 'removed' : body.apiKey ? 'replaced' : 'unchanged' });
+    return ai.status(games.current?.id ?? null);
+  });
+  app.post('/api/ai/test', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    return ai.test();
+  });
+  app.get('/api/ai/models', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    try {
+      return { models: await ai.models() };
+    } catch (e) {
+      return bad(reply, e instanceof Error && /No API key/.test(e.message) ? 'Save an API key first' : 'Could not load the model list', 502);
+    }
   });
 
   // ---------- lobby session ----------
@@ -1300,6 +1343,7 @@ export async function startServer(opts: ServerOptions) {
     port,
     url: `http://127.0.0.1:${port}`,
     lobby,
+    ai,
     /** Current lobby pairing code (null when no lobby is open). */
     get pairingCode() {
       return lobby.lobby?.pairingCode ?? null;

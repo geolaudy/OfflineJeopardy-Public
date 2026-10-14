@@ -52,6 +52,10 @@ export default function Help() {
       <Section title="Profiles and PINs">
         <p>A 4-digit PIN is a convenience lock for a trusted home network, not bank-level security. After 5 wrong PINs a profile is locked briefly. The host can reset a PIN under Players.</p>
       </Section>
+      <Section title="Computer opponents">
+        <p>Computer opponents (solo games) pick a clue when it is their turn, buzz in and give an answer. Their answer appears on your screen and on the TV, the answer timer stops, and <b>you decide</b> Correct or Incorrect — nothing is scored automatically. Easy bots guess more and are slower; Expert bots rarely miss.</p>
+        <p>Optional: in Settings you can connect an AI service so bots set to <b>AI answers</b> sound more natural. It needs internet and your own API key (it may cost money). Without it — or whenever it fails — bots answer offline.</p>
+      </Section>
       <Section title="Keyboard">
         <p>On the TV window, any key (except F11/Esc/Tab) can be assigned as a buzzer under Buzzers. F11 toggles full screen.</p>
       </Section>

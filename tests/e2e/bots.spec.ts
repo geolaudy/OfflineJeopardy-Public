@@ -74,3 +74,30 @@ test('bot picks a clue, gives a visible answer and waits for the host to judge i
   await api.delete('/api/lobby', { headers: H });
   await api.dispose();
 });
+
+test('AI answers settings: key is saved write-only, nothing is sent until enabled (R3-14)', async () => {
+  const api = await request.newContext({ baseURL: BASE });
+  const host = (await (await api.post('/api/host/local-login')).json()).token as string;
+  const H = { authorization: `Bearer ${host}` };
+  const pc = await (await cr.newContext({ viewport: { width: 1366, height: 900 } })).newPage();
+  const external: string[] = [];
+  pc.on('request', (r) => (!r.url().startsWith(BASE) && !r.url().startsWith('data:') ? external.push(r.url()) : undefined));
+  await pc.goto(`${BASE}/host/settings`);
+  const card = pc.getByTestId('ai-settings');
+  await expect(card).toBeVisible();
+  await expect(card.getByTestId('ai-status')).toContainText('No API key saved');
+  await card.getByTestId('ai-key').fill('sk-ant-e2e-fake-key-1234567');
+  await card.getByTestId('ai-save-key').click();
+  await expect(card.getByTestId('ai-key')).toHaveValue('');
+  await expect(card.getByTestId('ai-key')).toHaveAttribute('placeholder', /saved/);
+  await card.getByTestId('ai-enabled').check();
+  await expect(card.getByTestId('ai-status')).toContainText('AI answers are on');
+  await card.screenshot({ path: 'test-results/screens/settings-ai.png' });
+  const st = await (await api.get('/api/ai', { headers: H })).json();
+  expect(st).toMatchObject({ keySaved: true, ready: true });
+  expect(JSON.stringify(st)).not.toContain('sk-ant-e2e');
+  expect(await pc.content()).not.toContain('sk-ant-e2e-fake-key');
+  expect(external).toEqual([]); // the browser never talks to the AI provider
+  await api.put('/api/ai', { headers: H, data: { config: { ...st.config, enabled: false }, clearKey: true } });
+  await api.dispose();
+});

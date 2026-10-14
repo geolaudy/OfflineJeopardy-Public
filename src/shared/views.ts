@@ -63,7 +63,7 @@ export interface ClueView {
   layout: ClueLayout;
   unlockMode: UnlockMode;
   /** Answer given in text (computer opponents), waiting for the host's judgment. */
-  submission?: { competitorId: Id; answer: string; at: number } | null;
+  submission?: { competitorId: Id; answer: string; at: number; via?: 'ai' | 'local'; warning?: string } | null;
 }
 
 export interface FinalEntryView {

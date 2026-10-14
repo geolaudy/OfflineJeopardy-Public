@@ -406,7 +406,15 @@ function CluePanel({ g, run }: { g: GameView; run: Run }) {
                           Expected (only you see this): <b data-testid="bot-expected">{clue.answer}</b>
                         </p>
                       )}
-                      <p className="mt-1 text-xs text-slate-500">The timer is stopped. Nothing is scored until you choose.</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        The timer is stopped. Nothing is scored until you choose.
+                        {clue.submission.via === 'ai' && <span className="ml-1 rounded bg-violet-100 px-1.5 py-0.5 font-semibold text-violet-800" data-testid="bot-answer-ai">AI answer</span>}
+                      </p>
+                      {clue.submission.warning && (
+                        <p className="mt-1 rounded-lg bg-amber-50 p-2 text-xs text-amber-900" data-testid="bot-answer-warning">
+                          {clue.submission.warning}
+                        </p>
+                      )}
                     </>
                   ) : (
                     <p className="font-semibold text-slate-600" data-testid="bot-thinking">

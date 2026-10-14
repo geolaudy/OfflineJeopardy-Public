@@ -7,6 +7,7 @@ import { configureSound } from '../../lib/sound';
 import type { TvFx } from '../../../shared/tvFx';
 import { PresentationSettings } from './PresentationSettings';
 import { ShowSettingsOnTv } from '../host/ShowSettingsOnTv';
+import { AiSettings } from './AiSettings';
 import { desktop } from '../../lib/desktop';
 import { Palette, ChevronRight, ChevronDown, Download, Upload } from 'lucide-react';
 
@@ -87,6 +88,10 @@ export default function Settings() {
       <Card className="space-y-3" data-testid="tv-presentation-settings">
         <h2 className="text-lg font-bold">TV presentation</h2>
         <PresentationSettings fx={v.tvFx} sound={{ enabled: v.sound, volume: v.volume }} onSave={(tvFx) => set({ tvFx })} />
+      </Card>
+      <Card className="space-y-3">
+        <h2 className="text-lg font-bold">Computer opponents: AI answers (optional)</h2>
+        <AiSettings />
       </Card>
       <Card className="space-y-3">
         <h2 className="text-lg font-bold">Privacy</h2>

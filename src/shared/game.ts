@@ -213,6 +213,8 @@ export interface Competitor {
   memberIds: Id[]; // profile ids (historical membership for this game)
   /** Computer opponent (solo games): no profile; name/colour live on the competitor. */
   bot?: BotLevel;
+  /** Computer opponent answers with the optional AI provider (falls back to offline answers). */
+  botAi?: boolean;
 }
 
 export type InputKind = 'joycon' | 'phone' | 'keyboard' | 'gamepad' | 'host' | 'bot';
@@ -303,6 +305,10 @@ export interface AnswerSubmission {
   competitorId: Id;
   answer: string;
   at: number;
+  /** Where the text came from (host only): the AI provider or the offline generator. */
+  via?: 'ai' | 'local';
+  /** Host-only note, e.g. why the AI was not used. */
+  warning?: string;
 }
 
 export type AutoUnlock = 'off' | 'all' | 'mediaOnly' | 'perClue';

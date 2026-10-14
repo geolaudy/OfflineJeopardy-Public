@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react';
 import type { GameView } from '../../../shared/views';
 import { act } from '../../lib/socket';
 import { hostApi } from '../../lib/api';
-import { attempt, useProfiles, useTeams } from '../../lib/hooks';
+import { attempt, useFetch, useProfiles, useTeams } from '../../lib/hooks';
+import type { AiStatus } from '../../../shared/ai';
 import { ActionButton, Avatar, Button, Card, ColorPicker, Field, Modal, QrImage, inputCls, toast, cx } from '../../components/ui';
 import { AvatarPicker, ProfileCreateForm } from '../../components/ProfileForm';
 import ControllersPanel, { AssignListener } from '../../components/ControllersPanel';
@@ -189,8 +190,14 @@ function SoloSetup({ g }: { g: GameView }) {
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-semibold">{name}</span>
                   {c.bot && (
-                    <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700" data-testid="bot-level-badge">
-                      <Bot size={12} aria-hidden /> Computer · {BOT_LEVELS[c.bot].label}
+                    <span className="mt-0.5 flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700" data-testid="bot-level-badge">
+                        <Bot size={12} aria-hidden /> Computer · {BOT_LEVELS[c.bot].label}
+                      </span>
+                      <label className="inline-flex items-center gap-1 text-xs text-slate-600">
+                        <input type="checkbox" className="h-4 w-4 accent-blue-700" checked={!!c.botAi} onChange={(e) => run({ type: 'updateCompetitor', competitorId: c.id, botAi: e.target.checked })} aria-label={`${name} uses AI answers`} />
+                        AI answers
+                      </label>
                     </span>
                   )}
                 </span>
@@ -230,6 +237,9 @@ function AddBotModal({ open, onClose, g }: { open: boolean; onClose: () => void;
   const suggestion = BOT_NAMES.find((n) => !taken.has(n.toLowerCase())) ?? `Computer ${taken.size + 1}`;
   const [name, setName] = useState(suggestion);
   const [level, setLevel] = useState<BotLevel>('medium');
+  const ai = useFetch(() => (open ? hostApi<AiStatus>('GET', '/api/ai') : Promise.resolve(null)), [open]);
+  const [useAi, setUseAi] = useState(false);
+  useEffect(() => setUseAi(!!ai.data?.ready), [ai.data?.ready]);
   useEffect(() => {
     if (open) setName(suggestion);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -251,12 +261,19 @@ function AddBotModal({ open, onClose, g }: { open: boolean; onClose: () => void;
             ))}
           </div>
         </Field>
+        <label className="flex min-h-11 items-center gap-3">
+          <input type="checkbox" className="h-6 w-6 accent-blue-700" checked={useAi} onChange={(e) => setUseAi(e.target.checked)} data-testid="bot-ai-toggle" />
+          <span>
+            <span className="block font-semibold">AI answers</span>
+            <span className="block text-xs text-slate-500">{ai.data?.ready ? 'Uses the AI service set up in Settings (internet; may cost money). Falls back to offline answers.' : 'Set up an AI service in Settings to use this. Until then the bot answers offline.'}</span>
+          </span>
+        </label>
         <ActionButton
           size="lg"
           className="w-full"
           disabled={!name.trim()}
           onAction={async () => {
-            if (await run({ type: 'addBot', name: name.trim(), level })) onClose();
+            if (await run({ type: 'addBot', name: name.trim(), level, ai: useAi })) onClose();
           }}
           data-testid="confirm-add-bot"
         >

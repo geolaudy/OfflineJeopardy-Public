@@ -4,6 +4,26 @@ All notable changes to OfflineJeopardy. Versions follow [semantic versioning](ht
 GitHub Releases (with the Windows installer and portable exe) are published for major milestones;
 their notes come from the matching section below (`scripts/release-notes.mjs`).
 
+## [0.7.0] — 2026-10-14
+
+### New Features
+- **Computer opponents play like real players**: they pick a clue when it's their turn (easy bots choose at random, expert bots think about the score), buzz in, and give an answer you can see on your screen and on the TV.
+- **You judge every bot answer**: when a bot answers, the timer stops and you choose Correct or Incorrect — nothing is scored automatically. You also see the expected answer privately (hidden in practice games).
+- **Believable wrong answers**: when a bot gets it wrong, it guesses something related — another answer from the same category, a similar name or a nearby year — instead of nonsense. Easier bots guess further off.
+- **Optional AI answers** (needs internet and your own Anthropic API key; may cost money): bots set to "AI answers" give more natural answers. The key is stored encrypted on this computer and never sent to phones or the TV. If the AI is slow or unavailable, bots answer offline and the game carries on.
+
+### Improvements
+- Each bot has its own pace, so two bots of the same difficulty don't feel identical.
+- Bot answers are kept in the game history.
+
+### Bug Fixes
+- Bots were labelled "(team)" in the history of solo games.
+
+### Known Issues
+- AI answers have been tested with a simulated provider, not yet with a real API key.
+- Bots don't move to the next round or start the Final — the host does.
+- Joy-Con vibration has not yet been felt on real hardware.
+
 ## [0.6.0] — 2026-10-14
 
 ### New Features
