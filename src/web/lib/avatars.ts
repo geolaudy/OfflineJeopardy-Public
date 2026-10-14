@@ -39,7 +39,7 @@ const ALL = new Map([...AVATARS, ...TEAM_AVATARS].map((a) => [a.id, a.emoji]));
 export const avatarEmoji = (id?: string | null) => (id && ALL.get(id)) || '🙂';
 
 /** Accessible preset palette (all pass 4.5:1 contrast with white text). */
-export const PLAYER_COLORS = ['#1d4ed8', '#b91c1c', '#15803d', '#b45309', '#6d28d9', '#be185d', '#0e7490', '#4d7c0f', '#c2410c', '#334155', '#0f766e', '#7e22ce'];
+export { PLAYER_COLORS } from '../../shared/game';
 
 /** Choose black or white text for a background colour (WCAG relative luminance). */
 export function readableOn(hex: string): '#000000' | '#ffffff' {

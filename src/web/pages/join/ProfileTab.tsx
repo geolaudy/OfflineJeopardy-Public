@@ -1,10 +1,10 @@
-// Profile customization: name, nickname, picture (with crop), avatar, color, buzzer preferences, PIN.
-import { useEffect, useRef, useState } from 'react';
+// Profile customization: name, nickname, profile picture (upload with crop, or a default picture),
+// preferred colour, buzzer preferences, PIN.
+import { useEffect, useState } from 'react';
 import { meApi, tokens } from '../../lib/api';
-import { Avatar, Button, ColorPicker, Field, Modal, inputCls, toast } from '../../components/ui';
-import { AvatarPicker } from '../../components/ProfileForm';
+import { Button, ColorPicker, Field, Modal, inputCls, toast } from '../../components/ui';
+import { ProfilePicturePicker } from '../../components/ProfileForm';
 import type { Me } from './JoinPage';
-import { Camera } from 'lucide-react';
 
 /** view 'profile': identity (photo, name, avatar, colour) · view 'settings': buzzer preferences, privacy, PIN, sign-out. */
 export default function ProfileTab({ me, setMe, signOut, view = 'profile' }: { me: Me; setMe: (m: Me) => void; signOut: (forget: boolean) => void; view?: 'profile' | 'settings' }) {
@@ -16,19 +16,22 @@ export default function ProfileTab({ me, setMe, signOut, view = 'profile' }: { m
   const [pinOpen, setPinOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  // Switching from an uploaded picture to a default one removes the upload when saving (R4-13).
+  const [dropPicture, setDropPicture] = useState(false);
 
   useEffect(() => {
     setName(me.name);
     setNickname(me.nickname);
     setColor(me.color);
     setAvatar(me.avatar);
+    setDropPicture(false);
   }, [me.id, me.updatedAt]);
 
-  const dirty = name !== me.name || nickname !== me.nickname || color !== me.color || avatar !== me.avatar;
+  const dirty = name !== me.name || nickname !== me.nickname || color !== me.color || avatar !== me.avatar || dropPicture;
   const save = async () => {
     setBusy(true);
     try {
+      if (dropPicture && me.pictureUrl) await meApi<Me>('DELETE', '/api/me/picture');
       setMe(await meApi<Me>('PATCH', '/api/me', { name: name.trim(), nickname: nickname.trim(), color, avatar }));
       toast('Saved — the TV and host see it now', 'success');
     } catch (e) {
@@ -49,36 +52,21 @@ export default function ProfileTab({ me, setMe, signOut, view = 'profile' }: { m
     <div className="space-y-6">
       {view === 'profile' && (
       <>
-      <section className="flex flex-col items-center gap-3">
-        <Avatar profile={{ ...me, color, avatar }} size={112} />
-        <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={() => fileRef.current?.click()}>
-            <Camera size={16} aria-hidden /> {me.pictureUrl ? 'Change photo' : 'Add photo'}
-          </Button>
-          {me.pictureUrl && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={async () => {
-                setMe(await meApi<Me>('DELETE', '/api/me/picture'));
-              }}
-            >
-              Remove photo
-            </Button>
-          )}
-        </div>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp,image/*"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) setFile(f);
-            e.target.value = '';
+      <section className="rounded-2xl bg-white p-4 shadow-sm">
+        <h3 className="mb-2 font-bold">Profile Picture</h3>
+        <ProfilePicturePicker
+          name={name}
+          color={color}
+          avatar={avatar}
+          pictureUrl={dropPicture ? null : me.pictureUrl}
+          onAvatar={setAvatar}
+          onPickFile={(f) => {
+            setDropPicture(false);
+            setFile(f);
           }}
-          data-testid="picture-input"
+          onUseDefault={() => setDropPicture(true)}
         />
+        {dropPicture && me.pictureUrl && <p className="mt-2 text-center text-xs text-slate-500">Your uploaded picture will be removed when you save.</p>}
       </section>
 
       <section className="space-y-4 rounded-2xl bg-white p-4 shadow-sm">
@@ -88,10 +76,7 @@ export default function ProfileTab({ me, setMe, signOut, view = 'profile' }: { m
         <Field label="Nickname (shown on the scoreboard)" hint="Optional">
           <input className={inputCls} value={nickname} onChange={(e) => setNickname(e.target.value)} maxLength={30} aria-label="Nickname" />
         </Field>
-        <Field label="Avatar" group hint={me.pictureUrl ? 'Your photo is shown instead of the avatar.' : undefined}>
-          <AvatarPicker value={avatar} onChange={setAvatar} />
-        </Field>
-        <Field label="Color" group>
+        <Field label="Preferred Color" group hint="Used in a game whenever nobody else has it; otherwise you pick another one there.">
           <ColorPicker value={color} onChange={setColor} />
         </Field>
         <Button size="lg" className="w-full" disabled={!dirty || !name.trim()} busy={busy} onClick={save} data-testid="save-profile">

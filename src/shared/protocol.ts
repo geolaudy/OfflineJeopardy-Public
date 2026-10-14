@@ -38,6 +38,7 @@ export const ClientMessageSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('join'), code: z.string().max(12).optional() }),
   z.object({ t: z.literal('finalWager'), amount: z.number().int() }),
   z.object({ t: z.literal('finalAnswer'), answer: z.string().max(200) }),
+  z.object({ t: z.literal('pickColor'), color: z.string().regex(/^#[0-9a-fA-F]{6}$/) }),
   // rtt: the client's last measured round trip (ms), for connection diagnostics.
   z.object({ t: z.literal('ping'), c: z.number(), rtt: z.number().min(0).max(60_000).optional() }),
   // Host: run a buzzer check (Z11), or refresh the connection list.

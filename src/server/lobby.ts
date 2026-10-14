@@ -465,7 +465,7 @@ export class LobbyManager {
         const p = profiles[m];
         const b = s.bindings.find((x) => x.target.kind === 'profile' && x.target.profileId === m);
         const d = b ? describeFor(b, [m]) : { device: 'Phone', ready: online.has(m) };
-        rows.push({ name: p?.nickname?.trim() || p?.name || 'Player', color: p?.color ?? c.color, avatar: p?.avatar ?? 'fox', pictureUrl: p?.pictureUrl ?? null, team: c.kind === 'team' ? c.name : null, teamColor: c.kind === 'team' ? c.color : null, ...d, profileId: m, crown: !!this.reigning?.profileIds.includes(m) });
+        rows.push({ name: p?.nickname?.trim() || p?.name || 'Player', color: s.playerColors?.[m] ?? p?.color ?? c.color, avatar: p?.avatar ?? 'fox', pictureUrl: p?.pictureUrl ?? null, team: c.kind === 'team' ? c.name : null, teamColor: c.kind === 'team' ? c.color : null, ...d, profileId: m, crown: !!this.reigning?.profileIds.includes(m) });
       }
     }
     return rows;

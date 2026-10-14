@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Camera, Smile } from 'lucide-react';
 import { AVATARS, PLAYER_COLORS } from '../lib/avatars';
-import { Button, ColorPicker, Field, inputCls, cx } from './ui';
+import { Avatar, Button, ColorPicker, Field, inputCls, cx } from './ui';
 
 export function AvatarPicker({ value, onChange, list = AVATARS }: { value: string; onChange: (id: string) => void; list?: { id: string; emoji: string; label: string }[] }) {
   return (
@@ -28,6 +29,124 @@ export interface NewProfile {
   color: string;
   avatar: string;
   pin: string;
+  /** Uploaded profile picture, sent right after the profile is created (null = default picture). */
+  picture?: File | null;
+}
+
+/**
+ * One "Profile Picture" (R4-13): either an uploaded photo or one of the default pictures, always
+ * previewed in the round frame with the colour ring exactly as the lobby shows it.
+ */
+export function ProfilePicturePicker({
+  name,
+  color,
+  avatar,
+  pictureUrl,
+  onAvatar,
+  onPickFile,
+  onUseDefault,
+}: {
+  name: string;
+  color: string;
+  avatar: string;
+  /** The uploaded picture (or a local preview of it); null when a default picture is used. */
+  pictureUrl: string | null;
+  onAvatar: (id: string) => void;
+  onPickFile: (f: File) => void;
+  /** Switch from an uploaded picture back to the default pictures. */
+  onUseDefault?: () => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [mode, setMode] = useState<'default' | 'upload'>(pictureUrl ? 'upload' : 'default');
+  useEffect(() => {
+    if (pictureUrl) setMode('upload');
+  }, [pictureUrl]);
+  return (
+    <div className="space-y-3" data-testid="picture-picker">
+      <div className="flex justify-center">
+        <Avatar profile={{ name, color, avatar, pictureUrl }} size={104} />
+      </div>
+      <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1" role="radiogroup" aria-label="Profile picture">
+        <button
+          type="button"
+          role="radio"
+          aria-checked={mode === 'upload'}
+          onClick={() => {
+            setMode('upload');
+            if (!pictureUrl) fileRef.current?.click();
+          }}
+          className={cx('flex min-h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold', mode === 'upload' ? 'bg-white text-blue-800 shadow-sm' : 'text-slate-600')}
+          data-testid="picture-mode-upload"
+        >
+          <Camera size={16} aria-hidden /> Upload Picture
+        </button>
+        <button
+          type="button"
+          role="radio"
+          aria-checked={mode === 'default'}
+          onClick={() => {
+            setMode('default');
+            if (pictureUrl) onUseDefault?.();
+          }}
+          className={cx('flex min-h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold', mode === 'default' ? 'bg-white text-blue-800 shadow-sm' : 'text-slate-600')}
+          data-testid="picture-mode-default"
+        >
+          <Smile size={16} aria-hidden /> Choose Default Picture
+        </button>
+      </div>
+      {mode === 'default' ? (
+        <div className="grid grid-cols-5 gap-2 sm:grid-cols-10" role="radiogroup" aria-label="Default picture">
+          {AVATARS.map((a) => (
+            <button
+              key={a.id}
+              type="button"
+              role="radio"
+              aria-checked={!pictureUrl && avatar === a.id}
+              aria-label={a.label}
+              onClick={() => onAvatar(a.id)}
+              className={cx('flex aspect-square items-center justify-center rounded-full p-0.5', !pictureUrl && avatar === a.id ? 'ring-4 ring-blue-600 ring-offset-2' : '')}
+            >
+              <Avatar profile={{ name, color, avatar: a.id, pictureUrl: null }} size={44} />
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <Button type="button" variant="secondary" size="sm" onClick={() => fileRef.current?.click()} data-testid="picture-choose-file">
+            <Camera size={16} aria-hidden /> {pictureUrl ? 'Choose another picture' : 'Choose a picture'}
+          </Button>
+          <span className="w-full text-center text-xs text-slate-500">JPG, PNG or WebP from your phone, tablet or computer. It is resized and kept on the game computer.</span>
+        </div>
+      )}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/*"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          e.target.value = '';
+          if (f) {
+            setMode('upload');
+            onPickFile(f);
+          }
+        }}
+        data-testid="picture-input"
+      />
+    </div>
+  );
+}
+
+/** Previews a chosen file as an object URL (released when it changes). */
+function useObjectUrl(file: File | null) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!file) return setUrl(null);
+    const u = URL.createObjectURL(file);
+    setUrl(u);
+    return () => URL.revokeObjectURL(u);
+  }, [file]);
+  return url;
 }
 
 /** Profile creation with PIN + confirmation. */
@@ -37,6 +156,8 @@ export function ProfileCreateForm({ onSubmit, busy, submitLabel = 'Create profil
   const [avatar, setAvatar] = useState(AVATARS[Math.floor(Math.random() * AVATARS.length)].id);
   const [pin, setPin] = useState('');
   const [pin2, setPin2] = useState('');
+  const [picture, setPicture] = useState<File | null>(null);
+  const preview = useObjectUrl(picture);
   const pinOk = /^\d{4}$/.test(pin);
   const match = pin === pin2;
   const valid = name.trim().length > 0 && pinOk && match;
@@ -45,16 +166,16 @@ export function ProfileCreateForm({ onSubmit, busy, submitLabel = 'Create profil
       className="space-y-4"
       onSubmit={(e) => {
         e.preventDefault();
-        if (valid) onSubmit({ name: name.trim(), nickname: '', color, avatar, pin });
+        if (valid) onSubmit({ name: name.trim(), nickname: '', color, avatar, pin, picture });
       }}
     >
       <Field label="Your name">
         <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} maxLength={30} autoComplete="nickname" placeholder="e.g. Alex" name="name" />
       </Field>
-      <Field label="Avatar" group>
-        <AvatarPicker value={avatar} onChange={setAvatar} />
+      <Field label="Profile Picture" group>
+        <ProfilePicturePicker name={name} color={color} avatar={avatar} pictureUrl={preview} onAvatar={setAvatar} onPickFile={setPicture} onUseDefault={() => setPicture(null)} />
       </Field>
-      <Field label="Color" group>
+      <Field label="Preferred Color" group hint="Used in a game whenever nobody else has it.">
         <ColorPicker value={color} onChange={setColor} />
       </Field>
       <div className="grid grid-cols-2 gap-3">

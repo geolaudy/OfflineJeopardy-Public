@@ -178,9 +178,16 @@ function SignIn({ onSignedIn }: { onSignedIn: (m: Me) => void }) {
           onSubmit={async (p) => {
             setBusy(true);
             try {
-              const r = await api<{ token: string; profile: Me }>('POST', '/api/profiles', p);
+              const { picture, ...fields } = p;
+              const r = await api<{ token: string; profile: Me }>('POST', '/api/profiles', fields);
               tokens.profile = r.token;
-              onSignedIn(r.profile);
+              let profile = r.profile;
+              if (picture) {
+                const fd = new FormData();
+                fd.append('file', picture, picture.name || 'photo.jpg');
+                profile = await meApi<Me>('POST', '/api/me/picture', undefined, fd).catch((e) => (toast(`Profile created, but the picture could not be saved: ${(e as Error).message}`, 'error'), r.profile));
+              }
+              onSignedIn(profile);
             } catch (e) {
               toast((e as Error).message, 'error');
             } finally {

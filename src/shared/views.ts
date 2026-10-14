@@ -146,6 +146,8 @@ export interface PlayerContext {
   sharedTeam: boolean;
   /** End of an early-buzz lockout (server time); null = none. Very large = rest of the clue. */
   lockedUntil: number | null;
+  /** Lobby colour (R4-13): current colour, whether to ask the player to choose, colours taken by others. */
+  color?: { current: string; choose: boolean; taken: string[] } | null;
   /** This player's (team's) own Final Jeopardy! wager and answer (private to them). */
   final?: { wager: number | null; answer: string | null } | null;
 }

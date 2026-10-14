@@ -15,6 +15,7 @@ import {
   CLUE_LOCKOUT,
   findClue,
   finalRevealOrder,
+  firstFreeColor,
   livesOf,
   mediaPosition,
   unlockModeFor,
@@ -30,6 +31,8 @@ export { TEAM_COLORS };
 export interface EngineCtx {
   now: number;
   newId: () => string;
+  /** A profile's preferred colour (R4-13), looked up by the server. */
+  colorOf?: (profileId: Id) => string | null;
 }
 
 export type EngineResult =
@@ -88,6 +91,8 @@ export function normalizeState(s: GameState): GameState {
   if (s.clue && !s.clue.unlockMode) s.clue.unlockMode = 'host';
   if (typeof s.practice !== 'boolean') s.practice = false;
   if (typeof s.roomCode !== 'string') s.roomCode = ''; // filled with a random code on load
+  if (!s.playerColors) s.playerColors = {};
+  if (!Array.isArray(s.colorPrompts)) s.colorPrompts = [];
   if (s.final && !Array.isArray(s.final.order)) {
     // Saved before the one-at-a-time reveal (R4-2): rebuild the order from pre-Final scores.
     const pre = scoresOf(s.events.filter((x) => !(x.type === 'answer' && x.note === 'final')));
@@ -321,6 +326,7 @@ export function applyAction(prev: GameState, action: EngineAction, ctx: EngineCt
   try {
     if (UNDOABLE.has(action.type)) snapshot(s, undoLabel(action.type));
     const res = reduce(tx, action);
+    syncPlayerColors(s, ctx);
     return { ok: true, state: s, touchedEvents: [...tx.touched.values()], ...(res ?? {}) };
   } catch (e) {
     if (e instanceof EngineError) return { ok: false, error: e.message };
@@ -382,7 +388,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
         id: ctx.newId(),
         kind: 'player',
         name: a.name.trim(),
-        color: a.color ?? TEAM_COLORS[(s.competitors.length + 3) % TEAM_COLORS.length],
+        color: a.color ?? firstFreeColor(takenColors(s)),
         avatar: 'robot',
         buzzerMode: 'individual',
         memberIds: [],
@@ -439,6 +445,17 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       } else {
         s.unassigned.push({ profileId: a.profileId, joinedAt: now, pending: false });
       }
+      return;
+    }
+    case 'setPlayerColor': {
+      // A player choosing their lobby colour (R4-13). Taken colours are refused, so two players
+      // never end up with the same one (the server applies actions one at a time).
+      if (!humanParticipants(s).includes(a.profileId)) fail('That player is not in this game');
+      const color = a.color.toLowerCase();
+      const others = takenColors(s, a.profileId);
+      if (others.has(color)) fail('Someone else already has that colour — pick another one');
+      s.playerColors = { ...(s.playerColors ?? {}), [a.profileId]: color };
+      s.colorPrompts = (s.colorPrompts ?? []).filter((p) => p !== a.profileId);
       return;
     }
     case 'approvePlayer': {
@@ -1164,6 +1181,47 @@ function startFinalReveal(tx: Tx) {
   f.cursor = 0;
   f.step = 'contestant';
   s.timer = null;
+}
+
+/** Every human in the game (solo players, team members, players waiting for a team), in join order. */
+export function humanParticipants(s: GameState): Id[] {
+  const ids: Id[] = [];
+  for (const c of s.competitors) if (!c.bot) ids.push(...c.memberIds);
+  for (const u of s.unassigned) ids.push(u.profileId);
+  return [...new Set(ids)];
+}
+
+/** Colours in use (lower case): lobby colours of other players and computer opponents' colours. */
+function takenColors(s: GameState, except?: Id): Set<string> {
+  const out = new Set<string>();
+  for (const [pid, c] of Object.entries(s.playerColors ?? {})) if (pid !== except) out.add(c.toLowerCase());
+  for (const c of s.competitors) if (c.bot) out.add(c.color.toLowerCase());
+  return out;
+}
+
+/**
+ * R4-13: each human player gets a distinct lobby colour — their preferred colour when it is free,
+ * otherwise the first free one plus a prompt on their phone to choose. Players who left free theirs.
+ */
+function syncPlayerColors(s: GameState, ctx: EngineCtx) {
+  const humans = humanParticipants(s);
+  const present = new Set(humans);
+  const colors = { ...(s.playerColors ?? {}) };
+  for (const pid of Object.keys(colors)) if (!present.has(pid)) delete colors[pid];
+  let prompts = (s.colorPrompts ?? []).filter((p) => present.has(p));
+  for (const pid of humans) {
+    if (colors[pid]) continue;
+    const taken = takenColors({ ...s, playerColors: colors });
+    const pref = ctx.colorOf?.(pid)?.toLowerCase() ?? null;
+    if (pref && !taken.has(pref)) colors[pid] = pref;
+    else {
+      colors[pid] = firstFreeColor(taken).toLowerCase();
+      if (pref) prompts = [...prompts, pid];
+    }
+  }
+  s.playerColors = colors;
+  s.colorPrompts = prompts;
+  for (const c of s.competitors) if (c.kind === 'player' && !c.bot && c.profileId && colors[c.profileId]) c.color = colors[c.profileId];
 }
 
 function finalState(s: GameState) {

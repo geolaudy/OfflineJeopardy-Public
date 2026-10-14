@@ -199,6 +199,35 @@ export function rulesFromPreset(preset: string): GameRules {
 
 export const TEAM_COLORS = ['#2563eb', '#dc2626', '#16a34a', '#d97706', '#7c3aed', '#db2777', '#0891b2', '#65a30d'];
 
+/** Player colours: the profile's preferred colour is chosen from these (all pass 4.5:1 with white). */
+export const PLAYER_COLORS = ['#1d4ed8', '#b91c1c', '#15803d', '#b45309', '#6d28d9', '#be185d', '#0e7490', '#4d7c0f', '#c2410c', '#334155', '#0f766e', '#7e22ce'];
+/** Lobby colours (R4-13): every human player gets a different one; extra accessible colours after the
+ *  usual twelve, and generated ones beyond that, so a full lobby never blocks anyone from joining. */
+export const LOBBY_COLORS = [...PLAYER_COLORS, '#a21caf', '#0369a1', '#047857', '#9f1239', '#854d0e', '#3730a3', '#57534e', '#9a3412', '#155e75', '#4338ca', '#86198f', '#365314'];
+
+/** A distinct dark colour for the n-th player beyond the palette (golden-angle hues, white text readable). */
+export function extraLobbyColor(n: number): string {
+  const h = (n * 137.508) % 360;
+  const l = 0.36;
+  const s = 0.7;
+  const f = (k: number) => {
+    const kk = (k + h / 30) % 12;
+    const c = l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(kk - 3, 9 - kk, 1));
+    return Math.round(c * 255).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+/** First lobby colour nobody uses yet. */
+export function firstFreeColor(taken: Set<string>): string {
+  const free = LOBBY_COLORS.find((c) => !taken.has(c.toLowerCase()));
+  if (free) return free;
+  for (let n = 0; ; n++) {
+    const c = extraLobbyColor(n);
+    if (!taken.has(c)) return c;
+  }
+}
+
 export type BuzzerMode = 'individual' | 'shared';
 
 export interface Competitor {
@@ -492,6 +521,11 @@ export interface GameState {
   results: GameResult[] | null;
   /** Server-only: snapshots of gameplay fields for undo (never sent to non-host clients). */
   undoStack: UndoSnapshot[];
+  /** Lobby colour per human player (R4-13): distinct within the game; the profile's own colour is
+   *  only the preference. Kept when returning to the lobby. */
+  playerColors?: Record<Id, string>;
+  /** Players whose preferred colour was taken: their phone asks them to choose another. */
+  colorPrompts?: Id[];
 }
 
 export interface UndoSnapshot {

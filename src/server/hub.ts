@@ -282,6 +282,11 @@ export class Hub {
         if (!res.ok && /room code/.test(res.error)) c.joinFails.push(now);
         return this.send(c, res.ok ? { t: 'result', ok: true, info: res.info } : { t: 'result', ok: false, error: res.error });
       }
+      case 'pickColor': {
+        if (c.role !== 'player' || !c.profileId) return this.send(c, { t: 'result', ok: false, error: 'Sign in first' });
+        const res = this.games.dispatch({ type: 'setPlayerColor', profileId: c.profileId, color: m.color }, `profile:${c.profileId}`);
+        return this.send(c, res.ok ? { t: 'result', ok: true } : { t: 'result', ok: false, error: res.error });
+      }
       case 'finalWager':
       case 'finalAnswer': {
         if (c.role !== 'player' || !c.profileId) return this.send(c, { t: 'result', ok: false, error: 'Sign in first' });

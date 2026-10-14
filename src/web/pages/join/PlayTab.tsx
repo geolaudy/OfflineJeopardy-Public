@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { send, useLive } from '../../lib/socket';
 import { Avatar, Button, Lives, cx, fmtScore, inputCls } from '../../components/ui';
 import { competitorName, findCompetitor, profileName, useTimerSeconds } from '../../lib/view';
-import { CLUE_LOCKOUT } from '../../../shared/game';
+import { CLUE_LOCKOUT, LOBBY_COLORS } from '../../../shared/game';
 import { unlockAudio } from '../../lib/sound';
 import type { Me } from './JoinPage';
 
@@ -46,6 +46,7 @@ export default function PlayTab({ me }: { me: Me }) {
     return (
       <div className="space-y-4 text-center">
         <p className="text-lg font-semibold">{g.title}</p>
+        <ColorChoice />
         {pending ? (
           <p className="rounded-2xl bg-amber-100 p-4 font-semibold text-amber-900">{g.mode === 'team' ? 'You joined! The host will put you on a team.' : 'Waiting for the host to let you in…'}</p>
         ) : (
@@ -92,8 +93,9 @@ export default function PlayTab({ me }: { me: Me }) {
 
   return (
     <div className="space-y-4">
+      <ColorChoice />
       <div className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm">
-        <Avatar profile={myComp.kind === 'team' ? { name: myComp.name, color: myComp.color, avatar: myComp.avatar ?? 'shield', pictureUrl: null } : me} size={40} />
+        <Avatar profile={myComp.kind === 'team' ? { name: myComp.name, color: myComp.color, avatar: myComp.avatar ?? 'shield', pictureUrl: null } : { ...me, color: ctx.color?.current ?? me.color }} size={40} />
         <div className="min-w-0 flex-1">
           <div className="truncate font-bold">{myComp.kind === 'team' ? myComp.name : 'Your score'}</div>
           {myComp.kind === 'team' && <div className="truncate text-xs text-slate-500">{myComp.memberIds.map((m) => profileName(g.profiles[m])).join(', ')}</div>}
@@ -139,6 +141,51 @@ export default function PlayTab({ me }: { me: Me }) {
           <TimerLine />
         </>
       )}
+    </div>
+  );
+}
+
+/** R4-13: the preferred colour is taken in this lobby — pick a free one (taken ones are crossed out). */
+function ColorChoice() {
+  const ctx = useLive((s) => s.me);
+  const [busy, setBusy] = useState(false);
+  const c = ctx?.color;
+  if (!c?.choose) return null;
+  const taken = new Set(c.taken.map((x) => x.toLowerCase()));
+  const pick = (color: string) => {
+    setBusy(true);
+    send({ t: 'pickColor', color });
+    setTimeout(() => setBusy(false), 600);
+  };
+  return (
+    <div className="space-y-3 rounded-2xl bg-white p-4 text-left shadow-sm ring-2 ring-amber-300" data-testid="color-choice">
+      <p className="font-bold">Your colour is taken in this game</p>
+      <p className="text-sm text-slate-600">Someone already plays in your preferred colour. Pick one of the free colours (your profile keeps its own colour).</p>
+      <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Lobby colour">
+        {LOBBY_COLORS.map((color) => {
+          const isTaken = taken.has(color.toLowerCase());
+          const current = c.current.toLowerCase() === color.toLowerCase();
+          return (
+            <button
+              key={color}
+              type="button"
+              role="radio"
+              aria-checked={current}
+              aria-label={`Colour ${color}${isTaken ? ' (taken)' : ''}`}
+              disabled={isTaken || busy}
+              onClick={() => pick(color)}
+              className={cx('relative h-11 w-11 rounded-full border-4 transition', current ? 'scale-110 border-slate-900' : 'border-white', isTaken && 'cursor-not-allowed opacity-35')}
+              style={{ background: color }}
+              data-testid={isTaken ? 'color-taken' : 'color-free'}
+            >
+              {isTaken && <span className="absolute inset-0 flex items-center justify-center text-xl font-black text-white" aria-hidden>✕</span>}
+            </button>
+          );
+        })}
+      </div>
+      <button className="min-h-11 text-sm font-semibold text-blue-700 underline" onClick={() => pick(c.current)} disabled={busy} data-testid="color-keep">
+        Keep the colour I was given
+      </button>
     </div>
   );
 }

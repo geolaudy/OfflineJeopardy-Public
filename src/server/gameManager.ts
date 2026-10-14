@@ -93,12 +93,21 @@ export class GameManager {
     s.competitors = structuredClone(old.competitors);
     s.unassigned = structuredClone(old.unassigned);
     s.bindings = structuredClone(old.bindings);
+    // Same lobby, same colours (R4-20 / R4-13).
+    s.playerColors = structuredClone(old.playerColors ?? {});
+    s.colorPrompts = structuredClone(old.colorPrompts ?? []);
     s.showJoinQr = old.showJoinQr;
     persistGame(this.db, s, []);
     snapshotClues(this.db, s);
     this.setCurrent(s);
     audit(this.db, 'host', 'game.rematch', { id: s.id, previous: old.id });
     return s;
+  }
+
+  /** A profile's preferred colour (the lobby colour is assigned from it, R4-13). */
+  private preferredColor(profileId: string): string | null {
+    const r = this.db.prepare('SELECT color FROM profiles WHERE id = ?').get(profileId) as { color: string } | undefined;
+    return r?.color ?? null;
   }
 
   load(id: string): GameState | null {
@@ -126,7 +135,7 @@ export class GameManager {
     if (!s) return { ok: false, error: 'No game is loaded' };
     // Randomness stays out of the pure engine: the server picks the new code.
     if (action.type === 'newRoomCode') action = { type: 'setRoomCode', code: newRoomCode() };
-    const res = applyAction(s, action, { now: this.clock(), newId });
+    const res = applyAction(s, action, { now: this.clock(), newId, colorOf: (pid) => this.preferredColor(pid) });
     if (!res.ok) return res;
     if (res.ignored && res.touchedEvents.length === 0 && action.type === 'buzz') {
       // Rejected buzz with no state change: nothing to persist or broadcast.

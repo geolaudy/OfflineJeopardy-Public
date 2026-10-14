@@ -270,3 +270,62 @@ describe('media-only clues (R4-10)', () => {
     expect(boardStats(board).complete).toBe(before);
   });
 });
+
+describe('lobby colours (R4-13)', () => {
+  it('gives every player a different colour, asks when the preferred one is taken, keeps the preference', async () => {
+    const s = await boot();
+    servers.push(s);
+    const host = await hostToken(s);
+    // Three players who all prefer the same red; they join at the same moment.
+    const red = '#b91c1c';
+    const [a, b, c] = await Promise.all(['Ann', 'Bob', 'Cat'].map((n) => createProfile(s, n, '1234', red)));
+    await api(s, 'POST', '/api/lobby', {}, host);
+    await api(s, 'POST', '/api/games', { boardId: await sampleBoardId(s, host), mode: 'solo' }, host);
+    const h = await client(s, 'host', host);
+    const tv = await client(s, 'public');
+    const phones = await Promise.all([a, b, c].map((p) => client(s, 'player', p.token)));
+    for (const ph of phones) ph.send({ t: 'join' });
+    const g = await h.waitState((x) => x?.competitors.length === 3);
+    const colors = [a, b, c].map((p) => g!.profiles[p.id].color);
+    expect(new Set(colors).size).toBe(3); // all different
+    expect(colors.filter((x) => x === red)).toHaveLength(1); // the first to arrive keeps red
+    const winner = [a, b, c].find((p) => g!.profiles[p.id].color === red)!;
+    const others = [a, b, c].filter((p) => p !== winner);
+    // The others are asked to choose; taken colours are listed for them.
+    const ph = phones[[a, b, c].indexOf(others[0])];
+    await ph.waitState((_g, me) => !!me?.color?.choose);
+    expect(ph.me.color.taken).toContain(red);
+    // Picking a taken colour is refused; a free one is accepted and stops the prompt.
+    const wait = ph.wait((m) => m.t === 'result');
+    ph.send({ t: 'pickColor', color: red });
+    expect(await wait).toMatchObject({ ok: false });
+    ph.send({ t: 'pickColor', color: '#0e7490' });
+    await ph.waitState((x, me) => x?.profiles[others[0].id]?.color === '#0e7490' && !me?.color?.choose);
+    await tv.waitState((x) => x?.profiles[others[0].id]?.color === '#0e7490');
+    // The profile's preferred colour is unchanged.
+    expect((await api(s, 'GET', '/api/me', undefined, others[0].token)).data.color).toBe(red);
+    // Colours stay the same when returning to the lobby.
+    await h.act({ type: 'startGame' });
+    await h.act({ type: 'endGame' });
+    const r = await api(s, 'POST', '/api/games/current/rematch', {}, host);
+    const g2 = await h.waitState((x) => x?.id === r.data.id);
+    expect([a, b, c].map((p) => g2!.profiles[p.id].color)).toEqual([a, b, c].map((p) => (p === others[0] ? '#0e7490' : g!.profiles[p.id].color)));
+  });
+
+  it('never runs out: more players than palette colours still get distinct colours', async () => {
+    const { applyAction, createGame } = await import('../../src/server/engine/engine');
+    const { DEFAULT_RULES, LOBBY_COLORS } = await import('../../src/shared/game');
+    let st = createGame({ id: 'g', title: 't', boardId: null, board: SAMPLE_BOARD, mode: 'solo', rules: { ...DEFAULT_RULES, maxPlayers: 0 }, now: 1 });
+    let n = 0;
+    const ctx = { now: 1, newId: () => `id${n++}`, colorOf: () => '#1d4ed8' };
+    for (let i = 0; i < LOBBY_COLORS.length + 6; i++) {
+      const r = applyAction(st, { type: 'addPlayer', profileId: `p${i}` }, ctx);
+      if (!r.ok) throw new Error(r.error);
+      st = r.state;
+    }
+    const all = Object.values(st.playerColors!);
+    expect(all).toHaveLength(LOBBY_COLORS.length + 6);
+    expect(new Set(all).size).toBe(all.length);
+    expect(all.every((x) => /^#[0-9a-f]{6}$/.test(x))).toBe(true);
+  });
+});

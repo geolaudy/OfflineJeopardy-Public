@@ -4,8 +4,11 @@ import { finalEntryReveal, findClue, livesOf, scoresOf, type GameState, type Id 
 import type { GameView, PlayerContext, ProfilePublic, ViewRole } from '../../shared/views.js';
 import { buzzBlockReason, competitorForProfile, lockoutUntil } from './engine.js';
 
-export function projectState(s: GameState, role: ViewRole, profiles: Record<Id, ProfilePublic>): GameView {
+export function projectState(s: GameState, role: ViewRole, rawProfiles: Record<Id, ProfilePublic>): GameView {
   const host = role === 'host';
+  // Everyone sees the lobby colour (R4-13); the profile's own colour stays its preference.
+  const profiles: Record<Id, ProfilePublic> = { ...rawProfiles };
+  for (const [pid, color] of Object.entries(s.playerColors ?? {})) if (profiles[pid]) profiles[pid] = { ...profiles[pid], color };
   const scores = scoresOf(s.events);
   const lives = livesOf(s);
   const used = new Set(s.usedClueIds);
@@ -153,6 +156,17 @@ export function playerContext(s: GameState, profileId: Id, now: number): PlayerC
     buzzReason: reason,
     sharedTeam: !!shared,
     lockedUntil: until > now ? until : null,
+    // Lobby colour (R4-13): when the preferred colour was taken the phone offers the free ones.
+    color: s.playerColors?.[profileId]
+      ? {
+          current: s.playerColors[profileId],
+          choose: !!s.colorPrompts?.includes(profileId),
+          taken: Object.entries(s.playerColors)
+            .filter(([p]) => p !== profileId)
+            .map(([, c]) => c)
+            .concat(s.competitors.filter((x) => x.bot).map((x) => x.color.toLowerCase())),
+        }
+      : null,
     // The player's own (team's) Final submission, so a reconnecting phone shows what was sent.
     final: c && s.final ? (() => {
       const e = s.final!.entries.find((x) => x.competitorId === c.id);

@@ -123,7 +123,13 @@ function AddPlayerModal({ open, onClose, onPick, exclude }: { open: boolean; onC
           busy={busy}
           onSubmit={async (p) => {
             setBusy(true);
-            const created = await attempt(() => hostApi<{ id: string }>('POST', '/api/admin/profiles', p));
+            const { picture, ...fields } = p;
+            const created = await attempt(() => hostApi<{ id: string }>('POST', '/api/admin/profiles', fields));
+            if (created && picture) {
+              const fd = new FormData();
+              fd.append('file', picture, picture.name || 'photo.jpg');
+              await attempt(() => hostApi('POST', `/api/admin/profiles/${created.id}/picture`, undefined, fd));
+            }
             setBusy(false);
             if (created) {
               await onPick(created.id);

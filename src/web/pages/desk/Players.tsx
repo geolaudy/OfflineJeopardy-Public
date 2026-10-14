@@ -1,10 +1,10 @@
 // Host profile management: create, edit, picture, PIN reset, delete, statistics.
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { usePresent } from '../host/AppShell';
 import { hostApi } from '../../lib/api';
 import { attempt, useFetch } from '../../lib/hooks';
 import { Avatar, Button, ColorPicker, Empty, Field, Modal, PageTitleBar, inputCls, toast } from '../../components/ui';
-import { AvatarPicker, ProfileCreateForm } from '../../components/ProfileForm';
+import { ProfileCreateForm, ProfilePicturePicker } from '../../components/ProfileForm';
 import { ProfileStats } from '../../components/StatsView';
 import { useLive } from '../../lib/socket';
 import { profileName } from '../../lib/view';
@@ -92,7 +92,13 @@ export default function Players() {
           busy={busy}
           onSubmit={async (p) => {
             setBusy(true);
-            const r = await attempt(() => hostApi('POST', '/api/admin/profiles', p), 'Player created');
+            const { picture, ...fields } = p;
+            const r = await attempt(() => hostApi<{ id: string }>('POST', '/api/admin/profiles', fields), 'Player created');
+            if (r && picture) {
+              const fd = new FormData();
+              fd.append('file', picture, picture.name || 'photo.jpg');
+              await attempt(() => hostApi('POST', `/api/admin/profiles/${r.id}/picture`, undefined, fd));
+            }
             setBusy(false);
             if (r) {
               setCreating(false);
@@ -131,29 +137,27 @@ function EditProfile({ p, onClose }: { p: AdminProfile; onClose: () => void }) {
   const [color, setColor] = useState(p.color);
   const [avatar, setAvatar] = useState(p.avatar);
   const [pin, setPin] = useState('');
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [pictureUrl, setPictureUrl] = useState<string | null>(p.pictureUrl ?? null);
   return (
     <Modal open onClose={onClose} title={`Edit ${profileName(p)}`} wide>
       <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <Avatar profile={{ ...p, color, avatar }} size={64} />
-          <Button variant="secondary" size="sm" onClick={() => fileRef.current?.click()}>
-            Upload picture
-          </Button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={async (e) => {
-              const f = e.target.files?.[0];
-              if (!f) return;
-              const fd = new FormData();
-              fd.append('file', f);
-              await attempt(() => hostApi('POST', `/api/admin/profiles/${p.id}/picture`, undefined, fd), 'Picture updated');
-            }}
-          />
-        </div>
+        <ProfilePicturePicker
+          name={name}
+          color={color}
+          avatar={avatar}
+          pictureUrl={pictureUrl}
+          onAvatar={setAvatar}
+          onPickFile={async (f) => {
+            const fd = new FormData();
+            fd.append('file', f, f.name || 'photo.jpg');
+            const r = await attempt(() => hostApi<{ pictureUrl: string | null }>('POST', `/api/admin/profiles/${p.id}/picture`, undefined, fd), 'Picture updated');
+            if (r) setPictureUrl(r.pictureUrl);
+          }}
+          onUseDefault={async () => {
+            const r = await attempt(() => hostApi<{ pictureUrl: string | null }>('DELETE', `/api/admin/profiles/${p.id}/picture`), 'Uploaded picture removed');
+            if (r) setPictureUrl(null);
+          }}
+        />
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Name">
             <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} maxLength={30} />
@@ -162,10 +166,7 @@ function EditProfile({ p, onClose }: { p: AdminProfile; onClose: () => void }) {
             <input className={inputCls} value={nickname} onChange={(e) => setNickname(e.target.value)} maxLength={30} />
           </Field>
         </div>
-        <Field label="Avatar" group>
-          <AvatarPicker value={avatar} onChange={setAvatar} />
-        </Field>
-        <Field label="Color" group>
+        <Field label="Preferred Color" group hint="Used in a game whenever nobody else has it.">
           <ColorPicker value={color} onChange={setColor} />
         </Field>
         <Button
