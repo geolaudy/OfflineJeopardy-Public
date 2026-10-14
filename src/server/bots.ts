@@ -1,40 +1,64 @@
-// Computer opponents (offline, server-side). The driver looks at the authoritative state after
-// every change and schedules what each computer player would do next — buzz, answer, wager — as
-// ordinary engine actions, so they go through exactly the same arbitration and validation as
-// Joy-Cons and phones. Computer players never buzz early. In practice games the driver also
-// opens the buzzers automatically once the question has had time to be read.
+// Computer opponents (server-side). The driver looks at the authoritative state after every change
+// and schedules what each computer player would do next — pick a clue, buzz, give an answer, wager —
+// as ordinary engine actions, so they go through exactly the same arbitration and validation as
+// Joy-Cons and phones. Computer players never buzz early and never judge themselves: their answer
+// is shown to the host (and the TV), the answer timer stops, and the host decides (R3-10/13).
+// In practice games the driver also opens the buzzers once the question has had time to be read.
 import type { EngineAction } from '../shared/actions.js';
 import { scoresOf, type BotLevel, type Competitor, type GameState } from '../shared/game.js';
+import { timerRemaining } from '../shared/game.js';
+import { clueContext, localAnswer, pickClue, type ClueContext, type PickMemory } from './botAnswers.js';
 
 interface LevelParams {
   know: number; // chance of knowing an average clue
   react: [number, number]; // ms after the buzzers open
   risk: number; // chance of buzzing without knowing (then answering wrong)
   think: [number, number]; // ms before answering after winning the buzz
+  pick: [number, number]; // ms looking at the board before choosing a clue
   wager: number; // share of the allowed maximum it wagers on a Daily Wager
 }
 
 export const BOT_PARAMS: Record<BotLevel, LevelParams> = {
-  easy: { know: 0.35, react: [1400, 2600], risk: 0.05, think: [1800, 2800], wager: 0.2 },
-  medium: { know: 0.55, react: [900, 1800], risk: 0.08, think: [1400, 2400], wager: 0.35 },
-  hard: { know: 0.72, react: [550, 1200], risk: 0.1, think: [1100, 2000], wager: 0.5 },
-  expert: { know: 0.88, react: [300, 750], risk: 0.1, think: [900, 1600], wager: 0.6 },
+  easy: { know: 0.35, react: [1400, 2600], risk: 0.05, think: [2200, 3600], pick: [3000, 5000], wager: 0.2 },
+  medium: { know: 0.55, react: [900, 1800], risk: 0.08, think: [1700, 3000], pick: [2400, 4000], wager: 0.35 },
+  hard: { know: 0.72, react: [550, 1200], risk: 0.1, think: [1300, 2400], pick: [1800, 3000], wager: 0.5 },
+  expert: { know: 0.88, react: [300, 750], risk: 0.1, think: [1000, 1900], pick: [1400, 2400], wager: 0.6 },
 };
 
-type Task = { delay: number; action: () => EngineAction | null };
+/** Request for an answer text (local generator by default; an AI provider can replace it). */
+export interface AnswerRequest {
+  bot: Competitor;
+  level: BotLevel;
+  clueId: string;
+  ctx: ClueContext;
+  /** Whether this bot is meant to get it right (decided by its difficulty). */
+  correct: boolean;
+  /** Answers this bot already gave in this game. */
+  avoid: Set<string>;
+  final: boolean;
+}
+export type AnswerSource = (req: AnswerRequest, fallback: () => string) => Promise<string>;
+
+type Task = { delay: number; action: () => EngineAction | null | Promise<EngineAction | null> };
 
 export class BotDriver {
   private timers = new Map<string, ReturnType<typeof setTimeout>>();
   private fired = new Set<string>();
   private memo = new Map<string, boolean>();
+  private given = new Map<string, Set<string>>();
   /** Injected for tests. */
   random: () => number = Math.random;
   /** Multiplies every delay (tests use a small value). */
   speed = 1;
+  /** Where answer texts come from (AI bots plug in here; must always resolve). */
+  answerSource: AnswerSource = async (_req, fallback) => fallback();
+  /** Latest state (async answers check it is still their turn). */
+  private latest: GameState | null = null;
 
   constructor(private dispatch: (a: EngineAction) => void) {}
 
   sync(s: GameState | null) {
+    this.latest = s;
     const wanted = new Map<string, Task>();
     if (s && !s.paused && s.phase !== 'lobby' && s.phase !== 'ended') this.plan(s, wanted);
     for (const [k, t] of this.timers)
@@ -50,8 +74,12 @@ export class BotDriver {
           this.timers.delete(k);
           this.fired.add(k);
           if (this.fired.size > 2000) this.fired.clear();
-          const a = task.action();
-          if (a) this.dispatch(a);
+          void Promise.resolve()
+            .then(task.action)
+            .then((a) => {
+              if (a) this.dispatch(a);
+            })
+            .catch(() => {});
         }, Math.max(0, Math.round(task.delay * this.speed))),
       );
     }
@@ -62,8 +90,15 @@ export class BotDriver {
     this.timers.clear();
   }
 
-  private between([a, b]: [number, number]) {
-    return a + this.random() * (b - a);
+  /** Each computer player has its own pace (0.85–1.2×), so two "Hard" bots never feel identical. */
+  private pace(b: Competitor) {
+    let h = 0;
+    for (const ch of b.id + b.name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    return 0.85 + (h % 1000) / 1000 * 0.35;
+  }
+
+  private between([a, b]: [number, number], bot?: Competitor) {
+    return (a + this.random() * (b - a)) * (bot ? this.pace(bot) : 1);
   }
 
   /** Stable per-key random decision (so re-planning never re-rolls). */
@@ -87,16 +122,60 @@ export class BotDriver {
     return this.decide(`know:${s.id}:${clueId}:${bot.id}`, chance);
   }
 
+  /** The bot's answer text (AI source if configured, local generator otherwise). */
+  private async answerText(s: GameState, bot: Competitor, clueId: string, correct: boolean, final = false): Promise<string> {
+    const ctx = clueContext(s.board, clueId);
+    if (!ctx) return 'Pass';
+    const key = `${s.id}:${bot.id}`;
+    const avoid = this.given.get(key) ?? new Set<string>();
+    const fallback = () => localAnswer(ctx, { correct, level: bot.bot!, random: this.random, avoid });
+    let text: string;
+    try {
+      text = (await this.answerSource({ bot, level: bot.bot!, clueId, ctx, correct, avoid, final }, fallback)).trim() || fallback();
+    } catch {
+      text = fallback();
+    }
+    avoid.add(text);
+    this.given.set(key, avoid);
+    if (this.given.size > 200) this.given.clear();
+    return text.slice(0, 200);
+  }
+
+  private memory(s: GameState, botId: string): PickMemory {
+    const round = s.board.rounds[s.roundIndex];
+    const catOf = (clueId?: string) => (clueId && round ? round.categories.findIndex((c) => c.clues.some((q) => q.id === clueId)) : -1);
+    const good = new Set<number>();
+    for (const e of s.events) if (!e.voided && e.type === 'answer' && e.result === 'correct' && e.competitorId === botId && e.roundIndex === s.roundIndex) good.add(catOf(e.clueId));
+    good.delete(-1);
+    const last = catOf(s.usedClueIds[s.usedClueIds.length - 1]);
+    return { goodCategories: good, lastCategory: last >= 0 ? last : null };
+  }
+
   private plan(s: GameState, out: Map<string, Task>) {
     const bots = s.competitors.filter((c) => c.bot);
     const clue = s.clue;
 
     // Practice games run themselves: open the buzzers once the question has been read.
     if (s.practice && s.phase === 'clue' && clue && clue.unlockMode === 'host' && clue.stage === 'question' && !clue.isDailyWager && !clue.resolved && !clue.answerRevealed && !clue.answeringEnded && s.buzzer.status === 'locked' && s.buzzer.openedAt == null) {
-      const len = (clueText(s, clue.clueId) ?? '').length;
+      const len = (clueContext(s.board, clue.clueId)?.question ?? '').length;
       out.set(`unlock:${clue.clueId}`, { delay: Math.min(6000, 1500 + 35 * len), action: () => ({ type: 'unlockBuzzers' }) });
     }
     if (!bots.length) return;
+
+    // Picking a clue when a computer player has control (same turn rule as everyone else).
+    const chooser = s.phase === 'board' && !s.intro && !s.clue ? bots.find((b) => b.id === s.controlCompetitorId) : undefined;
+    if (chooser) {
+      const turn = `pick:${s.id}:${s.roundIndex}:${s.usedClueIds.length}:${chooser.id}`;
+      out.set(turn, {
+        delay: this.between(BOT_PARAMS[chooser.bot!].pick, chooser),
+        action: () => {
+          const cur = this.latest;
+          if (!cur || cur.phase !== 'board' || cur.clue || cur.intro || cur.controlCompetitorId !== chooser.id) return null;
+          const id = pickClue(cur, chooser.id, chooser.bot!, this.memory(cur, chooser.id), this.random);
+          return id ? { type: 'selectClue', clueId: id } : null;
+        },
+      });
+    }
 
     if (s.phase === 'clue' && clue && clue.stage === 'question' && !clue.isDailyWager && !clue.resolved) {
       // Buzz: each computer player that may still answer decides once per answering opportunity.
@@ -106,15 +185,15 @@ export class BotDriver {
           const key = `buzz:${clue.clueId}:${s.buzzer.openedAt}:${b.id}`;
           const knows = this.knows(s, b, clue.clueId, clue.value);
           if (!knows && !this.decide(`risk:${key}`, BOT_PARAMS[b.bot!].risk)) continue;
-          out.set(key, { delay: this.between(BOT_PARAMS[b.bot!].react), action: () => ({ type: 'buzz', competitorId: b.id, profileId: null, controllerId: `bot:${b.id}`, sourceKind: 'bot' }) });
+          out.set(key, { delay: this.between(BOT_PARAMS[b.bot!].react, b), action: () => ({ type: 'buzz', competitorId: b.id, profileId: null, controllerId: `bot:${b.id}`, sourceKind: 'bot' }) });
         }
       }
-      // Answer after winning the buzz (correct only if it knew).
+      // Answer after winning the buzz: the text goes to the host, who judges it.
       const w = s.buzzer.winner;
       const wb = w ? bots.find((b) => b.id === w.competitorId) : undefined;
-      if (w && wb && s.buzzer.status === 'buzzed') {
+      if (w && wb && s.buzzer.status === 'buzzed' && !clue.submission) {
         const knows = this.knows(s, wb, clue.clueId, clue.value);
-        out.set(`answer:${clue.clueId}:${w.at}`, { delay: this.between(BOT_PARAMS[wb.bot!].think), action: () => ({ type: 'judge', result: knows ? 'correct' : 'incorrect', competitorId: wb.id }) });
+        out.set(`answer:${clue.clueId}:${w.at}`, { delay: this.thinkTime(s, wb), action: async () => ({ type: 'submitAnswer', competitorId: wb.id, answer: await this.answerText(s, wb, clue.clueId, knows) }) });
       }
     }
 
@@ -122,17 +201,17 @@ export class BotDriver {
     if (s.phase === 'clue' && clue?.isDailyWager && !clue.resolved) {
       if (clue.stage === 'wager') {
         const owner = bots.find((b) => b.id === s.controlCompetitorId);
-        if (owner) out.set(`dw:${clue.clueId}`, { delay: 2500, action: () => ({ type: 'setDailyWager', competitorId: owner.id, amount: this.dailyWager(s, owner) }) });
-      } else if (clue.wager) {
+        if (owner) out.set(`dw:${clue.clueId}`, { delay: 2500 * this.pace(owner), action: () => ({ type: 'setDailyWager', competitorId: owner.id, amount: this.dailyWager(s, owner) }) });
+      } else if (clue.wager && !clue.submission) {
         const owner = bots.find((b) => b.id === clue.wager!.competitorId);
         if (owner) {
           const knows = this.knows(s, owner, clue.clueId, clue.value);
-          out.set(`dwanswer:${clue.clueId}`, { delay: 3000 + this.between(BOT_PARAMS[owner.bot!].think), action: () => ({ type: 'judge', result: knows ? 'correct' : 'incorrect' }) });
+          out.set(`dwanswer:${clue.clueId}`, { delay: 2500 + this.thinkTime(s, owner), action: async () => ({ type: 'submitAnswer', competitorId: owner.id, answer: await this.answerText(s, owner, clue.clueId, knows) }) });
         }
       }
     }
 
-    // Final: wager, answer, and judge their own (known) answers.
+    // Final: wager and write an answer; the host reveals and judges it like everyone else's.
     if (s.phase === 'final' && s.final) {
       const f = s.final;
       const fc = s.board.rounds[f.roundIndex]?.categories[0]?.clues[0];
@@ -140,14 +219,22 @@ export class BotDriver {
         const b = bots.find((x) => x.id === e.competitorId);
         if (!b || !fc) continue;
         if ((f.stage === 'category' || f.stage === 'wagers') && e.wager == null)
-          out.set(`fw:${s.id}:${b.id}`, { delay: 2000 + this.between([0, 1500]), action: () => ({ type: 'setFinalWager', competitorId: b.id, amount: this.finalWager(s, b) }) });
+          out.set(`fw:${s.id}:${b.id}`, { delay: 2000 + this.between([0, 1500], b), action: () => ({ type: 'setFinalWager', competitorId: b.id, amount: this.finalWager(s, b) }) });
         const knows = this.decide(`fknow:${s.id}:${b.id}`, Math.min(0.95, BOT_PARAMS[b.bot!].know * 0.85));
         if (f.stage === 'clue' && !e.answer)
-          out.set(`fa:${s.id}:${b.id}`, { delay: 4000 + this.between([0, 3000]), action: () => ({ type: 'setFinalAnswer', competitorId: b.id, answer: knows ? fc.answer : "I'm not sure" }) });
-        if (f.stage === 'reveal' && !e.judged)
-          out.set(`fj:${s.id}:${b.id}`, { delay: 1500, action: () => ({ type: 'judgeFinal', competitorId: b.id, correct: knows && !!e.answer }) });
+          out.set(`fa:${s.id}:${b.id}`, { delay: 4000 + this.between([0, 3000], b), action: async () => ({ type: 'setFinalAnswer', competitorId: b.id, answer: await this.answerText(s, b, fc.id, knows, true) }) });
       }
     }
+  }
+
+  /** Thinking time, kept inside a running answer timer so a bot never times out by design. */
+  private thinkTime(s: GameState, b: Competitor) {
+    const t = this.between(BOT_PARAMS[b.bot!].think, b);
+    if (s.timer?.running && s.timer.kind === 'answer') {
+      const left = timerRemaining(s.timer, Date.now());
+      return Math.max(300, Math.min(t, left * 0.7));
+    }
+    return t;
   }
 
   private dailyWager(s: GameState, b: Competitor) {
@@ -170,9 +257,4 @@ export class BotDriver {
     else w = mine * (b.bot === 'medium' ? 0.5 : 0.8);
     return Math.max(0, Math.min(mine, Math.round(w)));
   }
-}
-
-function clueText(s: GameState, clueId: string) {
-  for (const r of s.board.rounds) for (const c of r.categories) for (const q of c.clues) if (q.id === clueId) return q.question;
-  return null;
 }

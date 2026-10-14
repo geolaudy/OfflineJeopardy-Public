@@ -1,7 +1,7 @@
 // Lobby cards with history (R3-6/7/8): after a counted game and Return to Lobby the TV shows each
 // player's games and wins, a crown on the previous winner, the wins leader and the bot's level.
 import { test, expect, chromium, request, type Browser } from '@playwright/test';
-import WebSocket from 'ws';
+import { hostSocket } from './hostSocket';
 
 const BASE = 'http://127.0.0.1:3210';
 let cr: Browser;
@@ -14,32 +14,6 @@ test.afterEach(async () => {
 test.afterAll(async () => {
   await cr?.close();
 });
-
-/** Minimal host WebSocket client: sends engine actions and waits for each result. */
-async function hostSocket(token: string) {
-  const ws = new WebSocket(BASE.replace('http', 'ws') + '/ws');
-  await new Promise((res, rej) => (ws.once('open', res), ws.once('error', rej)));
-  let state: any = null;
-  const pending = new Map<number, (m: any) => void>();
-  ws.on('message', (raw) => {
-    const m = JSON.parse(raw.toString());
-    if (m.t === 'state') state = m.game;
-    if (m.t === 'result') pending.get(m.id)?.(m);
-  });
-  ws.send(JSON.stringify({ t: 'hello', role: 'host', token }));
-  let id = 1;
-  const act = (action: Record<string, unknown>) =>
-    new Promise<any>((res, rej) => {
-      const n = id++;
-      pending.set(n, (m) => (m.ok ? res(m) : rej(new Error(`${action.type}: ${m.error}`))));
-      ws.send(JSON.stringify({ t: 'host', id: n, action }));
-    });
-  const until = async (pred: (g: any) => boolean) => {
-    for (let i = 0; i < 100 && !(state && pred(state)); i++) await new Promise((r) => setTimeout(r, 30));
-    return state;
-  };
-  return { act, until, close: () => ws.close() };
-}
 
 test('lobby cards show games, wins, the crown for the last winner and the wins leader', async () => {
   const api = await request.newContext({ baseURL: BASE });

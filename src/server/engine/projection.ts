@@ -50,6 +50,7 @@ export function projectState(s: GameState, role: ViewRole, profiles: Record<Id, 
       answerMedia: host || s.clue.answerRevealed ? (f?.clue.answerMedia ?? []) : [],
       layout: f?.clue.layout ?? 'auto',
       unlockMode: s.clue.unlockMode,
+      submission: s.clue.submission ?? null,
     };
   }
 

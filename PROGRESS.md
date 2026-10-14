@@ -8,7 +8,10 @@
 - **Build/release tooling (R3-15/16):** `--smoke-test` mode in the Electron main process, `scripts/verify-dist.mjs` (14 checks incl. headless start of the unpacked app and the portable exe — both passed on this Windows 10 PC), version injected from package.json (was stuck at 0.2.0), GitHub Actions Windows workflow (release only for `vX.Y.Z` tags), CHANGELOG.md + release-notes extractor. Pushed 606c223.
 - **Milestone B (R3-6…R3-8):** lobby cards show games / wins (team wins labelled, never counted as solo), win % from 3 games, winning streaks, "Statistics private"; crown on the previous match's winner (players, bots, team header), medal for the most wins among players here (not shown when everyone ties), legend; saved-team record on team cards; bot cards with a difficulty line. Return to Lobby now puts the TV back on the lobby page.
 - Found while testing: a shell whose working directory is inside `test-results/` makes Playwright hang on Windows (it cannot delete the folder) — keep logs and shells outside it.
-- Tests: Vitest 128/128, Playwright 25/25 (new lobby-stats.spec.ts).
+- Tests: Vitest 128/128, Playwright 25/25 (new lobby-stats.spec.ts). Pushed 28b59a0.
+- **Release v0.6.0 published** (tag pushed → GitHub Actions Windows build: tests, packaging, verification incl. headless start of both executables on the runner) — https://github.com/geolaudy/OfflineJeopardy/releases/tag/v0.6.0 with OfflineJeopardy-Setup-0.6.0.exe, OfflineJeopardy-Portable-0.6.0.exe, SHA256SUMS.txt (verified via the API).
+- **Milestone C (R3-9…R3-13):** bots pick clues on their turn with difficulty-based strategies; bots *submit* answers (new engine action, `submission` event) instead of judging themselves — the answer timer stops, host and TV see the answer, the host judges (also Daily Wager; Final answers are written by bots and judged by the host); plausible local wrong answers from related clues / near-miss numbers; per-bot pace. Fixed: bots were labelled "(team)" in solo game history.
+- Tests: Vitest 133/133, Playwright 26/26 (new bots.spec.ts; shared tests/e2e/hostSocket.ts).
 
 ## Session 4 — 2026-10-13 (user feedback round 2)
 

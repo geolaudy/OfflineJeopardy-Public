@@ -294,6 +294,15 @@ export interface ActiveClue {
   answeringEnded: boolean;
   /** How buzzers open for this clue (decided when it opened, from the clue and the game rule). */
   unlockMode: UnlockMode;
+  /** An answer given in text (computer opponents): shown to everyone, waiting for the host's
+   *  judgment. The answer timer is stopped while it waits. */
+  submission?: AnswerSubmission | null;
+}
+
+export interface AnswerSubmission {
+  competitorId: Id;
+  answer: string;
+  at: number;
 }
 
 export type AutoUnlock = 'off' | 'all' | 'mediaOnly' | 'perClue';
@@ -370,6 +379,7 @@ export type EventType =
   | 'clue_close'
   | 'buzz'
   | 'answer'
+  | 'submission'
   | 'wager'
   | 'score_adjust'
   | 'attribution_correction'

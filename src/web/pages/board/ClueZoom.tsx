@@ -132,9 +132,12 @@ function DailyWagerCard({ g }: { g: GameView }) {
 /** Compact banner on the top edge naming who buzzed in first. */
 function BuzzWinner({ g }: { g: GameView }) {
   const ctx = useBoard();
-  const w = g.buzzer.winner;
+  const sub = g.clue?.submission ?? null;
+  // A buzz winner, or (Daily Wager) whoever submitted an answer.
+  const w = g.buzzer.winner ?? (sub ? { competitorId: sub.competitorId, profileId: null, at: sub.at } : null);
   const c = findCompetitor(g, w?.competitorId);
   const player = w?.profileId ? g.profiles[w.profileId] : null;
+  const answer = sub && sub.competitorId === w?.competitorId ? sub.answer : null;
   return (
     <AnimatePresence>
       {w && c && (
@@ -152,6 +155,11 @@ function BuzzWinner({ g }: { g: GameView }) {
           <div className="min-w-0 text-left">
             <div className="bt-winner-name">{c.kind === 'team' || !player ? competitorName(c, g) : profileName(player)}</div>
             {c.kind === 'team' && player && <div className="bt-winner-sub">{profileName(player)}</div>}
+            {answer && (
+              <motion.div className="bt-winner-answer" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: T.fade }} data-testid="tv-bot-answer">
+                “{answer}”
+              </motion.div>
+            )}
           </div>
         </motion.div>
       )}

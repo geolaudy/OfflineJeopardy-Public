@@ -24,6 +24,8 @@ function describe(e: GameplayEvent, g: GameView) {
       return `${who}${person} buzzed — ${e.result}${e.reactionMs != null ? ` (${(e.reactionMs / 1000).toFixed(2)}s, ${e.sourceKind})` : ''}`;
     case 'answer':
       return `${who}${person} ${e.result} ${fmtScore(e.scoreDelta)}`;
+    case 'submission':
+      return `${who} answered “${e.note ?? ''}” (waiting for the host)`;
     case 'wager':
       return `${who} wagered ${e.wager} (${e.result})`;
     case 'score_adjust':

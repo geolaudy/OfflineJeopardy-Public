@@ -558,6 +558,20 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       s.media = { ...s.media, muted: a.muted };
       return;
     }
+    case 'submitAnswer': {
+      const clue = activeClue(s);
+      if (clue.resolved || clue.stage !== 'question') fail('Not waiting for an answer');
+      if (clue.submission) return { ignored: true, info: 'already-submitted' };
+      const owner = clue.isDailyWager ? clue.wager?.competitorId : s.buzzer.status === 'buzzed' ? s.buzzer.winner?.competitorId : undefined;
+      if (!owner || owner !== a.competitorId) return { ignored: true, info: 'not-answering' };
+      const answer = a.answer.replace(/\s+/g, ' ').trim().slice(0, 200);
+      if (!answer) fail('Empty answer');
+      clue.submission = { competitorId: a.competitorId, answer, at: now };
+      // The answer is in: stop the answer timer so it can never run out while the host decides.
+      if (s.timer && s.timer.kind === 'answer') s.timer = null;
+      emit(tx, { type: 'submission', clueId: clue.clueId, roundIndex: clue.roundIndex, competitorId: a.competitorId, sourceKind: 'bot', note: answer });
+      return;
+    }
     case 'mediaEnded': {
       const m = s.media;
       if (!m || m.clueId !== a.clueId || m.status !== 'playing' || m.durationMs == null || mediaPosition(m, now) < m.durationMs - 50) return { ignored: true };
@@ -775,6 +789,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       const correct = a.result === 'correct';
       const delta = correct ? amount : clue.isDailyWager || s.rules.incorrectDeducts ? -amount : 0;
       const winner = s.buzzer.winner;
+      clue.submission = null;
       emit(tx, {
         type: 'answer',
         result: a.result,

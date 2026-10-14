@@ -10,6 +10,7 @@ import { EarlyBuzzQuick } from './EarlyBuzzRule';
 import { HOST_SHORTCUTS, useHostShortcuts } from './shortcuts';
 import { MediaControls, MediaThumbs } from './MediaControls';
 import { Undo2, Dices, Gamepad2, EyeOff, Eye, NotebookPen, BellRing, Play, ChevronRight, ChevronsRight, Pause, RotateCcw, Timer, Lock, LockOpen, Check, X, ArrowLeft, Ban, Zap } from 'lucide-react';
+import { BOT_LEVELS } from '../../../shared/game';
 
 type Run = (a: HostAction) => Promise<{ ok: boolean }>;
 
@@ -386,11 +387,34 @@ function CluePanel({ g, run }: { g: GameView; run: Run }) {
                     {competitorName(responder, g)}
                   </div>
                   <div className="text-sm text-slate-600">
+                    {responder.bot ? `Computer · ${BOT_LEVELS[responder.bot].label}` : ''}
                     {winner?.profileId && responder.kind === 'team' ? `${profileName(g.profiles[winner.profileId])} buzzed` : ''}
-                    {winner?.reactionMs != null ? ` · ${(winner.reactionMs / 1000).toFixed(2)}s · ${winner.sourceKind}` : ''}
+                    {winner?.reactionMs != null ? ` · ${(winner.reactionMs / 1000).toFixed(2)}s${responder.bot ? '' : ` · ${winner.sourceKind}`}` : ''}
                   </div>
                 </div>
               </div>
+              {responder.bot && (
+                <div className="rounded-xl bg-white p-3 ring-1 ring-yellow-300" data-testid="bot-answer-panel">
+                  {clue.submission?.competitorId === responder.id ? (
+                    <>
+                      <p className="text-xs font-bold tracking-wide text-amber-700 uppercase">Awaiting your judgment</p>
+                      <p className="text-2xl font-black break-words" data-testid="bot-answer">
+                        “{clue.submission.answer}”
+                      </p>
+                      {clue.answer && !g.practice && (
+                        <p className="mt-1 text-sm text-slate-600">
+                          Expected (only you see this): <b data-testid="bot-expected">{clue.answer}</b>
+                        </p>
+                      )}
+                      <p className="mt-1 text-xs text-slate-500">The timer is stopped. Nothing is scored until you choose.</p>
+                    </>
+                  ) : (
+                    <p className="font-semibold text-slate-600" data-testid="bot-thinking">
+                      {competitorName(responder, g)} is thinking…
+                    </p>
+                  )}
+                </div>
+              )}
               <Attribution g={g} c={responder} value={who} onChange={setWho} />
               <div className="grid grid-cols-2 gap-2">
                 <ActionButton size="xl" variant="success" onAction={() => judge('correct')} data-testid="correct">

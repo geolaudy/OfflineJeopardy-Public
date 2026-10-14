@@ -81,7 +81,7 @@ export function GameDetailPage({ me }: { me: Me }) {
     const memberName = new Map<string, string>();
     for (const c of g.competitors) for (const m of c.members) memberName.set(m.profileId, m.name);
     const compName = (id: string) => g.competitors.find((c: any) => c.id === id)?.name ?? '';
-    const events = (g.events as any[]).filter((e) => !e.voided && e.clueId && (e.type === 'answer' || e.type === 'buzz' || e.type === 'wager'));
+    const events = (g.events as any[]).filter((e) => !e.voided && e.clueId && (e.type === 'answer' || e.type === 'buzz' || e.type === 'wager' || e.type === 'submission'));
     // Clues in the order they were played.
     const order: string[] = [];
     for (const e of g.events as any[]) if (e.type === 'clue_open' && e.clueId && !order.includes(e.clueId)) order.push(e.clueId);
@@ -222,7 +222,7 @@ export function GameDetailPage({ me }: { me: Me }) {
                   .filter((e: any) => !mine || isMine(e))
                   .filter((e: any) => e.type !== 'wager' || e.result === 'daily')
                   .map((e: any) => {
-                    const who = e.profileId ? memberName.get(e.profileId) ?? 'Player' : `${compName(e.competitorId)} (team)`;
+                    const who = e.profileId ? memberName.get(e.profileId) ?? 'Player' : g.mode === 'team' ? `${compName(e.competitorId)} (team)` : compName(e.competitorId);
                     const pts = g.mode === 'team' && e.profileId ? e.contributionDelta : e.scoreDelta;
                     return (
                       <li key={e.id} className={cx(isMine(e) && 'font-semibold')}>
@@ -233,6 +233,8 @@ export function GameDetailPage({ me }: { me: Me }) {
                             {e.result === 'won' && e.reactionMs != null ? ` (${(e.reactionMs / 1000).toFixed(2)}s)` : ''}
                             {e.scoreDelta ? ` ${fmtScore(e.scoreDelta)}` : ''}
                           </span>
+                        ) : e.type === 'submission' ? (
+                          <span className="text-slate-500">answered “{e.note}”</span>
                         ) : e.type === 'wager' ? (
                           <span className="text-slate-500">wagered {e.wager?.toLocaleString()}</span>
                         ) : (

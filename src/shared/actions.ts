@@ -160,6 +160,8 @@ export type SystemAction =
   | { type: 'playerJoin'; profileId: string; code?: string }
   | { type: 'setRoomCode'; code: string }
   | { type: 'mediaEnded'; clueId: string }
+  /** A computer opponent gives its answer; the host still judges it. */
+  | { type: 'submitAnswer'; competitorId: string; answer: string }
   /** Lobby only: play a different board (loaded and validated by the server). */
   | { type: 'setBoard'; boardId: string; board: BoardContent; title?: string };
 

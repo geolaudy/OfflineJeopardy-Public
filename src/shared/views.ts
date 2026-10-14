@@ -62,6 +62,8 @@ export interface ClueView {
   answerMedia: MediaRef[];
   layout: ClueLayout;
   unlockMode: UnlockMode;
+  /** Answer given in text (computer opponents), waiting for the host's judgment. */
+  submission?: { competitorId: Id; answer: string; at: number } | null;
 }
 
 export interface FinalEntryView {

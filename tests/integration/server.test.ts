@@ -576,8 +576,15 @@ describe('computer opponents and practice games (O3)', () => {
     await h.act({ type: 'updateRules', rules: { ...h.state!.rules, categoryIntro: false } });
     await h.act({ type: 'startGame' });
     const botId = h.state!.competitors.find((c) => c.bot)!.id;
-    // Practice auto-opens the buzzers; the bot buzzes and answers by itself.
+    // Practice auto-opens the buzzers; the bot buzzes and gives its answer; the host judges it.
+    const tv = await client(s, 'public');
     await h.act({ type: 'selectClue', clueId: 'hist_1' });
+    await h.waitState((g) => g?.clue?.submission?.competitorId === botId, 5000);
+    expect(h.state!.clue!.submission!.answer).toBe('The Inca');
+    await tv.waitState((g) => g?.clue?.submission?.answer === 'The Inca'); // shown on the TV too
+    expect(tv.state!.clue!.answer).toBeNull(); // …without revealing the expected answer
+    expect(h.state!.competitors.find((c) => c.id === botId)!.score).toBe(0);
+    await h.act({ type: 'judge', result: 'correct' });
     await h.waitState((g) => (g?.competitors.find((c) => c.id === botId)?.score ?? 0) === 200, 5000);
     // The human (host on the same device) buzzes for themselves on the next clue.
     s.games.bots.random = () => 0.99; // the bot doesn't know this one
