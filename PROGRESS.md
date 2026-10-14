@@ -12,6 +12,8 @@
 - **Milestone C:** unified Profile Picture (upload / default, circular preview) + Preferred Color; distinct lobby colours assigned by the server with a phone prompt when taken (455f18b). Pre-lobby TV: board choices that follow the host, category preview, public settings; no join QR before Open Lobby (also not on the splash).
 - **Packaging:** `build-electron.mjs` stages `new_sfx` audio into git-ignored `build/private-sfx` (always created, empty in CI); `verify-dist` reports it locally and fails in CI if present.
 - Tests: Vitest 154/154 (unit round4.test.ts, integration round4.test.ts: Final, return to lobby across restart ×3 games, sound pack, colours, pre-lobby), Playwright 27/27.
+- **Release v0.8.0 published** (tag v0.8.0 → GitHub Actions run 38632529267 succeeded) — https://github.com/geolaudy/OfflineJeopardy/releases/tag/v0.8.0 with OfflineJeopardy-Setup-0.8.0.exe, OfflineJeopardy-Portable-0.8.0.exe, SHA256SUMS.txt (verified via the API; public build contains no personal sound files). Local build 0.8.0 (with the owner's sounds, personal use only) verified 15/15 at release/. A simulated public build without new_sfx also packaged cleanly.
+- **Next:** see SESSION_HANDOFF.md.
 
 ## Session 5 — 2026-10-13 (user feedback round 3)
 

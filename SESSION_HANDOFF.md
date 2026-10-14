@@ -5,7 +5,9 @@ Read this first in a new session, then `PROGRESS.md` (top section) and `FEATURE_
 ## Current state (updated 2026-10-14, session 6)
 
 - Branch: `main`, pushed to `origin/main`.
-- Releases: v0.6.0, v0.7.0 published. Round 4 is targeted at **v0.8.0** (see PROGRESS.md for whether it was tagged).
+- Releases: v0.6.0, v0.7.0 and **v0.8.0** published (v0.8.0: installer + portable + SHA256SUMS, verified via the API).
+- `package.json` version: **0.8.0**. Tests at the last full run: Vitest 154/154, Playwright 27/27.
+- Local artifacts (include the owner's sounds — personal use only, do not upload): `release/OfflineJeopardy-Setup-0.8.0.exe`, `release/OfflineJeopardy-Portable-0.8.0.exe`, `release/win-unpacked/` (verify-dist 15/15).
 - Round-4 requirements: USER_FEEDBACK.md "Round 4" (R4-1 … R4-20), IMPLEMENTATION_PLAN milestone 18.
 
 ## Round 4 status
