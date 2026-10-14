@@ -372,6 +372,7 @@
   position: relative;
   display: flex;
   min-width: 0;
+  flex: 1;
   flex-direction: column;
   gap: 0.3em;
 }
@@ -1205,4 +1206,119 @@
   text-transform: uppercase;
   vertical-align: middle;
   white-space: nowrap;
+}
+
+/* Lobby card history (R3-6/7) */
+.tvp-av-wrap {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+.tvp-mark-tl {
+  position: absolute;
+  z-index: 6;
+  top: -0.36em;
+  left: -0.22em;
+  pointer-events: none;
+}
+.tvp-mark-br {
+  position: absolute;
+  z-index: 6;
+  right: -0.12em;
+  bottom: -0.08em;
+  display: flex;
+  width: 0.95em;
+  height: 0.95em;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #1e293b;
+  box-shadow: 0 0 0 0.08em rgb(255 255 255 / 0.85);
+  pointer-events: none;
+}
+.tvp-person-name {
+  display: flex;
+  align-items: center;
+}
+.tvp-person-name-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tvp-person-stats .tvp-bot-badge {
+  margin-left: 0;
+  font-size: 0.95em;
+}
+.tvp-mark {
+  width: 0.9em;
+  height: 0.9em;
+  filter: drop-shadow(0 0.06em 0.12em rgb(0 0 0 / 0.55));
+}
+.tvp-mark.is-crown {
+  color: #fbbf24;
+  fill: #fbbf24;
+  transform: rotate(-14deg);
+}
+.tvp-mark.is-leader {
+  width: 0.62em;
+  height: 0.62em;
+  color: #fde68a;
+  filter: none;
+}
+.tvp-team-crown {
+  margin-right: 0.3em;
+  vertical-align: -0.1em;
+  transform: none;
+}
+.tvp-person-stats {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.6em;
+  overflow: hidden;
+  font-size: 0.52em;
+  font-weight: 600;
+  opacity: 0.85;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tvp-streak {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2em;
+  color: #fdba74;
+}
+.tvp-streak svg {
+  width: 1em;
+  height: 1em;
+}
+.tvp-member-stats {
+  font-weight: 500;
+  opacity: 0.7;
+}
+.tvp-team-record {
+  margin-left: auto;
+  font-size: 0.6em;
+  font-weight: 600;
+  opacity: 0.8;
+  white-space: nowrap;
+}
+.tvp-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2vw;
+  margin-top: 1.2vh;
+  font-size: 1.9vh;
+  font-weight: 600;
+  opacity: 0.85;
+}
+.tvp-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+}
+.tvp-legend .tvp-mark {
+  width: 1.2em;
+  height: 1.2em;
+  transform: none;
 }

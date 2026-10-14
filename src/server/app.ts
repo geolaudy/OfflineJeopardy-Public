@@ -878,6 +878,7 @@ export async function startServer(opts: ServerOptions) {
     const t = tid ? tour.getTournament(db, tid) : null;
     if (t && t.status === 'active' && !s.practice) tour.attachGame(db, s.id, t.id);
     lobby.setReigning(old);
+    lobby.present({ page: 'lobby' }); // everyone sees the lobby again, with the updated cards
     return { id: s.id };
   });
   // Settings the host is choosing before the game exists, for the TV's Settings page (R3-4).

@@ -2,7 +2,7 @@
 // roster (preferred) or, until that arrives, from the public game projection. Only public data:
 // names, colours, avatars, team names and a device *type* — never ids or addresses.
 import type { GameView } from '../../../shared/views';
-import type { PublicLobby, PublicRoster } from '../../../shared/presentation';
+import type { PersonSummary, PublicLobby, PublicRoster } from '../../../shared/presentation';
 import { profileName } from '../../lib/view';
 import { BOT_LEVELS } from '../../../shared/game';
 
@@ -19,6 +19,12 @@ export interface LobbyPerson {
   bot: boolean;
   /** Computer opponent difficulty ("Easy", "Hard"…). */
   level?: string;
+  /** Past games (players only; absent for computer opponents). */
+  summary?: PersonSummary;
+  /** Won the previous match in this lobby. */
+  crown?: boolean;
+  /** Most wins among the players here. */
+  leader?: boolean;
 }
 
 export interface LobbyTeam {
@@ -29,6 +35,9 @@ export interface LobbyTeam {
   members: LobbyPerson[];
   /** Shared team buzzer (null when every member has their own). */
   shared: { device: string; ready: boolean } | null;
+  /** Saved team's record in team games. */
+  record?: { games: number; wins: number };
+  crown?: boolean;
 }
 
 export interface LobbyModel {
@@ -47,6 +56,8 @@ export interface LobbyModel {
   waiting: string[];
   practice: boolean;
   hostConnected: boolean;
+  /** Which markers appear (for the legend). */
+  markers: { crown: boolean; leader: boolean };
 }
 
 const sharedRow = (r: { name: string; team: string | null }) => !!r.team && r.name === `${r.team} (team)`;
@@ -81,6 +92,7 @@ export function buildLobbyModel(g: GameView | null, lobby: PublicLobby | null, r
       waiting: [],
       practice: false,
       hostConnected,
+      markers: { crown: false, leader: false },
     };
   }
   const key = keyer();
@@ -113,6 +125,9 @@ export function buildLobbyModel(g: GameView | null, lobby: PublicLobby | null, r
       ready: r.ready,
       bot: r.device === 'Computer',
       level: r.bot,
+      summary: r.profileId ? roster.people?.[r.profileId] : undefined,
+      crown: !!r.crown,
+      leader: !!r.profileId && !!roster.leaders?.includes(r.profileId),
     });
     let teams: LobbyTeam[] | null = null;
     let people: LobbyPerson[];
@@ -126,10 +141,31 @@ export function buildLobbyModel(g: GameView | null, lobby: PublicLobby | null, r
           ? c.memberIds.map((m) => {
               const p = g.profiles[m];
               const name = profileName(p);
-              return { key: key(c.name, name), name, color: p?.color ?? c.color, avatar: p?.avatar ?? 'fox', pictureUrl: p?.pictureUrl ?? null, device: '', ready: shared.ready, bot: false };
+              return {
+                key: key(c.name, name),
+                name,
+                color: p?.color ?? c.color,
+                avatar: p?.avatar ?? 'fox',
+                pictureUrl: p?.pictureUrl ?? null,
+                device: '',
+                ready: shared.ready,
+                bot: false,
+                summary: roster.people?.[m],
+                crown: !!roster.reigning?.includes(m),
+                leader: !!roster.leaders?.includes(m),
+              };
             })
           : rows.filter((r) => r.team === c.name && !sharedRow(r)).map(personFrom);
-        teams.push({ key: `team|${c.name}`, name: c.name, color: c.color, avatar: c.avatar ?? 'shield', members, shared: shared ? { device: shared.device, ready: shared.ready } : null });
+        teams.push({
+          key: `team|${c.name}`,
+          name: c.name,
+          color: c.color,
+          avatar: c.avatar ?? 'shield',
+          members,
+          shared: shared ? { device: shared.device, ready: shared.ready } : null,
+          record: roster.teamRecords?.[c.name],
+          crown: !!roster.reigningTeams?.includes(c.name),
+        });
       }
       // Rows for teams the projection does not know yet (should not happen; keeps names visible).
       for (const r of rows) {
@@ -149,7 +185,8 @@ export function buildLobbyModel(g: GameView | null, lobby: PublicLobby | null, r
     } else {
       people = rows.filter((r) => !sharedRow(r)).map(personFrom);
     }
-    return { ...base, count: roster.count, people, teams, ready: roster.ready, buzzers: rows.length, waiting: roster.waiting };
+    const markers = { crown: people.some((p) => p.crown) || !!teams?.some((t) => t.crown), leader: people.some((p) => p.leader) };
+    return { ...base, count: roster.count, people, teams, ready: roster.ready, buzzers: rows.length, waiting: roster.waiting, markers };
   }
 
   // Fallback: the public game projection (before the first roster arrives).
@@ -185,7 +222,19 @@ export function buildLobbyModel(g: GameView | null, lobby: PublicLobby | null, r
     ready: people.filter((p) => p.ready).length,
     buzzers: people.length,
     waiting: g.unassigned.filter((u) => !u.pending).map((u) => profileName(g.profiles[u.profileId])),
+    markers: { crown: false, leader: false },
   };
+}
+
+/** "12 games · 5 wins (2 team) · 42%" — solo and team wins are told apart, never merged into solo. */
+export function summaryText(s: PersonSummary | undefined): string | null {
+  if (!s) return null;
+  if (s.private) return 'Statistics private';
+  if (!s.games) return 'First game';
+  const wins = `${s.wins} ${s.wins === 1 ? 'win' : 'wins'}`;
+  const team = s.teamWins ? (s.soloWins ? ` (${s.teamWins} team)` : ' (team)') : '';
+  const pct = s.games >= 3 ? ` · ${Math.round((s.wins / s.games) * 100)}%` : '';
+  return `${s.games} ${s.games === 1 ? 'game' : 'games'} · ${wins}${team}${pct}`;
 }
 
 export const modeLabel = (m: 'solo' | 'team' | null) => (m === 'team' ? 'Teams' : m === 'solo' ? 'Individuals' : '');

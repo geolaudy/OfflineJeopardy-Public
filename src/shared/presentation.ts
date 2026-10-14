@@ -55,6 +55,23 @@ export interface RosterRow {
   ready: boolean;
   /** Computer opponent: its difficulty label ("Easy", "Hard"…). */
   bot?: string;
+  /** Player profile (public id; links the row to its history summary). */
+  profileId?: string;
+  /** Won the previous match in this lobby. */
+  crown?: boolean;
+}
+
+/** Lobby-card history for one player (R3-6). Solo and team results are kept apart. */
+export interface PersonSummary {
+  private: boolean;
+  games: number;
+  wins: number;
+  soloGames: number;
+  soloWins: number;
+  teamGames: number;
+  teamWins: number;
+  /** Wins in a row, most recent games first (solo and team). */
+  streak: number;
 }
 
 /** Public summary of the game being set up (for the full and the compact lobby). */
@@ -68,6 +85,16 @@ export interface PublicRoster {
   ready: number; // rows whose buzzer is ready
   waiting: string[]; // joined, not on a team yet
   practice: boolean;
+  /** History summaries for every player in the lobby, by profile id. */
+  people?: Record<string, PersonSummary>;
+  /** Profiles that won the previous match in this lobby (crown). */
+  reigning?: string[];
+  /** Team names that won the previous match. */
+  reigningTeams?: string[];
+  /** Profile(s) with the most wins among the players here (at least one win). */
+  leaders?: string[];
+  /** Saved-team records by team name (team games only). */
+  teamRecords?: Record<string, { games: number; wins: number }>;
 }
 
 export interface PresentationState {

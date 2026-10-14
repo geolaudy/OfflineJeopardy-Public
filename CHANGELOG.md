@@ -4,13 +4,14 @@ All notable changes to OfflineJeopardy. Versions follow [semantic versioning](ht
 GitHub Releases (with the Windows installer and portable exe) are published for major milestones;
 their notes come from the matching section below (`scripts/release-notes.mjs`).
 
-## [0.6.0] — unreleased
+## [0.6.0] — 2026-10-14
 
 ### New Features
 - **Return to Lobby** after a game: everyone stays in — players, teams, Joy-Cons, phones, computer opponents, the board and the settings. Scores and used clues start over; the finished game is saved in History first. "Create new lobby" is still there when you want to start fresh.
 - **Show Leaderboard on TV** from the new Leaderboard page on the host. Change the ranking (wins, games played, win %, points earned, average score, correct or incorrect answers, accuracy, team contributions) and the TV follows straight away. Tap a player or team to show their statistics, then go back with Previous page or Lobby.
 - New **saved teams** ranking, and a team statistics page on the TV.
 - **Game settings on the TV**: a clear, read-only summary of the rules (mode, board, player limit, teams, buzzers, early-buzz penalty, timers, wagers…) that updates as the host changes them — even while the host is still choosing before the lobby opens.
+- **Player history in the lobby**: each card shows games played and wins (team wins are marked as such), win percentage and winning streaks. A **crown** marks whoever won the last game in this lobby and a medal marks the player with the most wins; a small legend explains both. Players who keep their statistics private show no numbers.
 - Computer opponents show their **difficulty** (Easy, Medium, Hard, Expert) on the TV lobby and in the host's lobby.
 
 ### Improvements

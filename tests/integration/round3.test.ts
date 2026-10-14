@@ -79,6 +79,15 @@ describe('Return to Lobby (R3-3)', () => {
     expect(g2!.buzzer.winner ?? null).toBeNull();
     expect(g2!.clue).toBeNull();
     expect(g2!.results).toBeNull();
+    // Lobby cards (R3-6/7): history summary, crown for the previous winner, wins leader.
+    const roster1 = ((await tv.wait((m) => m.t === 'presentation' && !!(m as any).p.roster?.reigning?.length, 3000)) as any).p.roster;
+    expect(roster1.reigning).toEqual([alex.id]);
+    expect(roster1.leaders).toEqual([alex.id]);
+    expect(roster1.people[alex.id]).toMatchObject({ private: false, games: 1, wins: 1, soloWins: 1, teamWins: 0, streak: 1 });
+    expect(roster1.people[sam.id]).toMatchObject({ games: 1, wins: 0, streak: 0 });
+    expect(roster1.rows.find((x: any) => x.name === 'Alex')).toMatchObject({ crown: true, profileId: alex.id });
+    expect(roster1.rows.find((x: any) => x.name === 'Robo Rita')).toMatchObject({ crown: false, bot: 'Hard' });
+    expect(roster1.people['Robo Rita']).toBeUndefined(); // computer opponents have no profile statistics
     // Alex's phone is still in the game without joining again.
     await pa.waitState((g) => g?.id === g2!.id && !!g.competitors.some((c) => c.profileId === alex.id));
     // The first game is finished and saved in history.
@@ -112,6 +121,16 @@ describe('Return to Lobby (R3-3)', () => {
     // ---- Third lobby: the reigning winner is remembered; disconnected phones are not "ready".
     await api(s, 'POST', '/api/games/current/rematch', {}, host);
     await h.waitState((g) => g?.phase === 'lobby' && g.id !== r.data.id);
+    const roster2 = ((await tv.wait((m) => m.t === 'presentation' && !!(m as any).p.roster?.reigning?.includes(sam.id), 3000)) as any).p.roster;
+    expect(roster2.people[alex.id]).toMatchObject({ games: 2, wins: 1, streak: 0 });
+    expect(roster2.people[sam.id]).toMatchObject({ games: 2, wins: 1, streak: 1 });
+    expect(roster2.leaders).toEqual([]); // a tie between everyone is not a "leader"
+    // Private statistics stay private on the TV.
+    await api(s, 'PATCH', '/api/me', { statsPrivate: true }, sam.token);
+    h.send({ t: 'present', req: { page: 'lobby' } });
+    const roster3 = ((await tv.wait((m) => m.t === 'presentation' && !!(m as any).p.roster?.people?.[sam.id]?.private, 3000)) as any).p.roster;
+    expect(roster3.people[sam.id]).toMatchObject({ private: true, games: 0, wins: 0 });
+    expect(roster3.leaders).toEqual([alex.id]);
     const profiles = (await api(s, 'GET', '/api/profiles')).data as { id: string }[];
     expect(profiles.filter((p) => p.id === alex.id)).toHaveLength(1);
     pa.close();

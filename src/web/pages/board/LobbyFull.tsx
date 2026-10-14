@@ -3,10 +3,10 @@
 // mounted and morphs between this screen and the compact panel).
 import { useRef, type CSSProperties } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Wifi, ScanLine, UserRound } from 'lucide-react';
+import { Crown, Flame, Medal, Wifi, ScanLine, UserRound } from 'lucide-react';
 import { cx } from '../../components/ui';
 import { avatarEmoji } from '../../lib/avatars';
-import { countLabel, modeLabel, type LobbyModel, type LobbyPerson, type LobbyTeam } from './lobbyModel';
+import { countLabel, modeLabel, summaryText, type LobbyModel, type LobbyPerson, type LobbyTeam } from './lobbyModel';
 import { DeviceTag, Fade, SharedAvatar, fitCards, useBoxSize } from './presentKit';
 import { COMPACT_AVATARS } from './CompactLobby';
 import { useBoard, vhPx } from './common';
@@ -66,6 +66,21 @@ export function LobbyFull({ m, morphIn }: { m: LobbyModel; morphIn: boolean }) {
             </Fade>
           )}
         </div>
+
+        {(m.markers.crown || m.markers.leader) && (
+          <Fade className="tvp-legend" testId="tv-lobby-legend">
+            {m.markers.crown && (
+              <span>
+                <Crown className="tvp-mark is-crown" aria-hidden /> Won the last game
+              </span>
+            )}
+            {m.markers.leader && (
+              <span>
+                <Medal className="tvp-mark is-leader" aria-hidden /> Most wins here
+              </span>
+            )}
+          </Fade>
+        )}
 
         {m.waiting.length > 0 && (
           <Fade className="tvp-waiting">
@@ -127,19 +142,56 @@ function PersonCard({ p, av, isNew, animateAvatar }: { p: LobbyPerson; av: numbe
       data-testid="tv-lobby-player"
     >
       <Fade className="tvp-person-bg" />
-      <SharedAvatar p={p} size={av} animateIn={animateAvatar} />
+      <span className="tvp-av-wrap">
+        <SharedAvatar p={p} size={av} animateIn={animateAvatar} />
+        <Marks p={p} />
+      </span>
       <Fade className="tvp-person-text">
         <span className="tvp-person-name">
-          {p.name}
-          {p.level && (
+          <span className="tvp-person-name-text">{p.name}</span>
+        </span>
+        {p.level ? (
+          <span className="tvp-person-stats">
             <span className="tvp-bot-badge" data-testid="tv-bot-level">
               {p.level}
             </span>
-          )}
-        </span>
+          </span>
+        ) : (
+          <Summary p={p} />
+        )}
         <DeviceTag device={p.device} ready={p.ready} />
       </Fade>
     </motion.div>
+  );
+}
+
+/** Crown (won the last game) and medal (most wins here) on the avatar. */
+function Marks({ p }: { p: LobbyPerson }) {
+  if (!p.crown && !p.leader) return null;
+  return (
+    <>
+      {p.crown && <Crown className="tvp-mark is-crown tvp-mark-tl" aria-label="Won the last game" data-testid="tv-crown" />}
+      {p.leader && (
+        <span className="tvp-mark-br" aria-label="Most wins here" data-testid="tv-leader">
+          <Medal className="tvp-mark is-leader" aria-hidden />
+        </span>
+      )}
+    </>
+  );
+}
+
+function Summary({ p }: { p: LobbyPerson }) {
+  const text = p.bot ? null : summaryText(p.summary);
+  if (!text) return null;
+  return (
+    <span className="tvp-person-stats" data-testid="tv-player-stats">
+      {text}
+      {!p.summary?.private && (p.summary?.streak ?? 0) >= 2 && (
+        <span className="tvp-streak">
+          <Flame aria-hidden /> {p.summary!.streak} in a row
+        </span>
+      )}
+    </span>
   );
 }
 
@@ -178,7 +230,15 @@ function Teams({ teams, known, morphIn, box }: { teams: LobbyTeam[]; known: Set<
               <span className="tvp-team-emoji" aria-hidden>
                 {avatarEmoji(t.avatar)}
               </span>
-              <span className="tvp-team-name">{t.name}</span>
+              <span className="tvp-team-name">
+                {t.crown && <Crown className="tvp-mark is-crown tvp-team-crown" aria-label="Won the last game" />}
+                {t.name}
+              </span>
+              {t.record && t.record.games > 0 && (
+                <span className="tvp-team-record">
+                  {t.record.wins} {t.record.wins === 1 ? 'win' : 'wins'} · {t.record.games} {t.record.games === 1 ? 'game' : 'games'}
+                </span>
+              )}
               {t.shared && <DeviceTag device={t.shared.device === 'No team buzzer yet' ? 'Team buzzer not set' : `Team buzzer: ${t.shared.device}`} ready={t.shared.ready} />}
             </Fade>
             <ul className="tvp-team-members" style={{ '--line': `${lineVh}vh` } as CSSProperties}>
@@ -187,9 +247,20 @@ function Teams({ teams, known, morphIn, box }: { teams: LobbyTeam[]; known: Set<
                 const i = index++;
                 return (
                   <li key={p.key}>
-                    <SharedAvatar p={p} size={vhPx(ctx, lineVh * 0.78)} animateIn={!known.has(p.key) || (morphIn && i >= COMPACT_AVATARS - 1)} />
+                    <span className="tvp-av-wrap">
+                      <SharedAvatar p={p} size={vhPx(ctx, lineVh * 0.78)} animateIn={!known.has(p.key) || (morphIn && i >= COMPACT_AVATARS - 1)} />
+                      <Marks p={p} />
+                    </span>
                     <Fade className="tvp-team-member">
-                      <span className="truncate">{p.name}</span>
+                      <span className="min-w-0 truncate">
+                        {p.name}
+                        {p.summary && !p.summary.private && p.summary.games > 0 && (
+                          <span className="tvp-member-stats">
+                            {' '}
+                            · {p.summary.wins} {p.summary.wins === 1 ? 'win' : 'wins'}
+                          </span>
+                        )}
+                      </span>
                       {!t.shared && <DeviceTag device={p.device} ready={p.ready} />}
                     </Fade>
                   </li>

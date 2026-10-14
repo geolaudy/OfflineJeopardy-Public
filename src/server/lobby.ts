@@ -77,7 +77,6 @@ export class LobbyManager {
           teamNames: winners.filter((c) => c.kind === 'team').map((c) => c.name),
         }
       : null;
-    this.refreshSoon();
   }
 
   setDraft(d: (Omit<SettingsDraft, 'rules'> & { rules: Partial<GameRules> }) | null) {
@@ -380,6 +379,18 @@ export class LobbyManager {
     const rows = this.buzzerRows(s);
     const profiles = repo.profilesByIds(this.db, s.unassigned.map((u) => u.profileId));
     const board = s.boardId ? repo.getBoard(this.db, s.boardId)?.title : null;
+    // History on the lobby cards (R3-6/7): summaries, the reigning winner and the wins leader.
+    const ids = [...new Set(s.competitors.filter((c) => !c.bot).flatMap((c) => c.memberIds))];
+    const people = stats.lobbySummaries(this.db, ids);
+    const best = Math.max(0, ...Object.values(people).map((p) => (p.private ? 0 : p.wins)));
+    const leaders = best > 0 ? ids.filter((id) => !people[id]?.private && people[id]?.wins === best) : [];
+    const teamRecords: Record<string, { games: number; wins: number }> = {};
+    for (const c of s.competitors)
+      if (c.kind === 'team' && c.teamId) {
+        const ts = stats.teamStats(this.db, c.teamId);
+        teamRecords[c.name] = { games: ts.games.played, wins: ts.games.wins };
+      }
+    const reign = this.reigning;
     return {
       title: s.title,
       boardTitle: board ?? s.title,
@@ -390,6 +401,12 @@ export class LobbyManager {
       ready: rows.filter((r) => r.ready).length,
       waiting: s.unassigned.filter((u) => !u.pending).map((u) => profiles[u.profileId]?.nickname?.trim() || profiles[u.profileId]?.name || 'Player'),
       practice: s.practice,
+      people,
+      reigning: reign ? reign.profileIds.filter((id) => ids.includes(id)) : [],
+      reigningTeams: reign?.teamNames ?? [],
+      // A leader marker only means something with two or more people to compare.
+      leaders: ids.length > 1 && leaders.length < ids.length ? leaders : [],
+      teamRecords,
     };
   }
 
@@ -414,7 +431,7 @@ export class LobbyManager {
     const rows: RosterRow[] = [];
     for (const c of s.competitors) {
       if (c.bot) {
-        rows.push({ name: c.name, color: c.color, avatar: 'robot', pictureUrl: null, team: null, teamColor: null, device: 'Computer', ready: true, bot: BOT_LEVELS[c.bot].label });
+        rows.push({ name: c.name, color: c.color, avatar: 'robot', pictureUrl: null, team: null, teamColor: null, device: 'Computer', ready: true, bot: BOT_LEVELS[c.bot].label, crown: !!this.reigning?.botNames.includes(c.name) });
         continue;
       }
       const shared = c.kind === 'team' && c.buzzerMode === 'shared';
@@ -428,7 +445,7 @@ export class LobbyManager {
         const p = profiles[m];
         const b = s.bindings.find((x) => x.target.kind === 'profile' && x.target.profileId === m);
         const d = b ? describeFor(b, [m]) : { device: 'Phone', ready: online.has(m) };
-        rows.push({ name: p?.nickname?.trim() || p?.name || 'Player', color: p?.color ?? c.color, avatar: p?.avatar ?? 'fox', pictureUrl: p?.pictureUrl ?? null, team: c.kind === 'team' ? c.name : null, teamColor: c.kind === 'team' ? c.color : null, ...d });
+        rows.push({ name: p?.nickname?.trim() || p?.name || 'Player', color: p?.color ?? c.color, avatar: p?.avatar ?? 'fox', pictureUrl: p?.pictureUrl ?? null, team: c.kind === 'team' ? c.name : null, teamColor: c.kind === 'team' ? c.color : null, ...d, profileId: m, crown: !!this.reigning?.profileIds.includes(m) });
       }
     }
     return rows;

@@ -4,7 +4,11 @@
 
 - Baseline: v0.5.0 already pushed (main = origin/main). Round-3 requirements recorded (USER_FEEDBACK.md Round 3, FEATURE_MATRIX, IMPLEMENTATION_PLAN milestone 17).
 - **Milestone A (R3-1…R3-5):** media pickers per kind with real file filters (root cause: wildcard `accept` → registry-based filter on Windows); host Leaderboard page with **Show Leaderboard on TV** (live metric/view, saved-teams view, player/team stats on TV, Previous page / Lobby); **Return to Lobby** after a game (new game record with the same players, teams, bindings, bots, room code, board and rules; tournament carried over); read-only grouped **Settings page on the TV** (game rules, or the host's draft before the game exists); bot difficulty badges. Also fixed: phone bindings showed "ready" while the phone was disconnected; lobby refresh timer could fire after shutdown.
-- Tests: Vitest 128/128 (new round3.test.ts, mediaTypes.test.ts), Playwright 24/24.
+- Tests: Vitest 128/128 (new round3.test.ts, mediaTypes.test.ts), Playwright 24/24. Pushed d4082ef.
+- **Build/release tooling (R3-15/16):** `--smoke-test` mode in the Electron main process, `scripts/verify-dist.mjs` (14 checks incl. headless start of the unpacked app and the portable exe — both passed on this Windows 10 PC), version injected from package.json (was stuck at 0.2.0), GitHub Actions Windows workflow (release only for `vX.Y.Z` tags), CHANGELOG.md + release-notes extractor. Pushed 606c223.
+- **Milestone B (R3-6…R3-8):** lobby cards show games / wins (team wins labelled, never counted as solo), win % from 3 games, winning streaks, "Statistics private"; crown on the previous match's winner (players, bots, team header), medal for the most wins among players here (not shown when everyone ties), legend; saved-team record on team cards; bot cards with a difficulty line. Return to Lobby now puts the TV back on the lobby page.
+- Found while testing: a shell whose working directory is inside `test-results/` makes Playwright hang on Windows (it cannot delete the folder) — keep logs and shells outside it.
+- Tests: Vitest 128/128, Playwright 25/25 (new lobby-stats.spec.ts).
 
 ## Session 4 — 2026-10-13 (user feedback round 2)
 

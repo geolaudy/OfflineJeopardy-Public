@@ -4,6 +4,7 @@
 import type { DB } from './db/db.js';
 import { listTeams } from './repos.js';
 import type { TeamLeaderRow } from '../shared/leaderboard.js';
+import type { PersonSummary } from '../shared/presentation.js';
 
 const COMPLETED = `g.status = 'completed'`;
 /** Games that count in statistics: completed and not marked as practice. */
@@ -313,6 +314,47 @@ export function leaderboard(db: DB, opts: { includePrivate?: boolean } = {}) {
       accuracy: st.combined.correct + st.combined.incorrect ? st.combined.correct / (st.combined.correct + st.combined.incorrect) : null,
     };
   });
+}
+
+/**
+ * Short history for lobby cards (R3-6): finished, non-practice games split into solo and team
+ * results (a team win is never counted as a solo win) and the current winning streak across both.
+ * Players who keep their statistics private get `private: true` and no numbers.
+ */
+export function lobbySummaries(db: DB, profileIds: string[]): Record<string, PersonSummary> {
+  const out: Record<string, PersonSummary> = {};
+  if (!profileIds.length) return out;
+  const marks = profileIds.map(() => '?').join(',');
+  const priv = new Set((db.prepare(`SELECT id FROM profiles WHERE stats_private = 1 AND id IN (${marks})`).all(...profileIds) as { id: string }[]).map((r) => r.id));
+  const rows = db
+    .prepare(
+      `SELECT gp.profile_id AS id, gc.kind, gc.is_winner AS won FROM game_participants gp
+       JOIN game_competitors gc ON gc.game_id = gp.game_id AND gc.competitor_id = gp.competitor_id
+       JOIN games g ON g.id = gp.game_id WHERE gp.profile_id IN (${marks}) AND ${COUNTED}
+       ORDER BY g.ended_at DESC`,
+    )
+    .all(...profileIds) as { id: string; kind: string; won: number | null }[];
+  for (const id of profileIds) out[id] = priv.has(id) ? { private: true, games: 0, wins: 0, soloGames: 0, soloWins: 0, teamGames: 0, teamWins: 0, streak: 0 } : { private: false, games: 0, wins: 0, soloGames: 0, soloWins: 0, teamGames: 0, teamWins: 0, streak: 0 };
+  const streakOpen = new Set(profileIds);
+  for (const r of rows) {
+    const s = out[r.id];
+    if (!s || s.private) continue;
+    const won = !!r.won;
+    s.games++;
+    if (r.kind === 'team') {
+      s.teamGames++;
+      if (won) s.teamWins++;
+    } else {
+      s.soloGames++;
+      if (won) s.soloWins++;
+    }
+    if (won) s.wins++;
+    if (streakOpen.has(r.id)) {
+      if (won) s.streak++;
+      else streakOpen.delete(r.id);
+    }
+  }
+  return out;
 }
 
 /** Saved teams with their own team statistics (team points, not members' contributions). */
