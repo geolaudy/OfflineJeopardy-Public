@@ -129,6 +129,7 @@ export async function startServer(opts: ServerOptions) {
   };
   hub.lobby = lobby;
   lobby.onChange = () => hub.sendPresentation();
+  games.onCurrentChange = () => lobby.refreshSoon();
   games.recover();
   lobby.restore();
 

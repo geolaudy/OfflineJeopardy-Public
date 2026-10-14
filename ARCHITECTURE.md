@@ -55,6 +55,9 @@
 | `src/shared/tournament.ts`, `src/server/tournaments.ts` | Tournaments: a named series of games (migration v4: `tournaments`, `games.tournament_id`). Standings are computed from finished games' `game_competitors` snapshots (placement points or total score), never stored. |
 | `src/shared/buzzCheck.ts`, `src/server/buzzCheck.ts` | Buzzer check: in-memory, presses recorded in order and kept away from the game; phones report round-trip times with pings. |
 | `src/shared/teamBalance.ts`, `src/shared/joyconRumble.ts` | Team balancing (ratings with priors, snake draft + swaps) and Joy-Con HD-rumble encoding. |
+| `src/server/soundPacks.ts` | Jeopardy!/Buzzinga sound pack: installed (`<data>/media/soundpacks/buzzinga`) and bundled (`new_sfx` in dev, `resources/soundpacks/buzzinga` in a local build) files, matched to cues by name; served at `/media/pack/:source/:file`. |
+| `src/shared/navigation.ts` | One navigation order for host nav and TV rail. |
+| `src/web/pages/board/PreLobby.tsx`, `fonts.css` | Pre-lobby TV preview; bundled OFL TV fonts + licensed-font hooks (`local()` names, `<data>/fonts`). |
 | `src/shared/tvFx.ts` | TV effects setting (board intro + speed, buzzers-open indicator, sound pack / cues / custom files): schema, defaults, normalisation. TV side: `pages/board/fx.tsx` (context, checker reveal, unlock indicator) and `lib/sound.ts` (synthesised packs, custom files). |
 | `src/shared/presentation.ts`, `leaderboard.ts`, `rulesSummary.ts` | Presentation contract (`PresentRequest` → `PresentationState`), shared ranking and plain-language rules summary (same wording on host and TV). |
 | `src/web/pages/host` | Host app for the iPad **and** the game computer: `AppShell` (Home, Boards, Players, Teams, Buzzers, History, Settings, Help; Present-on-TV switch; Back to start on the game computer), `HostPage` (pairing gate incl. one-step `#pair=` link, routes), Home = set up (GamePicker) → lobby (Setup + LobbyControls) → live → results. The library/editor/players/teams/… pages under `pages/desk` are reused as host pages. |
@@ -101,6 +104,12 @@ Within phase `clue`: question (or Daily Wager wager stage) → buzzers `open`/`b
 
 ### Early buzzes
 A buzz is *early* when the question is showing, answering has not ended, the competitor may still answer and buzzers are locked. The rule in force at that moment (`rules.earlyBuzzPenalty`: none / lockout / clue / points) is applied. Lockouts are stored per person (`p:<profileId>`) or per shared-buzzer team (`c:<competitorId>`), never per device. Point penalties are `buzz`/`early` events with a negative `scoreDelta` (once per player per clue) and can be refunded (`refundPenalty`: void + unpenalised replacement event). `buzzer.early` lists the clue's early buzzes for host/TV/phone feedback; the lockout table never leaves the server. The GameManager re-broadcasts when the next temporary lockout expires.
+
+### Final Jeopardy! (round 4)
+`FinalState` carries `order` (ascending pre-Final score, ties in competitor order), `preScores`, `cursor` and `step` (contestant → wager → answer). Players submit through the hub (`finalWager`/`finalAnswer`); `finalReveal` advances the step; `judgeFinal` is accepted only for the current contestant at the answer step. `finalEntryReveal()` decides what every projection may show — the host included. When answers close (host or think-timer expiry) each written answer is recorded as a `submission` event (result `final`) for history.
+
+### Lobby colours (round 4)
+`playerColors` / `colorPrompts` in the game state; `syncPlayerColors` runs after every engine action with `ctx.colorOf` (the profile's preferred colour from the DB). Projections substitute the lobby colour into `profiles`; phones get `PlayerContext.color` and answer with `pickColor`.
 
 ### Category introduction
 `state.intro = {roundIndex, step, auto}` (step -1 = round title card) is set by `startGame`/`setRound` when `rules.categoryIntro`, or by `startIntro`; `introNext`, `introSkip` and `selectClue` advance or end it. Auto mode is paced by the GameManager (3.5 s per step).

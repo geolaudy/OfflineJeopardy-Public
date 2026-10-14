@@ -57,6 +57,12 @@ check('sharp is unpacked (native module)', fs.existsSync(path.join(resources, 'a
 const img = path.join(resources, 'app.asar.unpacked', 'node_modules', '@img');
 check('sharp Windows binary is unpacked', fs.existsSync(img) && fs.readdirSync(img).some((d) => d.startsWith('sharp-win32')), fs.existsSync(img) ? fs.readdirSync(img).join(', ') : 'missing');
 check('User guide is shipped', fs.existsSync(path.join(resources, 'USER_GUIDE.md')));
+// The Jeopardy!/Buzzinga recordings (new_sfx/) belong to the owner: a local build may carry them for
+// personal use, a public (CI) build must not (R4-1, KNOWN_ISSUES K28).
+const packDir = path.join(resources, 'soundpacks', 'buzzinga');
+const packFiles = fs.existsSync(packDir) ? fs.readdirSync(packDir) : [];
+if (process.env.CI) check('public build has no personal sound files', packFiles.length === 0, packFiles.slice(0, 3).join(', '));
+else console.log(`  info  personal Jeopardy!/Buzzinga sounds in this local build: ${packFiles.length ? `${packFiles.length} files (personal use only — do not publish)` : 'none'}`);
 
 function smoke(label, file) {
   const report = path.join(os.tmpdir(), `oj-smoke-${process.pid}-${label.length}.json`);

@@ -22,6 +22,8 @@ export class GameManager {
   /** Delay between automatic category-introduction steps. */
   introStepMs = 3500;
   onChange: () => void = () => {};
+  /** A different game became current (or none): the TV's presentation may change (R4-11). */
+  onCurrentChange: () => void = () => {};
   clock: () => number = () => Date.now();
 
   /** Computer opponents and practice auto-pilot. */
@@ -128,6 +130,7 @@ export class GameManager {
     this.scheduleIntro();
     this.bots.sync(this.current);
     this.onChange();
+    this.onCurrentChange();
   }
 
   dispatch(action: EngineAction, actor = 'host'): EngineResult {

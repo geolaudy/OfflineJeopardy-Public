@@ -18,6 +18,7 @@ import { LobbyFull } from './LobbyFull';
 import { CompactLobby } from './CompactLobby';
 import { NavRail, Wordmark } from './NavRail';
 import { PresentedPage, pageKey } from './PresentPages';
+import { PreLobby } from './PreLobby';
 import { EASE_MORPH_ARR, EASE_OUT_ARR, T } from './timing';
 import './presenter.css';
 
@@ -36,6 +37,9 @@ export function Presenter({
   const compact = page !== 'lobby';
   const model = useMemo(() => buildLobbyModel(g, lobby, presentation?.roster), [g, lobby, presentation?.roster]);
   const roomCode = g?.rules.requireRoomCode && g.roomCode ? g.roomCode : null;
+  // No game yet = the host has not opened the lobby: no join code, a setup preview instead (R4-11).
+  const preparing = !g;
+  const setup = preparing && !compact ? presentation?.setup : undefined;
 
   // After the first switch, a variant that mounts is morphing in from the other one.
   const [startCompact] = useState(compact);
@@ -43,7 +47,7 @@ export function Presenter({
   if (compact !== startCompact) switched.current = true;
 
   return (
-    <div className={cx('tvp', compact ? 'is-compact' : 'is-full', roomCode && 'has-code')} data-testid="tv-presenter">
+    <div className={cx('tvp', compact ? 'is-compact' : 'is-full', roomCode && 'has-code', preparing && 'no-join')} data-testid="tv-presenter">
       <NavRail page={page} />
       <Wordmark />
       <div className="tvp-stage">
@@ -64,9 +68,17 @@ export function Presenter({
             )}
           </AnimatePresence>
           <AnimatePresence initial={false}>
-            {compact ? <CompactLobby key="compact" m={model} /> : <LobbyFull key="full" m={model} morphIn={switched.current} />}
+            {compact ? (
+              <CompactLobby key="compact" m={model} />
+            ) : setup ? (
+              <motion.div key="pre" className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: T.page }}>
+                <PreLobby setup={setup} lobbyName={lobby?.name ?? ''} />
+              </motion.div>
+            ) : (
+              <LobbyFull key="full" m={model} morphIn={switched.current} />
+            )}
           </AnimatePresence>
-          <JoinCard compact={compact} url={joinUrl} roomCode={roomCode} />
+          {!preparing && <JoinCard compact={compact} url={joinUrl} roomCode={roomCode} />}
         </LayoutGroup>
       </div>
     </div>

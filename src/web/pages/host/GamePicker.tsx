@@ -60,9 +60,10 @@ export default function GamePicker() {
     return () => clearTimeout(t);
   }, [draftKey]);
 
-  // Choosing a board previews it on the TV (category names only) while presenting.
+  // Choosing a board brings the TV back to the pre-lobby preview, which highlights that board among
+  // the choices and shows its categories (R4-11; while presenting).
   useEffect(() => {
-    if (boardId) show({ page: 'board', boardId });
+    if (boardId) show({ page: 'lobby' });
   }, [boardId, show]);
 
   const pickPreset = (p: string) => {

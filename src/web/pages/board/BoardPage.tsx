@@ -317,16 +317,8 @@ function Splash({ info, status }: { info: { urls: { join: string; host: string }
       <p className="text-[3vh] opacity-90">
         {status === 'open' ? 'Waiting for the host — create a lobby on the game computer to begin.' : 'Connecting…'}
       </p>
-      {info && (
-        <div className="flex items-center gap-[3vw] rounded-3xl bg-white p-[2.5vh] text-slate-900 shadow-2xl">
-          <QrImage target="join" className="h-[26vh] w-[26vh]" />
-          <div className="text-left">
-            <p className="text-[3.2vh] font-bold">Players: scan to set up your profile</p>
-            <p className="font-mono text-[2.2vh]">{info.urls.join}</p>
-            <p className="mt-[2vh] text-[2vh] text-slate-600">Host controller (iPad): {info.urls.host}</p>
-          </div>
-        </div>
-      )}
+      {/* No player QR before the host opens a lobby (R4-11): joining starts with Open Lobby. */}
+      {info && <p className="text-[2.2vh] opacity-80">Host controller (iPad): <span className="font-mono">{info.urls.host}</span></p>}
     </div>
   );
 }

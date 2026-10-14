@@ -124,6 +124,9 @@ export interface PresentationState {
     topCategories: { name: string; accuracy: string }[];
   };
   buzzers?: { rows: RosterRow[]; phonesNote: string };
+  /** Before the host opens the lobby (R4-11): the boards to choose from (with the one the host is
+   *  looking at), a preview of it and the public settings. No join code is shown at this point. */
+  setup?: { boards: NonNullable<PresentationState['boards']>; board: PresentationState['board'] | null; rules: NonNullable<PresentationState['rules']> };
   /** Tournament standings (names, avatars and points only). */
   tournament?: { id: string; name: string; note: string; finished: boolean; rows: PresentedLeaderRow[] };
 }

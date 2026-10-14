@@ -95,7 +95,7 @@
         "to": "USER_GUIDE.md"
       },
       {
-        "from": "new_sfx",
+        "from": "build/private-sfx",
         "to": "soundpacks/buzzinga",
         "filter": [
           "*.mp3",

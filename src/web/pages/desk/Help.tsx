@@ -21,7 +21,8 @@ export default function Help() {
       </Section>
       <Section title="The TV while you set up">
         <p>While a lobby is open and <b>Present on TV</b> is on, the TV follows what you open on the iPad: the lobby, the leaderboard, a player's public statistics, teams, boards (categories only), the game settings or the buzzer overview. Switch to <b>Private view</b> to browse without changing the TV. Answers, PINs and device details are never shown on the TV.</p>
-        <p><b>Show Leaderboard on TV</b> (Leaderboard page) and <b>Show on TV</b> (Settings and game setup) work even in Private view. While the leaderboard is on the TV, changing the ranking updates it straight away; tap a player or team to show their statistics, then <b>Previous page</b> or <b>Lobby</b> to go back.</p>
+        <p>Before you press <b>Open lobby</b>, the TV previews the boards (following the one you are looking at) and the game settings — the players' join code appears only once the lobby is open.</p>
+        <p><b>Show Leaderboards on TV</b> (Leaderboards page, game menu, results) and <b>Show on TV</b> (Settings and game setup) work even in Private view. While the leaderboard is on the TV, changing the ranking updates it straight away; tap a player or team to show their statistics, then <b>Previous page</b> or <b>Lobby</b> to go back.</p>
       </Section>
       <Section title="After a game">
         <p><b>Return to Lobby</b> keeps everyone in: players, teams, Joy-Cons, phones, the board and the settings. Scores, used clues and buzzes start over; the finished game is already saved in History. <b>New Lobby</b> starts fresh — players join again.</p>
@@ -41,6 +42,10 @@ export default function Help() {
       <Section title="Daily Doubles and Final Jeopardy!">
         <p>Daily Double! clues are marked with a dice icon on the iPad. The TV hides the clue until the wager is locked. The wager can be anything from the minimum up to the player's score or the round's highest value, whichever is larger.</p>
         <p>In Final Jeopardy!, players with a positive score wager and answer on their own phones (teams: any member). Nobody sees the wagers or answers — not even the host — until the reveal. The 30-second think music plays while they write. Then the host reveals one contestant at a time, lowest score first: who it is, their wager, their answer, then Correct or Incorrect. A player without a working phone can tell the host privately (Final screen → “A player can't use their device?”).</p>
+      </Section>
+      <Section title="Sounds and TV look">
+        <p>Settings → Sounds: <b>Jeopardy!/Buzzinga</b> (default) plays your own game-show sound files; <b>Classic</b>, <b>Arcade</b> and <b>Soft</b> are built in. Press <b>Add sound files</b> and pick files named like <code>board_fill.mp3</code>, <code>buzzed_in.mp3</code>, <code>correct_answer.mp3</code>, <code>wrong_answer.mp3</code>, <code>daily_double.mp3</code>, <code>times_up.mp3</code>, <code>catagory_swipe.mp3</code>, <code>final_category_reveal.mp3</code> and <code>final_jeopardy_think.mp3</code>. Sounds without a file use the Classic tone. Sounds play only on the TV.</p>
+        <p>The TV uses free look-alike fonts. If you own ITC Korinna or Swiss 911 Compressed, install them in Windows — or put <code>clue.woff2</code>, <code>category.woff2</code> and <code>value.woff2</code> in the <code>fonts</code> folder next to the game data — and the TV uses them.</p>
       </Section>
       <Section title="Saving and resuming">
         <p>Every action is saved immediately. If the computer restarts, open OfflineJeopardy and the game is restored where it was (timers paused, buzzers locked for safety). The iPad can disconnect and reconnect at any time.</p>

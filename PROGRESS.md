@@ -7,6 +7,11 @@
 - **Milestone A (gameplay):** Final Jeopardy! redesign (phones submit, private from everyone incl. host, reveal one at a time lowest → highest pre-Final score, judge then next, time-up closes answers, answers kept in history), simplified clue controls (Unlock Buzzers → Correct/Incorrect → Reveal Answer → Return to Board; auto re-open after a wrong answer; recovery tools under More), category intro gates clue selection (engine + dedicated host screen), media-only clues valid, Daily Double! / Final Jeopardy! wording, red ANSWER banner, Options menu for rare controls.
 - **Sound (part of D):** Jeopardy!/Buzzinga pack (default; Classic/Arcade/Soft kept; v2 settings migration), file→cue matching by name, installable in Settings, Classic fallback per cue, think music during the Final writing phase, board fill synced to its sound, preview buttons.
 - Tests: Vitest 147/147 (new round4.test.ts; engine Final tests rewritten), Playwright 27/27.
+- Pushed 550b170 (milestone A + sounds).
+- **Milestone B + visuals:** TV typography (OFL look-alikes, licensed-font hooks), CSS clue background, mustard bottom glow default, picker ring + larger score boxes, smaller gold-framed QR, separated compact lobby, centred avatars without side strips, shared navigation order, Show Leaderboards on TV in menu/results. Pushed 50e2c31.
+- **Milestone C:** unified Profile Picture (upload / default, circular preview) + Preferred Color; distinct lobby colours assigned by the server with a phone prompt when taken (455f18b). Pre-lobby TV: board choices that follow the host, category preview, public settings; no join QR before Open Lobby (also not on the splash).
+- **Packaging:** `build-electron.mjs` stages `new_sfx` audio into git-ignored `build/private-sfx` (always created, empty in CI); `verify-dist` reports it locally and fails in CI if present.
+- Tests: Vitest 154/154 (unit round4.test.ts, integration round4.test.ts: Final, return to lobby across restart ×3 games, sound pack, colours, pre-lobby), Playwright 27/27.
 
 ## Session 5 — 2026-10-13 (user feedback round 3)
 

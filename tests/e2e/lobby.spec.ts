@@ -44,9 +44,11 @@ test('start screen → create lobby → one-step iPad pairing → present on TV 
   // TV
   const tv = await (await cr.newContext({ viewport: { width: 1920, height: 1080 } })).newPage();
   await tv.goto(`${BASE}/board`);
-  await expect(tv.getByTestId('tv-lobby-full')).toBeVisible();
-  await expect(tv.getByTestId('tv-lobby-full')).toContainText(/Waiting for the host/);
-  await expect(tv.getByTestId('tv-lobby-full')).not.toContainText(code); // the host code never appears on the TV
+  // R4-11: before Open Lobby the TV previews the setup — boards and settings — and shows no join QR.
+  await expect(tv.getByTestId('tv-prelobby')).toBeVisible();
+  await expect(tv.getByTestId('tv-prelobby-settings')).toBeVisible();
+  await expect(tv.getByText('Scan to join')).toHaveCount(0);
+  await expect(tv.getByTestId('tv-prelobby')).not.toContainText(code); // the host code never appears on the TV
 
   // iPad: treat it as a separate device and open the link from the QR code.
   await ctx.put('/api/settings', { headers: auth, data: { trustLocalhost: false } });
@@ -80,12 +82,18 @@ test('start screen → create lobby → one-step iPad pairing → present on TV 
     await ipad.getByTestId('present-toggle').click();
     await ipad.getByTestId('hostnav-home').click();
     await expect(ipad.getByTestId('present-toggle')).toContainText('TV: Lobby');
-    await expect(tv.getByTestId('tv-lobby-full')).toBeVisible();
+    await expect(tv.getByTestId('tv-prelobby')).toBeVisible();
+    await expect(tv.getByText('Scan to join')).toHaveCount(0);
 
     // Set up and open the lobby, then change mode and board before starting (R2-6).
     ipad.on('dialog', (d) => void d.accept());
     await ipad.getByRole('button', { name: /Starter Trivia Night/ }).first().click();
     await expect(ipad.getByTestId('setup-summary')).toContainText('Starter Trivia Night');
+    // The TV follows the board the host is looking at, with its categories.
+    await expect(tv.getByTestId('tv-prelobby-board')).toHaveText('Starter Trivia Night');
+    await expect(tv.locator('[data-testid=tv-prelobby-board-card][data-selected=true]')).toContainText('Starter Trivia Night');
+    await expect(tv.getByTestId('tv-prelobby-categories')).toContainText('History');
+    await tv.screenshot({ path: 'test-results/screens/tv-prelobby.png' });
     await ipad.getByTestId('open-lobby').click();
     await expect(ipad.getByTestId('lobby-controls')).toBeVisible();
     await expect(tv.getByText('Scan to join')).toBeVisible();

@@ -8,6 +8,7 @@ import { api, boot, createProfile, hostToken, sampleBoardId, tempDir, TestClient
 import { DEFAULT_TV_FX, normalizeTvFx } from '../../src/shared/tvFx';
 import { boardStats, clueComplete, validateBoard } from '../../src/shared/boardUtils';
 import { SAMPLE_BOARD } from '../../src/shared/sampleBoards';
+import { DEFAULT_RULES } from '../../src/shared/game';
 
 const servers: Awaited<ReturnType<typeof boot>>[] = [];
 const clients: TestClient[] = [];
@@ -70,6 +71,8 @@ describe('Final Jeopardy! (R4-2)', () => {
     // Kim never wagers. Nobody — not the host, not the TV — sees amounts before the reveal.
     for (const view of [h.state!, tv.state!]) expect(view.final!.entries.every((e) => e.wager === null)).toBe(true);
     expect(JSON.stringify(h.state)).not.toContain('"wager":1000');
+    await pa.waitState((_g, me) => me?.final?.wager === 1000);
+    await ps.waitState((_g, me) => me?.final?.wager === 0);
     expect(pa.me.final).toEqual({ wager: 1000, answer: null }); // own submission only
     expect(ps.me.final).toEqual({ wager: 0, answer: null });
     await h.act({ type: 'finalNext' }); // lock wagers (Kim → 0), clue + think time
@@ -81,7 +84,7 @@ describe('Final Jeopardy! (R4-2)', () => {
     // Kim's phone drops out and comes back: still in the Final, nothing lost.
     pk.close();
     const pk2 = await client(s, 'player', kim.token);
-    await pk2.waitState((g) => g?.phase === 'final');
+    await pk2.waitState((g, me) => g?.phase === 'final' && !!me?.final);
     expect(pk2.me.final).toEqual({ wager: 0, answer: null });
     // The host's controller reconnects mid-Final.
     h.close();
@@ -103,10 +106,12 @@ describe('Final Jeopardy! (R4-2)', () => {
     await h2.act({ type: 'judgeFinal', competitorId: cid(sam.id), correct: false });
     await h2.act({ type: 'finalReveal' });
     await reveal(kim.id, false);
+    await h2.waitState((g) => g!.final!.cursor === 2);
     expect(h2.state!.competitors.find((c) => c.profileId === alex.id)!.score).toBe(1000); // not judged yet
     await reveal(alex.id, true);
-    expect(h2.state!.final!.stage).toBe('done');
+    await h2.waitState((g) => g?.final?.stage === 'done');
     await h2.act({ type: 'endGame' });
+    await h2.waitState((g) => g?.phase === 'ended');
     const scores = Object.fromEntries(h2.state!.competitors.map((c) => [c.profileId, c.score]));
     expect(scores).toEqual({ [alex.id]: 2000, [sam.id]: 400, [kim.id]: 400 });
     // Wagers and answers are kept in the game history.
@@ -327,5 +332,32 @@ describe('lobby colours (R4-13)', () => {
     expect(all).toHaveLength(LOBBY_COLORS.length + 6);
     expect(new Set(all).size).toBe(all.length);
     expect(all.every((x) => /^#[0-9a-f]{6}$/.test(x))).toBe(true);
+  });
+});
+
+describe('pre-lobby TV (R4-11)', () => {
+  it('previews boards and settings from the host draft before the lobby opens; nothing once a game exists', async () => {
+    const s = await boot();
+    servers.push(s);
+    const host = await hostToken(s);
+    const tv = await client(s, 'public');
+    await api(s, 'POST', '/api/lobby', { name: 'Friday' }, host);
+    const p1 = (await tv.seen((m) => m.t === 'presentation' && !!(m as any).p.setup)) as any;
+    expect(p1.p.setup.boards.boards.length).toBeGreaterThan(0);
+    expect(p1.p.setup.boards.selectedId).toBeNull();
+    const boardId = await sampleBoardId(s, host);
+    await api(s, 'POST', '/api/lobby/draft', { draft: { mode: 'team', boardId, rules: { ...DEFAULT_RULES, maxPlayers: 6 }, practice: false, tournamentId: null } }, host);
+    const p2 = (await tv.wait((m) => m.t === 'presentation' && (m as any).p.setup?.boards.selectedId === boardId, 3000)) as any;
+    expect(p2.p.setup.board.id).toBe(boardId);
+    expect(p2.p.setup.board.rounds[0].categories.length).toBeGreaterThan(0);
+    expect(JSON.stringify(p2.p.setup.rules)).toMatch(/Teams|team/);
+    // Public data only: no clue text or answers in the preview.
+    const board = (await api(s, 'GET', `/api/boards/${boardId}`, undefined, host)).data;
+    const clue = board.content.rounds[0].categories[0].clues[0];
+    expect(JSON.stringify(p2.p.setup)).not.toContain(clue.answer);
+    expect(JSON.stringify(p2.p.setup)).not.toContain(clue.question);
+    // Opening the lobby (creating the game) ends the preview.
+    await api(s, 'POST', '/api/games', { boardId, mode: 'solo' }, host);
+    await tv.wait((m) => m.t === 'presentation' && (m as any).p.page === 'lobby' && !(m as any).p.setup, 3000);
   });
 });

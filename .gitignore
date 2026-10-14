@@ -14,3 +14,4 @@ coverage/
 
 # User-provided audio/images (not ours to redistribute; see DECISIONS.md D-R4-1)
 new_sfx/
+build/private-sfx/

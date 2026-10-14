@@ -1,41 +1,41 @@
 # Session handoff
 
-Read this first in a new session, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 3".
+Read this first in a new session, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 4".
 
-## Current state (updated 2026-10-14, end of session 5)
+## Current state (updated 2026-10-14, session 6)
 
 - Branch: `main`, pushed to `origin/main`.
-- Releases: **v0.6.0** (published with installer + portable + SHA256SUMS) and **v0.7.0** (published and verified: installer, portable, SHA256SUMS).
-- `package.json` version: **0.7.0**.
-- Tests at the last full run: Vitest 139/139, Playwright 27/27.
+- Releases: v0.6.0, v0.7.0 published. Round 4 is targeted at **v0.8.0** (see PROGRESS.md for whether it was tagged).
+- Round-4 requirements: USER_FEEDBACK.md "Round 4" (R4-1 … R4-20), IMPLEMENTATION_PLAN milestone 18.
 
-## Round 3 (USER_FEEDBACK.md "Round 3", IMPLEMENTATION_PLAN milestone 17)
+## Round 4 status
 
 | Milestone | Items | Status |
 |---|---|---|
-| A — immediate fixes | R3-1…R3-5 | Done, tested (v0.6.0) |
-| B — lobby statistics | R3-6…R3-8 | Done, tested (v0.6.0) |
-| C — bot gameplay | R3-9…R3-13 | Done, tested (v0.7.0) |
-| D — optional AI bots | R3-14 | Implemented + tested with a fake provider; **not tried with a real API key** (K26) (v0.7.0) |
-| E — builds/releases | R3-15/16 | Done: `npm run dist` + `npm run dist:verify` locally; tag → GitHub Actions builds, verifies and publishes |
+| A — gameplay | R4-2 Final Jeopardy!, R4-4 clue controls, R4-10 media-only clues, R4-16 intro gating, R4-7 wording, R4-20 return to lobby | Done, tested |
+| B — host/lobby UI | R4-5, R4-8, R4-9, R4-12, R4-14, R4-15 | Done (visual items judged from screenshots) |
+| C — profiles/pre-lobby | R4-13 profile picture + colours, R4-11 pre-lobby TV | Done, tested |
+| D — audio/visual | R4-1 sound pack, R4-3 think music, R4-6 bottom glow, R4-17 fonts, R4-18 background, R4-19 board fill sync | Done; audio not verified by ear (K23) |
 
-## Builds
+## Owner's assets (important)
 
-- `npm run dist` → `release/OfflineJeopardy-Setup-<v>.exe`, `release/OfflineJeopardy-Portable-<v>.exe`, `release/win-unpacked/`.
-- `npm run dist:verify` → 15 checks incl. headless `--smoke-test` start of both executables (passes on this Windows 10 PC for 0.7.0). The NSIS installer itself is not executed (per-machine install needs UAC).
-- `release/` is git-ignored.
+- `new_sfx/` holds the owner's sound files + a clue background image. **Git-ignored. Never commit or publish them.**
+- `npm run build:electron` copies the audio into `build/private-sfx/` (git-ignored) → a *local* `npm run dist` ships them in `resources/soundpacks/buzzinga` (personal use only). The GitHub workflow has no `new_sfx`, so public releases contain none; `verify-dist` fails in CI if any are present.
+- Dev server: `npm run dev:server` passes `--sfx=new_sfx`.
+- The clue background is recreated in CSS (the JPEG is not used); TV fonts are OFL look-alikes (licensed fonts plug in via Windows install or `<data>/fonts/clue|category|value.*`).
 
-## Release workflow
+## Builds / release workflow
 
-Bump version + CHANGELOG section → commit/push → `git tag -a vX.Y.Z` → `git push origin vX.Y.Z`. `.github/workflows/windows-build.yml` (windows-latest) runs typecheck, Vitest, dist, verify, then publishes the release with both executables + SHA256SUMS.txt. No `gh` CLI here; the repo is private, so verification uses the GitHub API with the stored git credential (never printed).
+Unchanged from session 5: `npm run dist` + `npm run dist:verify`; release = bump version + CHANGELOG section → commit/push → `git tag -a vX.Y.Z` → push tag → GitHub Actions builds, verifies and publishes. No `gh` CLI; verify via the GitHub API with the stored git credential.
 
-## Gotchas found this session
+## Gotchas
 
-- Do not leave a shell's working directory inside `test-results/` — Playwright then hangs on Windows (it cannot delete the folder).
-- Python edit scripts must write with `newline=''` (otherwise CRLF line endings).
+- Do not leave a shell inside `test-results/` (Playwright hangs on Windows).
+- Python edit scripts: write with `newline=''`; **never put regexes with `\b` in a heredoc** — write the script to a file (a heredoc turned `\b` into backspace characters once).
+- Stopping a Playwright run can leave its test server on port 3210; check `netstat -ano | grep 3210` before re-running.
 
 ## Next recommended tasks
 
-1. User: try AI answers with a real key (Settings → AI answers → Test connection) and Joy-Con vibration (K25).
-2. Bots could advance rounds / start the Final in practice games (K27).
-3. More AI providers (OpenAI-compatible / local Ollama) behind the same `AiService` interface if wanted.
+1. Owner: listen to the Jeopardy!/Buzzinga pack on the real TV (board fill sync, think music), check QR scanning distance with the smaller code, try Final Jeopardy! on real phones.
+2. Optional: per-cue volume; rename old boards' "Final Wager" round to "Final Jeopardy!" automatically.
+3. Earlier open items: AI answers with a real key (K26), Joy-Con vibration on hardware (K25).

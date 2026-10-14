@@ -4,6 +4,37 @@ All notable changes to OfflineJeopardy. Versions follow [semantic versioning](ht
 GitHub Releases (with the Windows installer and portable exe) are published for major milestones;
 their notes come from the matching section below (`scripts/release-notes.mjs`).
 
+## [0.8.0] — 2026-10-14
+
+### New Features
+- **Final Jeopardy! the way it's played on TV**: players enter their own wager and answer on their phones (any team member can do it for the team). Nobody — not even the host — sees them until the reveal. The 30-second think music plays while they write, and answers close when time runs out.
+- **One-at-a-time reveal**, lowest score first: who it is and their score, then their wager, then their answer, then you mark it Correct or Incorrect and the score changes. Swipe or tap Next to move on.
+- **Jeopardy!/Buzzinga sound pack** (the new default): plays your own game-show sound files — buzz-in, correct, wrong, Daily Double!, board fill, category swipe, time's up, Final Jeopardy! category and think music. Classic, Arcade and Soft are still there. Add your files in Settings → Sounds; any sound without a file uses the Classic tone. *The public download does not include these recordings.*
+- **The TV previews the game before the lobby opens**: the boards to choose from (it follows the board you are looking at, with its categories) and the game settings. The join QR code only appears once you press Open Lobby.
+- **Profile Picture**: upload a picture or choose a default one, previewed in the round frame you'll see in the lobby. **Preferred Color**: everyone in a game gets a different colour — your preferred one if it's free, otherwise your phone lets you pick from the free colours.
+
+### Improvements
+- **Simpler clue controls**: Unlock Buzzers → Correct / Incorrect → Reveal Answer → Return to Board. After a wrong answer the buzzers open again by themselves for everyone else. Lock, reset, timers and skip are tucked away under "More".
+- **Categories first**: clues can't be opened until the round's categories have been presented (or skipped); the host sees a dedicated intro screen.
+- The clue is now the biggest thing on the host screen; the answer sits in a red **ANSWER** banner.
+- **Return to Lobby** is the first button after a game and keeps the same lobby — even if the game computer restarted during the game. "New Lobby" is the secondary option.
+- Rarely used controls (next round, Final Jeopardy!, buzzers, QR code, replay intro) moved to an **Options** button.
+- "Daily Wager" is now **Daily Double!** and "Final Wager" is **Final Jeopardy!** everywhere.
+- TV look: game-show style clue lettering and category/value fonts (free look-alikes; your own licensed fonts are used automatically if installed), a classic deep-blue clue background, bigger score boxes, a mustard ring around the player who picks next, and a mustard **bottom glow** when buzzers open (new default).
+- Lobby: smaller, framed QR code; the compact lobby stands out from the page; centred profile pictures with the player colour as a ring; tighter player cards.
+- One navigation order everywhere (Home, Boards, Players, Teams, Buzzers, Leaderboards, History, Settings, Help) and a clear **Show Leaderboards on TV** in the game menu and after each game.
+- The board-fill animation now runs exactly as long as its sound, and doesn't replay when the TV reconnects.
+
+### Bug Fixes
+- Clues with only a picture, sound or video were marked "Needs Question".
+- After the game computer restarted mid-game, Return to Lobby led to a game without a lobby (no join QR on the TV).
+- On the results screen the back arrow quietly started a new lobby.
+
+### Known Issues
+- Sounds, the think music and the board-fill timing were checked by design and automated state tests, not by listening on the TV.
+- The look-alike fonts are close to, but not the same as, ITC Korinna and Swiss 911.
+- Older saved boards keep the round name "Final Wager" until you rename it in the editor.
+
 ## [0.7.0] — 2026-10-14
 
 ### New Features

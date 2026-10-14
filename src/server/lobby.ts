@@ -101,7 +101,8 @@ export class LobbyManager {
 
   setDraft(d: (Omit<SettingsDraft, 'rules'> & { rules: Partial<GameRules> }) | null) {
     this.draft = d ? { ...d, rules: normalizeRules(d.rules) } : null;
-    if (this.request.page === 'rules' && !this.game()) this.refreshSoon();
+    // The TV follows the host's choices live before the game exists (Settings page and pre-lobby, R4-11).
+    if (!this.game()) this.refreshSoon();
   }
 
   newPairingCode() {
@@ -169,8 +170,14 @@ export class LobbyManager {
         return t ? { page: 'tournament', tournament: t } : { page: 'lobby' };
       }
       default:
-        return { page: 'lobby' };
+        // No game yet: the pre-lobby preview instead of the join screen (R4-11).
+        return this.lobby && !this.game() ? { page: 'lobby', setup: this.setup() } : { page: 'lobby' };
     }
+  }
+
+  private setup(): NonNullable<PresentationState['setup']> {
+    const selected = this.draft?.boardId ?? null;
+    return { boards: this.boards(selected)!, board: selected ? this.board(selected) : null, rules: this.rules()! };
   }
 
   private leaderboard(view: LeaderView, metric?: string): PresentationState['leaderboard'] {
