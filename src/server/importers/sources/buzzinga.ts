@@ -137,7 +137,7 @@ export function normalizeBuzzingaBoard(doc: BzBoard, origin: string | undefined)
   if (rawRounds.length > 3) warnings.push('Only the first three rounds were imported.');
   const fr = doc.finalRound;
   if (fr && typeof fr === 'object' && fr.clue && (str(fr.clue.text).trim() || str(fr.clue.answer).trim())) {
-    rounds.push({ name: 'Final Wager', kind: 'final', categories: [{ name: str(fr.categoryName).trim(), clues: [clueFrom(fr.clue, 0, '')] }] });
+    rounds.push({ name: 'Final Jeopardy!', kind: 'final', categories: [{ name: str(fr.categoryName).trim(), clues: [clueFrom(fr.clue, 0, '')] }] });
   }
   const title = (str(doc.name) || str(doc.title)).trim() || 'Buzzinga board';
   return {

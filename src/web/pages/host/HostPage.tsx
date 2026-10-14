@@ -205,8 +205,9 @@ function HostHome() {
       else navigate('/host');
     }
   };
-  // Back arrow where it is meaningful: from setup or results back to the list of games.
-  const canGoBack = !!game && (game.phase === 'lobby' || game.phase === 'ended');
+  // Back arrow from the lobby setup to the list of games. Not on the results: there the way on is
+  // Return to Lobby (same players), and a back arrow quietly meant "start a new lobby" (R4-20).
+  const canGoBack = !!game && game.phase === 'lobby';
   const playing = !!game && game.phase !== 'lobby' && game.phase !== 'ended';
 
   return (

@@ -24,7 +24,7 @@ export default function Help() {
         <p><b>Show Leaderboard on TV</b> (Leaderboard page) and <b>Show on TV</b> (Settings and game setup) work even in Private view. While the leaderboard is on the TV, changing the ranking updates it straight away; tap a player or team to show their statistics, then <b>Previous page</b> or <b>Lobby</b> to go back.</p>
       </Section>
       <Section title="After a game">
-        <p><b>Return to Lobby</b> keeps everyone in: players, teams, Joy-Cons, phones, the board and the settings. Scores, used clues and buzzes start over; the finished game is already saved in History. <b>Create new lobby</b> starts fresh — players join again.</p>
+        <p><b>Return to Lobby</b> keeps everyone in: players, teams, Joy-Cons, phones, the board and the settings. Scores, used clues and buzzes start over; the finished game is already saved in History. <b>New Lobby</b> starts fresh — players join again.</p>
       </Section>
       <Section title="Before you start: buzzer check">
         <p>On the Buzzers page (or the lobby's Buzzers tab) press <b>Start check</b> and ask everyone to press their buzzer once. You see who registered, in which order, and how quick each phone's connection is. These presses never count in the game.</p>
@@ -38,9 +38,9 @@ export default function Help() {
         <p>Correct answers add the clue value; incorrect answers subtract it (unless the Classroom preset is used). Scores can go negative. Tap a score on the iPad to award or deduct points by hand.</p>
         <p>In team games, points always go to the team. When a team member answers, they get personal credit as a statistic — the team never gets extra points for it. For shared buzzers, the host picks who answered or chooses "Team only / unknown".</p>
       </Section>
-      <Section title="Daily Wagers and the Final">
-        <p>Daily Wager clues are marked with a dice icon on the iPad. The TV hides the clue until the wager is locked. The wager can be anything from the minimum up to the player's score or the round's highest value, whichever is larger.</p>
-        <p>In the Final, players with a positive score wager privately from their phones (or the host types it in), then answer. The host reveals and judges each answer.</p>
+      <Section title="Daily Doubles and Final Jeopardy!">
+        <p>Daily Double! clues are marked with a dice icon on the iPad. The TV hides the clue until the wager is locked. The wager can be anything from the minimum up to the player's score or the round's highest value, whichever is larger.</p>
+        <p>In Final Jeopardy!, players with a positive score wager and answer on their own phones (teams: any member). Nobody sees the wagers or answers — not even the host — until the reveal. The 30-second think music plays while they write. Then the host reveals one contestant at a time, lowest score first: who it is, their wager, their answer, then Correct or Incorrect. A player without a working phone can tell the host privately (Final screen → “A player can't use their device?”).</p>
       </Section>
       <Section title="Saving and resuming">
         <p>Every action is saved immediately. If the computer restarts, open OfflineJeopardy and the game is restored where it was (timers paused, buzzers locked for safety). The iPad can disconnect and reconnect at any time.</p>

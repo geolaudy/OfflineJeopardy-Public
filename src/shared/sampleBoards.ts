@@ -120,7 +120,7 @@ export const SAMPLE_BOARD: BoardContent = {
     },
     {
       id: 'rf',
-      name: 'Final Wager',
+      name: 'Final Jeopardy!',
       kind: 'final',
       categories: [
         {

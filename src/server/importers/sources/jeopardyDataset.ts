@@ -106,7 +106,7 @@ function buildShow(show: string, items: DatasetClue[]): { board: NormalizedBoard
     }
     rounds.push({ name: `Round ${rn}`, kind: 'standard', categories });
   }
-  if (final) rounds.push({ name: 'Final Wager', kind: 'final', categories: [{ name: final.category, clues: [final.clue] }] });
+  if (final) rounds.push({ name: 'Final Jeopardy!', kind: 'final', categories: [{ name: final.category, clues: [final.clue] }] });
   if (skipped) warnings.push(`${skipped} tie-breaker or unknown-round clue${skipped === 1 ? '' : 's'} skipped.`);
   if (linkClues) warnings.push(`${linkClues} clue${linkClues === 1 ? '' : 's'} referred to pictures or video on another website; those are not downloaded (the clue text is kept).`);
   const clueCount = items.length - skipped;

@@ -59,7 +59,7 @@ export function parseGenericCsv(text: string, fileName: string): NormalizedBoard
       if (!isFinal && get('value')) warnings.push(`Line ${line}: "${get('value')}" is not a number — set to 0.`);
       value = 0;
     }
-    const name = isFinal ? 'Final Wager' : roundName;
+    const name = isFinal ? 'Final Jeopardy!' : roundName;
     let round = rounds.find((x) => x.name.toLowerCase() === name.toLowerCase());
     if (!round) {
       round = { name, kind: isFinal ? 'final' : 'standard', categories: [] };

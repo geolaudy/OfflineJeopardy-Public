@@ -211,8 +211,8 @@ export function GameDetailPage({ me }: { me: Me }) {
           {shown.map(({ clue, events, result }) => (
             <li key={clue.clueId} className="rounded-xl bg-white p-3 shadow-sm" data-testid="history-clue">
               <div className="text-xs font-semibold text-slate-500">
-                {clue.roundKind === 'final' ? 'Final Wager' : `${clue.category} · ${clue.value}`}
-                {clue.dailyWager ? ' · Daily Wager' : ''}
+                {clue.roundKind === 'final' ? 'Final Jeopardy!' : `${clue.category} · ${clue.value}`}
+                {clue.dailyWager ? ' · Daily Double!' : ''}
                 {result === 'unanswered' ? ' · nobody got it' : result === 'skipped' ? ' · skipped' : ''}
               </div>
               <p className="mt-0.5">{clue.question}</p>

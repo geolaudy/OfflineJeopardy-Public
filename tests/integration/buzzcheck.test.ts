@@ -34,6 +34,7 @@ describe('buzzer check (Z11)', () => {
     await h.act({ type: 'bindController', controllerId: 'joycon:L:aa', kind: 'joycon', label: 'Joy-Con (L)', target: { kind: 'profile', profileId: sam.id } });
     // Start the game and open a clue: check presses must still not count as buzzes.
     await h.act({ type: 'startGame' });
+    await h.act({ type: 'introSkip' });
     await h.act({ type: 'selectClue', clueId: 'sci_1' });
     await h.act({ type: 'unlockBuzzers' });
 

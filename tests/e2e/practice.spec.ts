@@ -54,7 +54,7 @@ test('practice game: computer opponent, answer hidden until revealed, buzzers op
   await expect(pc.getByTestId('peek-answer')).toBeVisible();
   await expect(pc.getByTestId('host-answer')).toHaveCount(0);
   // Buzzers open automatically after a reading pause; B buzzes for the single human player.
-  await expect(pc.getByText('Buzzers are open…')).toBeVisible({ timeout: 10_000 });
+  await expect(pc.getByTestId('buzzers-open')).toBeVisible({ timeout: 10_000 });
   await expect(tv.getByTestId('tv-unlock-indicator')).toHaveAttribute('data-style', 'dot');
   await tv.screenshot({ path: 'test-results/screens/tv-unlock-dot.png' });
   await pc.keyboard.press('b');
@@ -127,8 +127,13 @@ test('TV presentation settings: indicator style, board intro and sound cues save
   await expect(card.getByTestId('fx-style-bottom')).toHaveAttribute('aria-checked', 'true');
   await card.getByTestId('fx-board-intro').uncheck();
   await card.getByTestId('fx-cue-buzz').uncheck();
-  await card.getByTestId('fx-sound-pack').selectOption('arcade');
-  await expect(card.getByTestId('fx-sound-pack')).toHaveValue('arcade');
+  // R4-1: four packs as clear options, Jeopardy!/Buzzinga marked as the default.
+  await expect(card.getByTestId('fx-pack-buzzinga')).toContainText(/Jeopardy!\/Buzzinga\s*\(Default\)/);
+  for (const k of ['classic', 'arcade', 'soft']) await expect(card.getByTestId(`fx-pack-${k}`)).toBeVisible();
+  await expect(card.getByTestId('buzzinga-files')).toBeVisible();
+  await card.getByTestId('fx-pack-arcade').click();
+  await expect(card.getByTestId('fx-pack-arcade')).toHaveAttribute('aria-checked', 'true');
+  await expect(card.getByTestId('fx-pack-buzzinga')).toHaveAttribute('aria-checked', 'false');
   await card.screenshot({ path: 'test-results/screens/settings-tv-presentation.png' });
   const after = (await (await api.get('/api/settings/public')).json()).tvFx;
   expect(after.unlock.style).toBe('bottom');

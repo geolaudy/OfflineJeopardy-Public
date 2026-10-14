@@ -5,6 +5,7 @@ import { attempt, useFetch } from '../../lib/hooks';
 import { ActionButton, Button, Card, Empty, Field, Modal, PageTitleBar, cx, inputCls, toast } from '../../components/ui';
 import { Eye, Link2, Plus, Upload, Folder, FileText, ChevronDown, ChevronUp } from 'lucide-react';
 import { ImportFromSourceModal } from './ImportFromSource';
+import { clueComplete } from '../../../shared/boardUtils';
 import { CSV_HEADER } from '../../../shared/boardIO';
 import type { BoardContent, Clue } from '../../../shared/game';
 
@@ -510,7 +511,7 @@ function PreviewModal({ boardId, onClose, onEdit }: { boardId: string | null; on
                   round.categories.map((c) => {
                     const q = c.clues[row];
                     if (!q) return <div key={`${c.id}-${row}`} className="rounded-md bg-slate-100" />;
-                    const incomplete = !q.question.trim() || !q.answer.trim();
+                    const incomplete = !clueComplete(q);
                     const isSel = selected?.clue.id === q.id;
                     return (
                       <button
@@ -525,7 +526,7 @@ function PreviewModal({ boardId, onClose, onEdit }: { boardId: string | null; on
                         )}
                       >
                         {q.value}
-                        {q.dailyWager ? <span className="absolute right-1 top-0.5 text-xs" title="Daily Wager">★</span> : null}
+                        {q.dailyWager ? <span className="absolute right-1 top-0.5 text-xs" title="Daily Double!">★</span> : null}
                       </button>
                     );
                   }),
@@ -539,7 +540,7 @@ function PreviewModal({ boardId, onClose, onEdit }: { boardId: string | null; on
               <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <p className="mb-1 text-sm font-semibold text-slate-600">
                   {selected.cat || 'Category'} · {selected.clue.value}
-                  {selected.clue.dailyWager ? ' · Daily Wager' : ''}
+                  {selected.clue.dailyWager ? ' · Daily Double!' : ''}
                 </p>
                 <ClueDetail clue={selected.clue} light />
               </div>
@@ -690,7 +691,7 @@ function ImportModal({ open, onClose, onSaved }: { open: boolean; onClose: () =>
             <ul className="mt-1 list-disc pl-5">
               <li>One row per clue. Rows with the same round + category are grouped.</li>
               <li>
-                A round named <strong>Final</strong> becomes the Final round (one category, one clue).
+                A round named <strong>Final</strong> becomes the Final Jeopardy! round (one category, one clue).
               </li>
               <li>
                 <code>daily_wager</code>: <code>yes</code> or blank. <code>round</code> and <code>notes</code> are optional.

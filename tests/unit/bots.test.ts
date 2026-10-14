@@ -55,6 +55,7 @@ describe('computer opponents (O3, R3-9…R3-13)', () => {
   it('a bot buzzes, submits its answer, the timer stops and nothing is scored until the host judges', async () => {
     game(false, 0, { timers: { ...DEFAULT_RULES.timers, answerSeconds: 8 } }); // random()=0 → knows, fastest
     ok({ type: 'startGame' });
+    ok({ type: 'introSkip' });
     ok({ type: 'selectClue', clueId: 'hist_1' });
     await wait(5000);
     expect(s().buzzer.status).toBe('locked'); // not a practice game: the host opens the buzzers
@@ -85,6 +86,7 @@ describe('computer opponents (O3, R3-9…R3-13)', () => {
     gm.bots.random = () => 0.03; // under the easy risk (0.05) but over… knows chance is ≥ 0.05 → knows; use a clue it misses:
     gm.bots.knows = () => false;
     ok({ type: 'startGame' });
+    ok({ type: 'introSkip' });
     ok({ type: 'selectClue', clueId: 'hist_2' });
     ok({ type: 'unlockBuzzers' });
     await wait(4000);
@@ -101,6 +103,7 @@ describe('computer opponents (O3, R3-9…R3-13)', () => {
   it('a bot that does not know stays quiet; the host can buzz for the human; undo does not make the bot re-answer', async () => {
     game(false, 0.99); // never knows, never risks
     ok({ type: 'startGame' });
+    ok({ type: 'introSkip' });
     ok({ type: 'selectClue', clueId: 'hist_1' });
     ok({ type: 'unlockBuzzers' });
     await wait(5000);
@@ -126,6 +129,7 @@ describe('computer opponents (O3, R3-9…R3-13)', () => {
   it('practice games open the buzzers by themselves after a reading pause', async () => {
     game(true, 0.99);
     ok({ type: 'startGame' });
+    ok({ type: 'introSkip' });
     expect(s().practice).toBe(true);
     ok({ type: 'selectClue', clueId: 'hist_1' });
     await wait(1400);
@@ -137,6 +141,7 @@ describe('computer opponents (O3, R3-9…R3-13)', () => {
   it('a bot with control picks an available clue by itself, never a used one', async () => {
     game(false, 0.99);
     ok({ type: 'startGame' });
+    ok({ type: 'introSkip' });
     ok({ type: 'setControl', competitorId: bot('Robo Rita').id });
     const usedBefore = s().usedClueIds.length;
     await wait(1000);
@@ -160,6 +165,7 @@ describe('computer opponents (O3, R3-9…R3-13)', () => {
   it('bots wager and answer Daily Wagers and the Final; the host judges them', async () => {
     game(false, 0);
     ok({ type: 'startGame' });
+    ok({ type: 'introSkip' });
     ok({ type: 'setControl', competitorId: bot('Robo Rita').id });
     ok({ type: 'adjustScore', competitorId: bot('Robo Rita').id, delta: 1000 });
     ok({ type: 'selectClue', clueId: 'sci_4' }); // Daily Wager on the sample board
@@ -225,6 +231,7 @@ describe('local bot answers and clue choices (R3-9, R3-11)', () => {
     ok({ type: 'addPlayer', profileId: humanId });
     ok({ type: 'addBot', name: 'Robo Rita', level: 'expert' });
     ok({ type: 'startGame' });
+    ok({ type: 'introSkip' });
     const st = s();
     const round = st.board.rounds[st.roundIndex];
     st.usedClueIds = [round.categories[1].clues[0].id];

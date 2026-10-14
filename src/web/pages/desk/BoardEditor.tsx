@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { hostApi } from '../../lib/api';
 import { attempt } from '../../lib/hooks';
 import { ActionButton, Button, Field, Modal, cx, inputCls, toast } from '../../components/ui';
-import { blankBoard, blankCategory, blankClue, blankFinal, blankRound, boardStats, uid, validateBoard } from '../../../shared/boardUtils';
+import { blankBoard, blankCategory, blankClue, blankFinal, blankRound, boardStats, clueComplete, hasClueMedia, uid, validateBoard } from '../../../shared/boardUtils';
 import { boardContentSchema } from '../../../shared/boardIO';
 import type { BoardContent, Category, Clue, ClueLayout, ClueUnlock, MediaRef, Round } from '../../../shared/game';
 import { Eye, Star, ArrowLeft, Image, Music, Film, OctagonAlert, TriangleAlert, ChevronLeft, ChevronRight, X, Download } from 'lucide-react';
@@ -105,7 +105,11 @@ function fileSafe(s: string) {
   return s.replace(/[^a-z0-9 _-]/gi, '').trim() || 'category';
 }
 
-const clueComplete = (q: Clue) => Boolean(q.question.trim() && q.answer.trim());
+/** Text or media plus an answer (media-only clues are complete, R4-10). */
+const mediaLabel = (q: Clue) => {
+  const kinds = new Set((q.media ?? []).map((m) => m.kind));
+  return kinds.size === 1 ? `${[...kinds][0] === 'image' ? 'Image' : [...kinds][0] === 'audio' ? 'Audio' : 'Video'} clue` : 'Media clue';
+};
 
 interface ConfirmState {
   title: string;
@@ -627,7 +631,7 @@ export default function BoardEditor() {
         </Button>
         {!hasFinal ? (
           <Button variant="ghost" onClick={addFinal} disabled={content.rounds.length >= MAX_ROUNDS}>
-            + Final round
+            + Final Jeopardy! round
           </Button>
         ) : null}
       </div>
@@ -681,7 +685,7 @@ export default function BoardEditor() {
           title={round.kind === 'standard' && standardCount <= 1 ? 'A board needs at least one round' : undefined}
           onClick={() =>
             setConfirm({
-              title: round.kind === 'final' ? 'Remove the Final round?' : `Delete “${round.name}”?`,
+              title: round.kind === 'final' ? 'Remove the Final Jeopardy! round?' : `Delete “${round.name}”?`,
               message: 'All categories and clues in this round will be removed.',
               confirmLabel: 'Delete round',
               danger: true,
@@ -689,7 +693,7 @@ export default function BoardEditor() {
             })
           }
         >
-          {round.kind === 'final' ? 'Remove Final round' : 'Delete round'}
+          {round.kind === 'final' ? 'Remove Final Jeopardy!' : 'Delete round'}
         </Button>
       </div>
 
@@ -821,11 +825,11 @@ export default function BoardEditor() {
                     <span className="flex w-full items-center justify-between">
                       <span className="font-black text-blue-900">{q.value}</span>
                       <span className="flex gap-1 text-xs">
-                        {q.dailyWager ? <span title="Daily Wager"><Star size={12} className="inline fill-current" aria-hidden /></span> : null}
+                        {q.dailyWager ? <span title="Daily Double!"><Star size={12} className="inline fill-current" aria-hidden /></span> : null}
                         {q.media?.length ? <span title="Has media"><Image size={12} className="inline" aria-hidden /></span> : null}
                       </span>
                     </span>
-                    <span className={cx('line-clamp-2 text-xs', done ? 'text-slate-700' : 'italic text-amber-800')}>{q.question.trim() ? q.question : 'Needs question'}</span>
+                    <span className={cx('line-clamp-2 text-xs', done ? 'text-slate-700' : 'italic text-amber-800')}>{q.question.trim() ? q.question : hasClueMedia(q) ? mediaLabel(q) : 'Needs clue text or media'}</span>
                   </button>
                 );
               }),
@@ -973,7 +977,7 @@ function ClueFields({ clue, onChange, final }: { clue: Clue; onChange: (p: Parti
           </div>
           <label className="flex min-h-11 cursor-pointer items-center gap-2 font-medium">
             <input type="checkbox" className="h-5 w-5" checked={Boolean(clue.dailyWager)} onChange={(e) => onChange({ dailyWager: e.target.checked || undefined })} />
-            <Star size={16} aria-hidden className="text-amber-500" /> Daily Wager
+            <Star size={16} aria-hidden className="text-amber-500" /> Daily Double!
           </label>
         </div>
       ) : null}

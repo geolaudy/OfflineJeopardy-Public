@@ -14,6 +14,7 @@ import {
   type TimerState,
   CLUE_LOCKOUT,
   findClue,
+  finalRevealOrder,
   livesOf,
   mediaPosition,
   unlockModeFor,
@@ -87,6 +88,16 @@ export function normalizeState(s: GameState): GameState {
   if (s.clue && !s.clue.unlockMode) s.clue.unlockMode = 'host';
   if (typeof s.practice !== 'boolean') s.practice = false;
   if (typeof s.roomCode !== 'string') s.roomCode = ''; // filled with a random code on load
+  if (s.final && !Array.isArray(s.final.order)) {
+    // Saved before the one-at-a-time reveal (R4-2): rebuild the order from pre-Final scores.
+    const pre = scoresOf(s.events.filter((x) => !(x.type === 'answer' && x.note === 'final')));
+    const ids = s.final.entries.map((x) => x.competitorId);
+    s.final.preScores = Object.fromEntries(s.competitors.map((c) => [c.id, pre[c.id] ?? 0]));
+    s.final.order = finalRevealOrder(ids, s.final.preScores, s.competitors.map((c) => c.id));
+    const next = s.final.order.findIndex((id) => !s.final!.entries.find((x) => x.competitorId === id)?.judged);
+    s.final.cursor = next < 0 ? Math.max(0, s.final.order.length - 1) : next;
+    s.final.step = next < 0 ? 'answer' : 'contestant';
+  }
   return s;
 }
 
@@ -276,7 +287,7 @@ function snapshot(s: GameState, label: string) {
 export function undoLabel(type: string): string {
   const labels: Record<string, string> = {
     selectClue: 'open clue',
-    setDailyWager: 'Daily Wager',
+    setDailyWager: 'Daily Double!',
     revealAnswer: 'reveal answer',
     hideAnswer: 'hide answer',
     unlockBuzzers: 'unlock buzzers',
@@ -291,7 +302,7 @@ export function undoLabel(type: string): string {
     setControl: 'board control',
     startFinal: 'start Final',
     finalNext: 'Final step',
-    setFinalWager: 'Final wager',
+    setFinalWager: 'Final Jeopardy! wager',
     setFinalAnswer: 'Final answer',
     judgeFinal: 'Final judgement',
     endGame: 'end game',
@@ -600,7 +611,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       s.showJoinQr = false;
       s.roundIndex = Math.max(0, s.board.rounds.findIndex((r) => r.kind === 'standard'));
       s.controlCompetitorId = s.competitors[0].id;
-      s.intro = s.rules.categoryIntro ? { roundIndex: s.roundIndex, step: -1, auto: false } : null;
+      s.intro = s.rules.categoryIntro ? { roundIndex: s.roundIndex, step: -1, auto: false, at: now } : null;
       emit(tx, { type: 'game_start', roundIndex: s.roundIndex });
       return;
     }
@@ -635,7 +646,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       const scores = scoresOf(s.events);
       const sorted = [...s.competitors].sort((x, y) => (scores[x.id] ?? 0) - (scores[y.id] ?? 0));
       s.controlCompetitorId = sorted[0]?.id ?? s.controlCompetitorId;
-      s.intro = s.rules.categoryIntro ? { roundIndex: a.roundIndex, step: -1, auto: false } : null;
+      s.intro = s.rules.categoryIntro ? { roundIndex: a.roundIndex, step: -1, auto: false, at: now } : null;
       emit(tx, { type: 'round_change', roundIndex: a.roundIndex });
       return;
     }
@@ -648,13 +659,14 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
         s.intro.auto = true;
         return;
       }
-      s.intro = { roundIndex: s.roundIndex, step: -1, auto: !!a.auto };
+      s.intro = { roundIndex: s.roundIndex, step: -1, auto: !!a.auto, at: now };
       return;
     }
     case 'introNext': {
       if (!s.intro) return { ignored: true };
       const count = s.board.rounds[s.intro.roundIndex]?.categories.length ?? 0;
       s.intro.step++;
+      s.intro.at = now;
       if (s.intro.step >= count) s.intro = null;
       return;
     }
@@ -669,6 +681,8 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
     }
     case 'selectClue': {
       if (s.phase !== 'board') fail('Return to the board first');
+      // Categories are presented (or explicitly skipped) before any clue can be opened (R4-16).
+      if (s.intro) fail('Introduce the categories first (or skip the introduction)');
       const found = findClue(s.board, a.clueId);
       if (!found || found.r !== s.roundIndex || found.round.kind !== 'standard') fail('That clue is not on the current board');
       if (s.usedClueIds.includes(a.clueId)) fail('That clue has already been played');
@@ -694,7 +708,6 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       s.phase = 'clue';
       s.timer = null;
       s.media = null;
-      s.intro = null; // picking a clue ends any category introduction
       if (dw) maybeAutoTimer(s, 'wager', now);
       else if (s.clue.unlockMode === 'immediate') openBuzzers(s, now);
       emit(tx, { type: 'clue_open', clueId: a.clueId, roundIndex: f.r, result: dw ? 'daily_wager' : 'standard' });
@@ -702,7 +715,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
     }
     case 'setDailyWager': {
       const clue = activeClue(s);
-      if (!clue.isDailyWager) fail('This is not a Daily Wager');
+      if (!clue.isDailyWager) fail('This is not a Daily Double!');
       if (clue.stage !== 'wager') fail('The wager is already locked');
       const c = competitorOf(s, a.competitorId);
       const score = scoresOf(s.events)[c.id] ?? 0;
@@ -736,7 +749,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
     case 'endAnswering': {
       if (a.clueId && s.clue?.clueId !== a.clueId) return { ignored: true, info: 'stale' };
       const clue = activeClue(s);
-      if (clue.isDailyWager && !clue.resolved) fail('Judge the Daily Wager first');
+      if (clue.isDailyWager && !clue.resolved) fail('Judge the Daily Double! first');
       if (s.buzzer.winner) fail('Judge the buzzed-in answer first');
       finishAnswering(s, clue);
       return;
@@ -747,7 +760,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
     }
     case 'unlockBuzzers': {
       const clue = activeClue(s);
-      if (clue.isDailyWager) fail('Daily Wagers do not use buzzers');
+      if (clue.isDailyWager) fail('Daily Doubles do not use buzzers');
       if (clue.resolved) fail('This clue is already answered');
       if (clue.stage !== 'question') fail('The clue is not showing yet');
       if (clue.answerRevealed) fail('The answer is already showing');
@@ -952,6 +965,8 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       t.startedAt = null;
       t.running = false;
       t.expired = true;
+      // Final: answers close when the think time ends; the reveal starts (R4-2).
+      if (t.kind === 'final' && s.phase === 'final' && s.final?.stage === 'clue') startFinalReveal(tx);
       if (t.kind === 'buzz' && s.buzzer.status === 'open') {
         s.buzzer.status = 'locked';
         // Time ran out with nobody buzzing: the answering period is over.
@@ -974,10 +989,15 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       const eligible = s.competitors.filter((c) => (!lives || lives[c.id] > 0) && (s.rules.finalAllowNonPositive || (scores[c.id] ?? 0) > 0));
       s.phase = 'final';
       s.roundIndex = idx;
+      const preScores = Object.fromEntries(s.competitors.map((c) => [c.id, scores[c.id] ?? 0]));
       s.final = {
         stage: 'category',
         roundIndex: idx,
         entries: eligible.map((c) => ({ competitorId: c.id, wager: null, answer: null, judged: false, correct: null, profileId: null })),
+        order: finalRevealOrder(eligible.map((c) => c.id), preScores, s.competitors.map((c) => c.id)),
+        preScores,
+        cursor: 0,
+        step: 'contestant',
       };
       s.timer = null;
       emit(tx, { type: 'round_change', roundIndex: idx, result: 'final' });
@@ -997,12 +1017,31 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
         f.stage = 'clue';
         maybeAutoTimer(s, 'final', now);
       } else if (f.stage === 'clue') {
-        f.stage = 'reveal';
-        s.timer = null;
+        startFinalReveal(tx);
       } else if (f.stage === 'reveal') {
         if (f.entries.some((e) => !e.judged)) fail('Judge every Final answer first');
         f.stage = 'done';
       } else fail('The Final is complete — end the game');
+      return;
+    }
+    case 'finalReveal': {
+      const f = finalState(s);
+      if (f.stage !== 'reveal') fail('Close the answers first');
+      const cur = f.order[f.cursor];
+      const e = cur ? f.entries.find((x) => x.competitorId === cur) : undefined;
+      if (!e) {
+        f.stage = 'done';
+        return;
+      }
+      if (f.step === 'contestant') f.step = 'wager';
+      else if (f.step === 'wager') f.step = 'answer';
+      else {
+        if (!e.judged) fail('Judge this answer first');
+        if (f.cursor + 1 < f.order.length) {
+          f.cursor++;
+          f.step = 'contestant';
+        } else f.stage = 'done';
+      }
       return;
     }
     case 'setFinalWager': {
@@ -1018,7 +1057,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
     }
     case 'setFinalAnswer': {
       const f = finalState(s);
-      if (f.stage !== 'clue' && f.stage !== 'wagers') fail('Answers are not open');
+      if (f.stage !== 'clue') fail('Answers are not open');
       const e = f.entries.find((x) => x.competitorId === a.competitorId);
       if (!e) fail('Not playing in the Final');
       e!.answer = a.answer.trim();
@@ -1030,6 +1069,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       const e = f.entries.find((x) => x.competitorId === a.competitorId);
       if (!e) fail('Not playing in the Final');
       if (e!.judged) fail('Already judged — use Undo to change it');
+      if (f.order[f.cursor] !== a.competitorId || f.step !== 'answer') fail('Reveal this answer first');
       const c = competitorOf(s, a.competitorId);
       const pid = attribution(c, a.profileId, e!.profileId);
       const w = e!.wager ?? 0;
@@ -1107,6 +1147,23 @@ function buzzBlockReasonIgnoringStatus(s: GameState, c: Competitor): string | nu
 function activeClue(s: GameState): ActiveClue {
   if (s.phase !== 'clue' || !s.clue) fail('No clue is open');
   return s.clue!;
+}
+
+/** Answers close: each written answer is recorded for the game history (kept private until its
+ *  reveal step by the projection), then the reveal starts with the lowest score. */
+function startFinalReveal(tx: Tx) {
+  const s = tx.s;
+  const f = s.final!;
+  const clue = s.board.rounds[f.roundIndex]?.categories[0]?.clues[0];
+  for (const e of f.entries) {
+    if (!e.answer) continue;
+    const c = s.competitors.find((x) => x.id === e.competitorId);
+    emit(tx, { type: 'submission', result: 'final', clueId: clue?.id, roundIndex: f.roundIndex, competitorId: e.competitorId, sourceKind: c?.bot ? 'bot' : 'phone', note: e.answer });
+  }
+  f.stage = 'reveal';
+  f.cursor = 0;
+  f.step = 'contestant';
+  s.timer = null;
 }
 
 function finalState(s: GameState) {

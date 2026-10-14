@@ -26,7 +26,7 @@ export function blankRound(name: string, multiplier = 1, cats = 6, rows = 5): Ro
 }
 
 export function blankFinal(): Round {
-  return { id: uid('r'), name: 'Final Wager', kind: 'final', categories: [{ id: uid('c'), name: '', clues: [blankClue(0)] }] };
+  return { id: uid('r'), name: 'Final Jeopardy!', kind: 'final', categories: [{ id: uid('c'), name: '', clues: [blankClue(0)] }] };
 }
 
 export function blankBoard(): BoardContent {
@@ -42,6 +42,23 @@ export function reassignIds(content: BoardContent): BoardContent {
       categories: r.categories.map((c) => ({ ...c, id: uid('c'), clues: c.clues.map((q) => ({ ...q, id: uid('q') })) })),
     })),
   };
+}
+
+const MEDIA_KINDS = new Set(['image', 'audio', 'video']);
+
+/** The clue has at least one displayable/playable media item (image, audio or video). */
+export function hasClueMedia(q: Pick<Clue, 'media'>): boolean {
+  return (q.media ?? []).some((m) => MEDIA_KINDS.has(m?.kind) && typeof m.url === 'string' && m.url.trim().length > 0);
+}
+
+/** Something to show for the clue: text, or valid media (media-only clues are complete, R4-10). */
+export function clueHasPrompt(q: Pick<Clue, 'question' | 'media'>): boolean {
+  return !!q.question?.trim() || hasClueMedia(q);
+}
+
+/** Ready to play: a prompt (text or media) and an answer. */
+export function clueComplete(q: Pick<Clue, 'question' | 'answer' | 'media'>): boolean {
+  return clueHasPrompt(q) && !!q.answer?.trim();
 }
 
 export interface BoardIssue {
@@ -63,8 +80,8 @@ export function validateBoard(content: BoardContent): BoardIssue[] {
       c.clues.forEach((q) => {
         if (ids.has(q.id)) issues.push({ level: 'error', message: `Duplicate clue id ${q.id}.` });
         ids.add(q.id);
-        if (!q.question.trim() || !q.answer.trim())
-          issues.push({ level: 'warning', message: `${r.name} / ${c.name || `Category ${ci + 1}`} / ${q.value}: missing question or answer.` });
+        if (!clueHasPrompt(q) || !q.answer.trim())
+          issues.push({ level: 'warning', message: `${r.name} / ${c.name || `Category ${ci + 1}`} / ${q.value}: ${clueHasPrompt(q) ? 'missing answer' : q.answer.trim() ? 'missing clue text or media' : 'missing clue and answer'}.` });
       });
     });
   });
@@ -78,7 +95,7 @@ export function boardStats(content: BoardContent) {
     for (const c of r.categories)
       for (const q of c.clues) {
         clues++;
-        if (q.question.trim() && q.answer.trim()) complete++;
+        if (clueComplete(q)) complete++;
       }
   return { rounds: content.rounds.length, clues, complete };
 }

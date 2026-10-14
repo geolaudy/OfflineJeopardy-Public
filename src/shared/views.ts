@@ -3,6 +3,7 @@ import type {
   BuzzerState,
   Competitor,
   ControllerBinding,
+  FinalRevealStep,
   FinalState,
   GameResult,
   GameRules,
@@ -70,8 +71,8 @@ export interface FinalEntryView {
   competitorId: Id;
   hasWager: boolean;
   hasAnswer: boolean;
-  wager: number | null; // hidden from non-host until judged
-  answer: string | null; // hidden from non-host until judged
+  wager: number | null; // hidden from everyone until its reveal step
+  answer: string | null; // hidden from everyone until its reveal step
   judged: boolean;
   correct: boolean | null;
   profileId: Id | null;
@@ -82,6 +83,11 @@ export interface FinalView {
   category: string;
   question: string | null;
   answer: string | null;
+  /** Reveal order, lowest → highest pre-Final score (R4-2). */
+  order: Id[];
+  preScores: Record<Id, number>;
+  cursor: number;
+  step: FinalRevealStep;
   entries: FinalEntryView[];
 }
 
@@ -140,4 +146,6 @@ export interface PlayerContext {
   sharedTeam: boolean;
   /** End of an early-buzz lockout (server time); null = none. Very large = rest of the clue. */
   lockedUntil: number | null;
+  /** This player's (team's) own Final Jeopardy! wager and answer (private to them). */
+  final?: { wager: number | null; answer: string | null } | null;
 }

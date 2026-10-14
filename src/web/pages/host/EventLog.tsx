@@ -14,9 +14,9 @@ function describe(e: GameplayEvent, g: GameView) {
     case 'game_start':
       return 'Game started';
     case 'round_change':
-      return e.result === 'final' ? 'Final round started' : `Round ${(e.roundIndex ?? 0) + 1}`;
+      return e.result === 'final' ? 'Final Jeopardy! started' : `Round ${(e.roundIndex ?? 0) + 1}`;
     case 'clue_open':
-      return `Clue opened${e.result === 'daily_wager' ? ' (Daily Wager)' : ''}`;
+      return `Clue opened${e.result === 'daily_wager' ? ' (Daily Double!)' : ''}`;
     case 'clue_close':
       return `Clue ${e.result}`;
     case 'buzz':

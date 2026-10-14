@@ -122,7 +122,7 @@ function DailyWagerCard({ g }: { g: GameView }) {
   const controller = findCompetitor(g, g.controlCompetitorId);
   return (
     <div className="bt-stage flex min-h-0 flex-1 flex-col items-center justify-center gap-[3.5vh] px-[6vw] pb-[8vh] text-center">
-      <p className="bt-dw-title">DAILY WAGER!</p>
+      <p className="bt-dw-title">DAILY DOUBLE!</p>
       <p className="bt-dw-cat">{clue.categoryName}</p>
       {controller && <p className="bt-dw-who">{competitorName(controller, g)} is wagering…</p>}
     </div>

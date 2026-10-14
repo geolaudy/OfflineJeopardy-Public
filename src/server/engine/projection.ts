@@ -1,6 +1,6 @@
 // Server-side role projections. Secrets (answers, notes, hidden wagers, Daily Wager
 // locations) are removed here, before data ever leaves the server.
-import { findClue, livesOf, scoresOf, type GameState, type Id } from '../../shared/game.js';
+import { finalEntryReveal, findClue, livesOf, scoresOf, type GameState, type Id } from '../../shared/game.js';
 import type { GameView, PlayerContext, ProfilePublic, ViewRole } from '../../shared/views.js';
 import { buzzBlockReason, competitorForProfile, lockoutUntil } from './engine.js';
 
@@ -66,14 +66,19 @@ export function projectState(s: GameState, role: ViewRole, profiles: Record<Id, 
       category: fc?.name ?? '',
       question: host || st === 'clue' || st === 'reveal' || st === 'done' ? (fq?.question ?? '') : null,
       answer: host || st === 'done' ? (fq?.answer ?? '') : null,
+      order: s.final.order,
+      preScores: s.final.preScores,
+      cursor: s.final.cursor,
+      step: s.final.step,
+      // Wagers and answers stay private — from the host too — until their turn in the reveal (R4-2).
       entries: s.final.entries.map((e) => {
-        const visible = host || e.judged;
+        const shown = finalEntryReveal(s.final!, e.competitorId);
         return {
           competitorId: e.competitorId,
           hasWager: e.wager != null,
           hasAnswer: !!e.answer,
-          wager: visible ? e.wager : null,
-          answer: visible ? e.answer : null,
+          wager: shown !== 'none' ? e.wager : null,
+          answer: shown === 'answer' ? e.answer : null,
           judged: e.judged,
           correct: e.correct,
           profileId: e.profileId,
@@ -115,7 +120,14 @@ export function projectState(s: GameState, role: ViewRole, profiles: Record<Id, 
   };
   if (host) {
     view.undoLabel = s.undoStack.length ? s.undoStack[s.undoStack.length - 1].label : null;
-    view.events = s.events.slice(-80);
+    // Final wagers stay private until their reveal, also in the host's event history (R4-2).
+    view.events = s.events.slice(-80).map((e) => {
+      if (!s.final || !e.competitorId || e.result !== 'final') return e;
+      const shown = finalEntryReveal(s.final, e.competitorId);
+      if (e.type === 'wager' && shown === 'none') return { ...e, wager: undefined };
+      if (e.type === 'submission' && shown !== 'answer') return { ...e, note: undefined };
+      return e;
+    });
     const contrib: Record<Id, number> = {};
     for (const e of s.events) {
       if (e.voided || !e.profileId || !e.contributionDelta) continue;
@@ -141,5 +153,10 @@ export function playerContext(s: GameState, profileId: Id, now: number): PlayerC
     buzzReason: reason,
     sharedTeam: !!shared,
     lockedUntil: until > now ? until : null,
+    // The player's own (team's) Final submission, so a reconnecting phone shows what was sent.
+    final: c && s.final ? (() => {
+      const e = s.final!.entries.find((x) => x.competitorId === c.id);
+      return e ? { wager: e.wager, answer: e.answer } : null;
+    })() : null,
   };
 }

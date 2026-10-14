@@ -79,8 +79,8 @@ export function ProfileStats({ stats }: { stats: Stats }) {
             <Stat label="Buzzes (won / tried)" value={`${s.buzzer.successful} / ${s.buzzer.attempts}`} hint="Tried = buzzed while buzzers were open" />
             <Stat label="Avg buzz speed" value={s.buzzer.averageReactionMs == null ? null : `${(s.buzzer.averageReactionMs / 1000).toFixed(2)}s`} />
             <Stat label="Early buzzes" value={s.buzzer.early ?? 0} hint="Buzzed before the host opened the buzzers" />
-            <Stat label="Daily Wagers won / lost" value={`${s.dailyWagers.won} / ${s.dailyWagers.lost}`} />
-            <Stat label="Final Wagers won / lost" value={`${s.finalWagers.won} / ${s.finalWagers.lost}`} />
+            <Stat label="Daily Doubles won / lost" value={`${s.dailyWagers.won} / ${s.dailyWagers.lost}`} />
+            <Stat label="Final Jeopardy! won / lost" value={`${s.finalWagers.won} / ${s.finalWagers.lost}`} />
           </div>
           <Card>
             <h4 className="mb-2 font-bold">Categories (solo)</h4>

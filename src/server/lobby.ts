@@ -2,6 +2,7 @@
 // state: the lobby owns the temporary host pairing code, and the presentation state holds only
 // public data computed here from an explicit host request.
 import type { DB } from './db/db.js';
+import { getSetting, setSetting } from './db/db.js';
 import { newPairingCode } from './auth.js';
 import * as repo from './repos.js';
 import * as stats from './stats.js';
@@ -52,13 +53,32 @@ export class LobbyManager {
 
   create(name?: string) {
     this.lobby = { name: name?.trim() || 'Game night', createdAt: Date.now(), pairingCode: newPairingCode() };
+    this.save();
     this.present({ page: 'lobby' });
     return this.lobby;
+  }
+
+  /**
+   * After a restart the lobby comes back together with the restored game (R4-20): players keep
+   * their place and the same join QR, so Return to Lobby never lands in a lobby-less game. The
+   * host pairing code is new (paired hosts keep their sessions).
+   */
+  restore() {
+    const saved = getSetting<{ name: string; createdAt: number } | null>(this.db, 'lobbySession', null);
+    if (!saved || this.lobby) return;
+    if (!this.game()) return this.save(); // nothing to come back to
+    this.lobby = { name: saved.name, createdAt: saved.createdAt, pairingCode: newPairingCode() };
+    this.present({ page: 'lobby' });
+  }
+
+  private save() {
+    setSetting(this.db, 'lobbySession', this.lobby ? { name: this.lobby.name, createdAt: this.lobby.createdAt } : null);
   }
 
   /** Closing the lobby invalidates its pairing code (already paired hosts keep their session). */
   close() {
     this.lobby = null;
+    this.save();
     this.draft = null;
     this.previous = null;
     this.reigning = null;

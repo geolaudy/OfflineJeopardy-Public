@@ -65,7 +65,7 @@ describe('Buzzinga plugin', () => {
     expect(b.rounds.map((r) => [r.name, r.kind])).toEqual([
       ['Round 1', 'standard'],
       ['Round 2', 'standard'],
-      ['Final Wager', 'final'],
+      ['Final Jeopardy!', 'final'],
     ]);
     const space = b.rounds[0].categories[0];
     expect(space.name).toBe('Space');

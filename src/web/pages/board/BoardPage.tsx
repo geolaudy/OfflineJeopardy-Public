@@ -6,8 +6,10 @@ import { connect, useLive, reconnectNow } from '../../lib/socket';
 import { api, ensureLocalHost, tokens } from '../../lib/api';
 import { Avatar, QrImage, cx, fmtScore } from '../../components/ui';
 import { competitorAvatar, competitorColor, competitorName, findCompetitor } from '../../lib/view';
-import { configureSound, playCue, sfx, unlockAudio } from '../../lib/sound';
-import { DEFAULT_TV_FX, normalizeTvFx, type TvFx } from '../../../shared/tvFx';
+import { configureSound, playCue, sfx, stopCue, unlockAudio } from '../../lib/sound';
+import { DEFAULT_TV_FX, normalizeTvFx, type PackFiles, type TvFx } from '../../../shared/tvFx';
+import { timerRemaining } from '../../../shared/game';
+import { serverNow } from '../../lib/socket';
 import type { PublicLobby } from '../../../shared/presentation';
 import { useTimerSeconds } from '../../lib/view';
 import { FxCtx } from './fx';
@@ -33,6 +35,7 @@ interface PublicSettings {
   volume: number;
   reducedMotion: boolean;
   tvFx?: TvFx;
+  packFiles?: PackFiles;
 }
 
 export default function BoardPage() {
@@ -62,7 +65,7 @@ export default function BoardPage() {
     api<PublicSettings>('GET', '/api/settings/public').then((s) => {
       const tvFx = normalizeTvFx(s.tvFx);
       setSettings({ ...s, tvFx });
-      configureSound({ enabled: s.sound, volume: s.volume, fx: tvFx });
+      configureSound({ enabled: s.sound, volume: s.volume, fx: tvFx, packFiles: s.packFiles ?? {} });
     });
     api<{ urls: { join: string; host: string } }>('GET', '/api/info').then(setInfo);
   }, [profilesVersion]);
@@ -242,10 +245,11 @@ function useSounds(g: GameView | null, lobby: PublicLobby | null) {
   useEffect(() => {
     const p = prev.current;
     prev.current = g;
+    // Leaving the Final (undo, game closed, another game) never leaves the think music running.
+    if (!g || g.id !== p?.id || g.phase !== 'final') stopCue('finalThink', 400);
     if (!g || !p || p.id !== g.id) return;
-    // Board intro / categories / new round.
-    if (g.intro && (!p.intro || p.intro.roundIndex !== g.intro.roundIndex || g.intro.step < p.intro.step)) playCue('boardIntro');
-    else if (g.intro && p.intro && g.intro.step > p.intro.step && g.intro.step >= 0) playCue('categoryIntro');
+    // Categories / new round. The board fill sound starts with its animation (Intro.tsx, R4-19).
+    if (g.intro && p.intro && g.intro.roundIndex === p.intro.roundIndex && g.intro.step > p.intro.step && g.intro.step >= 0) playCue('categoryIntro');
     if (p.phase === 'lobby') {
       if (g.phase === 'board' && !g.intro) playCue('boardIntro'); // board appears without an intro
     } else if (p.roundIndex !== g.roundIndex) playCue('roundEnd');
@@ -254,7 +258,16 @@ function useSounds(g: GameView | null, lobby: PublicLobby | null) {
     if (g.buzzer.status === 'open' && p.buzzer.status !== 'open' && g.phase === 'clue') playCue('unlock');
     if (g.buzzer.winner && g.buzzer.winner.at !== p.buzzer.winner?.at) sfx.buzz();
     if (g.clue?.isDailyWager && g.clue.clueId !== p.clue?.clueId) sfx.dailyWager();
-    if (g.timer?.expired && !p.timer?.expired) sfx.timeUp();
+    // The think music ends on its own; no "time's up" on top of it.
+    if (g.timer?.expired && !p.timer?.expired && g.timer.kind !== 'final') sfx.timeUp();
+    // Final Jeopardy! think music (R4-3): starts when the clue is shown for writing, fades out when
+    // answers close. Pausing fades it; resuming continues where the timer is.
+    const writing = (v: GameView) => v.phase === 'final' && v.final?.stage === 'clue' && !v.paused;
+    if (writing(g) && !writing(p)) {
+      const t = g.timer;
+      const elapsed = t?.kind === 'final' ? (t.durationMs - timerRemaining(t, serverNow())) / 1000 : 0;
+      playCue('finalThink', { offsetSec: p.paused ? elapsed : 0 });
+    } else if (!writing(g) && writing(p)) stopCue('finalThink', g.paused ? 300 : 800);
     if (g.phase === 'ended' && p.phase !== 'ended') sfx.win();
     const before = new Map(p.competitors.map((c) => [c.id, c.score]));
     let delta = 0;

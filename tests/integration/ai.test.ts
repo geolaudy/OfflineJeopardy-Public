@@ -54,6 +54,7 @@ async function setup(replies: Reply[], cfg: Partial<typeof DEFAULT_AI_CONFIG> = 
   await h.act({ type: 'addBot', name: 'Robo Rita', level: 'expert', ai: true });
   await h.act({ type: 'updateRules', rules: { ...h.state!.rules, categoryIntro: false } });
   await h.act({ type: 'startGame' });
+  await h.act({ type: 'introSkip' });
   const bot = h.state!.competitors.find((c) => c.bot)!.id;
   /** Host buzzes for the bot so it must answer; returns the submission the host sees. */
   const answerOn = async (clueId: string, knows: boolean) => {

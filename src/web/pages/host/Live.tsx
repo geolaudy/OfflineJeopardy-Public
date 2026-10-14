@@ -9,7 +9,8 @@ import FinalControl from './FinalControl';
 import { EarlyBuzzQuick } from './EarlyBuzzRule';
 import { HOST_SHORTCUTS, useHostShortcuts } from './shortcuts';
 import { MediaControls, MediaThumbs } from './MediaControls';
-import { Undo2, Dices, Gamepad2, EyeOff, Eye, NotebookPen, BellRing, Play, ChevronRight, ChevronsRight, Pause, RotateCcw, Timer, Lock, LockOpen, Check, X, ArrowLeft, Ban, Zap } from 'lucide-react';
+import { Undo2, Dices, Gamepad2, EyeOff, Eye, NotebookPen, BellRing, Play, ChevronRight, ChevronsRight, Pause, RotateCcw, Timer, Lock, LockOpen, Check, X, ArrowLeft, Zap, SlidersHorizontal, QrCode, Flag, Wrench } from 'lucide-react';
+import { AnswerBanner } from './AnswerBanner';
 import { BOT_LEVELS } from '../../../shared/game';
 
 type Run = (a: HostAction) => Promise<{ ok: boolean }>;
@@ -24,10 +25,14 @@ export default function Live({ g, run }: { g: GameView; run: Run }) {
         {g.phase === 'final' ? (
           <FinalControl g={g} run={run} />
         ) : (
-          <div className="grid h-full gap-3 lg:grid-cols-[1.25fr_1fr]">
-            <HostBoard g={g} run={run} />
-            {g.phase === 'clue' && g.clue ? <CluePanel g={g} run={run} /> : <BoardTools g={g} run={run} onDevices={() => setDevices(true)} />}
-          </div>
+          g.phase === 'board' && g.intro ? (
+            <IntroStage g={g} run={run} />
+          ) : (
+            <div className="grid h-full gap-3 lg:grid-cols-[1.25fr_1fr]">
+              <HostBoard g={g} run={run} />
+              {g.phase === 'clue' && g.clue ? <CluePanel g={g} run={run} /> : <BoardTools g={g} run={run} onDevices={() => setDevices(true)} />}
+            </div>
+          )
         )}
       </div>
       <footer className="shrink-0 border-t border-slate-200 bg-white px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
@@ -36,7 +41,7 @@ export default function Live({ g, run }: { g: GameView; run: Run }) {
             <button
               key={c.id}
               onClick={() => setAdjust(c)}
-              className={cx('flex min-w-36 items-center gap-2 rounded-xl border-2 px-3 py-2 text-left', g.controlCompetitorId === c.id ? 'border-blue-600' : 'border-slate-200', c.lives === 0 && 'opacity-50')}
+              className={cx('flex min-w-36 items-center gap-2 rounded-xl border-2 px-3 py-2 text-left', g.controlCompetitorId === c.id ? 'border-amber-400 ring-2 ring-amber-300' : 'border-slate-200', c.lives === 0 && 'opacity-50')}
               aria-label={`Adjust score for ${competitorName(c, g)}`}
               data-testid="host-score"
             >
@@ -91,11 +96,11 @@ function HostBoard({ g, run }: { g: GameView; run: Run }) {
                   'relative rounded-md text-lg font-black transition sm:text-xl',
                   isActive ? 'bg-yellow-400 text-black' : q.used ? 'bg-blue-900/60 text-blue-300/40' : 'bg-blue-600 text-yellow-300 active:bg-blue-500',
                 )}
-                aria-label={`${c.name} for ${q.value}${q.used ? ' (played)' : ''}${q.dailyWager ? ' — Daily Wager' : ''}`}
+                aria-label={`${c.name} for ${q.value}${q.used ? ' (played)' : ''}${q.dailyWager ? ' — Daily Double!' : ''}`}
                 data-testid="host-tile"
               >
                 {q.value}
-                {q.dailyWager && !q.used && <span className="absolute top-0.5 right-1 text-[10px]" title="Daily Wager"><Dices size={12} aria-hidden /></span>}
+                {q.dailyWager && !q.used && <span className="absolute top-0.5 right-1 text-[10px]" title="Daily Double!"><Dices size={12} aria-hidden /></span>}
               </button>
             );
           }),
@@ -108,7 +113,7 @@ function HostBoard({ g, run }: { g: GameView; run: Run }) {
             return (
               <div className="space-y-3">
                 <p className="text-lg">{q?.question}</p>
-                <p className="font-bold text-green-800">{q?.answer}</p>
+                <AnswerBanner answer={q?.answer} />
                 <Button
                   variant="secondary"
                   disabled={g.phase !== 'board'}
@@ -134,17 +139,24 @@ function BoardTools({ g, run, onDevices }: { g: GameView; run: Run; onDevices: (
   const round = g.rounds[g.roundIndex];
   const remaining = round?.categories.reduce((a, c) => a + c.clues.filter((q) => !q.used).length, 0) ?? 0;
   const next = standard.find((r) => r.i > g.roundIndex);
+  const [options, setOptions] = useState(false);
+  const picker = findCompetitor(g, g.controlCompetitorId);
   return (
     <div className="space-y-3">
-      <IntroControls g={g} run={run} />
       <div className="rounded-2xl bg-white p-4 shadow-sm">
         <p className="text-sm font-semibold text-slate-500">{round?.name}</p>
-        <p className="text-2xl font-bold">Tap a clue to open it on the TV</p>
-        <p className="mt-1 text-slate-600">{remaining} clues left in this round.</p>
+        {remaining > 0 ? (
+          <>
+            <p className="text-2xl font-bold">Tap a clue to open it on the TV</p>
+            <p className="mt-1 text-slate-600">{remaining} clues left in this round.</p>
+          </>
+        ) : (
+          <p className="text-2xl font-bold">This round is complete</p>
+        )}
         <div className="mt-3">
           <label className="text-sm font-semibold text-slate-600">
             Picks next:{' '}
-            <select className="rounded-lg border border-slate-300 px-2 py-1.5" value={g.controlCompetitorId ?? ''} onChange={(e) => run({ type: 'setControl', competitorId: e.target.value })}>
+            <select className="rounded-lg border border-amber-300 bg-amber-50 px-2 py-1.5" value={g.controlCompetitorId ?? ''} onChange={(e) => run({ type: 'setControl', competitorId: e.target.value })} data-testid="picks-next">
               {g.competitors.map((c) => (
                 <option key={c.id} value={c.id}>
                   {competitorName(c, g)}
@@ -152,35 +164,101 @@ function BoardTools({ g, run, onDevices }: { g: GameView; run: Run; onDevices: (
               ))}
             </select>
           </label>
+          {picker?.bot && <span className="ml-2 text-sm text-slate-500">(picks by itself)</span>}
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        {next && (
-          <ActionButton size="lg" variant={remaining === 0 ? 'primary' : 'secondary'} onAction={() => (remaining === 0 || confirm(`Skip to ${next.name}? ${remaining} clues are still unplayed.`)) && run({ type: 'setRound', roundIndex: next.i })}>
-            Next: {next.name} →
-          </ActionButton>
-        )}
-        {standard.length > 1 && (
-          <select className={inputCls} value={g.roundIndex} onChange={(e) => run({ type: 'setRound', roundIndex: Number(e.target.value) })} aria-label="Jump to round">
-            {standard.map((r) => (
-              <option key={r.i} value={r.i}>
-                {r.name}
-              </option>
-            ))}
-          </select>
-        )}
-        {hasFinal && (
-          <ActionButton size="lg" variant={!next && remaining === 0 ? 'primary' : 'secondary'} onAction={() => (!next && remaining === 0) || confirm('Start the Final Wager round now?') ? run({ type: 'startFinal' }) : undefined}>
-            Start Final Wager
-          </ActionButton>
-        )}
-        <Button size="lg" variant="secondary" onClick={onDevices}>
-          <Gamepad2 size={18} aria-hidden /> Buzzers
-        </Button>
-        <Button size="lg" variant="secondary" onClick={() => run({ type: 'showJoinQr', show: !g.showJoinQr })}>
-          {g.showJoinQr ? 'Hide' : 'Show'} QR on TV
-        </Button>
-      </div>
+      {/* The next step appears only when the round is finished; earlier it lives in Options. */}
+      {remaining === 0 && next && (
+        <ActionButton size="xl" className="w-full" onAction={() => run({ type: 'setRound', roundIndex: next.i })} data-testid="next-round">
+          Next: {next.name} <ChevronRight size={20} aria-hidden />
+        </ActionButton>
+      )}
+      {remaining === 0 && !next && hasFinal && (
+        <ActionButton size="xl" className="w-full" onAction={() => run({ type: 'startFinal' })} data-testid="start-final">
+          <Flag size={20} aria-hidden /> Start Final Jeopardy!
+        </ActionButton>
+      )}
+      <Button size="lg" variant="secondary" className="w-full" onClick={() => setOptions(true)} data-testid="game-options">
+        <SlidersHorizontal size={18} aria-hidden /> Options
+      </Button>
+      <Modal open={options} onClose={() => setOptions(false)} title="Game options">
+        <div className="grid gap-2">
+          {next && (
+            <ActionButton
+              size="lg"
+              variant="secondary"
+              onAction={async () => {
+                if (remaining > 0 && !confirm(`Skip to ${next.name}? ${remaining} clues are still unplayed.`)) return;
+                setOptions(false);
+                await run({ type: 'setRound', roundIndex: next.i });
+              }}
+              data-testid="option-next-round"
+            >
+              Next round: {next.name} <ChevronRight size={18} aria-hidden />
+            </ActionButton>
+          )}
+          {standard.length > 1 && (
+            <label className="text-sm font-semibold text-slate-600">
+              Jump to round
+              <select
+                className={inputCls}
+                value={g.roundIndex}
+                onChange={async (e) => {
+                  const i = Number(e.target.value);
+                  if (i === g.roundIndex || !confirm(`Go to ${g.rounds[i]?.name}?`)) return;
+                  setOptions(false);
+                  await run({ type: 'setRound', roundIndex: i });
+                }}
+                aria-label="Jump to round"
+              >
+                {standard.map((r) => (
+                  <option key={r.i} value={r.i}>
+                    {r.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {hasFinal && (
+            <ActionButton
+              size="lg"
+              variant="secondary"
+              onAction={async () => {
+                if (!confirm('Start Final Jeopardy! now?' + (remaining ? ` ${remaining} clues are still unplayed.` : ''))) return;
+                setOptions(false);
+                await run({ type: 'startFinal' });
+              }}
+              data-testid="option-start-final"
+            >
+              <Flag size={18} aria-hidden /> Start Final Jeopardy!
+            </ActionButton>
+          )}
+          <Button
+            size="lg"
+            variant="secondary"
+            onClick={() => {
+              setOptions(false);
+              onDevices();
+            }}
+          >
+            <Gamepad2 size={18} aria-hidden /> Buzzers & controllers
+          </Button>
+          <Button size="lg" variant="secondary" onClick={() => run({ type: 'showJoinQr', show: !g.showJoinQr })} data-testid="option-qr">
+            <QrCode size={18} aria-hidden /> {g.showJoinQr ? 'Hide' : 'Show'} join QR code on TV
+          </Button>
+          <Button
+            size="lg"
+            variant="secondary"
+            onClick={async () => {
+              setOptions(false);
+              await run({ type: 'startIntro' });
+            }}
+            data-testid="intro-start"
+          >
+            <Play size={18} aria-hidden /> Replay the category introduction
+          </Button>
+        </div>
+      </Modal>
       <details className="hidden rounded-2xl bg-white p-3 text-sm text-slate-600 shadow-sm [@media(pointer:fine)]:block">
         <summary className="cursor-pointer font-semibold">⌨ Keyboard shortcuts</summary>
         <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
@@ -198,27 +276,28 @@ function BoardTools({ g, run, onDevices }: { g: GameView; run: Run; onDevices: (
   );
 }
 
-/** The private answer. In practice games the host is usually playing too, so it stays hidden until
- *  revealed (one tap to peek). */
+/** The private answer, in a red banner clearly apart from the clue (R4-5). In practice games the
+ *  host is usually playing too, so it stays hidden until revealed (one tap to peek). */
 function HostAnswer({ g }: { g: GameView }) {
   const clue = g.clue!;
   const [peek, setPeek] = useState(false);
   useEffect(() => setPeek(false), [clue.clueId]);
   const hidden = g.practice && !clue.answerRevealed && !peek;
   return (
-    <div className="rounded-xl border-2 border-green-600 bg-green-50 p-3">
-      <div className="text-xs font-bold tracking-wide text-green-800 uppercase">{g.practice ? 'Answer' : 'Answer (only you can see this)'}</div>
-      {hidden ? (
-        <button className="mt-1 min-h-11 rounded-lg bg-white px-3 font-semibold text-green-900 ring-1 ring-green-600" onClick={() => setPeek(true)} data-testid="peek-answer">
-          <EyeOff size={16} className="mr-1 inline align-[-3px]" aria-hidden />Hidden while you play — tap to peek
+    <AnswerBanner answer={hidden ? undefined : clue.answer} label={g.practice ? 'Answer' : 'Answer · only you'}>
+      {hidden && (
+        <button className="min-h-11 rounded-lg bg-white/10 px-3 font-semibold text-white ring-1 ring-white/40" onClick={() => setPeek(true)} data-testid="peek-answer">
+          <EyeOff size={16} className="mr-1 inline align-[-3px]" aria-hidden />
+          Hidden while you play — tap to peek
         </button>
-      ) : (
-        <div className="text-2xl font-black text-green-900" data-testid="host-answer">
-          {clue.answer}
+      )}
+      {clue.notes && !hidden && (
+        <div className="mt-1 text-sm text-red-100">
+          <NotebookPen size={14} className="mr-1 inline align-[-2px]" aria-hidden />
+          {clue.notes}
         </div>
       )}
-      {clue.notes && !hidden && <div className="mt-1 text-sm text-slate-700"><NotebookPen size={14} className="mr-1 inline align-[-2px]" aria-hidden />{clue.notes}</div>}
-    </div>
+    </AnswerBanner>
   );
 }
 
@@ -237,44 +316,42 @@ function BuzzFor({ g, run }: { g: GameView; run: Run }) {
   );
 }
 
-/** Category introduction on the TV: start / next / auto / skip / replay. */
-function IntroControls({ g, run }: { g: GameView; run: Run }) {
-  const intro = g.intro;
-  const round = g.rounds[intro?.roundIndex ?? g.roundIndex];
-  if (!round || round.kind !== 'standard') return null;
-  if (!intro)
-    return (
-      <div className="flex justify-end">
-        <Button size="sm" variant="ghost" onClick={() => run({ type: 'startIntro' })} data-testid="intro-start">
-          <Play size={18} aria-hidden /> Play the round intro on TV
-        </Button>
-      </div>
-    );
+/** Category introduction (R4-16): while it runs the clue board is hidden from the host, so no clue
+ *  can be opened by accident. Next / Auto / Skip; the TV shows each category in turn. */
+function IntroStage({ g, run }: { g: GameView; run: Run }) {
+  const intro = g.intro!;
+  const round = g.rounds[intro.roundIndex];
+  if (!round) return null;
   const n = round.categories.length;
-  const now = intro.step < 0 ? `${round.name} — title` : `Category ${intro.step + 1} of ${n}: ${round.categories[intro.step]?.name}`;
-  const nextLabel = intro.step < 0 ? 'Show first category' : intro.step >= n - 1 ? 'Show the board' : 'Next category';
+  const nextLabel = intro.step < 0 ? 'Show the first category' : intro.step >= n - 1 ? 'Done — show the board' : 'Next category';
   return (
-    <div className="space-y-3 rounded-2xl bg-blue-950 p-4 text-white shadow-sm" data-testid="intro-controls">
-      <div>
-        <p className="text-xs font-bold tracking-wide text-blue-200 uppercase">Round intro on TV{intro.auto ? ' · auto' : ''}</p>
-        <p className="text-lg font-bold" data-testid="intro-now">
-          {now}
-        </p>
+    <div className="mx-auto flex h-full max-w-3xl flex-col gap-4" data-testid="intro-controls">
+      <div className="rounded-2xl bg-blue-950 p-5 text-white shadow-sm" data-testid="intro-now">
+        <p className="text-xs font-bold tracking-wide text-blue-200 uppercase">Introduce the categories{intro.auto ? ' · automatic' : ''}</p>
+        <p className="mt-1 text-3xl font-black">{intro.step < 0 ? round.name : round.categories[intro.step]?.name || `Category ${intro.step + 1}`}</p>
+        <p className="mt-1 text-blue-100">{intro.step < 0 ? 'The round title is on the TV. Clues can be picked once every category has been presented.' : `Category ${intro.step + 1} of ${n}`}</p>
       </div>
-      <div className="grid grid-cols-[2fr_1fr_1fr] gap-2">
-        <ActionButton size="lg" variant="warning" onAction={() => run({ type: 'introNext' })} data-testid="intro-next">
-          {nextLabel} <ChevronRight size={18} aria-hidden />
+      <ol className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {round.categories.map((c, i) => (
+          <li key={c.id} className={cx('rounded-xl p-3 text-center text-sm font-bold uppercase', i === intro.step ? 'bg-amber-300 text-black' : i < intro.step ? 'bg-blue-800 text-white' : 'bg-white text-slate-500 shadow-sm')}>
+            {c.name || `Category ${i + 1}`}
+          </li>
+        ))}
+      </ol>
+      <div className="mt-auto grid grid-cols-[2fr_1fr_1fr] gap-2">
+        <ActionButton size="xl" onAction={() => run({ type: 'introNext' })} data-testid="intro-next">
+          {nextLabel} <ChevronRight size={20} aria-hidden />
         </ActionButton>
         {!intro.auto ? (
-          <Button size="lg" variant="secondary" onClick={() => run({ type: 'startIntro', auto: true })} title="Play the introduction automatically">
+          <Button size="xl" variant="secondary" onClick={() => run({ type: 'startIntro', auto: true })} title="Play the introduction automatically">
             Auto <ChevronsRight size={18} aria-hidden />
           </Button>
         ) : (
           <span />
         )}
-        <Button size="lg" variant="secondary" onClick={() => run({ type: 'introSkip' })} data-testid="intro-skip">
+        <ActionButton size="xl" variant="ghost" onAction={() => run({ type: 'introSkip' })} data-testid="intro-skip">
           Skip
-        </Button>
+        </ActionButton>
       </div>
     </div>
   );
@@ -348,9 +425,15 @@ function CluePanel({ g, run }: { g: GameView; run: Run }) {
     <div className="order-first flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm lg:order-none" data-testid="clue-panel">
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-sm font-bold text-slate-500 uppercase">{clue.categoryName}</span>
-        <span className="text-xl font-black text-blue-800">{clue.isDailyWager ? `Daily Wager${clue.wager ? ` · ${clue.wager.amount}` : ''}` : clue.value}</span>
+        <span className="text-xl font-black text-blue-800">{clue.isDailyWager ? `Daily Double!${clue.wager ? ` · ${clue.wager.amount}` : ''}` : clue.value}</span>
       </div>
-      {clue.question?.trim() ? <p className="text-xl leading-snug">{clue.question}</p> : <p className="text-sm text-slate-500 italic">Media-only clue (no text)</p>}
+      {clue.question?.trim() ? (
+        <p className="text-[clamp(1.5rem,3.2vw,2.25rem)] leading-snug font-semibold text-slate-900" data-testid="host-clue-text">
+          {clue.question}
+        </p>
+      ) : (
+        <p className="text-lg text-slate-500 italic">Media-only clue (no text)</p>
+      )}
       <MediaThumbs list={clue.media} label="On the TV" />
       <HostAnswer g={g} />
       {!g.practice || clue.answerRevealed ? <MediaThumbs list={clue.answerMedia} label="Answer reveal shows" /> : null}
@@ -360,23 +443,14 @@ function CluePanel({ g, run }: { g: GameView; run: Run }) {
         <DailyWagerForm g={g} run={run} />
       ) : (
         <>
-          {!clue.resolved && !clue.isDailyWager && (
-            <div className="grid grid-cols-2 gap-2">
-              {g.buzzer.status === 'open' ? (
-                <Button size="lg" variant="warning" onClick={() => run({ type: 'lockBuzzers' })}>
-                  <Lock size={18} aria-hidden /> Lock<span className="hidden sm:inline"> buzzers</span>
-                </Button>
-              ) : (
-                <Button size="lg" variant="success" disabled={!!winner} onClick={() => run({ type: 'unlockBuzzers' })} data-testid="unlock">
-                  <LockOpen size={18} aria-hidden /> Unlock<span className="hidden sm:inline"> buzzers</span>
-                </Button>
-              )}
-              <Button size="lg" variant="secondary" onClick={() => run({ type: 'resetBuzzers' })}>
-                <RotateCcw size={18} aria-hidden /> Reset<span className="hidden sm:inline"> buzzers</span>
-              </Button>
-            </div>
+          {!clue.resolved && !clue.isDailyWager && !clue.answerRevealed && !clue.answeringEnded && g.buzzer.status === 'locked' && !winner && (
+            <>
+              <ActionButton size="xl" variant="success" className="w-full" onAction={() => run({ type: 'unlockBuzzers' })} data-testid="unlock">
+                <LockOpen size={22} aria-hidden /> Unlock Buzzers
+              </ActionButton>
+            </>
           )}
-          {g.buzzer.status === 'open' && !winner && <p className="rounded-xl bg-green-100 p-2 text-center font-semibold text-green-900">Buzzers are open…</p>}
+          {g.buzzer.status === 'open' && !winner && <BuzzersOpen g={g} />}
           {g.buzzer.status === 'open' && !winner && <BuzzFor g={g} run={run} />}
           {responder && !clue.resolved && (
             <div className="space-y-3 rounded-xl bg-yellow-50 p-3 ring-2 ring-yellow-400">
@@ -440,19 +514,18 @@ function CluePanel({ g, run }: { g: GameView; run: Run }) {
           {g.buzzer.attemptedCompetitors.length > 0 && !clue.resolved && (
             <p className="text-sm text-slate-500">Already tried: {g.buzzer.attemptedCompetitors.map((id) => competitorName(findCompetitor(g, id), g)).join(', ')}</p>
           )}
-          {!clue.isDailyWager && <EarlyBuzzes g={g} run={run} />}
-          {!clue.isDailyWager && !clue.resolved && !clue.answeringEnded && <TimerControls g={g} run={run} />}
+          {!clue.isDailyWager && (g.buzzer.early?.length ?? 0) > 0 && <EarlyBuzzes g={g} run={run} />}
         </>
       )}
       <ClueFlow g={g} run={run} />
+      <ClueTools g={g} run={run} />
     </div>
   );
 }
 
 /**
- * Guided end of a clue: while answering is open → "End answering" (or skip);
- * once answering is over → "Reveal answer"; once revealed → "Return to board".
- * Skipping stays available as a small secondary action for exceptional cases.
+ * Guided end of a clue (R4-4): correct → Return to Board; nobody buzzes / time runs out →
+ * Reveal Answer → Return to Board. Skip, hide answer, lock/reset and timers live in "More".
  */
 function ClueFlow({ g, run }: { g: GameView; run: Run }) {
   const clue = g.clue!;
@@ -460,58 +533,92 @@ function ClueFlow({ g, run }: { g: GameView; run: Run }) {
   const pendingJudgement = !!g.buzzer.winner && !clue.resolved;
   if (clue.answerRevealed) {
     return (
-      <div className="mt-auto grid grid-cols-[1fr_auto] gap-2">
-        <ActionButton size="xl" variant="primary" onAction={() => run({ type: 'closeClue', clueId: id })} data-testid="back-to-board">
-          <ArrowLeft size={18} aria-hidden /> Return to board
+      <div className="mt-auto">
+        <ActionButton size="xl" variant="primary" className="w-full" onAction={() => run({ type: 'closeClue', clueId: id })} data-testid="back-to-board">
+          <ArrowLeft size={20} aria-hidden /> Return to Board
         </ActionButton>
-        <Button size="lg" variant="ghost" onClick={() => run({ type: 'hideAnswer' })} data-testid="hide-answer">
-          <EyeOff size={18} aria-hidden /> Hide answer
-        </Button>
       </div>
     );
   }
-  if (clue.answeringEnded || clue.resolved) {
-    return (
-      <div className="mt-auto space-y-2">
+  if (clue.isDailyWager && clue.stage === 'wager') return null;
+  const over = clue.answeringEnded || clue.resolved;
+  return (
+    <div className="mt-auto space-y-2">
+      {over && (
         <p className="text-center text-sm font-semibold text-slate-600" data-testid="answering-ended">
-          {clue.resolved ? 'Answer judged.' : g.timer?.expired ? "Time's up — nobody buzzed in." : 'Answering is over.'} Show the answer, then go back to the board.
+          {clue.resolved ? 'Answer judged.' : g.timer?.expired ? "Time's up — nobody buzzed in." : 'Nobody left to answer.'}
         </p>
-        <div className="grid grid-cols-[1fr_auto] gap-2">
-          <ActionButton size="xl" variant="primary" onAction={() => run({ type: 'revealAnswer', clueId: id })} data-testid="reveal-answer">
-            <Eye size={18} aria-hidden /> Reveal answer
-          </ActionButton>
-          <ActionButton size="lg" variant="ghost" onAction={() => run({ type: 'closeClue', clueId: id })} data-testid="skip-clue">
-            Skip <ChevronRight size={18} aria-hidden />
+      )}
+      <ActionButton
+        size={over ? 'xl' : 'lg'}
+        variant={over ? 'primary' : 'secondary'}
+        className="w-full"
+        disabled={pendingJudgement}
+        onAction={() => run({ type: 'revealAnswer', clueId: id })}
+        data-testid="reveal-answer"
+        title={pendingJudgement ? 'Judge the answer first' : undefined}
+      >
+        <Eye size={20} aria-hidden /> Reveal Answer
+      </ActionButton>
+    </div>
+  );
+}
+
+/** Buzzers are open: read-only status with the automatic timer (no manual timer controls). */
+function BuzzersOpen({ g }: { g: GameView }) {
+  const secs = useTimerSeconds(g.timer);
+  return (
+    <p className="flex items-center justify-center gap-3 rounded-xl bg-green-100 p-3 text-center text-lg font-bold text-green-900" role="status" data-testid="buzzers-open">
+      <span className="relative flex h-3 w-3" aria-hidden>
+        <span className="absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-60 motion-safe:animate-ping" />
+        <span className="relative inline-flex h-3 w-3 rounded-full bg-green-600" />
+      </span>
+      Buzzers open{g.timer?.kind === 'buzz' && secs != null ? ` · ${secs}s` : ''}
+    </p>
+  );
+}
+
+/** Recovery tools, out of the way (R4-4): lock/reset buzzers, timer, hide answer, skip clue. */
+function ClueTools({ g, run }: { g: GameView; run: Run }) {
+  const clue = g.clue!;
+  const id = clue.clueId;
+  return (
+    <details className="rounded-xl border border-slate-200 text-sm" data-testid="clue-tools">
+      <summary className="flex min-h-11 cursor-pointer items-center gap-2 px-3 font-semibold text-slate-600">
+        <Wrench size={16} aria-hidden /> More
+      </summary>
+      <div className="space-y-2 p-2 pt-0">
+        {!clue.isDailyWager && !clue.resolved && (
+          <div className="flex flex-wrap gap-2">
+            {g.buzzer.status === 'open' && (
+              <Button size="sm" variant="secondary" onClick={() => run({ type: 'lockBuzzers' })} data-testid="lock">
+                <Lock size={16} aria-hidden /> Lock buzzers
+              </Button>
+            )}
+            <Button size="sm" variant="secondary" onClick={() => run({ type: 'resetBuzzers' })} data-testid="reset-buzzers">
+              <RotateCcw size={16} aria-hidden /> Reset buzzers
+            </Button>
+          </div>
+        )}
+        {!clue.isDailyWager && <EarlyBuzzQuick g={g} run={run} />}
+        {!clue.resolved && !clue.answeringEnded && <TimerControls g={g} run={run} />}
+        <div className="flex flex-wrap gap-2">
+          {clue.answerRevealed && (
+            <Button size="sm" variant="ghost" onClick={() => run({ type: 'hideAnswer' })} data-testid="hide-answer">
+              <EyeOff size={16} aria-hidden /> Hide answer on TV
+            </Button>
+          )}
+          <ActionButton
+            size="sm"
+            variant="ghost"
+            onAction={() => (confirm('Skip this clue without showing the answer?') ? run({ type: 'closeClue', clueId: id }) : undefined)}
+            data-testid="skip-clue"
+          >
+            Skip clue <ChevronRight size={16} aria-hidden />
           </ActionButton>
         </div>
       </div>
-    );
-  }
-  return (
-    <div className="mt-auto grid grid-cols-2 gap-2">
-      {!clue.isDailyWager ? (
-        <ActionButton
-          size="lg"
-          variant="secondary"
-          disabled={pendingJudgement}
-          onAction={() => run({ type: 'endAnswering', clueId: id })}
-          data-testid="end-answering"
-          title={pendingJudgement ? 'Judge the answer first' : 'Nobody knows it — stop buzzing and reveal the answer'}
-        >
-          <Ban size={18} aria-hidden /> Nobody knows
-        </ActionButton>
-      ) : (
-        <span />
-      )}
-      <ActionButton
-        size="lg"
-        variant="ghost"
-        onAction={() => (confirm('Skip this clue without showing the answer?') ? run({ type: 'closeClue', clueId: id }) : undefined)}
-        data-testid="skip-clue"
-      >
-        Skip clue <ChevronRight size={18} aria-hidden />
-      </ActionButton>
-    </div>
+    </details>
   );
 }
 
@@ -520,7 +627,6 @@ function EarlyBuzzes({ g, run }: { g: GameView; run: Run }) {
   const early = g.buzzer.early ?? [];
   return (
     <div className="space-y-1.5">
-      <EarlyBuzzQuick g={g} run={run} />
       {early.length > 0 && (
         <ul className="space-y-1 rounded-xl bg-amber-50 p-2 text-sm" data-testid="early-list">
           {early.map((e) => {
@@ -560,7 +666,7 @@ function DailyWagerForm({ g, run }: { g: GameView; run: Run }) {
   const valid = amount !== '' && Number.isInteger(n) && n >= g.rules.dailyWagerMin && n <= max;
   return (
     <div className="space-y-3 rounded-xl bg-amber-50 p-3 ring-2 ring-amber-400">
-      <p className="font-bold"><Dices size={18} className="mr-1 inline align-[-3px]" aria-hidden />Daily Wager — the TV is hiding the clue until the wager is locked.</p>
+      <p className="font-bold"><Dices size={18} className="mr-1 inline align-[-3px]" aria-hidden />Daily Double! — the TV is hiding the clue until the wager is locked.</p>
       <Field label="Who is wagering?">
         <select className={inputCls} value={cid ?? ''} onChange={(e) => setCid(e.target.value)}>
           {g.competitors.map((x) => (

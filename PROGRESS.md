@@ -1,5 +1,13 @@
 # Progress
 
+## Session 6 — 2026-10-14 (user feedback round 4, reviewing v0.7.0)
+
+- Baseline: v0.7.0 pushed and in sync (main = origin/main). Round-4 requirements recorded (USER_FEEDBACK.md Round 4, IMPLEMENTATION_PLAN milestone 18, FEATURE_MATRIX round 4). `new_sfx/` (owner's sounds + clue background) git-ignored.
+- **Return to Lobby investigation (R4-20):** the button and endpoint existed (tested in 0.6/0.7), but the lobby session lived only in memory — after an app restart, Return to Lobby produced a game without a lobby (TV "Getting ready", no join QR); and the Results back arrow silently closed the game (= new lobby). Fixed: lobby session persisted and restored with the recovered game, rematch re-opens a lobby, back arrow removed, Return to Lobby is the first/largest action, "New Lobby" secondary.
+- **Milestone A (gameplay):** Final Jeopardy! redesign (phones submit, private from everyone incl. host, reveal one at a time lowest → highest pre-Final score, judge then next, time-up closes answers, answers kept in history), simplified clue controls (Unlock Buzzers → Correct/Incorrect → Reveal Answer → Return to Board; auto re-open after a wrong answer; recovery tools under More), category intro gates clue selection (engine + dedicated host screen), media-only clues valid, Daily Double! / Final Jeopardy! wording, red ANSWER banner, Options menu for rare controls.
+- **Sound (part of D):** Jeopardy!/Buzzinga pack (default; Classic/Arcade/Soft kept; v2 settings migration), file→cue matching by name, installable in Settings, Classic fallback per cue, think music during the Final writing phase, board fill synced to its sound, preview buttons.
+- Tests: Vitest 147/147 (new round4.test.ts; engine Final tests rewritten), Playwright 27/27.
+
 ## Session 5 — 2026-10-13 (user feedback round 3)
 
 - Baseline: v0.5.0 already pushed (main = origin/main). Round-3 requirements recorded (USER_FEEDBACK.md Round 3, FEATURE_MATRIX, IMPLEMENTATION_PLAN milestone 17).

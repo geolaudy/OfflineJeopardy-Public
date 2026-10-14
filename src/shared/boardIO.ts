@@ -135,9 +135,9 @@ export function importBoardCsv(text: string): ImportResult {
     const dupKey = `${roundName}|${catName}|${question}`.toLowerCase();
     if (question && seen.has(dupKey)) warnings.push(`Line ${line}: duplicate clue "${question.slice(0, 40)}".`);
     seen.add(dupKey);
-    let round = rounds.find((x) => x.name.toLowerCase() === (isFinal ? 'final wager' : roundName.toLowerCase()));
+    let round = rounds.find((x) => x.name.toLowerCase() === (isFinal ? 'final jeopardy!' : roundName.toLowerCase()));
     if (!round) {
-      round = { id: uid('r'), name: isFinal ? 'Final Wager' : roundName, kind: isFinal ? 'final' : 'standard', categories: [] };
+      round = { id: uid('r'), name: isFinal ? 'Final Jeopardy!' : roundName, kind: isFinal ? 'final' : 'standard', categories: [] };
       rounds.push(round);
     }
     let cat = round.categories.find((c) => c.name === catName);

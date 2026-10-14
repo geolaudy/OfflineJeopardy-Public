@@ -1,6 +1,6 @@
 // E2E: board import + editing in the desktop dashboard, then a team game with one
 // individual-buzzer team and one shared-buzzer team (keyboard key on the TV window),
-// host attribution, and the complete Final Wager flow with phone wager/answer.
+// host attribution, and the complete Final Jeopardy! flow with phone wager/answer (R4-2).
 import { test, expect, chromium, webkit, devices, request, type Browser } from '@playwright/test';
 
 const BASE = 'http://127.0.0.1:3210';
@@ -89,6 +89,9 @@ test('import + edit a board, then a mixed-mode team game through the Final', asy
   await tv.keyboard.press('KeyP');
   await expect(ipad.getByTestId('assignment-row').filter({ hasText: 'Dragons' })).toContainText('Key P');
   await ipad.getByTestId('start-game').click();
+  // R4-16: categories are presented (or skipped) before any clue can be opened.
+  await expect(ipad.getByTestId('host-tile')).toHaveCount(0);
+  await ipad.getByTestId('intro-skip').click();
 
   // ---- Clue 1: Dragons buzz with the shared key; host credits TTaylor ----
   await ipad.getByRole('button', { name: 'Space for 200' }).click();
@@ -118,30 +121,45 @@ test('import + edit a board, then a mixed-mode team game through the Final', asy
   await expect(ipad.getByTestId('host-winner')).toHaveText('Wizards');
   await expect(ipad.getByRole('radio', { name: 'TAlex' })).toBeChecked(); // identified buzzer
   await ipad.getByTestId('incorrect').click();
-  await ipad.getByTestId('end-answering').click();
   await ipad.getByTestId('reveal-answer').click();
   await ipad.getByTestId('back-to-board').click();
   await expect(tv.getByTestId('scoreboard')).toContainText('−400');
 
-  // ---- Final Wager: only Dragons (positive score) play ----
+  // ---- Final Jeopardy!: only Dragons (positive score) play; they submit on their phone ----
+  await ipad.getByTestId('game-options').click();
   ipad.once('dialog', (d) => d.accept());
-  await ipad.getByRole('button', { name: 'Start Final Wager' }).click();
+  await ipad.getByTestId('option-start-final').click();
   await expect(tv.getByText('Capitals')).toBeVisible();
-  await expect(ipad.getByTestId('final-entry')).toHaveCount(1);
+  await expect(tv.getByText('Final Jeopardy!')).toBeVisible();
+  await expect(ipad.getByTestId('final-status')).toHaveCount(1);
+  await expect(ipad.getByLabel('Wager for this player')).toBeHidden(); // host entry only in the collapsed recovery section
   await ipad.getByTestId('final-next').click(); // open wagers
   await taylorPhone.getByLabel('Your wager').fill('150');
   await taylorPhone.getByRole('button', { name: 'Submit wager' }).click();
-  await expect(ipad.getByTestId('final-entry')).toContainText('Wager: 150');
+  await expect(ipad.getByTestId('final-status')).toContainText('Wagered ✓');
+  await expect(ipad.getByTestId('final-control')).not.toContainText('150'); // private from the host too
   await expect(tv.getByText('150')).toHaveCount(0); // hidden wager
   await ipad.getByTestId('final-next').click(); // lock wagers, show clue
   await expect(tv.getByText('Capital of Hungary.', { exact: false })).toBeVisible();
-  await taylorPhone.getByLabel('Your answer').fill('Budapest');
+  await taylorPhone.getByLabel('Your answer').fill('Buda and Pest');
   await taylorPhone.getByRole('button', { name: 'Submit answer' }).click();
-  await expect(ipad.getByTestId('final-entry')).toContainText('Answer: Budapest');
-  await ipad.getByTestId('final-next').click(); // reveal
-  await ipad.getByTestId('final-entry').getByRole('button', { name: 'Correct', exact: true }).click();
-  await expect(tv.getByText('Budapest').first()).toBeVisible();
-  await ipad.getByTestId('final-next').click(); // finish
+  await expect(ipad.getByTestId('final-status')).toContainText('Answered ✓');
+  await expect(ipad.getByTestId('final-control')).not.toContainText('Buda and Pest'); // the host sees only the correct answer
+  await ipad.getByTestId('final-next').click(); // close answers → reveal
+  await expect(tv.getByTestId('tv-final-name')).toHaveText('Dragons');
+  await expect(tv.getByTestId('tv-final-wager')).toHaveCount(0);
+  await ipad.getByTestId('final-reveal-next').click(); // wager
+  await expect(tv.getByTestId('tv-final-wager')).toContainText('150');
+  await expect(tv.getByTestId('tv-final-answer')).toHaveCount(0);
+  await ipad.getByTestId('final-reveal-next').click(); // answer
+  await expect(tv.getByTestId('tv-final-answer')).toHaveText('Buda and Pest');
+  await expect(ipad.getByTestId('final-reveal-answer')).toHaveText('Buda and Pest');
+  await expect(tv.getByTestId('scoreboard')).not.toContainText('350'); // not scored before judging
+  await ipad.getByTestId('final-correct').click();
+  await expect(tv.getByTestId('tv-final-verdict')).toContainText('350');
+  await tv.screenshot({ path: 'test-results/screens/tv-final-reveal.png' });
+  await ipad.screenshot({ path: 'test-results/screens/ipad-final-reveal.png' });
+  await ipad.getByTestId('final-reveal-next').click(); // finish the reveal
   await ipad.getByTestId('end-game').click();
   await expect(tv.getByTestId('winner')).toHaveText('Dragons wins!');
 

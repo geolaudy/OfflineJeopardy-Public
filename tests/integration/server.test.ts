@@ -164,6 +164,7 @@ describe('live game over WebSockets', () => {
     ps.send({ t: 'join' });
     await h.waitState((g) => g?.competitors.length === 2);
     await h.act({ type: 'startGame' });
+    await h.act({ type: 'introSkip' });
     await h.act({ type: 'selectClue', clueId: 'hist_1' });
     await pub.waitState((g) => g?.phase === 'clue');
     expect(pub.state!.clue!.question).toContain('Machu Picchu');
@@ -230,6 +231,7 @@ describe('live game over WebSockets', () => {
     await h.waitState((g) => g?.bindings.length === 2);
 
     await h.act({ type: 'startGame' });
+    await h.act({ type: 'introSkip' });
     await h.act({ type: 'selectClue', clueId: 'sci_1' });
     await h.act({ type: 'unlockBuzzers' });
     await new Promise((r) => setTimeout(r, 150));
@@ -292,6 +294,7 @@ describe('persistence, recovery, statistics and history', () => {
     const h = await client(s1, 'host', host);
     await h.act({ type: 'addTeam', teamId: team.data.id, name: 'Wizards', color: '#2563eb', buzzerMode: 'individual', memberIds: [alex.id, jordan.id] });
     await h.act({ type: 'startGame' });
+    await h.act({ type: 'introSkip' });
     await h.act({ type: 'selectClue', clueId: 'geo_3' });
     await h.act({ type: 'unlockBuzzers' });
     const pa = await client(s1, 'player', alex.token);
@@ -338,6 +341,7 @@ describe('persistence, recovery, statistics and history', () => {
     bridge.send({ t: 'controller', ev: { type: 'button', controllerId: 'kb:KeyP', button: 'KeyP', pressed: false } });
     await h.waitState((g) => g?.bindings.length === 1);
     await h.act({ type: 'startGame' });
+    await h.act({ type: 'introSkip' });
 
     const pa = await client(s, 'player', alex.token);
     // Clue 1: Alex (phone, individual team) answers 600 correctly
@@ -575,6 +579,7 @@ describe('computer opponents and practice games (O3)', () => {
     expect(h.state!.practice).toBe(true);
     await h.act({ type: 'updateRules', rules: { ...h.state!.rules, categoryIntro: false } });
     await h.act({ type: 'startGame' });
+    await h.act({ type: 'introSkip' });
     const botId = h.state!.competitors.find((c) => c.bot)!.id;
     // Practice auto-opens the buzzers; the bot buzzes and gives its answer; the host judges it.
     const tv = await client(s, 'public');
@@ -799,6 +804,7 @@ describe('user feedback round 1 (server level)', () => {
     await assign(sam.id, { controllerId: 'kb:KeyS', kind: 'keyboard', label: 'Key S', button: 'KeyS' });
     await h.act({ type: 'updateRules', rules: { ...h.state!.rules, earlyBuzzPenalty: 'points', earlyBuzzPoints: 100, earlyBuzzLockoutMs: 400, categoryIntro: false } });
     await h.act({ type: 'startGame' });
+    await h.act({ type: 'introSkip' });
     const pa = await client(s, 'player', alex.token);
     const cidOf = (pid: string) => h.state!.competitors.find((c) => c.profileId === pid)!.id;
 
@@ -854,6 +860,7 @@ describe('user feedback round 1 (server level)', () => {
     await h.act({ type: 'addPlayer', profileId: alex.id });
     await h.act({ type: 'addPlayer', profileId: jordan.id });
     await h.act({ type: 'startGame' });
+    await h.act({ type: 'introSkip' });
     const pa = await client(s, 'player', alex.token);
     await h.act({ type: 'selectClue', clueId: 'hist_1' });
     await h.act({ type: 'unlockBuzzers' });

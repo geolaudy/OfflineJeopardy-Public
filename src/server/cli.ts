@@ -9,7 +9,9 @@ const port = Number(args.get('port') ?? process.env.OJ_PORT ?? 3000);
 const webDir = args.get('web') ?? path.resolve('dist/web');
 if (args.has('fresh')) fs.rmSync(dataDir, { recursive: true, force: true }); // tests: start from an empty database
 
-const server = await startServer({ dataDir, port, webDir, logger: args.has('verbose') });
+// --sfx=<folder>: the owner's Jeopardy!/Buzzinga sound files (e.g. new_sfx) for development (R4-1).
+const soundPackDirs = args.get('sfx') ? [path.resolve(args.get('sfx')!)] : [];
+const server = await startServer({ dataDir, port, webDir, logger: args.has('verbose'), soundPackDirs });
 console.log(`OfflineJeopardy server on ${server.url} (data: ${dataDir})`);
 console.log(`Host pairing code: ${server.pairingCode}`);
 const stop = async () => {

@@ -102,12 +102,12 @@ export default function RulesEditor({
               checked={r.teamRetry === 'otherMembers'}
               onChange={(v) => setR({ ...r, teamRetry: v ? 'otherMembers' : 'none' })}
             />
-            <Toggle label="Everyone plays the Final (even with zero or negative scores)" checked={r.finalAllowNonPositive} onChange={(v) => setR({ ...r, finalAllowNonPositive: v })} />
+            <Toggle label="Everyone plays Final Jeopardy! (even with zero or negative scores)" checked={r.finalAllowNonPositive} onChange={(v) => setR({ ...r, finalAllowNonPositive: v })} />
             <div className="grid grid-cols-2 gap-3">
               <Field label="Button debounce" hint="ms (Joy-Con / keyboard)">
                 <input className={inputCls} inputMode="numeric" value={r.buzzDebounceMs} onChange={(e) => setR({ ...r, buzzDebounceMs: Math.min(2000, Number(e.target.value.replace(/\D/g, '') || 0)) })} />
               </Field>
-              <Field label="Minimum Daily Wager">
+              <Field label="Minimum Daily Double! wager">
                 <input className={inputCls} inputMode="numeric" value={r.dailyWagerMin} onChange={(e) => setR({ ...r, dailyWagerMin: Number(e.target.value.replace(/\D/g, '') || 0) })} />
               </Field>
             </div>

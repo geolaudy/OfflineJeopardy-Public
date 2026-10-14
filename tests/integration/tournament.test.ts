@@ -38,6 +38,7 @@ describe('tournaments (O8)', () => {
       await h.act({ type: 'addPlayer', profileId: alex.id });
       await h.act({ type: 'addPlayer', profileId: sam.id });
       await h.act({ type: 'startGame' });
+      await h.act({ type: 'introSkip' });
       const comp = h.state!.competitors.find((c) => c.profileId === winner.id)!;
       await h.act({ type: 'adjustScore', competitorId: comp.id, delta: value });
       await h.act({ type: 'endGame' });

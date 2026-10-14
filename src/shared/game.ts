@@ -351,6 +351,9 @@ export interface IntroState {
   roundIndex: number;
   step: number;
   auto: boolean;
+  /** Server time this step began: the TV plays the board fill (animation + sound) only when it is
+   *  fresh, so a TV that reconnects mid-intro does not replay it (R4-19). */
+  at?: number;
 }
 
 export interface FinalEntry {
@@ -366,6 +369,33 @@ export interface FinalState {
   stage: 'category' | 'wagers' | 'clue' | 'reveal' | 'done';
   roundIndex: number;
   entries: FinalEntry[];
+  /** Reveal order (R4-2): lowest → highest score before the Final; equal scores keep the game's
+   *  competitor order (join order), so the order is deterministic. Fixed when the Final starts. */
+  order: Id[];
+  /** Scores immediately before the Final (shown with each contestant during the reveal). */
+  preScores: Record<Id, number>;
+  /** Index into `order` of the contestant being revealed. */
+  cursor: number;
+  /** What is public for that contestant: who they are → their wager → their answer. */
+  step: FinalRevealStep;
+}
+export type FinalRevealStep = 'contestant' | 'wager' | 'answer';
+
+/** Reveal order for the Final: ascending score, ties in competitor order. */
+export function finalRevealOrder(ids: Id[], scores: Record<Id, number>, competitorOrder: Id[]): Id[] {
+  const pos = (id: Id) => competitorOrder.indexOf(id);
+  return [...ids].sort((a, b) => (scores[a] ?? 0) - (scores[b] ?? 0) || pos(a) - pos(b));
+}
+
+/** How much of a Final entry is public at this point of the reveal. */
+export function finalEntryReveal(f: Pick<FinalState, 'stage' | 'order' | 'cursor' | 'step'>, competitorId: Id): 'none' | 'wager' | 'answer' {
+  if (f.stage === 'done') return 'answer';
+  if (f.stage !== 'reveal') return 'none';
+  const i = f.order.indexOf(competitorId);
+  if (i < 0) return 'none';
+  if (i < f.cursor) return 'answer';
+  if (i > f.cursor) return 'none';
+  return f.step === 'answer' ? 'answer' : f.step === 'wager' ? 'wager' : 'none';
 }
 
 export interface TimerState {

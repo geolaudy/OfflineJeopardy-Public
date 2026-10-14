@@ -53,7 +53,7 @@
   },
   "scripts": {
     "dev": "concurrently -k -n server,web \"npm:dev:server\" \"npm:dev:web\"",
-    "dev:server": "tsx watch src/server/cli.ts --data=data",
+    "dev:server": "tsx watch src/server/cli.ts --data=data --sfx=new_sfx",
     "dev:web": "vite",
     "serve": "tsx src/server/cli.ts",
     "build:web": "vite build",
@@ -91,6 +91,16 @@
       {
         "from": "docs/USER_GUIDE.md",
         "to": "USER_GUIDE.md"
+      },
+      {
+        "from": "new_sfx",
+        "to": "soundpacks/buzzinga",
+        "filter": [
+          "*.mp3",
+          "*.wav",
+          "*.ogg",
+          "*.m4a"
+        ]
       }
     ],
     "win": {

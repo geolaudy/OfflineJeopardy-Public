@@ -27,8 +27,8 @@ export function summarizeRules(r: GameRules, ctx: SummaryContext): { label: stri
     { label: 'Buzzers open', value: AUTO_UNLOCK[r.autoUnlock] },
     { label: 'Time to buzz in', value: secs(r.timers.buzzSeconds) },
     { label: 'Time to answer', value: secs(r.timers.answerSeconds) },
-    { label: 'Daily Wager minimum', value: String(r.dailyWagerMin) },
-    { label: 'Final Wager', value: r.finalAllowNonPositive ? 'Everyone plays' : 'Players with a positive score' },
+    { label: 'Daily Double! minimum wager', value: String(r.dailyWagerMin) },
+    { label: 'Final Jeopardy!', value: r.finalAllowNonPositive ? 'Everyone plays' : 'Players with a positive score' },
     ...(r.survivalLives ? [{ label: 'Survival', value: `${r.survivalLives} lives each` }] : []),
     ...(ctx.mode === 'team' ? [{ label: 'After a wrong answer', value: r.teamRetry === 'otherMembers' ? 'A teammate may try' : 'One try per team' }] : []),
     ...(ctx.bots?.length ? [{ label: 'Computer opponents', value: ctx.bots.join(', ') }] : []),
@@ -78,8 +78,8 @@ export function publicSettings(r: GameRules, ctx: PublicSettingsContext): { titl
   ];
   const scoring = [
     { label: 'Wrong answers', value: r.incorrectDeducts ? 'Lose the clue value' : 'No penalty' },
-    { label: 'Daily Wager', value: `Bet at least ${r.dailyWagerMin}`, hint: 'Up to your score, or the round’s top value if that is higher.' },
-    { label: 'Final Wager', value: r.finalAllowNonPositive ? 'Everyone plays' : 'Only players with a positive score' },
+    { label: 'Daily Double!', value: `Bet at least ${r.dailyWagerMin}`, hint: 'Up to your score, or the round’s top value if that is higher.' },
+    { label: 'Final Jeopardy!', value: r.finalAllowNonPositive ? 'Everyone plays' : 'Only players with a positive score' },
     ...(ctx.bots?.length ? [{ label: 'Computer opponents', value: ctx.bots.join(', ') }] : []),
   ];
   return [

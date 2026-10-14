@@ -30,6 +30,7 @@ describe('head to head (T10)', () => {
         await h.act({ type: 'addTeam', name: 'Duo', color: '#2563eb', buzzerMode: 'individual', memberIds: [alex.id, sam.id] });
       }
       await h.act({ type: 'startGame' });
+      await h.act({ type: 'introSkip' });
       if (winner) {
         const c = h.state!.competitors.find((x) => x.memberIds.includes(winner))!;
         await h.act({ type: 'adjustScore', competitorId: c.id, delta: 500 });

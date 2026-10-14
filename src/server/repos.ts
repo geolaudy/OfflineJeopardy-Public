@@ -7,6 +7,7 @@ import type { Board, BoardContent, BoardMeta, GameState, GameplayEvent } from '.
 import type { ProfilePublic } from '../shared/views.js';
 import { newThemeData, type CustomTheme, type CustomThemeData } from '../shared/themes.js';
 import { normalizeState } from './engine/engine.js';
+import { clueComplete } from '../shared/boardUtils.js';
 
 export const newId = () => crypto.randomUUID();
 
@@ -239,7 +240,7 @@ export function listBoards(db: DB) {
       for (const c of rd.categories)
         for (const q of c.clues) {
           clues++;
-          if (q.question.trim() && q.answer.trim()) complete++;
+          if (clueComplete(q)) complete++;
         }
     return {
       ...boardMeta(r),

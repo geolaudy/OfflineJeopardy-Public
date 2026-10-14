@@ -112,7 +112,7 @@ export default function PlayTab({ me }: { me: Me }) {
         <>
           {g.clue && (
             <p className="text-center text-sm text-slate-600">
-              {g.clue.categoryName} · {g.clue.isDailyWager ? 'Daily Wager' : g.clue.value}
+              {g.clue.categoryName} · {g.clue.isDailyWager ? 'Daily Double!' : g.clue.value}
             </p>
           )}
           <div className="flex justify-center py-4">
@@ -156,19 +156,34 @@ function FinalForm({ me }: { me: Me }) {
   const f = g.final!;
   const entry = f.entries.find((e) => e.competitorId === ctx?.competitorId);
   const myComp = findCompetitor(g, ctx?.competitorId);
+  const mine = ctx?.final ?? null;
   const [wager, setWager] = useState('');
-  const [answer, setAnswer] = useState('');
+  const [answer, setAnswer] = useState(mine?.answer ?? '');
   const [sent, setSent] = useState<string | null>(null);
   useEffect(() => setSent(null), [f.stage]);
-  if (!entry) return <Idle text="Final Wager — you're watching this one. Good luck to the finalists!" />;
+  // A phone that reconnects (or a teammate's phone) picks up what was already written.
+  useEffect(() => {
+    if (f.stage === 'clue' && mine?.answer && !answer) setAnswer(mine.answer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mine?.answer, f.stage]);
+  // The answer is saved as it is typed, so nothing is lost when the think music ends (R4-2).
+  useEffect(() => {
+    if (f.stage !== 'clue' || !answer.trim() || answer.trim() === (mine?.answer ?? '')) return;
+    const t = setTimeout(() => send({ t: 'finalAnswer', answer }), 700);
+    return () => clearTimeout(t);
+  }, [answer, f.stage, mine?.answer]);
+  if (!entry) return <Idle text="Final Jeopardy! — you're watching this one. Good luck to the finalists!" />;
   const max = Math.max(0, myComp?.score ?? 0);
+  const team = myComp?.kind === 'team';
   return (
-    <div className="space-y-4 rounded-2xl bg-white p-4 shadow-sm">
-      <p className="text-center text-sm font-bold tracking-widest text-slate-500 uppercase">Final Wager</p>
+    <div className="space-y-4 rounded-2xl bg-white p-4 shadow-sm" data-testid="phone-final">
+      <p className="text-center text-sm font-bold tracking-widest text-slate-500 uppercase">Final Jeopardy!</p>
       <p className="text-center text-2xl font-black">{f.category}</p>
       {(f.stage === 'category' || f.stage === 'wagers') && (
         <>
-          <p className="text-center text-slate-600">Wager between 0 and {max.toLocaleString()}. Only the host can see it until the reveal.</p>
+          <p className="text-center text-slate-600">
+            Wager between 0 and {max.toLocaleString()}. Nobody sees it — not even the host — until the reveal.{team ? ' Any team member can enter the team’s wager.' : ''}
+          </p>
           <input className={inputCls} inputMode="numeric" value={wager} onChange={(e) => setWager(e.target.value.replace(/\D/g, ''))} aria-label="Your wager" placeholder="Your wager" />
           <Button
             size="lg"
@@ -177,11 +192,17 @@ function FinalForm({ me }: { me: Me }) {
             onClick={() => {
               send({ t: 'finalWager', amount: Number(wager) });
               setSent(`Wager of ${Number(wager).toLocaleString()} submitted`);
+              setWager('');
             }}
+            data-testid="phone-final-wager-submit"
           >
-            Submit wager
+            {mine?.wager != null ? 'Change wager' : 'Submit wager'}
           </Button>
-          {(sent || entry.hasWager) && <p className="text-center font-semibold text-green-700">{sent ?? 'Wager submitted ✓'}</p>}
+          {(sent || mine?.wager != null) && (
+            <p className="text-center font-semibold text-green-700" data-testid="phone-final-wager-done">
+              {sent ?? `Your wager: ${mine!.wager!.toLocaleString()} ✓`}
+            </p>
+          )}
         </>
       )}
       {f.stage === 'clue' && (
@@ -194,16 +215,21 @@ function FinalForm({ me }: { me: Me }) {
             disabled={!answer.trim()}
             onClick={() => {
               send({ t: 'finalAnswer', answer });
-              setSent('Answer submitted — you can change it until time is up');
+              setSent('Answer saved — you can change it until time is up');
             }}
+            data-testid="phone-final-answer-submit"
           >
             Submit answer
           </Button>
-          {(sent || entry.hasAnswer) && <p className="text-center font-semibold text-green-700">{sent ?? 'Answer submitted ✓'}</p>}
+          {(sent || mine?.answer) && <p className="text-center font-semibold text-green-700">{sent ?? 'Answer saved ✓ — you can change it until time is up'}</p>}
           <TimerLine />
         </>
       )}
-      {(f.stage === 'reveal' || f.stage === 'done') && <p className="text-center text-lg">Watch the TV for the reveal! {entry.judged ? (entry.correct ? '✅' : '❌') : ''}</p>}
+      {(f.stage === 'reveal' || f.stage === 'done') && (
+        <p className="text-center text-lg">
+          Watch the TV for the reveal! {entry.judged ? (entry.correct ? '✅' : '❌') : ''}
+        </p>
+      )}
     </div>
   );
 }

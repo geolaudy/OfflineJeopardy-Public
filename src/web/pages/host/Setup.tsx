@@ -247,7 +247,7 @@ function AddBotModal({ open, onClose, g }: { open: boolean; onClose: () => void;
   return (
     <Modal open={open} onClose={onClose} title="Add a computer opponent">
       <div className="space-y-4">
-        <p className="text-sm text-slate-600">Computer opponents buzz in, answer, wager and play the Final by themselves — great for practice or a small group. They never buzz early, and their results are not saved to any player profile.</p>
+        <p className="text-sm text-slate-600">Computer opponents buzz in, answer, wager and play Final Jeopardy! by themselves — great for practice or a small group. They never buzz early, and their results are not saved to any player profile.</p>
         <Field label="Name">
           <input className={inputCls} value={name} maxLength={40} onChange={(e) => setName(e.target.value)} aria-label="Computer opponent name" />
         </Field>

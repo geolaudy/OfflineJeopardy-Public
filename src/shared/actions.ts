@@ -122,6 +122,8 @@ export const hostActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('setControl'), competitorId: id }),
   z.object({ type: z.literal('startFinal') }),
   z.object({ type: z.literal('finalNext') }),
+  /** Final reveal (R4-2): contestant → wager → answer → (judge) → next contestant. */
+  z.object({ type: z.literal('finalReveal') }),
   z.object({ type: z.literal('setFinalWager'), competitorId: id, amount: int }),
   z.object({ type: z.literal('setFinalAnswer'), competitorId: id, answer: z.string().max(200) }),
   z.object({

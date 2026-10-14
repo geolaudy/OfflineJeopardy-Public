@@ -66,7 +66,7 @@ describe('game flow and scoring', () => {
   });
 
   it('plays a clue: first buzz wins, correct answer awards points and control', () => {
-    let s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_2' }, { type: 'unlockBuzzers' });
+    let s = run(soloGame(), { type: 'startGame' }, { type: 'introSkip' }, { type: 'selectClue', clueId: 'hist_2' }, { type: 'unlockBuzzers' });
     clock += 300;
     s = buzz(s, 'jordan');
     s = buzz(s, 'alex'); // late
@@ -85,7 +85,7 @@ describe('game flow and scoring', () => {
   });
 
   it('incorrect answers deduct (negative scores allowed) and reopen for others only', () => {
-    let s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'geo_1' }, { type: 'unlockBuzzers' });
+    let s = run(soloGame(), { type: 'startGame' }, { type: 'introSkip' }, { type: 'selectClue', clueId: 'geo_1' }, { type: 'unlockBuzzers' });
     s = buzz(s, 'alex');
     s = run(s, { type: 'judge', result: 'incorrect' });
     expect(scoresOf(s.events)[cid(s, 'alex')]).toBe(-200);
@@ -99,7 +99,7 @@ describe('game flow and scoring', () => {
 
   it('classroom preset does not deduct for incorrect answers', () => {
     let s = soloGame();
-    s = run(s, { type: 'updateRules', rules: rulesFromPreset('classroom') }, { type: 'startGame' }, { type: 'selectClue', clueId: 'geo_1' }, { type: 'unlockBuzzers' });
+    s = run(s, { type: 'updateRules', rules: rulesFromPreset('classroom') }, { type: 'startGame' }, { type: 'introSkip' }, { type: 'selectClue', clueId: 'geo_1' }, { type: 'unlockBuzzers' });
     s = buzz(s, 'alex');
     s = run(s, { type: 'judge', result: 'incorrect' });
     expect(scoresOf(s.events)[cid(s, 'alex')] ?? 0).toBe(0);
@@ -107,7 +107,7 @@ describe('game flow and scoring', () => {
 
   it('early buzzes are recorded and optionally locked out', () => {
     let s = soloGame();
-    s = run(s, { type: 'updateRules', rules: { ...DEFAULT_RULES, earlyBuzzPenalty: 'lockout', earlyBuzzLockoutMs: 500 } }, { type: 'startGame' }, { type: 'selectClue', clueId: 'geo_2' });
+    s = run(s, { type: 'updateRules', rules: { ...DEFAULT_RULES, earlyBuzzPenalty: 'lockout', earlyBuzzLockoutMs: 500 } }, { type: 'startGame' }, { type: 'introSkip' }, { type: 'selectClue', clueId: 'geo_2' });
     s = buzz(s, 'alex'); // early - buzzers locked
     expect(s.buzzer.winner).toBeNull();
     expect(s.events.at(-1)).toMatchObject({ type: 'buzz', result: 'early' });
@@ -121,7 +121,7 @@ describe('game flow and scoring', () => {
   });
 
   it('manual adjustments, undo voids events and restores state', () => {
-    let s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'unlockBuzzers' });
+    let s = run(soloGame(), { type: 'startGame' }, { type: 'introSkip' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'unlockBuzzers' });
     s = buzz(s, 'alex');
     s = run(s, { type: 'judge', result: 'correct' });
     expect(scoresOf(s.events)[cid(s, 'alex')]).toBe(200);
@@ -135,7 +135,7 @@ describe('game flow and scoring', () => {
   });
 
   it('pauses and resumes timers with the game', () => {
-    let s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'unlockBuzzers' });
+    let s = run(soloGame(), { type: 'startGame' }, { type: 'introSkip' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'unlockBuzzers' });
     expect(s.timer).toMatchObject({ kind: 'buzz', running: true, durationMs: 10_000 });
     clock += 4000;
     s = run(s, { type: 'pauseGame' });
@@ -149,7 +149,7 @@ describe('game flow and scoring', () => {
   });
 
   it('ignores early timer expiry', () => {
-    let s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'timerStart', kind: 'custom', seconds: 5 });
+    let s = run(soloGame(), { type: 'startGame' }, { type: 'introSkip' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'timerStart', kind: 'custom', seconds: 5 });
     clock += 1000;
     const r = tryRun(s, { type: 'timerExpire' });
     expect(r.ok && r.ignored).toBe(true);
@@ -158,7 +158,7 @@ describe('game flow and scoring', () => {
 
 describe('wagers', () => {
   it('daily wager validates bounds and scores the wager amount', () => {
-    let s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'sci_4' });
+    let s = run(soloGame(), { type: 'startGame' }, { type: 'introSkip' }, { type: 'selectClue', clueId: 'sci_4' });
     expect(s.clue?.isDailyWager).toBe(true);
     expect(s.clue?.stage).toBe('wager');
     const alex = cid(s, 'alex');
@@ -170,7 +170,7 @@ describe('wagers', () => {
   });
 
   it('public projection hides the daily wager question until the wager is set', () => {
-    let s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'sci_4' });
+    let s = run(soloGame(), { type: 'startGame' }, { type: 'introSkip' }, { type: 'selectClue', clueId: 'sci_4' });
     expect(projectState(s, 'public', {}).clue?.question).toBeNull();
     expect(projectState(s, 'host', {}).clue?.question).toBeTruthy();
     s = run(s, { type: 'setDailyWager', competitorId: cid(s, 'alex'), amount: 500 });
@@ -178,7 +178,7 @@ describe('wagers', () => {
   });
 
   it('final wager: eligibility, hidden wagers, adjudication and winner', () => {
-    let s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_5' }, { type: 'unlockBuzzers' });
+    let s = run(soloGame(), { type: 'startGame' }, { type: 'introSkip' }, { type: 'selectClue', clueId: 'hist_5' }, { type: 'unlockBuzzers' });
     s = buzz(s, 'alex');
     s = run(s, { type: 'judge', result: 'correct' }, { type: 'closeClue' }, { type: 'selectClue', clueId: 'geo_3' }, { type: 'unlockBuzzers' });
     s = buzz(s, 'jordan');
@@ -186,29 +186,89 @@ describe('wagers', () => {
     const alex = cid(s, 'alex');
     const jordan = cid(s, 'jordan');
     expect(s.final?.entries.map((e) => e.competitorId)).toEqual([alex, jordan]); // sam has 0 -> ineligible
+    // R4-2: reveal order is lowest → highest score before the Final.
+    expect(s.final?.order).toEqual([jordan, alex]);
+    expect(s.final?.preScores).toMatchObject({ [alex]: 1000, [jordan]: 600 });
     s = run(s, { type: 'finalNext' });
     expect(tryRun(s, { type: 'setFinalWager', competitorId: jordan, amount: 601 }).ok).toBe(false);
+    expect(tryRun(s, { type: 'setFinalAnswer', competitorId: jordan, answer: 'early' }).ok).toBe(false); // clue not shown yet
     s = run(s, { type: 'setFinalWager', competitorId: alex, amount: 1000 }, { type: 'setFinalWager', competitorId: jordan, amount: 600 });
-    const pub = projectState(s, 'public', {});
-    expect(pub.final?.entries.every((e) => e.wager === null && e.hasWager)).toBe(true);
-    expect(pub.final?.question).toBeNull();
+    for (const role of ['public', 'host', 'player'] as const) {
+      const v = projectState(s, role, {});
+      expect(v.final?.entries.every((e) => e.wager === null && e.hasWager)).toBe(true); // private from the host too
+    }
+    expect(projectState(s, 'public', {}).final?.question).toBeNull();
     s = run(s, { type: 'finalNext' });
     expect(projectState(s, 'public', {}).final?.question).toBeTruthy();
     expect(projectState(s, 'public', {}).final?.answer).toBeNull();
+    // The locked wagers are recorded as events, but the host's event list hides the amounts.
+    expect(projectState(s, 'host', {}).events?.filter((e) => e.type === 'wager').every((e) => e.wager === undefined)).toBe(true);
     s = run(s, { type: 'setFinalAnswer', competitorId: alex, answer: 'Vienna' }, { type: 'setFinalAnswer', competitorId: jordan, answer: 'Budapest' });
+    expect(projectState(s, 'host', {}).final?.entries.map((e) => [e.hasAnswer, e.answer])).toEqual([[true, null], [true, null]]);
+    expect(playerContext(s, 'alex', clock).final).toEqual({ wager: 1000, answer: 'Vienna' }); // own submission only
     s = run(s, { type: 'finalNext' });
-    expect(projectState(s, 'public', {}).final?.entries[0].answer).toBeNull();
-    s = run(s, { type: 'judgeFinal', competitorId: alex, correct: false });
-    expect(projectState(s, 'public', {}).final?.entries[0].answer).toBe('Vienna');
-    expect(tryRun(s, { type: 'finalNext' }).ok).toBe(false); // jordan not judged
-    s = run(s, { type: 'judgeFinal', competitorId: jordan, correct: true }, { type: 'finalNext' }, { type: 'endGame' });
+    expect(s.final).toMatchObject({ stage: 'reveal', cursor: 0, step: 'contestant' });
+    // Written answers are recorded for history, but stay out of the host's event list until revealed.
+    expect(s.events.filter((e) => e.type === 'submission').map((e) => e.note).sort()).toEqual(['Budapest', 'Vienna']);
+    expect(JSON.stringify(projectState(s, 'host', {}).events)).not.toMatch(/Vienna|Budapest/);
+    expect(tryRun(s, { type: 'judgeFinal', competitorId: jordan, correct: true }).ok).toBe(false); // answer not shown yet
+    s = run(s, { type: 'finalReveal' });
+    let host = projectState(s, 'host', {}).final!;
+    expect(host.entries.find((e) => e.competitorId === jordan)).toMatchObject({ wager: 600, answer: null });
+    expect(host.entries.find((e) => e.competitorId === alex)).toMatchObject({ wager: null, answer: null });
+    s = run(s, { type: 'finalReveal' });
+    expect(projectState(s, 'public', {}).final?.entries.find((e) => e.competitorId === jordan)?.answer).toBe('Budapest');
+    expect(tryRun(s, { type: 'judgeFinal', competitorId: alex, correct: true }).ok).toBe(false); // not alex's turn
+    expect(tryRun(s, { type: 'finalReveal' }).ok).toBe(false); // judge first
+    expect(scoresOf(s.events)[jordan]).toBe(600); // score changes only on judgment
+    s = run(s, { type: 'judgeFinal', competitorId: jordan, correct: true });
+    expect(scoresOf(s.events)[jordan]).toBe(1200);
+    s = run(s, { type: 'finalReveal' });
+    expect(s.final).toMatchObject({ cursor: 1, step: 'contestant' });
+    host = projectState(s, 'host', {}).final!;
+    expect(host.entries.find((e) => e.competitorId === alex)).toMatchObject({ wager: null, answer: null });
+    expect(tryRun(s, { type: 'finalNext' }).ok).toBe(false); // alex not judged
+    s = run(s, { type: 'finalReveal' }, { type: 'finalReveal' }, { type: 'judgeFinal', competitorId: alex, correct: false }, { type: 'finalReveal' });
+    expect(s.final?.stage).toBe('done');
+    s = run(s, { type: 'endGame' });
     expect(scoresOf(s.events)).toMatchObject({ [alex]: 0, [jordan]: 1200 });
     expect(s.results?.[0]).toMatchObject({ competitorId: jordan, placement: 1, isWinner: true });
     expect(s.phase).toBe('ended');
   });
 
+  it('final: equal scores reveal in game order; missing wager counts 0; max wager; time up closes answers', () => {
+    let s = withRules(soloGame(['a', 'b', 'c']), { finalAllowNonPositive: true });
+    s = run(s, { type: 'startGame' }, { type: 'introSkip' });
+    s = run(s, { type: 'adjustScore', competitorId: cid(s, 'c'), delta: 400, note: 't' }, { type: 'startFinal' });
+    const [a, b, c] = ['a', 'b', 'c'].map((p) => cid(s, p));
+    expect(s.final?.order).toEqual([a, b, c]); // a = b = 0 → join order; c has the most
+    s = run(s, { type: 'finalNext' });
+    expect(tryRun(s, { type: 'setFinalWager', competitorId: c, amount: 401 }).ok).toBe(false);
+    s = run(s, { type: 'setFinalWager', competitorId: c, amount: 400 }, { type: 'setFinalWager', competitorId: a, amount: 0 }, { type: 'finalNext' });
+    expect(s.final?.entries.find((e) => e.competitorId === b)?.wager).toBe(0); // never submitted
+    expect(s.timer?.kind).toBe('final');
+    s = run(s, { type: 'setFinalAnswer', competitorId: c, answer: 'x' });
+    clock += 31_000;
+    s = run(s, { type: 'timerExpire' });
+    expect(s.final).toMatchObject({ stage: 'reveal', cursor: 0, step: 'contestant' });
+    expect(tryRun(s, { type: 'setFinalAnswer', competitorId: a, answer: 'late' }).ok).toBe(false);
+    for (const id of [a, b, c]) s = run(s, { type: 'finalReveal' }, { type: 'finalReveal' }, { type: 'judgeFinal', competitorId: id, correct: id === c }, { type: 'finalReveal' });
+    expect(s.final?.stage).toBe('done');
+    expect(scoresOf(s.events)[c]).toBe(800);
+    expect(projectState(s, 'public', {}).final?.entries.find((e) => e.competitorId === b)).toMatchObject({ wager: 0, answer: null, judged: true });
+  });
+
+  it('final: a state saved before the step-by-step reveal gets an order on load', () => {
+    let s = run(soloGame(['a', 'b']), { type: 'startGame' }, { type: 'introSkip' });
+    s = run(s, { type: 'adjustScore', competitorId: cid(s, 'a'), delta: 500, note: 't' }, { type: 'adjustScore', competitorId: cid(s, 'b'), delta: 200, note: 't' }, { type: 'startFinal' });
+    const legacy = JSON.parse(JSON.stringify(s));
+    for (const k of ['order', 'preScores', 'cursor', 'step']) delete legacy.final[k];
+    const up = normalizeState(legacy);
+    expect(up.final).toMatchObject({ order: [cid(s, 'b'), cid(s, 'a')], cursor: 0, step: 'contestant' });
+  });
+
   it('ties share first place', () => {
-    let s = run(soloGame(['a', 'b']), { type: 'startGame' }, { type: 'endGame' });
+    let s = run(soloGame(['a', 'b']), { type: 'startGame' }, { type: 'introSkip' }, { type: 'endGame' });
     expect(s.results?.filter((r) => r.isWinner)).toHaveLength(2);
   });
 });
@@ -216,7 +276,7 @@ describe('wagers', () => {
 describe('teams, buzzers and attribution', () => {
   it('individual-mode team buzz records team and individual; scoring goes to team only', () => {
     let { s, wiz } = teamGame();
-    s = run(s, { type: 'startGame' }, { type: 'selectClue', clueId: 'tech_3' }, { type: 'unlockBuzzers' });
+    s = run(s, { type: 'startGame' }, { type: 'introSkip' }, { type: 'selectClue', clueId: 'tech_3' }, { type: 'unlockBuzzers' });
     ({ s } = press(s, 'jc-L-1')); // alex
     expect(s.buzzer.winner).toMatchObject({ competitorId: wiz, profileId: 'alex', controllerId: 'jc-L-1', sourceKind: 'joycon' });
     s = run(s, { type: 'judge', result: 'correct' });
@@ -229,7 +289,7 @@ describe('teams, buzzers and attribution', () => {
 
   it('incorrect answer: team loses value, only the answering member is charged', () => {
     let { s, wiz } = teamGame();
-    s = run(s, { type: 'startGame' }, { type: 'selectClue', clueId: 'tech_2' }, { type: 'unlockBuzzers' });
+    s = run(s, { type: 'startGame' }, { type: 'introSkip' }, { type: 'selectClue', clueId: 'tech_2' }, { type: 'unlockBuzzers' });
     ({ s } = press(s, 'jc-L-1'));
     s = run(s, { type: 'judge', result: 'incorrect' });
     expect(scoresOf(s.events)[wiz]).toBe(-400);
@@ -238,7 +298,7 @@ describe('teams, buzzers and attribution', () => {
 
   it('team-aware arbitration: teammates cannot steal or re-buzz, other team can after incorrect', () => {
     let { s, wiz, dra } = teamGame();
-    s = run(s, { type: 'startGame' }, { type: 'selectClue', clueId: 'tech_1' }, { type: 'unlockBuzzers' });
+    s = run(s, { type: 'startGame' }, { type: 'introSkip' }, { type: 'selectClue', clueId: 'tech_1' }, { type: 'unlockBuzzers' });
     ({ s } = press(s, 'jc-L-1'));
     let r = press(s, 'jc-R-1'); // jordan, same team
     expect(r.s.buzzer.winner?.profileId).toBe('alex');
@@ -252,7 +312,7 @@ describe('teams, buzzers and attribution', () => {
 
   it('teamRetry=otherMembers lets a different teammate try after a miss', () => {
     let { s, wiz } = teamGame();
-    s = run(s, { type: 'updateRules', rules: { ...DEFAULT_RULES, teamRetry: 'otherMembers' } }, { type: 'startGame' }, { type: 'selectClue', clueId: 'tech_1' }, { type: 'unlockBuzzers' });
+    s = run(s, { type: 'updateRules', rules: { ...DEFAULT_RULES, teamRetry: 'otherMembers' } }, { type: 'startGame' }, { type: 'introSkip' }, { type: 'selectClue', clueId: 'tech_1' }, { type: 'unlockBuzzers' });
     ({ s } = press(s, 'jc-L-1'));
     s = run(s, { type: 'judge', result: 'incorrect' });
     let r = press(s, 'jc-L-1');
@@ -263,7 +323,7 @@ describe('teams, buzzers and attribution', () => {
 
   it('shared buzzer: team-only by default, host can attribute, and correct later with audit trail', () => {
     let { s, dra } = teamGame();
-    s = run(s, { type: 'startGame' }, { type: 'selectClue', clueId: 'food_2' }, { type: 'unlockBuzzers' });
+    s = run(s, { type: 'startGame' }, { type: 'introSkip' }, { type: 'selectClue', clueId: 'food_2' }, { type: 'unlockBuzzers' });
     ({ s } = press(s, 'jc-L-2'));
     s = run(s, { type: 'judge', result: 'correct' }); // Team Only / Unknown
     const ans = s.events.find((e) => e.type === 'answer')!;
@@ -280,7 +340,7 @@ describe('teams, buzzers and attribution', () => {
 
   it('host chooses the answering member of a shared team at judgement time', () => {
     let { s, dra } = teamGame();
-    s = run(s, { type: 'startGame' }, { type: 'selectClue', clueId: 'food_1' }, { type: 'unlockBuzzers' });
+    s = run(s, { type: 'startGame' }, { type: 'introSkip' }, { type: 'selectClue', clueId: 'food_1' }, { type: 'unlockBuzzers' });
     ({ s } = press(s, 'jc-L-2'));
     s = run(s, { type: 'judge', result: 'correct', profileId: 'sam' });
     expect(s.events.find((e) => e.type === 'answer')).toMatchObject({ competitorId: dra, profileId: 'sam', contributionDelta: 200 });
@@ -305,7 +365,7 @@ describe('teams, buzzers and attribution', () => {
 
   it('mixed devices (Joy-Con vs phone) share one arbitration', () => {
     let { s, wiz } = teamGame();
-    s = run(s, { type: 'startGame' }, { type: 'selectClue', clueId: 'tech_1' }, { type: 'unlockBuzzers' });
+    s = run(s, { type: 'startGame' }, { type: 'introSkip' }, { type: 'selectClue', clueId: 'tech_1' }, { type: 'unlockBuzzers' });
     s = buzz(s, 'jordan'); // jordan via phone
     const r = press(s, 'jc-L-2'); // dragons joy-con second
     expect(r.s.buzzer.winner).toMatchObject({ competitorId: wiz, profileId: 'jordan', sourceKind: 'phone' });
@@ -314,7 +374,7 @@ describe('teams, buzzers and attribution', () => {
 
   it('team wagers affect the team score once, attribution optional', () => {
     let { s, wiz } = teamGame();
-    s = run(s, { type: 'startGame' }, { type: 'selectClue', clueId: 'sci_4' }, { type: 'setDailyWager', competitorId: wiz, amount: 800 }, { type: 'judge', result: 'correct' });
+    s = run(s, { type: 'startGame' }, { type: 'introSkip' }, { type: 'selectClue', clueId: 'sci_4' }, { type: 'setDailyWager', competitorId: wiz, amount: 800 }, { type: 'judge', result: 'correct' });
     expect(scoresOf(s.events)[wiz]).toBe(800);
     expect(projectState(s, 'host', {}).contributions).toEqual({});
   });
@@ -345,7 +405,7 @@ describe('input filter (debounce / held buttons)', () => {
 
 describe('projections never leak secrets', () => {
   it('public and player views exclude answers, notes, daily wager locations and undo data', () => {
-    let s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_1' });
+    let s = run(soloGame(), { type: 'startGame' }, { type: 'introSkip' }, { type: 'selectClue', clueId: 'hist_1' });
     for (const role of ['public', 'player'] as const) {
       const v = projectState(s, role, {});
       const json = JSON.stringify(v);
@@ -370,7 +430,7 @@ const tryBuzz = (s: GameState, profileId: string) =>
 
 describe('early-buzz rules (FB-3)', () => {
   it('no penalty: early press is recorded, player can still buzz once open', () => {
-    let s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_1' });
+    let s = run(soloGame(), { type: 'startGame' }, { type: 'introSkip' }, { type: 'selectClue', clueId: 'hist_1' });
     s = buzz(s, 'alex');
     expect(lastEarly(s)).toMatchObject({ competitorId: cid(s, 'alex'), scoreDelta: 0 });
     expect(s.buzzer.early).toHaveLength(1);
@@ -380,7 +440,7 @@ describe('early-buzz rules (FB-3)', () => {
   });
 
   it('short lockout expires; lockout is per person, not per device', () => {
-    let s = withRules(run(soloGame(), { type: 'startGame' }), { earlyBuzzPenalty: 'lockout', earlyBuzzLockoutMs: 400 });
+    let s = withRules(run(soloGame(), { type: 'startGame' }, { type: 'introSkip' }), { earlyBuzzPenalty: 'lockout', earlyBuzzLockoutMs: 400 });
     s = run(s, { type: 'selectClue', clueId: 'hist_1' });
     s = buzz(s, 'alex'); // phone, early
     s = run(s, { type: 'unlockBuzzers' });
@@ -393,7 +453,7 @@ describe('early-buzz rules (FB-3)', () => {
   });
 
   it('out-for-the-clue lockout lasts until the next clue', () => {
-    let s = withRules(run(soloGame(), { type: 'startGame' }), { earlyBuzzPenalty: 'clue' });
+    let s = withRules(run(soloGame(), { type: 'startGame' }, { type: 'introSkip' }), { earlyBuzzPenalty: 'clue' });
     s = run(s, { type: 'selectClue', clueId: 'hist_1' });
     s = buzz(s, 'alex');
     s = run(s, { type: 'unlockBuzzers' });
@@ -408,7 +468,7 @@ describe('early-buzz rules (FB-3)', () => {
   });
 
   it('point penalty: deducted once per player per clue, refundable with an audit trail', () => {
-    let s = withRules(run(soloGame(), { type: 'startGame' }), { earlyBuzzPenalty: 'points', earlyBuzzPoints: 150, earlyBuzzLockoutMs: 100 });
+    let s = withRules(run(soloGame(), { type: 'startGame' }, { type: 'introSkip' }), { earlyBuzzPenalty: 'points', earlyBuzzPoints: 150, earlyBuzzLockoutMs: 100 });
     s = run(s, { type: 'selectClue', clueId: 'hist_1' });
     s = buzz(s, 'alex');
     expect(scoresOf(s.events)[cid(s, 'alex')]).toBe(-150);
@@ -425,7 +485,7 @@ describe('early-buzz rules (FB-3)', () => {
   });
 
   it('changing the rule mid-game applies to the next buzz only and never rewrites earlier penalties', () => {
-    let s = withRules(run(soloGame(), { type: 'startGame' }), { earlyBuzzPenalty: 'points', earlyBuzzPoints: 100 });
+    let s = withRules(run(soloGame(), { type: 'startGame' }, { type: 'introSkip' }), { earlyBuzzPenalty: 'points', earlyBuzzPoints: 100 });
     s = run(s, { type: 'selectClue', clueId: 'hist_1' });
     s = buzz(s, 'alex');
     s = withRules(s, { earlyBuzzPenalty: 'none' });
@@ -436,7 +496,7 @@ describe('early-buzz rules (FB-3)', () => {
   });
 
   it('is not "early" after time ran out or when already out of the clue', () => {
-    let s = withRules(run(soloGame(), { type: 'startGame' }), { earlyBuzzPenalty: 'points', earlyBuzzPoints: 100 });
+    let s = withRules(run(soloGame(), { type: 'startGame' }, { type: 'introSkip' }), { earlyBuzzPenalty: 'points', earlyBuzzPoints: 100 });
     s = run(s, { type: 'selectClue', clueId: 'hist_1' }, { type: 'unlockBuzzers' });
     clock += 10_000;
     s = run(s, { type: 'timerExpire' });
@@ -459,7 +519,7 @@ describe('early-buzz rules (FB-3)', () => {
 
   it('teams: individual buzzers lock out only that member; a shared buzzer locks out the team', () => {
     const t = teamGame();
-    let s = withRules(run(t.s, { type: 'startGame' }), { earlyBuzzPenalty: 'clue' });
+    let s = withRules(run(t.s, { type: 'startGame' }, { type: 'introSkip' }), { earlyBuzzPenalty: 'clue' });
     s = run(s, { type: 'selectClue', clueId: 'hist_1' });
     s = press(s, 'jc-L-1').s; // Alex (Wizards, individual buzzers) early
     s = press(s, 'jc-L-2').s; // Dragons' shared device early
@@ -475,7 +535,7 @@ describe('early-buzz rules (FB-3)', () => {
 
   it('team point penalty hits the team score once; contribution only for an identified member', () => {
     const t = teamGame();
-    let s = withRules(run(t.s, { type: 'startGame' }), { earlyBuzzPenalty: 'points', earlyBuzzPoints: 50 });
+    let s = withRules(run(t.s, { type: 'startGame' }, { type: 'introSkip' }), { earlyBuzzPenalty: 'points', earlyBuzzPoints: 50 });
     s = run(s, { type: 'selectClue', clueId: 'hist_1' });
     s = press(s, 'jc-L-1').s;
     s = press(s, 'jc-L-2').s;
@@ -487,7 +547,7 @@ describe('early-buzz rules (FB-3)', () => {
   });
 
   it('phones may press while locked (early presses count like physical buzzers)', () => {
-    let s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_1' });
+    let s = run(soloGame(), { type: 'startGame' }, { type: 'introSkip' }, { type: 'selectClue', clueId: 'hist_1' });
     expect(playerContext(s, 'alex', clock)).toMatchObject({ canBuzz: false, canPress: true, buzzReason: 'locked' });
     s = run(s, { type: 'revealAnswer' });
     expect(playerContext(s, 'alex', clock)).toMatchObject({ canPress: false, buzzReason: 'ended' });
@@ -496,7 +556,7 @@ describe('early-buzz rules (FB-3)', () => {
 
 describe('unanswered clue flow (FB-5.1)', () => {
   it('time runs out → reveal → return: no score change, closed as unanswered', () => {
-    let s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'unlockBuzzers' });
+    let s = run(soloGame(), { type: 'startGame' }, { type: 'introSkip' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'unlockBuzzers' });
     clock += 10_000;
     s = run(s, { type: 'timerExpire' });
     expect(s.clue).toMatchObject({ answeringEnded: true, answerRevealed: false });
@@ -510,7 +570,7 @@ describe('unanswered clue flow (FB-5.1)', () => {
   });
 
   it('host can end answering without a timer; re-opening is still possible', () => {
-    let s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'unlockBuzzers' });
+    let s = run(soloGame(), { type: 'startGame' }, { type: 'introSkip' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'unlockBuzzers' });
     s = run(s, { type: 'endAnswering' });
     expect(s.clue?.answeringEnded).toBe(true);
     expect(s.buzzer.status).toBe('locked');
@@ -521,7 +581,7 @@ describe('unanswered clue flow (FB-5.1)', () => {
   });
 
   it('everyone wrong → answering ended automatically', () => {
-    let s = run(soloGame(['alex', 'sam']), { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'unlockBuzzers' });
+    let s = run(soloGame(['alex', 'sam']), { type: 'startGame' }, { type: 'introSkip' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'unlockBuzzers' });
     s = buzz(s, 'alex');
     s = run(s, { type: 'judge', result: 'incorrect' });
     expect(s.clue?.answeringEnded).toBe(false);
@@ -533,7 +593,7 @@ describe('unanswered clue flow (FB-5.1)', () => {
   });
 
   it('stale double taps cannot close the next clue or complete twice', () => {
-    let s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'closeClue', clueId: 'hist_1' });
+    let s = run(soloGame(), { type: 'startGame' }, { type: 'introSkip' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'closeClue', clueId: 'hist_1' });
     expect(s.events.at(-1)).toMatchObject({ type: 'clue_close', result: 'skipped' });
     s = run(s, { type: 'selectClue', clueId: 'hist_2' });
     const r = tryRun(s, { type: 'closeClue', clueId: 'hist_1' });
@@ -543,7 +603,7 @@ describe('unanswered clue flow (FB-5.1)', () => {
   });
 
   it('a correct answer closes as answered', () => {
-    let s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'unlockBuzzers' });
+    let s = run(soloGame(), { type: 'startGame' }, { type: 'introSkip' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'unlockBuzzers' });
     s = buzz(s, 'alex');
     s = run(s, { type: 'judge', result: 'correct' }, { type: 'closeClue' });
     expect(s.events.at(-1)).toMatchObject({ type: 'clue_close', result: 'answered' });
@@ -554,7 +614,7 @@ describe('category introduction (FB-4.5)', () => {
   it('starts with each round, steps through every category, can be replayed, skipped or interrupted', () => {
     let s = run(soloGame(), { type: 'startGame' });
     const cats = s.board.rounds[s.roundIndex].categories.length;
-    expect(s.intro).toEqual({ roundIndex: s.roundIndex, step: -1, auto: false });
+    expect(s.intro).toEqual({ roundIndex: s.roundIndex, step: -1, auto: false, at: clock });
     expect(projectState(s, 'public', {}).intro?.step).toBe(-1);
     for (let i = 0; i < cats; i++) s = run(s, { type: 'introNext' });
     expect(s.intro?.step).toBe(cats - 1);
@@ -564,7 +624,10 @@ describe('category introduction (FB-4.5)', () => {
     expect(s.intro).toMatchObject({ step: -1, auto: true });
     s = run(s, { type: 'introSkip' });
     expect(s.intro).toBeNull();
-    s = run(s, { type: 'startIntro' }, { type: 'selectClue', clueId: 'hist_1' });
+    s = run(s, { type: 'startIntro' });
+    // R4-16: no clue can be opened while the categories are being introduced.
+    expect(tryRun(s, { type: 'selectClue', clueId: 'hist_1' })).toMatchObject({ ok: false, error: expect.stringMatching(/Introduce the categories/) });
+    s = run(s, { type: 'introSkip' }, { type: 'selectClue', clueId: 'hist_1' });
     expect(s.intro).toBeNull();
     s = run(s, { type: 'closeClue' }, { type: 'setRound', roundIndex: 1 });
     expect(s.intro).toMatchObject({ roundIndex: 1, step: -1 });
@@ -572,14 +635,14 @@ describe('category introduction (FB-4.5)', () => {
 
   it('can be turned off by rule', () => {
     let s = withRules(soloGame(), { categoryIntro: false });
-    s = run(s, { type: 'startGame' });
+    s = run(s, { type: 'startGame' }, { type: 'introSkip' });
     expect(s.intro).toBeNull();
   });
 });
 
 describe('saved-game compatibility (FB-E2)', () => {
   it('upgrades a state saved before the feedback changes', () => {
-    const s = run(soloGame(), { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'unlockBuzzers' });
+    const s = run(soloGame(), { type: 'startGame' }, { type: 'introSkip' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'unlockBuzzers' });
     const legacy = JSON.parse(JSON.stringify(s));
     delete legacy.intro;
     delete legacy.clue.answeringEnded;
@@ -619,7 +682,7 @@ describe('room codes (P17)', () => {
 describe('survival mode (O8)', () => {
   it('wrong answers cost lives; eliminated players cannot buzz, skip the Final and rank below survivors; undo restores a life', () => {
     let s = withRules(soloGame(['alex', 'sam']), { survivalLives: 1 });
-    s = run(s, { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'unlockBuzzers' });
+    s = run(s, { type: 'startGame' }, { type: 'introSkip' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'unlockBuzzers' });
     s = buzz(s, 'alex');
     s = run(s, { type: 'judge', result: 'incorrect' });
     expect(tryBuzz(s, 'alex').ok && (tryBuzz(s, 'alex') as { info?: string }).info).toBe('eliminated');
@@ -635,7 +698,7 @@ describe('survival mode (O8)', () => {
 
   it('every view shows lives left (and none when survival is off)', () => {
     let s = withRules(soloGame(['alex', 'sam']), { survivalLives: 3 });
-    s = run(s, { type: 'startGame' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'unlockBuzzers' });
+    s = run(s, { type: 'startGame' }, { type: 'introSkip' }, { type: 'selectClue', clueId: 'hist_1' }, { type: 'unlockBuzzers' });
     s = buzz(s, 'alex');
     s = run(s, { type: 'judge', result: 'incorrect' });
     for (const role of ['host', 'public', 'player'] as const) {
@@ -661,7 +724,7 @@ describe('media clues, answer media and automatic unlock (R2-13/14/16)', () => {
   };
   const mk = (autoUnlock: GameRules['autoUnlock']) => {
     let s = createGame({ id: 'gm', title: 'M', boardId: null, board: mediaBoard(), mode: 'solo', rules: { ...DEFAULT_RULES, autoUnlock, categoryIntro: false }, now: clock });
-    s = run(s, { type: 'addPlayer', profileId: 'alex' }, { type: 'startGame' });
+    s = run(s, { type: 'addPlayer', profileId: 'alex' }, { type: 'startGame' }, { type: 'introSkip' });
     return s;
   };
 
@@ -748,7 +811,7 @@ describe('lobby controls: change mode and board before the game starts (R2-6)', 
     expect(s.competitors).toHaveLength(1);
     const practice = createGame({ id: 'p', title: 'P', boardId: 'b1', board: SAMPLE_BOARD, mode: 'solo', rules: { ...DEFAULT_RULES }, now: clock, practice: true });
     expect(tryRun(practice, { type: 'setMode', mode: 'team' }).ok).toBe(false);
-    s = run(s, { type: 'addPlayer', profileId: 'sam' }, { type: 'startGame' });
+    s = run(s, { type: 'addPlayer', profileId: 'sam' }, { type: 'startGame' }, { type: 'introSkip' });
     expect(tryRun(s, { type: 'setMode', mode: 'team' }).ok).toBe(false);
     expect(tryRun(s, { type: 'setBoard', boardId: 'b1', board: SAMPLE_BOARD }).ok).toBe(false);
   });

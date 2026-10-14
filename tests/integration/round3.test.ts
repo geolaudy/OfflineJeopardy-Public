@@ -55,6 +55,7 @@ describe('Return to Lobby (R3-3)', () => {
 
     // ---- Game 1: Alex answers correctly.
     await h.act({ type: 'startGame' });
+    await h.act({ type: 'introSkip' });
     await h.act({ type: 'selectClue', clueId: 'tech_3' });
     await h.act({ type: 'unlockBuzzers' });
     pa.send({ t: 'buzz' });
@@ -101,6 +102,7 @@ describe('Return to Lobby (R3-3)', () => {
 
     // ---- Game 2: Sam wins with the keyboard key that is still assigned.
     await h.act({ type: 'startGame' });
+    await h.act({ type: 'introSkip' });
     await h.act({ type: 'selectClue', clueId: 'food_2' });
     await h.act({ type: 'unlockBuzzers' });
     bridge.send({ t: 'controller', ev: { type: 'button', controllerId: 'kb:KeyS', button: 'KeyS', pressed: true } });

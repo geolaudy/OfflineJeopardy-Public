@@ -80,12 +80,15 @@ test('full game: iPad host pairing, phone profiles + buzzing, private answers, l
   await expect(ipad.getByTestId('intro-controls')).toBeVisible();
   await expect(tv.getByTestId('board-tile')).toHaveCount(0);
   await ipad.getByTestId('intro-next').click();
-  await expect(ipad.getByTestId('intro-now')).toContainText('Category 1 of 6: History');
+  await expect(ipad.getByTestId('intro-now')).toContainText('History');
+  await expect(ipad.getByTestId('intro-now')).toContainText('Category 1 of 6');
+  await expect(ipad.getByTestId('host-tile')).toHaveCount(0); // R4-16: no clue board while categories are introduced
   await expect(tv.getByText('History', { exact: true })).toBeVisible();
   await ipad.getByTestId('intro-next').click();
   await expect(ipad.getByTestId('intro-now')).toContainText('Category 2 of 6');
   await ipad.getByTestId('intro-skip').click();
-  await expect(ipad.getByTestId('intro-start')).toBeVisible(); // can be replayed
+  await expect(ipad.getByTestId('game-options')).toBeVisible(); // replay lives in Options
+  await expect(ipad.getByTestId('host-tile')).toHaveCount(30);
 
   // Board on TV
   await expect(tv.getByTestId('board-category').first()).toHaveText('History');
@@ -147,10 +150,12 @@ test('full game: iPad host pairing, phone profiles + buzzing, private answers, l
   await ipad.getByTestId('undo').click();
   await expect(iphone.getByTestId('my-score')).toHaveText('0');
   await ipad.getByTestId('incorrect').click();
-  // Nobody else answers: host ends answering → reveals the answer → returns to the board (FB-5.1)
+  // R4-4: after a wrong answer the buzzers re-open by themselves for the others (no second Unlock).
+  await expect(ipad.getByTestId('buzzers-open')).toBeVisible();
+  await expect(ipad.getByTestId('unlock')).toHaveCount(0);
+  await expect(android.getByTestId('buzzer')).toHaveAttribute('data-state', 'open');
+  // Nobody else answers: Reveal Answer → Return to Board (no generic Skip in the main controls).
   await expect(ipad.getByTestId('back-to-board')).toHaveCount(0);
-  await ipad.getByTestId('end-answering').click();
-  await expect(ipad.getByTestId('answering-ended')).toBeVisible();
   await expect(tv.getByTestId('clue-answer')).toHaveCount(0);
   await ipad.getByTestId('reveal-answer').click();
   await expect(tv.getByTestId('clue-answer')).toBeVisible();
@@ -169,7 +174,7 @@ test('full game: iPad host pairing, phone profiles + buzzing, private answers, l
 
   // Daily Wager (Science 800): TV hides the clue until the wager is locked
   await ipad.getByRole('button', { name: /Science for 800/ }).click();
-  await expect(tv.getByText('DAILY WAGER!')).toBeVisible();
+  await expect(tv.getByText('DAILY DOUBLE!')).toBeVisible();
   await expect(tv.getByTestId('clue-text')).toHaveCount(0);
   await ipad.getByLabel('Wager amount').fill('500');
   await ipad.getByRole('button', { name: 'Lock wager & show clue' }).click();

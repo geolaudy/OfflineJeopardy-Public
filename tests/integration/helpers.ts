@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import WebSocket from 'ws';
-import { startServer, type RunningServer } from '../../src/server/app';
+import { startServer, type RunningServer, type ServerOptions } from '../../src/server/app';
 import type { ServerMessage } from '../../src/shared/protocol';
 import type { GameView } from '../../src/shared/views';
 
@@ -10,8 +10,8 @@ export function tempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'oj-test-'));
 }
 
-export async function boot(dataDir = tempDir()): Promise<RunningServer & { dataDir: string }> {
-  const s = await startServer({ dataDir, port: 0, host: '127.0.0.1', webDir: null });
+export async function boot(dataDir = tempDir(), extra: Partial<ServerOptions> = {}): Promise<RunningServer & { dataDir: string }> {
+  const s = await startServer({ dataDir, port: 0, host: '127.0.0.1', webDir: null, ...extra });
   return Object.assign(s, { dataDir });
 }
 

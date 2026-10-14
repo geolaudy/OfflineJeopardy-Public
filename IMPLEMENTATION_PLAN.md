@@ -61,3 +61,12 @@ Rollback point: tag v0.5.0. Order (see USER_FEEDBACK.md Round 3):
 - **B — Lobby statistics:** R3-6 cards, R3-7 crown, R3-8 bot cards.
 - **C — Bot gameplay:** R3-9 clue selection, R3-10/R3-13 visible answers + awaiting judgment, R3-11 local wrong answers, R3-12 timing.
 - **D — Optional AI bots:** R3-14 provider abstraction, secure key storage (Electron safeStorage where available), host settings, test connection, fallback.
+
+## Milestone 18 — User feedback round 4 (started 2026-10-14, session 6)
+
+Rollback point: tag v0.7.0. See USER_FEEDBACK.md "Round 4"; statuses in FEATURE_MATRIX.md.
+- **A — Gameplay and validation:** R4-20 return to the existing lobby (investigate the report first), R4-2 Final Jeopardy! (engine reveal sequence + privacy, phone submission, host reveal UI, TV reveal), R4-4 simplified clue controls, R4-10 media-only clues, R4-16 intro gating, R4-7 wording.
+- **B — Host and lobby UI:** R4-5, R4-15, R4-9, R4-8, R4-12, R4-14.
+- **C — Profiles and pre-lobby:** R4-13 (profile picture, preferred colour, lobby colour assignment), R4-11 (pre-lobby TV).
+- **D — Visual and audio:** R4-1 + R4-3 sound pack and think music, R4-6 bottom glow, R4-17 typography, R4-18 clue background, R4-19 board-fill sync.
+- Tests for each item (Vitest + Playwright); release v0.8.0 when A–D are done.

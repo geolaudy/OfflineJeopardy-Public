@@ -26,6 +26,15 @@ function secretCodec() {
   return { encrypt: (s: string) => safeStorage.encryptString(s), decrypt: (b: Buffer) => safeStorage.decryptString(b) };
 }
 
+/**
+ * Jeopardy!/Buzzinga sound files (R4-1): a personal build carries them in resources/soundpacks;
+ * in development they come from new_sfx/. Public releases contain neither (the folder is
+ * git-ignored, so the release workflow never has it); players can install files in Settings.
+ */
+function soundPackDirs(): string[] {
+  return app.isPackaged ? [path.join(process.resourcesPath, 'soundpacks', 'buzzinga')] : [path.join(app.getAppPath(), 'new_sfx')];
+}
+
 /** Data lives in %APPDATA%/OfflineJeopardy/data, or next to the portable .exe. */
 function resolveDataDir(): string {
   const cfgFile = path.join(app.getPath('userData'), 'config.json');
@@ -50,7 +59,7 @@ async function boot() {
   let lastErr: unknown;
   for (let port = 3000; port <= 3010; port++) {
     try {
-      server = await startServer({ dataDir, port, host: '0.0.0.0', webDir, secretCodec: secretCodec() });
+      server = await startServer({ dataDir, port, host: '0.0.0.0', webDir, secretCodec: secretCodec(), soundPackDirs: soundPackDirs() });
       break;
     } catch (e) {
       lastErr = e;

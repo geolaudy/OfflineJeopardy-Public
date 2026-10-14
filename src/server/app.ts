@@ -32,7 +32,8 @@ import * as stats from './stats.js';
 import { createZip, isZip, readZip, ZipError, type ZipEntry } from './zip.js';
 import { registerImportRoutes } from './importRoutes.js';
 import { LobbyManager } from './lobby.js';
-import { INTRO_STEP_MS, normalizeTvFx, SOUND_CUES, tvFxSchema } from '../shared/tvFx.js';
+import { INTRO_STEP_MS, normalizeTvFx, PACK_FILE_RULES, SOUND_CUES, tvFxSchema } from '../shared/tvFx.js';
+import { PACK_ID, SoundPacks } from './soundPacks.js';
 import { ratingOf } from '../shared/teamBalance.js';
 import * as tour from './tournaments.js';
 import { normalizeRules, rulesFromPreset, RULE_PRESETS } from '../shared/game.js';
@@ -60,6 +61,9 @@ export interface ServerOptions {
   seed?: boolean;
   /** Encrypts saved secrets (Electron safeStorage in the Windows app). */
   secretCodec?: SecretCodec | null;
+  /** Folders with Jeopardy!/Buzzinga sound files shipped with a personal build or used in
+   *  development (R4-1). Never part of public releases. */
+  soundPackDirs?: string[];
 }
 
 const COLOR = z.string().regex(/^#[0-9a-fA-F]{6}$/);
@@ -75,6 +79,7 @@ export async function startServer(opts: ServerOptions) {
   fs.mkdirSync(profileMediaDir, { recursive: true });
   fs.mkdirSync(clueMediaDir, { recursive: true });
   fs.mkdirSync(soundMediaDir, { recursive: true });
+  const packs = new SoundPacks(path.join(mediaDir, 'soundpacks', PACK_ID), opts.soundPackDirs ?? []);
 
   const dbFile = path.join(dataDir, 'offlinejeopardy.db');
   applyPendingRestore(dataDir, dbFile);
@@ -113,6 +118,7 @@ export async function startServer(opts: ServerOptions) {
   hub.lobby = lobby;
   lobby.onChange = () => hub.sendPresentation();
   games.recover();
+  lobby.restore();
 
   const pinLimiter = new RateLimiter(20, 60_000);
   const hostLimiter = new RateLimiter(10, 60_000);
@@ -775,6 +781,16 @@ export async function startServer(opts: ServerOptions) {
     return reply.type(types[ext] ?? 'application/octet-stream').send(fs.createReadStream(full));
   });
 
+  // Jeopardy!/Buzzinga sound files (R4-1): installed in the data folder or bundled with a personal build.
+  app.get('/media/pack/:source/:file', async (req, reply) => {
+    const { source, file } = req.params as { source: string; file: string };
+    const full = packs.resolve(source, file);
+    if (!full) return reply.code(404).send({ error: 'Not found' });
+    const types: Record<string, string> = { mp3: 'audio/mpeg', ogg: 'audio/ogg', wav: 'audio/wav', m4a: 'audio/mp4' };
+    reply.header('cache-control', 'no-cache').header('x-content-type-options', 'nosniff');
+    return reply.type(types[path.extname(full).slice(1).toLowerCase()] ?? 'application/octet-stream').send(fs.createReadStream(full));
+  });
+
   // ---------- games ----------
   app.get('/api/games', async (req, reply) => {
     if (!requireHost(req, reply)) return;
@@ -918,6 +934,7 @@ export async function startServer(opts: ServerOptions) {
     const tid = tour.tournamentOfGame(db, old.id);
     const s = games.rematch(usable ? { id: b.id, content: structuredClone(b.content) } : null);
     if (!s) return bad(reply, 'Could not return to the lobby', 409);
+    if (!lobby.lobby) lobby.create(); // e.g. the app restarted during the game (R4-20)
     const t = tid ? tour.getTournament(db, tid) : null;
     if (t && t.status === 'active' && !s.practice) tour.attachGame(db, s.id, t.id);
     lobby.setReigning(old);
@@ -1099,7 +1116,59 @@ export async function startServer(opts: ServerOptions) {
     // "custom:<id>" selects a saved custom theme; the TV gets its full definition (public look only).
     const customId = typeof s.boardTheme === 'string' && s.boardTheme.startsWith('custom:') ? s.boardTheme.slice(7) : null;
     const custom = customId ? repo.getTheme(db, customId) ?? null : null;
-    return { theme: custom ? custom.base : isPreset(String(s.boardTheme)) ? s.boardTheme : 'classic', custom, sound: s.sound, volume: s.volume, reducedMotion: s.reducedMotion, tvFx: s.tvFx };
+    return { theme: custom ? custom.base : isPreset(String(s.boardTheme)) ? s.boardTheme : 'classic', custom, sound: s.sound, volume: s.volume, reducedMotion: s.reducedMotion, tvFx: s.tvFx, packFiles: packs.cueUrls() };
+  });
+
+  // ---------- Jeopardy!/Buzzinga sound pack (R4-1) ----------
+  const MAX_PACK_SOUND_BYTES = 8 * 1024 * 1024;
+  const packInfo = () => ({ files: packs.files(), cues: packs.cueUrls(), rules: PACK_FILE_RULES.map((r) => ({ cue: r.cue, example: r.example })) });
+  app.get('/api/soundpacks', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    return packInfo();
+  });
+  app.post('/api/soundpacks/buzzinga', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const installed: string[] = [];
+    const rejected: { name: string; reason: string }[] = [];
+    try {
+      for await (const part of req.files({ limits: { fileSize: MAX_PACK_SOUND_BYTES, files: 40 } })) {
+        const name = part.filename || 'sound';
+        const buf = await part.toBuffer().catch(() => null);
+        if (!buf || part.file.truncated) {
+          rejected.push({ name, reason: 'Too large (8 MB at most)' });
+          continue;
+        }
+        const kind = sniffMedia(buf);
+        if (!kind || kind.kind !== 'audio') {
+          rejected.push({ name, reason: 'Not an MP3, WAV, OGG or M4A audio file' });
+          continue;
+        }
+        try {
+          installed.push(packs.install(name, kind.ext, buf).name);
+        } catch (e) {
+          rejected.push({ name, reason: (e as Error).message });
+        }
+      }
+    } catch {
+      return bad(reply, 'Could not read the uploaded files');
+    }
+    if (installed.length) {
+      audit(db, 'host', 'soundpack.install', { files: installed });
+      hub.profilesChanged(); // the TV reloads its sounds
+    }
+    return { installed, rejected, ...packInfo() };
+  });
+  app.delete('/api/soundpacks/buzzinga/:file', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    packs.remove((req.params as { file: string }).file);
+    hub.profilesChanged();
+    return packInfo();
+  });
+  app.delete('/api/soundpacks/buzzinga', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    packs.removeAll();
+    hub.profilesChanged();
+    return packInfo();
   });
 
   // ---------- custom sound cues (R2-22): the host's own audio files, stored locally ----------

@@ -680,6 +680,73 @@
 .bt-final-card.is-wrong {
   background: rgba(150, 20, 20, 0.7);
 }
+/* Final Jeopardy! reveal spotlight (R4-2) */
+.bt-final-spot {
+  display: flex;
+  width: min(80vw, 120vh);
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2.4vh;
+}
+.bt-final-who {
+  display: flex;
+  align-items: center;
+  gap: 2.4vw;
+}
+.bt-final-ring {
+  display: inline-flex;
+  flex-shrink: 0;
+  border-radius: 999px;
+  padding: 0.6vh;
+  background: var(--pc, #64748b);
+  box-shadow: 0 0.6vh 2vh rgba(0, 0, 0, 0.45);
+}
+.bt-final-answer-card {
+  display: flex;
+  min-height: 22vh;
+  align-items: center;
+  justify-content: center;
+  padding: 3vh 3vw;
+  border-radius: var(--b-radius);
+  background: rgba(0, 0, 0, 0.32);
+  box-shadow: inset 0 0 0 0.4vh rgba(255, 255, 255, 0.12);
+  perspective: 120vh;
+}
+.bt-final-answer-text {
+  font-size: min(8vh, 5vw);
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.bt-final-answer-hidden {
+  font-family: var(--b-font);
+  font-size: 12vh;
+  color: rgba(255, 255, 255, 0.25);
+}
+.bt-final-wager {
+  display: flex;
+  min-height: 7vh;
+  align-items: center;
+  justify-content: center;
+  gap: 3vw;
+  font-size: 4vh;
+}
+.bt-final-wager b {
+  font-family: var(--b-font);
+  color: var(--b-accent);
+  text-shadow: var(--bt-text-shadow);
+}
+.bt-final-verdict {
+  padding: 0.6vh 2.4vh;
+  border-radius: 999px;
+  font-family: var(--b-font);
+  font-size: 4.4vh;
+}
+.bt-final-verdict.is-right {
+  background: rgba(10, 120, 50, 0.85);
+}
+.bt-final-verdict.is-wrong {
+  background: rgba(150, 20, 20, 0.85);
+}
 .bt-results {
   display: flex;
   height: 100%;

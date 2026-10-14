@@ -67,7 +67,7 @@ export function useTimerSeconds(t: TimerState | null) {
   return t ? secs : null;
 }
 
-export const TIMER_LABELS: Record<string, string> = { buzz: 'Buzz in', answer: 'Answer', wager: 'Wager', final: 'Final', custom: 'Timer' };
+export const TIMER_LABELS: Record<string, string> = { buzz: 'Buzz in', answer: 'Answer', wager: 'Wager', final: 'Final Jeopardy!', custom: 'Timer' };
 
 export function phaseLabel(g: GameView) {
   if (g.paused) return 'Paused';
@@ -75,11 +75,11 @@ export function phaseLabel(g: GameView) {
     case 'lobby':
       return 'Setting up';
     case 'board':
-      return `${g.rounds[g.roundIndex]?.name ?? 'Board'} — choose a clue`;
+      return g.intro ? `${g.rounds[g.intro.roundIndex]?.name ?? 'Round'} — introducing the categories` : `${g.rounds[g.roundIndex]?.name ?? 'Board'} — choose a clue`;
     case 'clue':
-      return g.clue?.isDailyWager ? 'Daily Wager' : 'Clue';
+      return g.clue?.isDailyWager ? 'Daily Double!' : 'Clue';
     case 'final':
-      return `Final — ${g.final?.stage ?? ''}`;
+      return `Final Jeopardy! — ${({ category: 'category', wagers: 'wagers', clue: 'answers', reveal: 'reveal', done: 'done' } as Record<string, string>)[g.final?.stage ?? ''] ?? ''}`;
     case 'ended':
       return 'Game over';
   }

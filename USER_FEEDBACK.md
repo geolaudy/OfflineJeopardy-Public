@@ -157,3 +157,35 @@ Statuses are tracked in FEATURE_MATRIX.md → "User feedback round 3".
 | R3-14 | **Optional AI bots** (external LLM): provider config in Settings (desk + host), API key stored securely (never in Git/WS/TV/phones/logs/exports), test connection, model choice, enable/disable, fallback, timeouts, request limits; backend-only requests; structured output validated | D | Game never blocks; offline play unaffected |
 | R3-15 | **Windows builds**: installer + portable via existing electron-builder; verification script; artifacts at session end | E | Report what was/wasn't executed on Windows |
 | R3-16 | **GitHub Releases** for major milestones only (semver, changelog: New Features / Improvements / Bug Fixes / Known Issues, installer + portable attached); optional GitHub Actions Windows workflow publishing only on version tags | E | Never move tags or overwrite releases |
+
+---
+
+# User Feedback — Round 4 (received 2026-10-14, session 6, reviewing v0.7.0)
+
+Rollback point: tag **v0.7.0** (Vitest 139/139, Playwright 27/27). Must keep working: Joy-Con
+Bluetooth, iPad host, profiles, sync, team mode, history, lobby persistence, board editing, media
+clues, buzzer behaviour. User-provided assets in `new_sfx/` (git-ignored, not redistributed).
+Statuses: FEATURE_MATRIX.md → "User feedback round 4".
+
+| ID | Requirement (summary) | Milestone |
+|---|---|---|
+| R4-1 | **Jeopardy!/Buzzinga sound pack** from `new_sfx` as a 4th pack and the default for new users (Classic/Arcade/Soft kept; existing explicit choices kept); missing cues fall back; installable/importable locally; not in public releases unless redistribution rights exist; previews in Settings (desk + host) | D |
+| R4-2 | **Final Jeopardy! redesign**: players submit their own wager + answer on their devices (team rule for teams); private until reveal (host sees status only); reveal one contestant at a time, lowest → highest pre-Final score (deterministic ties): contestant → wager → answer → host judges → next; score changes only on judgment; recovery entry kept separate | A |
+| R4-3 | **Final Jeopardy! think music** during the answer-writing phase on the TV only, no duplicates, stops when answers close, not restarted on reconnect, synced with the timer | D |
+| R4-4 | **Simplified clue controls**: one primary Unlock Buzzers; remove reset/lock/timer/skip from the main clue UI; incorrect → automatic re-unlock for others; no buzz → Reveal Answer → Return to Board; timers automatic; auto-unlock settings kept; recovery tools in a secondary menu | A |
+| R4-5 | **Host clue readability**: clue dominant; answer in a smaller red "ANSWER" banner; iPad portrait + landscape | B |
+| R4-6 | **Default unlock indicator = Bottom Glow**, mustard yellow, slightly thicker, smooth, no flashing; other styles kept; explicit user choices kept | D |
+| R4-7 | **Rename** Daily Wager → **Daily Double!**, Final Wager → **Final Jeopardy!** in every user-facing label (internal ids unchanged) | A |
+| R4-8 | **Lobby presentation**: compact lobby visually distinct; smaller, styled QR codes (rounded themed card, quiet zone, contrast kept) | B |
+| R4-9 | **Navigation**: one shared order (Home, Boards, Players, Teams, Buzzers, Leaderboards, History, Settings, Help) for desk, host and TV; obvious **Show Leaderboards on TV** | B |
+| R4-10 | **Media-only clues are valid** (text OR playable/displayable media) in editor, completeness, save/import validation, preview and gameplay | A |
+| R4-11 | **Pre-lobby TV**: settings preview + board browsing on the TV before Open Lobby; no player QR / joining before the lobby opens; host pairing QR kept separate | C |
+| R4-12 | **Lobby player cards**: centred avatars, tighter spacing | B |
+| R4-13 | **Profile pictures**: one "Profile Picture" concept (Upload or Choose Default, circular previews); "Preferred Color"; distinct lobby colours (preferred if free, otherwise pick from free colours, race-safe, fallback palette); colour shown as a ring, no left strip | C |
+| R4-14 | **Current picker highlight** (mustard ring on the score box) + slightly larger TV score boxes | B |
+| R4-15 | **Host Options menu**: Next Round, Start Final Jeopardy!, Buzzers, Show QR move to a secondary menu; primary area shows only the current action; confirmations for disruptive actions | B |
+| R4-16 | **Category introduction gates clue selection**: no clue can be opened before the round's categories are presented or skipped; host sees a dedicated intro screen | A |
+| R4-17 | **TV typography**: clue text Korinna-style (bold, upper case, white, drop shadow); categories + dollar values Swiss 911 Compressed-style; licensed fonts pluggable later, free look-alikes now | D |
+| R4-18 | **Clue background** like the classic TV blue (provided image evaluated; CSS recreation preferred for scaling/licensing) | D |
+| R4-19 | **Board-fill animation synced with its sound** (one timeline from the audio duration; graceful without audio; no repeat on reconnect) | D |
+| R4-20 | **Return to the existing lobby after a game** (primary), New Lobby secondary; keep lobby/join code/players/colours/phones/Joy-Cons/teams/bots/pairing/settings/board; reset only match state; ≥3 consecutive games tested | A |

@@ -13,6 +13,15 @@ export const useFx = () => useContext(FxCtx);
 export const revealSeconds = (fx: TvFx) => 1.7 * SPEED_FACTOR[fx.introSpeed];
 
 /**
+ * One timeline for the board fill and its sound (R4-19): when the pack has a board-fill file, the
+ * reveal is stretched to the sound — tiles light up across it, the last ones land just before it
+ * ends and the round title follows as it finishes. Without a file the speed setting decides.
+ */
+export function revealTimeline(fx: TvFx, audioSec: number | null) {
+  return audioSec && audioSec > 0.8 ? Math.min(6, audioSec * 0.92) : revealSeconds(fx);
+}
+
+/**
  * Checker-pattern reveal order: the "even" squares light up first, then the "odd" ones, each wave
  * with a little jitter so it feels alive but never flashes. Returns a delay (s) per cell.
  */
@@ -29,12 +38,12 @@ export function checkerDelays(cols: number, rows: number, total: number): number
 }
 
 /** The classic board intro: blank screens light up in a checker pattern (shown before the round title). */
-export function BoardReveal({ g }: { g: GameView }) {
+export function BoardReveal({ g, total: totalSec }: { g: GameView; total?: number }) {
   const fx = useFx();
   const round = g.rounds[g.intro?.roundIndex ?? g.roundIndex];
   const cols = round?.categories.length ?? 0;
   const rows = round ? Math.max(0, ...round.categories.map((c) => c.clues.length)) : 0;
-  const total = revealSeconds(fx);
+  const total = totalSec ?? revealSeconds(fx);
   const delays = useMemo(() => checkerDelays(cols, rows, total * 0.75), [cols, rows, total]);
   if (!round) return null;
   const cell = (delay: number): CSSProperties => ({ animationDelay: `${delay.toFixed(3)}s`, '--bt-reveal-dur': `${(T.fillTile * 1.4 * SPEED_FACTOR[fx.introSpeed]).toFixed(3)}s` }) as CSSProperties;
