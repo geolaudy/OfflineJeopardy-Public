@@ -111,6 +111,12 @@ test('media-first clue with caption, answer image reveal, host-controlled audio 
   await pc.getByTestId('back-to-board').click();
   await expect(tv.locator('audio')).toHaveCount(0); // nothing left playing after the clue closes
 
+  // R4-10: in the editor the image-only clue is complete ("Image clue"), not "Needs question".
+  await pc.goto(`${BASE}/host/boards/${board.id}`);
+  const tile = pc.getByRole('button', { name: /^Edit History 200/ });
+  await expect(tile).toContainText('Image clue');
+  await expect(tile).not.toHaveAccessibleName(/unfinished/);
+
   await api.post('/api/games/close', { headers: H });
   await api.dispose();
 });

@@ -202,6 +202,9 @@ function SignIn({ onSignedIn }: { onSignedIn: (m: Me) => void }) {
 
 function Portal({ me, setMe, signOut }: { me: Me; setMe: (m: Me) => void; signOut: (forget: boolean) => void }) {
   const [menu, setMenu] = useState(false);
+  // In a game the picture ring shows the lobby colour (R4-13), like on the TV.
+  const lobbyColor = useLive((s) => s.me?.color?.current ?? null);
+  const shown = lobbyColor ? { ...me, color: lobbyColor } : me;
   const status = useLive((s) => s.status);
   const phase = useLive((s) => s.game?.phase);
   const inGame = useLive((s) => !!s.me?.competitorId);
@@ -234,7 +237,7 @@ function Portal({ me, setMe, signOut }: { me: Me; setMe: (m: Me) => void; signOu
             </NavLink>
           ) : (
             <NavLink to="/join/profile" aria-label="My profile" className="mr-1 flex h-11 w-11 items-center justify-center rounded-full">
-              <Avatar profile={me} size={34} />
+              <Avatar profile={shown} size={34} />
             </NavLink>
           )
         }
@@ -266,7 +269,7 @@ function Portal({ me, setMe, signOut }: { me: Me; setMe: (m: Me) => void; signOu
         onClose={() => setMenu(false)}
         title={
           <div className="flex items-center gap-3">
-            <Avatar profile={me} size={40} />
+            <Avatar profile={shown} size={40} />
             <div className="min-w-0">
               <div className="truncate font-bold">{profileName(me)}</div>
               <div className="text-xs text-slate-500">{status === 'open' ? 'Connected' : 'Reconnecting…'}</div>

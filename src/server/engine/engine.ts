@@ -411,6 +411,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       if (c.kind === 'team') for (const pid of c.memberIds) s.unassigned.push({ profileId: pid, joinedAt: now, pending: false });
       s.bindings = s.bindings.filter((b) => !(b.target.kind === 'competitor' && b.target.competitorId === c.id));
       if (s.controlCompetitorId === c.id) s.controlCompetitorId = s.competitors[0]?.id ?? null;
+      forgetCompetitor(s, c.id);
       return;
     }
     case 'updateCompetitor': {
@@ -1134,6 +1135,10 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       if (s.timer) s.timer = { ...s.timer, running: false, startedAt: null };
       normalizeState(s); // snapshots taken by older versions may lack newer fields
       if (s.intro) s.intro.auto = false;
+      // Removing a player is not undoable: a restored snapshot must not bring their turn back.
+      const gone = new Set([s.buzzer.winner?.competitorId, s.clue?.wager?.competitorId, ...(s.final?.entries.map((e) => e.competitorId) ?? [])].filter((id): id is string => !!id && !s.competitors.some((c) => c.id === id)));
+      for (const id of gone) forgetCompetitor(s, id);
+      if (s.controlCompetitorId && !s.competitors.some((c) => c.id === s.controlCompetitorId)) s.controlCompetitorId = s.competitors[0]?.id ?? null;
       return { info: `Undid ${snap!.label}` };
     }
     default: {
@@ -1181,6 +1186,37 @@ function startFinalReveal(tx: Tx) {
   f.cursor = 0;
   f.step = 'contestant';
   s.timer = null;
+}
+
+/** A competitor left mid-game: nothing may still wait on them (buzz, Daily Double!, Final reveal),
+ *  otherwise the host could not continue. */
+function forgetCompetitor(s: GameState, id: Id) {
+  const b = s.buzzer;
+  if (b.winner?.competitorId === id) {
+    b.winner = null;
+    b.status = 'locked';
+    if (s.timer?.kind === 'answer') s.timer = null;
+  }
+  b.queue = b.queue.filter((q) => q.competitorId !== id);
+  b.attemptedCompetitors = b.attemptedCompetitors.filter((x) => x !== id);
+  if (s.clue?.submission?.competitorId === id) s.clue.submission = null;
+  if (s.clue?.isDailyWager && s.clue.wager?.competitorId === id && !s.clue.resolved) {
+    s.clue.wager = null;
+    s.clue.stage = 'wager';
+  }
+  const f = s.final;
+  if (f) {
+    const at = f.order.indexOf(id);
+    f.entries = f.entries.filter((e) => e.competitorId !== id);
+    f.order = f.order.filter((x) => x !== id);
+    if (at >= 0 && at < f.cursor) f.cursor--;
+    else if (at === f.cursor) f.step = 'contestant';
+    if (f.stage === 'reveal' && f.cursor >= f.order.length) {
+      f.cursor = Math.max(0, f.order.length - 1);
+      // Everyone left has been judged: the reveal is over.
+      if (f.entries.every((e) => e.judged)) f.stage = 'done';
+    }
+  }
 }
 
 /** Every human in the game (solo players, team members, players waiting for a team), in join order. */

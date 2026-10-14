@@ -55,7 +55,7 @@ export default function Live({ g, run }: { g: GameView; run: Run }) {
           ))}
           <div className="flex-1" />
           <ActionButton variant="secondary" size="lg" disabled={!g.undoLabel} onAction={() => run({ type: 'undo' })} className="shrink-0" data-testid="undo">
-            <Undo2 size={18} aria-hidden /> Undo{g.undoLabel ? <span className="text-sm font-normal text-slate-500">({g.undoLabel})</span> : null}
+            <Undo2 size={18} aria-hidden /> Undo{g.undoLabel ? <span className="hidden text-sm font-normal text-slate-500 xl:inline">({g.undoLabel})</span> : null}
           </ActionButton>
         </div>
       </footer>

@@ -34,19 +34,25 @@ export default function FinalControl({ g, run }: { g: GameView; run: Run }) {
         <p className="mt-3 text-sm font-bold tracking-wide text-slate-500 uppercase">Final Jeopardy! · {f.category}</p>
         <p className="text-2xl leading-snug font-semibold">{f.question}</p>
         {f.answer && <AnswerBanner className="mt-3" answer={f.answer} />}
-        {f.entries.length === 0 && <p className="mt-2 font-semibold text-amber-700">Nobody has a positive score, so nobody plays Final Jeopardy!. Finish to end the game.</p>}
+        {f.entries.length === 0 && <p className="mt-2 font-semibold text-amber-700">Nobody has a positive score, so nobody plays Final Jeopardy! — show the winner to end the game.</p>}
       </div>
 
       {(f.stage === 'category' || f.stage === 'wagers' || f.stage === 'clue') && <SubmissionStatus g={g} />}
       {f.stage === 'reveal' && <RevealCard g={g} run={run} />}
 
       <div className="flex flex-wrap gap-2">
-        {f.stage === 'category' && (
+        {/* Nobody qualified: there is nothing to wager or reveal, so go straight to the winner. */}
+        {f.entries.length === 0 && f.stage !== 'done' && (
+          <ActionButton size="xl" variant="success" className="flex-1" onAction={() => run({ type: 'endGame' })} data-testid="end-game">
+            <Trophy size={20} aria-hidden /> Show the winner
+          </ActionButton>
+        )}
+        {f.entries.length > 0 && f.stage === 'category' && (
           <ActionButton size="xl" className="flex-1" onAction={() => run({ type: 'finalNext' })} data-testid="final-next">
             Open wagers on the phones
           </ActionButton>
         )}
-        {f.stage === 'wagers' && (
+        {f.entries.length > 0 && f.stage === 'wagers' && (
           <ActionButton
             size="xl"
             className="flex-1"
@@ -56,7 +62,7 @@ export default function FinalControl({ g, run }: { g: GameView; run: Run }) {
             Lock wagers & show the clue
           </ActionButton>
         )}
-        {f.stage === 'clue' && (
+        {f.entries.length > 0 && f.stage === 'clue' && (
           <ActionButton
             size="xl"
             variant={missingAnswers ? 'secondary' : 'primary'}
