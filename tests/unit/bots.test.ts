@@ -42,6 +42,36 @@ function game(practice: boolean, rand: number, rules = {}) {
 }
 
 describe('computer opponents (O3, R3-9…R3-13)', () => {
+  it('practice games move on by themselves when a round is played out: next round, then Final Jeopardy! (K27)', async () => {
+    const playOut = () => {
+      for (const q of s().board.rounds[s().roundIndex].categories.flatMap((c) => c.clues)) {
+        if (s().usedClueIds.includes(q.id)) continue;
+        ok({ type: 'selectClue', clueId: q.id });
+        ok({ type: 'closeClue', clueId: q.id });
+      }
+    };
+    game(true, 0.99); // high random: the bot never knows, so it never takes control
+    ok({ type: 'startGame' });
+    const first = s().roundIndex;
+    playOut();
+    await wait(3000);
+    expect(s().roundIndex).toBe(first); // a short pause first
+    await wait(800);
+    expect(s().roundIndex).toBeGreaterThan(first);
+    expect(s().phase).toBe('board');
+    playOut();
+    await wait(4000);
+    expect(s().phase).toBe('final');
+    // Not in ordinary games: the host decides when to move on.
+    game(false, 0.99);
+    ok({ type: 'startGame' });
+    const r0 = s().roundIndex;
+    playOut();
+    await wait(10_000);
+    expect(s().roundIndex).toBe(r0);
+    expect(s().phase).toBe('board');
+  });
+
   it('are added only to solo games, with unique names and a difficulty', () => {
     game(false, 0);
     expect(bot('Robo Rita')).toMatchObject({ kind: 'player', bot: 'expert', memberIds: [], avatar: 'robot' });

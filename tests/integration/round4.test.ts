@@ -361,3 +361,53 @@ describe('pre-lobby TV (R4-11)', () => {
     await tv.wait((m) => m.t === 'presentation' && (m as any).p.page === 'lobby' && !(m as any).p.setup, 3000);
   });
 });
+
+describe('saved boards are renamed to Final Jeopardy! (R4-7, migration v5)', () => {
+  it('renames the library copy only; finished game snapshots keep their wording', async () => {
+    const { openDatabase, migrate } = await import('../../src/server/db/db');
+    const dir = tempDir();
+    const db = openDatabase(`${dir}/t.db`);
+    const content = JSON.stringify({ rounds: [{ id: 'r1', name: 'Round 1', kind: 'standard', categories: [] }, { id: 'r2', name: 'Final Wager', kind: 'final', categories: [] }] });
+    db.prepare('INSERT INTO boards (id, title, content_json, created_at, updated_at) VALUES (?, ?, ?, 1, 1)').run('b1', 'Old board', content);
+    db.prepare('INSERT INTO board_versions (board_id, title, content_json, saved_at) VALUES (?, ?, ?, 1)').run('b1', 'Old board', content);
+    db.exec('DELETE FROM schema_migrations WHERE version = 5');
+    migrate(db);
+    const b = JSON.parse((db.prepare('SELECT content_json AS c FROM boards WHERE id = ?').get('b1') as { c: string }).c);
+    expect(b.rounds.map((r: { name: string }) => r.name)).toEqual(['Round 1', 'Final Jeopardy!']);
+    const v = (db.prepare('SELECT content_json AS c FROM board_versions WHERE board_id = ?').get('b1') as { c: string }).c;
+    expect(v).toContain('Final Wager'); // history untouched
+    db.close();
+  });
+});
+
+describe('per-sound volume', () => {
+  it('is saved, served to the TV and validated', async () => {
+    const s = await boot();
+    servers.push(s);
+    const host = await hostToken(s);
+    const fx = (await api(s, 'GET', '/api/settings/public')).data.tvFx;
+    expect(fx.volumes).toEqual({});
+    expect((await api(s, 'PUT', '/api/settings', { tvFx: { ...fx, volumes: { finalThink: 0.4, buzz: 0 } } }, host)).status).toBe(200);
+    expect((await api(s, 'GET', '/api/settings/public')).data.tvFx.volumes).toEqual({ finalThink: 0.4, buzz: 0 });
+    expect((await api(s, 'PUT', '/api/settings', { tvFx: { ...fx, volumes: { buzz: 2 } } }, host)).status).toBe(400);
+    expect((await api(s, 'PUT', '/api/settings', { tvFx: { ...fx, volumes: { nope: 0.5 } } }, host)).status).toBe(400);
+  });
+});
+
+describe('leaderboard minimums (K17)', () => {
+  it('are a host setting used by the TV leaderboard and served to clients', async () => {
+    const { rankRows } = await import('../../src/shared/leaderboard');
+    const s = await boot();
+    servers.push(s);
+    const host = await hostToken(s);
+    expect((await api(s, 'GET', '/api/settings/public')).data.leaderboardThresholds).toEqual({ games: 3, answers: 10 });
+    expect((await api(s, 'PUT', '/api/settings', { leaderboardThresholds: { games: 1, answers: 2 } }, host)).status).toBe(200);
+    expect((await api(s, 'GET', '/api/settings/public')).data.leaderboardThresholds).toEqual({ games: 1, answers: 2 });
+    expect((await api(s, 'PUT', '/api/settings', { leaderboardThresholds: { games: 0, answers: 2 } }, host)).status).toBe(400);
+    const row = { id: 'p', name: 'P', nickname: '', color: '#000000', avatar: 'fox', pictureUrl: null, solo: { games: 1, wins: 1, winRate: 1, averageScore: 500, highestScore: 500, correct: 2, incorrect: 0, accuracy: 1, earned: 500 }, team: { games: 0, wins: 0, winRate: null }, contribution: { games: 0, correct: 0, incorrect: 0, accuracy: null, earned: 0, net: 0 }, games: 1, wins: 1, correct: 2, incorrect: 0, accuracy: 1 };
+    expect(rankRows([row as never], 'solo', 'winRate').ranked).toHaveLength(0); // default: 3 games
+    const r = rankRows([row as never], 'solo', 'winRate', { games: 1, answers: 2 });
+    expect(r.ranked).toHaveLength(1);
+    expect(r.crit.min?.label).toBe('at least 1 solo game');
+  });
+});

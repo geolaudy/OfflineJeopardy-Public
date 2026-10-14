@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { downloadFile, hostApi } from '../../lib/api';
 import { attempt, useFetch } from '../../lib/hooks';
-import { Button, Card, Field, cx } from '../../components/ui';
+import { Button, Card, Field, cx, inputCls } from '../../components/ui';
 import { configureSound } from '../../lib/sound';
 import type { TvFx } from '../../../shared/tvFx';
 import { PresentationSettings } from './PresentationSettings';
@@ -21,6 +21,7 @@ interface S {
   volume: number;
   reducedMotion: boolean;
   tvFx: TvFx;
+  leaderboardThresholds: { games: number; answers: number };
 }
 
 export const BOARD_THEMES: [string, string][] = [
@@ -33,6 +34,23 @@ export const BOARD_THEMES: [string, string][] = [
   ['corporate', 'Corporate'],
   ['contrast', 'High Contrast'],
 ];
+
+/** A whole number saved when the field is left (not on every keystroke). */
+function NumberSetting({ value, min, max, unit, onCommit }: { value: number; min: number; max: number; unit: string; onCommit: (n: number) => void }) {
+  const [text, setText] = useState(String(value));
+  useEffect(() => setText(String(value)), [value]);
+  const commit = () => {
+    const n = Math.min(max, Math.max(min, Math.round(Number(text) || min)));
+    setText(String(n));
+    if (n !== value) onCommit(n);
+  };
+  return (
+    <div className="flex items-center gap-2">
+      <input className={cx(inputCls, 'w-24')} inputMode="numeric" value={text} onChange={(e) => setText(e.target.value.replace(/[^0-9]/g, ''))} onBlur={commit} onKeyDown={(e) => e.key === 'Enter' && commit()} aria-label={`Minimum ${unit}`} />
+      <span className="text-sm text-slate-600">{unit}</span>
+    </div>
+  );
+}
 
 function Toggle({ label, checked, onChange, hint }: { label: string; checked: boolean; onChange: (v: boolean) => void; hint?: string }) {
   return (
@@ -94,8 +112,16 @@ export default function Settings() {
         <AiSettings />
       </Card>
       <Card className="space-y-3">
-        <h2 className="text-lg font-bold">Privacy</h2>
+        <h2 className="text-lg font-bold">Leaderboards & privacy</h2>
         <Toggle label="Players can see the leaderboard" checked={v.publicLeaderboard} onChange={(x) => set({ publicLeaderboard: x })} hint="Players can always hide their own statistics from their profile." />
+        <div className="grid gap-3 sm:grid-cols-2" data-testid="leaderboard-thresholds">
+          <Field label="Ranked by win % and average after" hint="Games played. Fewer games are listed as not ranked yet.">
+            <NumberSetting value={v.leaderboardThresholds.games} min={1} max={100} unit="games" onCommit={(games) => set({ leaderboardThresholds: { ...v.leaderboardThresholds, games } })} />
+          </Field>
+          <Field label="Ranked by accuracy after" hint="Answers given (right or wrong).">
+            <NumberSetting value={v.leaderboardThresholds.answers} min={1} max={500} unit="answers" onCommit={(answers) => set({ leaderboardThresholds: { ...v.leaderboardThresholds, answers } })} />
+          </Field>
+        </div>
       </Card>
       <Card className="space-y-3">
         <h2 className="text-lg font-bold">Backup & restore</h2>

@@ -9,7 +9,7 @@ import * as stats from './stats.js';
 import type { GameState } from '../shared/game.js';
 import { BOT_LEVELS } from '../shared/game.js';
 import { publicSettings } from '../shared/rulesSummary.js';
-import { rankRows, rankTeamRows, secondaryLine, teamSecondaryLine, formatValue, TEAMS_VIEW_LABEL, VIEW_LABELS, type LeaderView } from '../shared/leaderboard.js';
+import { DEFAULT_THRESHOLDS, type Thresholds, rankRows, rankTeamRows, secondaryLine, teamSecondaryLine, formatValue, TEAMS_VIEW_LABEL, VIEW_LABELS, type LeaderView } from '../shared/leaderboard.js';
 import { normalizeRules, type GameRules } from '../shared/game.js';
 import type { PresentationState, PresentRequest, PublicLobby, PublicRoster, RosterRow } from '../shared/presentation.js';
 import { humanCount } from './engine/engine.js';
@@ -175,13 +175,17 @@ export class LobbyManager {
     }
   }
 
+  private thresholds(): Thresholds {
+    return { ...DEFAULT_THRESHOLDS, ...(getSetting<Partial<Thresholds> | null>(this.db, 'leaderboardThresholds', null) ?? {}) };
+  }
+
   private setup(): NonNullable<PresentationState['setup']> {
     const selected = this.draft?.boardId ?? null;
     return { boards: this.boards(selected)!, board: selected ? this.board(selected) : null, rules: this.rules()! };
   }
 
   private leaderboard(view: LeaderView, metric?: string): PresentationState['leaderboard'] {
-    const { crit, ranked, unranked } = rankRows(stats.leaderboard(this.db), view, metric);
+    const { crit, ranked, unranked } = rankRows(stats.leaderboard(this.db), view, metric, this.thresholds());
     return {
       viewLabel: VIEW_LABELS[view].label,
       metricLabel: crit.label,
@@ -201,7 +205,7 @@ export class LobbyManager {
   }
 
   private teamLeaderboard(metric?: string): PresentationState['leaderboard'] {
-    const { crit, ranked, unranked } = rankTeamRows(stats.teamLeaderboard(this.db), metric);
+    const { crit, ranked, unranked } = rankTeamRows(stats.teamLeaderboard(this.db), metric, this.thresholds());
     return {
       viewLabel: TEAMS_VIEW_LABEL.label,
       metricLabel: crit.label,

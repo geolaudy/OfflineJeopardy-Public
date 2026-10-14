@@ -245,6 +245,18 @@ ALTER TABLE games ADD COLUMN tournament_id TEXT REFERENCES tournaments(id) ON DE
 CREATE INDEX games_tournament ON games(tournament_id);
 `,
   },
+  {
+    // Round 4 wording (R4-7): saved boards' Final round "Final Wager" → "Final Jeopardy!". Only the
+    // library copy changes; finished games and saved versions keep their historical snapshots.
+    version: 5,
+    name: 'final-jeopardy-round-name',
+    sql: `
+UPDATE boards SET content_json = REPLACE(REPLACE(content_json,
+  '"name":"Final Wager","kind":"final"', '"name":"Final Jeopardy!","kind":"final"'),
+  '"kind":"final","name":"Final Wager"', '"kind":"final","name":"Final Jeopardy!"')
+WHERE content_json LIKE '%"Final Wager"%';
+`,
+  },
 ];
 
 export function openDatabase(file: string): DB {

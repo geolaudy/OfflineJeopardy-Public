@@ -191,6 +191,24 @@ export class BotDriver {
       const len = (clueContext(s.board, clue.clueId)?.question ?? '').length;
       out.set(`unlock:${clue.clueId}`, { delay: Math.min(6000, 1500 + 35 * len), action: () => ({ type: 'unlockBuzzers' }) });
     }
+    // Practice games move on by themselves when a round is played out (K27): next round, then
+    // Final Jeopardy!, then the results — a short pause first so the last answer can sink in.
+    if (s.practice && s.phase === 'board' && !s.intro && !s.clue) {
+      const round = s.board.rounds[s.roundIndex];
+      const left = round?.categories.some((c) => c.clues.some((q) => !s.usedClueIds.includes(q.id)));
+      if (round && round.kind === 'standard' && !left) {
+        const next = s.board.rounds.findIndex((r, i) => i > s.roundIndex && r.kind === 'standard');
+        const final = s.board.rounds.some((r) => r.kind === 'final' && r.categories[0]?.clues[0]);
+        out.set(`advance:${s.id}:${s.roundIndex}`, {
+          delay: 3500,
+          action: () => {
+            const cur = this.latest;
+            if (!cur || cur.id !== s.id || cur.phase !== 'board' || cur.roundIndex !== s.roundIndex || cur.clue || cur.intro) return null;
+            return next > 0 ? { type: 'setRound', roundIndex: next } : final ? { type: 'startFinal' } : { type: 'endGame' };
+          },
+        });
+      }
+    }
     if (!bots.length) return;
 
     // Picking a clue when a computer player has control (same turn rule as everyone else).

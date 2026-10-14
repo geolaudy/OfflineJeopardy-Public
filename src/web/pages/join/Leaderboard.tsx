@@ -3,10 +3,10 @@
 // Ranking rules live in src/shared/leaderboard.ts (the TV presentation uses the same rules).
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { hostApi, meApi } from '../../lib/api';
+import { api as publicApi, hostApi, meApi } from '../../lib/api';
 import { useFetch } from '../../lib/hooks';
 import { Avatar, cx } from '../../components/ui';
-import { CRITERIA, TEAM_CRITERIA, TEAMS_VIEW_LABEL, VIEW_LABELS, formatValue, rankRows, rankTeamRows, secondaryLine, teamSecondaryLine, type LeaderRow, type LeaderView, type TeamLeaderRow } from '../../../shared/leaderboard';
+import { CRITERIA, TEAM_CRITERIA, TEAMS_VIEW_LABEL, VIEW_LABELS, formatValue, rankRows, rankTeamRows, secondaryLine, teamSecondaryLine, DEFAULT_THRESHOLDS, type LeaderRow, type LeaderView, type TeamLeaderRow, type Thresholds } from '../../../shared/leaderboard';
 import { avatarEmoji } from '../../lib/avatars';
 
 export type { LeaderRow };
@@ -60,8 +60,10 @@ export default function Leaderboard({
   const [critKey, setCritKey] = useState('wins');
   const wantTeams = view === 'teams';
   const teamsLb = useFetch(() => (wantTeams ? api<TeamLeaderRow[]>('GET', '/api/stats/team-leaderboard') : Promise.resolve(null)), [asHost, wantTeams]);
-  const players = useMemo(() => rankRows(lb.data ?? [], view === 'teams' ? 'solo' : view, critKey), [lb.data, view, critKey]);
-  const teams = useMemo(() => rankTeamRows(teamsLb.data ?? [], critKey), [teamsLb.data, critKey]);
+  // The host's minimum games / answers for rate rankings (K17).
+  const th = useFetch(() => publicApi<{ leaderboardThresholds?: Thresholds }>('GET', '/api/settings/public').then((x) => x.leaderboardThresholds ?? DEFAULT_THRESHOLDS), []).data ?? DEFAULT_THRESHOLDS;
+  const players = useMemo(() => rankRows(lb.data ?? [], view === 'teams' ? 'solo' : view, critKey, th), [lb.data, view, critKey, th]);
+  const teams = useMemo(() => rankTeamRows(teamsLb.data ?? [], critKey, th), [teamsLb.data, critKey, th]);
   const crit = view === 'teams' ? teams.crit : players.crit;
   useEffect(() => onViewChange?.(view, crit.key), [view, crit.key, onViewChange]);
   const criteria = view === 'teams' ? TEAM_CRITERIA : CRITERIA[view];
@@ -155,7 +157,7 @@ function TeamRows({
   error: string | null | undefined;
   ranked: { r: TeamLeaderRow; rank: number }[];
   unranked: TeamLeaderRow[];
-  crit: (typeof TEAM_CRITERIA)[number];
+  crit: ReturnType<typeof rankTeamRows>['crit'];
   onSelect?: (id: string) => void;
   selectedId?: string | null;
 }) {

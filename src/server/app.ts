@@ -34,6 +34,7 @@ import { registerImportRoutes } from './importRoutes.js';
 import { LobbyManager } from './lobby.js';
 import { INTRO_STEP_MS, normalizeTvFx, PACK_FILE_RULES, SOUND_CUES, tvFxSchema } from '../shared/tvFx.js';
 import { PACK_ID, SoundPacks } from './soundPacks.js';
+import { DEFAULT_THRESHOLDS, type Thresholds } from '../shared/leaderboard.js';
 import { ratingOf } from '../shared/teamBalance.js';
 import * as tour from './tournaments.js';
 import { normalizeRules, rulesFromPreset, RULE_PRESETS } from '../shared/game.js';
@@ -80,6 +81,7 @@ export async function startServer(opts: ServerOptions) {
   fs.mkdirSync(clueMediaDir, { recursive: true });
   fs.mkdirSync(soundMediaDir, { recursive: true });
   const packs = new SoundPacks(path.join(mediaDir, 'soundpacks', PACK_ID), opts.soundPackDirs ?? []);
+  const thresholds = (): Thresholds => ({ ...DEFAULT_THRESHOLDS, ...(getSetting<Partial<Thresholds> | null>(db, 'leaderboardThresholds', null) ?? {}) });
   // Licensed TV fonts the owner may add (R4-17): <data>/fonts/clue.woff2, category.*, value.*.
   const fontDir = path.join(dataDir, 'fonts');
   const FONT_TYPES: Record<string, string> = { woff2: 'font/woff2', woff: 'font/woff', ttf: 'font/ttf', otf: 'font/otf' };
@@ -1136,11 +1138,13 @@ export async function startServer(opts: ServerOptions) {
     keyboardBuzzers: z.boolean().optional(),
     joyconRumble: z.boolean().optional(),
     tvFx: tvFxSchema.optional(),
+    /** Minimum games / answers before a player is ranked by a rate (win %, average, accuracy) — K17. */
+    leaderboardThresholds: z.object({ games: z.number().int().min(1).max(100), answers: z.number().int().min(1).max(500) }).optional(),
   });
   const SETTING_DEFAULTS = { preferredAddress: null, trustLocalhost: true, publicLeaderboard: true, theme: 'classic', boardTheme: 'classic', sound: true, volume: 0.7, reducedMotion: false, keyboardBuzzers: true, joyconRumble: true };
   const readSettings = () => {
     const base: Record<string, string | boolean | number | null> = Object.fromEntries(Object.entries(SETTING_DEFAULTS).map(([k, v]) => [k, getSetting(db, k, v)]));
-    return Object.assign(base, { tvFx: normalizeTvFx(getSetting(db, 'tvFx', null)) });
+    return Object.assign(base, { tvFx: normalizeTvFx(getSetting(db, 'tvFx', null)), leaderboardThresholds: thresholds() });
   };
   // The automatic category-introduction pace follows the chosen intro speed.
   games.introStepMs = INTRO_STEP_MS(readSettings().tvFx.introSpeed);
@@ -1149,7 +1153,7 @@ export async function startServer(opts: ServerOptions) {
     // "custom:<id>" selects a saved custom theme; the TV gets its full definition (public look only).
     const customId = typeof s.boardTheme === 'string' && s.boardTheme.startsWith('custom:') ? s.boardTheme.slice(7) : null;
     const custom = customId ? repo.getTheme(db, customId) ?? null : null;
-    return { theme: custom ? custom.base : isPreset(String(s.boardTheme)) ? s.boardTheme : 'classic', custom, sound: s.sound, volume: s.volume, reducedMotion: s.reducedMotion, tvFx: s.tvFx, packFiles: packs.cueUrls(), fonts: userFonts() };
+    return { theme: custom ? custom.base : isPreset(String(s.boardTheme)) ? s.boardTheme : 'classic', custom, sound: s.sound, volume: s.volume, reducedMotion: s.reducedMotion, tvFx: s.tvFx, packFiles: packs.cueUrls(), fonts: userFonts(), leaderboardThresholds: s.leaderboardThresholds };
   });
 
   // ---------- Jeopardy!/Buzzinga sound pack (R4-1) ----------

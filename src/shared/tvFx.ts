@@ -72,6 +72,8 @@ export const tvFxSchema = z.object({
   soundPack: z.enum(['buzzinga', 'classic', 'arcade', 'soft', 'custom', 'off']),
   cues: z.record(z.enum(SOUND_CUES), z.boolean()),
   customSounds: z.partialRecord(z.enum(SOUND_CUES), soundUrl),
+  /** Per-sound volume (0–1, relative to the main volume); missing = full. */
+  volumes: z.partialRecord(z.enum(SOUND_CUES), z.number().min(0).max(1)).optional(),
   /** Settings version: 2 = saved after the Jeopardy!/Buzzinga pack and the bottom-glow default (R4-1, R4-6). */
   v: z.number().int().optional(),
 });
@@ -86,6 +88,7 @@ export const DEFAULT_TV_FX: TvFx = {
   // Quiet by default for the cues that would fire very often.
   cues: Object.fromEntries(SOUND_CUES.map((c) => [c, !['clueSelect', 'countdown'].includes(c)])) as Record<SoundCue, boolean>,
   customSounds: {},
+  volumes: {},
   v: 2,
 };
 
@@ -140,6 +143,7 @@ export function normalizeTvFx(v: unknown): TvFx {
     unlock: { ...DEFAULT_TV_FX.unlock, ...(o.unlock ?? {}) },
     cues: { ...DEFAULT_TV_FX.cues, ...(o.cues ?? {}) },
     customSounds: { ...(o.customSounds ?? {}) },
+    volumes: { ...(o.volumes ?? {}) },
     v: 2,
   };
   const r = tvFxSchema.safeParse(merged);

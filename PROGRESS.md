@@ -10,6 +10,12 @@
   - Soak play-test `tests/integration/soak.test.ts` (six phones pressing at once, drop-outs/reconnects mid-clue, Final via phones, three Return-to-Lobby cycles; host/TV/phones always agree; stats counted once). It showed that all host and input-bridge messages share the 120/s phone flood limit — mashing several Joy-Cons could lose a button release. Trusted host/bridge connections now allow 2,000/s and a dropped host action gets an error reply.
   - Screen play-tests: profile creation on iPhone SE, sound packs on iPad portrait — fixed the "Jeopardy!/Buzzinga (Default)" title overflowing its card.
   - Tests: Vitest 156/156, Playwright 30/30.
+- **Features after play-testing:**
+  - Migration v5: saved boards' "Final Wager" round renamed "Final Jeopardy!" (library copy only; versions and finished games keep their snapshots).
+  - Practice games move on by themselves when a round is played out: next round → Final Jeopardy! → results (K27); the practice player's own Final wager/answer box is open on the Final screen.
+  - Per-sound volume (Settings → Sounds, slider per cue, saved on release; applies to files and built-in tones).
+  - Leaderboard minimums are a host setting (K17): games before win %/average, answers before accuracy; used by the TV, host and phone leaderboards.
+  - Tests: Vitest 160/160, Playwright 30/30.
 
 - Baseline: v0.7.0 pushed and in sync (main = origin/main). Round-4 requirements recorded (USER_FEEDBACK.md Round 4, IMPLEMENTATION_PLAN milestone 18, FEATURE_MATRIX round 4). `new_sfx/` (owner's sounds + clue background) git-ignored.
 - **Return to Lobby investigation (R4-20):** the button and endpoint existed (tested in 0.6/0.7), but the lobby session lived only in memory — after an app restart, Return to Lobby produced a game without a lobby (TV "Getting ready", no join QR); and the Results back arrow silently closed the game (= new lobby). Fixed: lobby session persisted and restored with the recovered game, rematch re-opens a lobby, back arrow removed, Return to Lobby is the first/largest action, "New Lobby" secondary.

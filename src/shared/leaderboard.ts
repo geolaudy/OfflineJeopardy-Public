@@ -22,28 +22,49 @@ export interface Criterion {
   label: string;
   format: ValueFormat;
   value: (r: LeaderRow) => number | null;
-  /** Rate-based criteria need a minimum sample to be ranked fairly. */
-  min?: { label: string; ok: (r: LeaderRow) => boolean };
+  /** Rate-based criteria need a minimum sample to be ranked fairly (how much is a setting, K17). */
+  min?: MinSpec<LeaderRow>;
 }
 
-export const MIN_GAMES = 3;
-export const MIN_ANSWERS = 10;
+/** Minimum sample for rate-based rankings: games played, or answers given. Host setting (K17). */
+export interface Thresholds {
+  games: number;
+  answers: number;
+}
+export const DEFAULT_THRESHOLDS: Thresholds = { games: 3, answers: 10 };
+export const MIN_GAMES = DEFAULT_THRESHOLDS.games;
+export const MIN_ANSWERS = DEFAULT_THRESHOLDS.answers;
+
+/** What a minimum counts ("solo games", "answers"); the number comes from the thresholds. */
+export interface MinSpec<R> {
+  kind: keyof Thresholds;
+  what: string;
+  count: (r: R) => number;
+}
+/** A criterion with its minimum resolved for the current thresholds. */
+export type Resolved<C> = Omit<C, 'min'> & { min?: { label: string; ok: (r: never) => boolean } };
+
+function resolveMin<R>(m: MinSpec<R> | undefined, th: Thresholds) {
+  if (!m) return undefined;
+  const n = Math.max(1, th[m.kind]);
+  return { label: `at least ${n} ${n === 1 ? m.what.replace(/s$/, '') : m.what}`, ok: (r: R) => m.count(r) >= n };
+}
 
 export const CRITERIA: Record<LeaderView, Criterion[]> = {
   solo: [
     { key: 'wins', label: 'Wins', format: 'count', value: (r) => r.solo.wins },
-    { key: 'winRate', label: 'Win %', format: 'pct', value: (r) => r.solo.winRate, min: { label: `at least ${MIN_GAMES} solo games`, ok: (r) => r.solo.games >= MIN_GAMES } },
-    { key: 'avg', label: 'Average score', format: 'score', value: (r) => r.solo.averageScore, min: { label: `at least ${MIN_GAMES} solo games`, ok: (r) => r.solo.games >= MIN_GAMES } },
+    { key: 'winRate', label: 'Win %', format: 'pct', value: (r) => r.solo.winRate, min: { kind: 'games', what: 'solo games', count: (r) => r.solo.games } },
+    { key: 'avg', label: 'Average score', format: 'score', value: (r) => r.solo.averageScore, min: { kind: 'games', what: 'solo games', count: (r) => r.solo.games } },
     { key: 'high', label: 'Highest score', format: 'score', value: (r) => r.solo.highestScore },
     { key: 'earned', label: 'Points earned', format: 'score', value: (r) => r.solo.earned ?? null },
     { key: 'correct', label: 'Correct answers', format: 'count', value: (r) => r.solo.correct },
     { key: 'incorrect', label: 'Incorrect answers', format: 'count', value: (r) => r.solo.incorrect },
-    { key: 'accuracy', label: 'Accuracy', format: 'pct', value: (r) => r.solo.accuracy, min: { label: `at least ${MIN_ANSWERS} answers`, ok: (r) => r.solo.correct + r.solo.incorrect >= MIN_ANSWERS } },
+    { key: 'accuracy', label: 'Accuracy', format: 'pct', value: (r) => r.solo.accuracy, min: { kind: 'answers', what: 'answers', count: (r) => r.solo.correct + r.solo.incorrect } },
     { key: 'games', label: 'Games played', format: 'count', value: (r) => r.solo.games },
   ],
   team: [
     { key: 'wins', label: 'Team wins', format: 'count', value: (r) => r.team.wins },
-    { key: 'winRate', label: 'Team win %', format: 'pct', value: (r) => r.team.winRate, min: { label: `at least ${MIN_GAMES} team games`, ok: (r) => r.team.games >= MIN_GAMES } },
+    { key: 'winRate', label: 'Team win %', format: 'pct', value: (r) => r.team.winRate, min: { kind: 'games', what: 'team games', count: (r) => r.team.games } },
     { key: 'games', label: 'Team games played', format: 'count', value: (r) => r.team.games },
   ],
   contribution: [
@@ -51,7 +72,7 @@ export const CRITERIA: Record<LeaderView, Criterion[]> = {
     { key: 'earned', label: 'Points earned', format: 'score', value: (r) => r.contribution.earned },
     { key: 'correct', label: 'Correct answers', format: 'count', value: (r) => r.contribution.correct },
     { key: 'incorrect', label: 'Incorrect answers', format: 'count', value: (r) => r.contribution.incorrect },
-    { key: 'accuracy', label: 'Accuracy', format: 'pct', value: (r) => r.contribution.accuracy, min: { label: `at least ${MIN_ANSWERS} answers`, ok: (r) => r.contribution.correct + r.contribution.incorrect >= MIN_ANSWERS } },
+    { key: 'accuracy', label: 'Accuracy', format: 'pct', value: (r) => r.contribution.accuracy, min: { kind: 'answers', what: 'answers', count: (r) => r.contribution.correct + r.contribution.incorrect } },
   ],
 };
 
@@ -82,8 +103,10 @@ export function criterionFor(view: LeaderView, key: string | undefined) {
 }
 
 /** Rank rows for a view + criterion. Ties share a rank; players below the minimum sample are unranked. */
-export function rankRows(rows: LeaderRow[], view: LeaderView, key?: string) {
-  const crit = criterionFor(view, key);
+export function rankRows(rows: LeaderRow[], view: LeaderView, key?: string, th: Thresholds = DEFAULT_THRESHOLDS) {
+  const base = criterionFor(view, key);
+  const min = resolveMin(base.min, th);
+  const crit = { ...base, min };
   const playing = rows.filter((r) => played(view, r) > 0);
   const eligible = playing.filter((r) => !crit.min || crit.min.ok(r));
   const sorted = [...eligible].sort((a, b) => (crit.value(b) ?? -Infinity) - (crit.value(a) ?? -Infinity) || a.name.localeCompare(b.name));
@@ -114,16 +137,16 @@ export interface TeamCriterion {
   label: string;
   format: ValueFormat;
   value: (r: TeamLeaderRow) => number | null;
-  min?: { label: string; ok: (r: TeamLeaderRow) => boolean };
+  min?: MinSpec<TeamLeaderRow>;
 }
 
 export const TEAM_CRITERIA: TeamCriterion[] = [
   { key: 'wins', label: 'Wins', format: 'count', value: (r) => r.wins },
-  { key: 'winRate', label: 'Win %', format: 'pct', value: (r) => r.winRate, min: { label: `at least ${MIN_GAMES} games`, ok: (r) => r.games >= MIN_GAMES } },
-  { key: 'avg', label: 'Average score', format: 'score', value: (r) => r.averageScore, min: { label: `at least ${MIN_GAMES} games`, ok: (r) => r.games >= MIN_GAMES } },
+  { key: 'winRate', label: 'Win %', format: 'pct', value: (r) => r.winRate, min: { kind: 'games', what: 'games', count: (r) => r.games } },
+  { key: 'avg', label: 'Average score', format: 'score', value: (r) => r.averageScore, min: { kind: 'games', what: 'games', count: (r) => r.games } },
   { key: 'correct', label: 'Correct answers', format: 'count', value: (r) => r.correct },
   { key: 'incorrect', label: 'Incorrect answers', format: 'count', value: (r) => r.incorrect },
-  { key: 'accuracy', label: 'Accuracy', format: 'pct', value: (r) => r.accuracy, min: { label: `at least ${MIN_ANSWERS} answers`, ok: (r) => r.correct + r.incorrect >= MIN_ANSWERS } },
+  { key: 'accuracy', label: 'Accuracy', format: 'pct', value: (r) => r.accuracy, min: { kind: 'answers', what: 'answers', count: (r) => r.correct + r.incorrect } },
   { key: 'games', label: 'Games played', format: 'count', value: (r) => r.games },
 ];
 
@@ -133,8 +156,9 @@ export const teamSecondaryLine = (r: TeamLeaderRow) =>
   `${r.members} ${r.members === 1 ? 'member' : 'members'} · ${r.games} ${r.games === 1 ? 'game' : 'games'} · ${r.wins} ${r.wins === 1 ? 'win' : 'wins'}`;
 
 /** Same tie and minimum-sample rules as rankRows, for saved teams. */
-export function rankTeamRows(rows: TeamLeaderRow[], key?: string) {
-  const crit = TEAM_CRITERIA.find((c) => c.key === key) ?? TEAM_CRITERIA[0];
+export function rankTeamRows(rows: TeamLeaderRow[], key?: string, th: Thresholds = DEFAULT_THRESHOLDS) {
+  const base = TEAM_CRITERIA.find((c) => c.key === key) ?? TEAM_CRITERIA[0];
+  const crit = { ...base, min: resolveMin(base.min, th) };
   const playing = rows.filter((r) => r.games > 0);
   const eligible = playing.filter((r) => !crit.min || crit.min.ok(r));
   const sorted = [...eligible].sort((a, b) => (crit.value(b) ?? -Infinity) - (crit.value(a) ?? -Infinity) || a.name.localeCompare(b.name));

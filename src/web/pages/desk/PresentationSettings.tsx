@@ -57,6 +57,32 @@ function IndicatorPreview({ fx, style }: { fx: TvFx['unlock']; style: UnlockStyl
   );
 }
 
+/** Per-sound volume (relative to the main volume); saved when the slider is let go. */
+function CueVolume({ label, value, disabled, onCommit }: { label: string; value: number; disabled: boolean; onCommit: (v: number) => void }) {
+  const [v, setV] = useState(Math.round(value * 100));
+  useEffect(() => setV(Math.round(value * 100)), [value]);
+  const commit = () => v !== Math.round(value * 100) && onCommit(v / 100);
+  return (
+    <label className={cx('flex items-center gap-1.5 text-xs text-slate-500', disabled && 'opacity-40')}>
+      <input
+        type="range"
+        min={0}
+        max={100}
+        step={5}
+        value={v}
+        disabled={disabled}
+        onChange={(e) => setV(Number(e.target.value))}
+        onPointerUp={commit}
+        onKeyUp={commit}
+        onBlur={commit}
+        className="w-20 accent-blue-700"
+        aria-label={`Volume: ${label}`}
+      />
+      <span className="w-9 text-right tabular-nums">{v}%</span>
+    </label>
+  );
+}
+
 export function PresentationSettings({ fx: saved, sound, onSave }: { fx: TvFx; sound: { enabled: boolean; volume: number }; onSave: (fx: TvFx) => Promise<void> }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploadCue, setUploadCue] = useState<SoundCue | null>(null);
@@ -162,6 +188,12 @@ export function PresentationSettings({ fx: saved, sound, onSave }: { fx: TvFx; s
                       </span>
                     )}
                   </label>
+                  <CueVolume
+                    label={CUE_LABELS[cue]}
+                    value={fx.volumes?.[cue] ?? 1}
+                    disabled={!fx.cues[cue]}
+                    onCommit={(v) => save({ volumes: { ...(latest.current.volumes ?? {}), [cue]: v } })}
+                  />
                   {fx.soundPack === 'custom' && (
                     <>
                       <Button size="sm" variant="ghost" onClick={() => (setUploadCue(cue), fileRef.current?.click())} aria-label={`Choose a sound file for ${CUE_LABELS[cue]}`}>

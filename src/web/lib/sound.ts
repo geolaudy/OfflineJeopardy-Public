@@ -12,6 +12,9 @@ let enabled = true;
 let pack: SoundPack = DEFAULT_TV_FX.soundPack;
 let cues: TvFx['cues'] = DEFAULT_TV_FX.cues;
 let custom: TvFx['customSounds'] = {};
+let volumes: NonNullable<TvFx['volumes']> = {};
+/** Volume of the cue being played right now (applied to every voice it creates). */
+let cueGain = 1;
 let packFiles: PackFiles = {};
 const buffers = new Map<string, Promise<AudioBuffer | null>>();
 const decoded = new Map<string, AudioBuffer>();
@@ -19,7 +22,7 @@ const decoded = new Map<string, AudioBuffer>();
 const playing = new Map<SoundCue, { src: AudioBufferSourceNode; gain: GainNode; startedAt: number }>();
 const lastSynth = new Map<SoundCue, number>();
 
-export function configureSound(opts: { enabled?: boolean; volume?: number; fx?: Pick<TvFx, 'soundPack' | 'cues' | 'customSounds'>; packFiles?: PackFiles }) {
+export function configureSound(opts: { enabled?: boolean; volume?: number; fx?: Pick<TvFx, 'soundPack' | 'cues' | 'customSounds' | 'volumes'>; packFiles?: PackFiles }) {
   if (opts.enabled !== undefined) enabled = opts.enabled;
   if (opts.volume !== undefined) volume = opts.volume;
   if (opts.fx) {
@@ -28,6 +31,7 @@ export function configureSound(opts: { enabled?: boolean; volume?: number; fx?: 
     pack = opts.fx.soundPack;
     cues = opts.fx.cues;
     custom = opts.fx.customSounds;
+    volumes = opts.fx.volumes ?? {};
   }
   if (opts.packFiles) packFiles = opts.packFiles;
   if (master) master.gain.value = enabled ? volume : 0;
@@ -75,7 +79,7 @@ function tone(freq: number, start: number, dur: number, type: OscillatorType = '
   o.frequency.value = freq;
   const t0 = c.currentTime + start;
   g.gain.setValueAtTime(0, t0);
-  g.gain.linearRampToValueAtTime(gain, t0 + 0.01);
+  g.gain.linearRampToValueAtTime(gain * cueGain, t0 + 0.01);
   g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
   o.connect(g).connect(out ?? master);
   o.start(t0);
@@ -148,6 +152,7 @@ function startFile(cue: SoundCue, buf: AudioBuffer, offset = 0) {
   stopCue(cue, 0);
   const src = c.createBufferSource();
   const g = c.createGain();
+  g.gain.value = volumes[cue] ?? 1;
   src.buffer = buf;
   src.connect(g).connect(master);
   src.start(0, Math.max(0, Math.min(offset, buf.duration - 0.05)));
@@ -165,7 +170,9 @@ function startSynthLoop(cue: SoundCue, p: Synth) {
   stopCue(cue, 0);
   const g = c.createGain();
   g.connect(master);
+  cueGain = volumes[cue] ?? 1;
   SYNTH[cue](p, g);
+  cueGain = 1;
   const fake = c.createBufferSource(); // placeholder handle so stopCue can fade the gain
   playing.set(cue, { src: fake, gain: g, startedAt: c.currentTime });
 }
@@ -195,7 +202,9 @@ function playSynth(cue: SoundCue, p: Synth) {
   const now = c?.currentTime ?? 0;
   if (now - (lastSynth.get(cue) ?? -1) < 0.12) return; // the same cue twice in a row: play once
   lastSynth.set(cue, now);
+  cueGain = volumes[cue] ?? 1;
   SYNTH[cue](p);
+  cueGain = 1;
 }
 
 /** Stops a long cue (Final think music) with a short fade. */

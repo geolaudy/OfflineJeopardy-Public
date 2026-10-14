@@ -216,4 +216,14 @@ test('play-test: profile creation with a default picture on a small phone, sound
   await expect(card.getByTestId('fx-pack-buzzinga')).toBeVisible();
   await card.getByTestId('fx-pack-buzzinga').scrollIntoViewIfNeeded();
   await shot(ipad, 'ipad-portrait-sound-packs');
+  // Leaderboard minimums (K17) save when the field is left.
+  const games = ipad.getByLabel('Minimum games');
+  await games.fill('2');
+  await games.press('Enter');
+  const api = await request.newContext({ baseURL: BASE });
+  await expect.poll(async () => (await (await api.get('/api/settings/public')).json()).leaderboardThresholds.games).toBe(2);
+  await games.fill('3');
+  await games.press('Enter');
+  await expect.poll(async () => (await (await api.get('/api/settings/public')).json()).leaderboardThresholds.games).toBe(3);
+  await api.dispose();
 });

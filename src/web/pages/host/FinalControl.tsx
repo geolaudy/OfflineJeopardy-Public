@@ -209,18 +209,19 @@ function RevealCard({ g, run }: { g: GameView; run: Run }) {
 /** Kept apart from the normal flow: enter for a player whose device failed. Values are not shown afterwards. */
 function Recovery({ g, run }: { g: GameView; run: Run }) {
   const f = g.final!;
-  const [cid, setCid] = useState(f.entries[0]?.competitorId ?? '');
+  const [cid, setCid] = useState((f.entries.find((e) => !findCompetitor(g, e.competitorId)?.bot) ?? f.entries[0])?.competitorId ?? '');
   const [value, setValue] = useState('');
   const c = findCompetitor(g, cid);
   const wagerStage = f.stage === 'category' || f.stage === 'wagers';
   if (!f.entries.length) return null;
+  // Practice game: the host is the player, so their own wager/answer box is simply open (K27).
   return (
-    <details className="rounded-2xl bg-white p-3 text-sm shadow-sm">
+    <details className="rounded-2xl bg-white p-3 text-sm shadow-sm" open={g.practice} data-testid="final-recovery">
       <summary className="flex min-h-11 cursor-pointer items-center gap-2 font-semibold text-slate-600">
-        <LifeBuoy size={18} aria-hidden /> A player can't use their device?
+        <LifeBuoy size={18} aria-hidden /> {g.practice ? 'Your wager and answer' : "A player can't use their device?"}
       </summary>
       <div className="mt-2 space-y-2">
-        <p className="text-slate-600">Ask them privately and enter it for them. It stays hidden until the reveal.</p>
+        <p className="text-slate-600">{g.practice ? 'Enter your own wager, then your answer once the clue is shown.' : 'Ask them privately and enter it for them. It stays hidden until the reveal.'}</p>
         <div className="flex flex-wrap gap-2">
           <select className={cx(inputCls, 'w-auto')} value={cid} onChange={(e) => setCid(e.target.value)} aria-label="Player">
             {f.entries.map((e) => (
@@ -231,7 +232,7 @@ function Recovery({ g, run }: { g: GameView; run: Run }) {
           </select>
           <input
             className={cx(inputCls, 'min-w-40 flex-1')}
-            type="password"
+            type={g.practice ? 'text' : 'password'}
             autoComplete="off"
             inputMode={wagerStage ? 'numeric' : 'text'}
             placeholder={wagerStage ? `Wager 0–${Math.max(0, c?.score ?? 0)}` : 'Their answer'}
