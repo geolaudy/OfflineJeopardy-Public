@@ -14,6 +14,8 @@
 - Tests: Vitest 133/133, Playwright 26/26 (new bots.spec.ts; shared tests/e2e/hostSocket.ts). Pushed 6a47019.
 - **Milestone D (R3-14): optional AI answers for bots.** `@anthropic-ai/sdk` added (runtime dependency). Server-side AiService (structured JSON output, low effort, server-side refusal fallback, hard timeout capped by the answer timer, per-game limit, response cache, scrubbed error messages, rejects a "wrong" answer that is actually right). Key stored write-only outside the database (DPAPI-encrypted in the Windows app). Settings card (enable, provider, model list, key save/replace/remove, test connection, timeout, per-game limit, fallback: offline answer or pass) and a per-bot "AI answers" switch; the host sees whether an answer came from the AI and why it fell back. **Not tested against the real API (no key) — K26.**
 - Tests: Vitest 139/139 (new ai.test.ts, aiKey.test.ts), Playwright 27/27.
+- **Release v0.7.0 published** (GitHub Actions run 38511387222 succeeded) — https://github.com/geolaudy/OfflineJeopardy/releases/tag/v0.7.0 with OfflineJeopardy-Setup-0.7.0.exe, OfflineJeopardy-Portable-0.7.0.exe, SHA256SUMS.txt (verified via the API). Local build of 0.7.0 also verified (15/15 checks incl. headless start of both executables) at release/.
+- **Next:** see SESSION_HANDOFF.md (real-key AI test, Joy-Con vibration, bots advancing rounds in practice games).
 
 ## Session 4 — 2026-10-13 (user feedback round 2)
 
