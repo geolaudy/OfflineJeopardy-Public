@@ -30,8 +30,8 @@
   /* Join card height = width x k (fixed proportions; its content is laid out in cqw). */
   --qr-k: 1.18;
   --stage-h: calc(100vh - var(--top) - var(--pad-b));
-  --qr-full: min(calc(var(--stage-h) * 0.76 / var(--qr-k)), 31vw);
-  --panel: min(max(21vw, 31vh), 29vw);
+  --qr-full: min(calc(var(--stage-h) * 0.6 / var(--qr-k)), 23vw);
+  --panel: min(max(19vw, 28vh), 25vw);
   position: relative;
   flex: 1;
   min-height: 0;
@@ -129,21 +129,25 @@
   height: 100%;
   flex-direction: column;
   align-items: center;
-  padding: 3cqw 3cqw 3cqw;
+  padding: 4cqw 4cqw 3cqw;
   overflow: hidden;
-  border-radius: 5cqw;
+  border-radius: 7cqw;
   background: #ffffff;
   color: #0f172a;
-  box-shadow: 0 2cqw 6cqw rgba(0, 0, 0, 0.35);
+  box-shadow:
+    0 0 0 1.4cqw color-mix(in srgb, var(--b-accent) 85%, transparent),
+    0 0 0 2.4cqw rgba(0, 0, 0, 0.35),
+    0 3cqw 8cqw rgba(0, 0, 0, 0.45);
   text-align: center;
 }
 .tvp.is-compact .tvp-qr {
   --qr-w: var(--panel);
 }
 .tvp-qr-img {
-  width: 94cqw;
-  height: 94cqw;
+  width: 92cqw;
+  height: 92cqw;
   flex: none;
+  border-radius: 3cqw;
 }
 .tvp-qr-cta {
   margin-top: -1cqw;
@@ -320,6 +324,9 @@
   flex: none;
   border-radius: 50%;
   transform-origin: 0 0;
+  /* Dark gap between the picture and its colour ring, so the ring reads on any picture. */
+  padding: 0.35vh;
+  background: rgba(0, 0, 0, 0.55);
 }
 .tvp-more {
   display: flex;
@@ -366,7 +373,7 @@
   inset: 0;
   border-radius: 1.6vh;
   background: var(--tvp-surface);
-  box-shadow: var(--tvp-shadow), inset 0.55vh 0 0 var(--pc);
+  box-shadow: var(--tvp-shadow);
 }
 .tvp-person-text {
   position: relative;
@@ -374,12 +381,13 @@
   min-width: 0;
   flex: 1;
   flex-direction: column;
-  gap: 0.3em;
+  justify-content: center;
+  gap: 0.1em;
 }
 .tvp-person-name {
   overflow: hidden;
   font-weight: 800;
-  line-height: 1.1;
+  line-height: 1.05;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -506,8 +514,15 @@
   position: absolute;
   inset: 0;
   border-radius: 2vh;
-  background: var(--tvp-surface);
-  box-shadow: var(--tvp-shadow);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.62));
+  border: 0.15vh solid var(--tvp-line);
+  box-shadow:
+    0 1.2vh 3.6vh rgba(0, 0, 0, 0.45),
+    inset 0 0.15vh 0 rgba(255, 255, 255, 0.08);
+}
+.board-theme[data-theme="modern"] .tvp-compact-bg {
+  background: #ffffff;
+  box-shadow: 0 1vh 3vh rgba(15, 23, 42, 0.16);
 }
 .tvp-compact-inner {
   position: relative;

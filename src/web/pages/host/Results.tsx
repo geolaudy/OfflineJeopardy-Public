@@ -1,11 +1,11 @@
 import type { GameView } from '../../../shared/views';
-import { act } from '../../lib/socket';
+import { act, present as sendPresent } from '../../lib/socket';
 import { hostApi } from '../../lib/api';
 import { attempt, useFetch } from '../../lib/hooks';
 import { ActionButton, Avatar, cx, fmtScore } from '../../components/ui';
 import { competitorAvatar, competitorName, findCompetitor, profileName } from '../../lib/view';
-import { DoorOpen, Monitor, Plus, Trophy, Undo2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { DoorOpen, Medal, Monitor, Plus, Trophy, Undo2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { usePresent } from './AppShell';
 import type { StandingRow, Tournament } from '../../../shared/tournament';
 
@@ -26,6 +26,7 @@ export default function Results({ g }: { g: GameView }) {
           >
             <Plus size={18} aria-hidden /> New Lobby
           </ActionButton>
+          <ShowLeaderboards />
           <ActionButton variant="ghost" onAction={async () => (confirm('Re-open the game? The final result will be undone.') ? act({ type: 'undo' }) : undefined)}>
             <Undo2 size={18} aria-hidden /> Undo end of game
           </ActionButton>
@@ -54,6 +55,23 @@ export default function Results({ g }: { g: GameView }) {
       <TournamentStandings g={g} />
       <p className="text-sm text-slate-600">Results, statistics and the full game history are saved. Players can see them in their profile.</p>
     </div>
+  );
+}
+
+/** Updated rankings on the TV after a game (R4-9), then on to the host's Leaderboards page. */
+function ShowLeaderboards() {
+  const navigate = useNavigate();
+  return (
+    <ActionButton
+      variant="secondary"
+      onAction={() => {
+        sendPresent({ page: 'leaderboard' }); // explicit: works in Private view too
+        navigate('/host/leaderboard');
+      }}
+      data-testid="results-show-leaderboards"
+    >
+      <Medal size={18} aria-hidden /> Show Leaderboards on TV
+    </ActionButton>
   );
 }
 

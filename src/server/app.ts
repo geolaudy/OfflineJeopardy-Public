@@ -80,6 +80,18 @@ export async function startServer(opts: ServerOptions) {
   fs.mkdirSync(clueMediaDir, { recursive: true });
   fs.mkdirSync(soundMediaDir, { recursive: true });
   const packs = new SoundPacks(path.join(mediaDir, 'soundpacks', PACK_ID), opts.soundPackDirs ?? []);
+  // Licensed TV fonts the owner may add (R4-17): <data>/fonts/clue.woff2, category.*, value.*.
+  const fontDir = path.join(dataDir, 'fonts');
+  const FONT_TYPES: Record<string, string> = { woff2: 'font/woff2', woff: 'font/woff', ttf: 'font/ttf', otf: 'font/otf' };
+  const userFonts = () => {
+    const out: Partial<Record<'clue' | 'category' | 'value', string>> = {};
+    if (!fs.existsSync(fontDir)) return out;
+    for (const f of fs.readdirSync(fontDir)) {
+      const m = /^(clue|category|value)\.(woff2|woff|ttf|otf)$/i.exec(f);
+      if (m) out[m[1].toLowerCase() as 'clue' | 'category' | 'value'] = `/fonts/user/${f}`;
+    }
+    return out;
+  };
 
   const dbFile = path.join(dataDir, 'offlinejeopardy.db');
   applyPendingRestore(dataDir, dbFile);
@@ -791,6 +803,14 @@ export async function startServer(opts: ServerOptions) {
     return reply.type(types[path.extname(full).slice(1).toLowerCase()] ?? 'application/octet-stream').send(fs.createReadStream(full));
   });
 
+  app.get('/fonts/user/:file', async (req, reply) => {
+    const file = (req.params as { file: string }).file;
+    const m = /^(clue|category|value)\.(woff2|woff|ttf|otf)$/i.exec(file);
+    const full = m ? path.join(fontDir, file) : null;
+    if (!full || !fs.existsSync(full)) return reply.code(404).send({ error: 'Not found' });
+    return reply.type(FONT_TYPES[m![2].toLowerCase()]).header('cache-control', 'no-cache').send(fs.createReadStream(full));
+  });
+
   // ---------- games ----------
   app.get('/api/games', async (req, reply) => {
     if (!requireHost(req, reply)) return;
@@ -1116,7 +1136,7 @@ export async function startServer(opts: ServerOptions) {
     // "custom:<id>" selects a saved custom theme; the TV gets its full definition (public look only).
     const customId = typeof s.boardTheme === 'string' && s.boardTheme.startsWith('custom:') ? s.boardTheme.slice(7) : null;
     const custom = customId ? repo.getTheme(db, customId) ?? null : null;
-    return { theme: custom ? custom.base : isPreset(String(s.boardTheme)) ? s.boardTheme : 'classic', custom, sound: s.sound, volume: s.volume, reducedMotion: s.reducedMotion, tvFx: s.tvFx, packFiles: packs.cueUrls() };
+    return { theme: custom ? custom.base : isPreset(String(s.boardTheme)) ? s.boardTheme : 'classic', custom, sound: s.sound, volume: s.volume, reducedMotion: s.reducedMotion, tvFx: s.tvFx, packFiles: packs.cueUrls(), fonts: userFonts() };
   });
 
   // ---------- Jeopardy!/Buzzinga sound pack (R4-1) ----------

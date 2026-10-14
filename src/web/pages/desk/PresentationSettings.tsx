@@ -35,7 +35,7 @@ function Check({ label, hint, checked, onChange, testid }: { label: string; hint
 
 /** Miniature TV with the chosen indicator, so the host sees the style before using it. */
 function IndicatorPreview({ fx, style }: { fx: TvFx['unlock']; style: UnlockStyle }) {
-  const c = fx.color || '#ffffff';
+  const c = fx.color || '#ffcc00'; // theme accent (classic board)
   const o = { subtle: 0.45, medium: 0.75, strong: 1 }[fx.intensity];
   return (
     <div className="relative aspect-video overflow-hidden rounded-lg bg-[#0a14d8]" aria-hidden>
@@ -122,9 +122,9 @@ export function PresentationSettings({ fx: saved, sound, onSave }: { fx: TvFx; s
             <Field label="Colour" group>
               <div className="flex items-center gap-2">
                 <Button size="sm" variant={fx.unlock.color ? 'ghost' : 'secondary'} onClick={() => setUnlock({ color: '' })} aria-pressed={!fx.unlock.color}>
-                  Theme colour
+                  Theme colour (mustard)
                 </Button>
-                <input type="color" value={fx.unlock.color || '#ffffff'} onChange={(e) => setUnlock({ color: e.target.value })} className="h-11 w-16 cursor-pointer rounded-lg border border-slate-300" aria-label="Indicator colour" />
+                <input type="color" value={fx.unlock.color || '#ffcc00'} onChange={(e) => setUnlock({ color: e.target.value })} className="h-11 w-16 cursor-pointer rounded-lg border border-slate-300" aria-label="Indicator colour" />
               </div>
             </Field>
             <Field label="Intensity" group>

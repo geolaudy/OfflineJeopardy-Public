@@ -38,7 +38,7 @@ export function LeaderboardPanel() {
 
   const showBoard = () => {
     present({ page: 'leaderboard', ...current.current });
-    toast('Leaderboard is on the TV');
+    toast('Leaderboards are on the TV');
   };
   const showPlayer = canPresent
     ? (profileId: string) => {
@@ -79,7 +79,7 @@ export function LeaderboardPanel() {
               {canPresent ? 'Show these rankings on the TV. You can keep changing them here.' : playing ? 'During play the TV shows the game.' : 'Open a lobby to show the leaderboard on the TV.'}
             </p>
             <Button onClick={showBoard} disabled={!canPresent} data-testid="show-leaderboard-on-tv">
-              <Monitor size={18} aria-hidden /> Show Leaderboard on TV
+              <Monitor size={18} aria-hidden /> Show Leaderboards on TV
             </Button>
           </>
         )}

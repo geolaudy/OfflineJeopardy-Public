@@ -236,12 +236,12 @@ Last run 2026-10-12: Vitest 58/58 (43 unit, 15 integration), Playwright 8/8.
 | R4-16 | Category introduction gates clue selection; dedicated host intro screen | P1 | TESTED | engine selectClue, Live.tsx IntroStage | U, E (game.spec: no host tiles during the intro) | — |
 | R4-19 | Board fill synced with its sound; no replay after reconnect | P2 | IMPLEMENTED | fx.tsx revealTimeline, Intro.tsx, IntroState.at | U (intro timestamp) | Sync judged by design/screens; audio timing not measurable in tests |
 | R4-20 | Return to the existing lobby (primary) after a game | P1 | TESTED | lobby.ts restore/save, app.ts rematch re-opens lobby, Results.tsx (Return to Lobby first, New Lobby secondary, no back arrow) | I (round4: restart mid-game, three consecutive games, same room code, phones stay, stats once), E (practice.spec) | Each match is its own game record (D38) |
-| R4-6 | Bottom Glow default (mustard theme accent, thicker) | P2 | IN PROGRESS | tvFx default + v2 migration done; thicker glow CSS pending | I (round4 defaults) | — |
-| R4-8 | Compact lobby separation + smaller styled QR | P2 | NOT STARTED | — | — | — |
-| R4-9 | Shared navigation order + Show Leaderboards on TV | P2 | NOT STARTED | — | — | — |
+| R4-6 | Bottom Glow default (mustard theme accent, thicker) | P2 | TESTED | tvFx default + v2 migration; fx.tsx accent fallback; board.css thicker bottom glow | I (round4 defaults) | Look judged from screenshots |
+| R4-8 | Compact lobby separation + smaller styled QR | P2 | IMPLEMENTED | presenter.css (join card ~22% width, gold frame, rounded; compact panel border/shadow) | E (lobby specs + screenshots) | QR scannability checked by size only, not with a phone at TV distance |
+| R4-9 | Shared navigation order + Show Leaderboards on TV | P2 | TESTED | shared/navigation.ts (host nav + TV rail), host menu + Results "Show Leaderboards on TV", LeaderboardPage | E (practice.spec leaderboard flow, lobby.spec nav) | Desk start screen has only Resume/Boards/Settings/Help (same relative order) |
 | R4-11 | Pre-lobby TV (settings + board browsing), no join QR before Open Lobby | P2 | NOT STARTED | — | — | — |
-| R4-12 | Lobby card avatar centring + spacing | P3 | NOT STARTED | — | — | — |
+| R4-12 | Lobby card avatar centring + spacing | P3 | IMPLEMENTED | ui.tsx Avatar (flex-centred emoji), presenter.css (tighter lines, no strip) | E (screenshots) | — |
 | R4-13 | Unified profile picture, Preferred Color, unique lobby colours, colour ring | P2 | NOT STARTED | — | — | — |
-| R4-14 | Mustard ring on the picking player's score box + larger TV score boxes | P2 | IN PROGRESS | host score bar ring done; TV pending | — | — |
-| R4-17 | TV typography (Korinna-style clues, Swiss 911-style categories/values; pluggable licensed fonts) | P2 | NOT STARTED | — | — | — |
-| R4-18 | Classic clue background | P2 | NOT STARTED | — | — | — |
+| R4-14 | Mustard ring on the picking player's score box + larger TV score boxes | P2 | IMPLEMENTED | Scoreboard.tsx is-control (board + clue), board.css podium sizes; host score bar ring | E (screenshots) | — |
+| R4-17 | TV typography (Korinna-style clues, Swiss 911-style categories/values; licensed fonts pluggable) | P2 | IMPLEMENTED | board/fonts.css (Merriweather 700/900, Anton via @fontsource, OFL; local() names of the licensed fonts), board.css font variables, app.ts /fonts/user + public `fonts`, BoardPage UserFonts | E (screenshots) | Look-alikes, not the original fonts; licensed files never bundled |
+| R4-18 | Classic clue background | P2 | IMPLEMENTED | board.css --bt-panel (CSS gradients + SVG noise recreating the provided image; the image itself is not shipped) | E (screenshots) | — |

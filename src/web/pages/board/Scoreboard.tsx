@@ -17,7 +17,7 @@ export function Scoreboard({ g }: { g: GameView }) {
           c={c}
           g={g}
           winner={g.buzzer.winner?.competitorId === c.id}
-          control={g.controlCompetitorId === c.id && g.phase === 'board'}
+          control={g.controlCompetitorId === c.id && (g.phase === 'board' || g.phase === 'clue')}
           early={early.has(c.id)}
         />
       ))}
@@ -28,15 +28,11 @@ export function Scoreboard({ g }: { g: GameView }) {
 function Podium({ c, g, winner, control, early }: { c: CompetitorView; g: GameView; winner: boolean; control: boolean; early: boolean }) {
   const ctx = useBoard();
   return (
-    <div className={cx('bt-podium', winner && 'is-winner', c.lives === 0 && 'is-out')} style={{ '--pc': competitorColor(c, g) } as CSSProperties} data-testid="podium">
+    <div className={cx('bt-podium', winner && 'is-winner', control && 'is-control', c.lives === 0 && 'is-out')} style={{ '--pc': competitorColor(c, g) } as CSSProperties} data-testid="podium" data-control={control || undefined}>
       <div className="bt-podium-name">
-        <Avatar profile={competitorAvatar(c, g)} size={vhPx(ctx, 2.8)} />
+        <Avatar profile={competitorAvatar(c, g)} size={vhPx(ctx, 3.2)} />
         <span className="truncate">{competitorName(c, g)}</span>
-        {control && (
-          <span className="bt-control" title="Picks next" aria-label="Picks next">
-            ▸
-          </span>
-        )}
+        {control && <span className="sr-only">(picks the next clue)</span>}
       </div>
       {c.kind === 'team' && <div className="bt-podium-members">{c.memberIds.map((m) => profileName(g.profiles[m])).join(' · ')}</div>}
       <Score score={c.score} />

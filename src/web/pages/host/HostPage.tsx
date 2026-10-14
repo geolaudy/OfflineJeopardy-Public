@@ -3,9 +3,9 @@
 // Home is the game itself: set up → lobby → live game → results.
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
-import { EllipsisVertical, Monitor, MonitorOff, Pause, Play, Menu as MenuIcon, ArrowLeft, Save, QrCode, SlidersHorizontal, ScrollText, Power, Flag, Repeat } from 'lucide-react';
+import { EllipsisVertical, Monitor, MonitorOff, Pause, Play, Menu as MenuIcon, ArrowLeft, Save, QrCode, SlidersHorizontal, ScrollText, Power, Flag, Repeat, Medal } from 'lucide-react';
 import { api, ensureLocalHost, hostApi, tokens } from '../../lib/api';
-import { connect, disconnect, useLive, act } from '../../lib/socket';
+import { connect, disconnect, useLive, act, present as sendPresent } from '../../lib/socket';
 import { Button, Drawer, toast, cx } from '../../components/ui';
 import { phaseLabel } from '../../lib/view';
 import { attempt } from '../../lib/hooks';
@@ -316,6 +316,20 @@ function HostHome() {
                 <Repeat size={20} aria-hidden /> Switch game (this one stays saved)
               </Button>
             </>
+          )}
+          {lobby?.open && !playing && (
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={() => {
+                setMenu(false);
+                sendPresent({ page: 'leaderboard' }); // explicit: works in Private view too
+                navigate('/host/leaderboard');
+              }}
+              data-testid="menu-show-leaderboards"
+            >
+              <Medal size={20} aria-hidden /> Show Leaderboards on TV
+            </Button>
           )}
           {lobby?.open && (
             <Button variant="ghost" size="lg" className="text-red-700" onClick={closeLobby} data-testid="close-lobby">

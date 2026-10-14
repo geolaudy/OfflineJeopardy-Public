@@ -12,6 +12,7 @@ import { api, ensureLocalHost, hostApi } from '../../lib/api';
 import { cx } from '../../components/ui';
 import { BoardCtx, presentationFor, themeRoot, usePrefersReducedMotion, useViewportHeight } from './common';
 import { Stage } from './BoardPage';
+import './fonts.css';
 import './board.css';
 
 interface Local {

@@ -72,8 +72,9 @@ export function UnlockIndicator({ open }: { open: boolean }) {
   }, [open, unlock.durationMs]);
   const peak = INTENSITY[unlock.intensity];
   const opacity = !settled ? peak : unlock.persist ? peak * 0.6 : 0;
-  const color = unlock.color || 'var(--bt-strip-c)';
-  const glow = unlock.color ? `${unlock.color}73` : 'var(--bt-strip-glow)';
+  // Default: the theme accent — the mustard yellow of the round titles on the classic board (R4-6).
+  const color = unlock.color || 'var(--b-accent)';
+  const glow = unlock.color ? `${unlock.color}73` : 'color-mix(in srgb, var(--b-accent) 45%, transparent)';
   const vars = { '--bt-ind-c': color, '--bt-ind-glow': glow } as CSSProperties;
   const style = unlock.style;
   return (

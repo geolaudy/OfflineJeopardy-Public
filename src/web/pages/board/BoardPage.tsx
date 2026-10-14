@@ -26,6 +26,7 @@ import { FinalScreen } from './FinalScreen';
 import { Scoreboard } from './Scoreboard';
 import { Presenter } from './Presenter';
 import { EASE_OUT_ARR, T } from './timing';
+import './fonts.css';
 import './board.css';
 
 interface PublicSettings {
@@ -36,6 +37,18 @@ interface PublicSettings {
   reducedMotion: boolean;
   tvFx?: TvFx;
   packFiles?: PackFiles;
+  /** Licensed fonts the owner added to the data folder (R4-17). */
+  fonts?: Partial<Record<'clue' | 'category' | 'value', string>>;
+}
+
+const USER_FONT_FAMILY = { clue: 'OJ User Clue', category: 'OJ User Category', value: 'OJ User Value' } as const;
+
+/** @font-face rules for the owner's font files; nothing is declared (or requested) when there are none. */
+function UserFonts({ fonts }: { fonts?: PublicSettings['fonts'] }) {
+  const css = Object.entries(fonts ?? {})
+    .map(([k, url]) => `@font-face{font-family:'${USER_FONT_FAMILY[k as keyof typeof USER_FONT_FAMILY]}';src:url('${url}');font-display:swap;}`)
+    .join('');
+  return css ? <style data-testid="user-fonts">{css}</style> : null;
 }
 
 export default function BoardPage() {
@@ -105,6 +118,7 @@ export default function BoardPage() {
   return (
     <BoardCtx.Provider value={presentation}>
       <FxCtx.Provider value={settings.tvFx ?? DEFAULT_TV_FX}>
+      <UserFonts fonts={settings.fonts} />
       <MotionConfig reducedMotion={reduced ? 'always' : 'never'}>
         <div
           className={cx('board-theme relative flex h-screen w-screen flex-col overflow-hidden select-none', settings.reducedMotion && 'reduce-motion')}

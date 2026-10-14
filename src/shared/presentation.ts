@@ -136,7 +136,7 @@ export interface SettingsSection {
 
 export const PAGE_LABELS: Record<PresentPage, string> = {
   lobby: 'Lobby',
-  leaderboard: 'Leaderboard',
+  leaderboard: 'Leaderboards',
   players: 'Players',
   player: 'Player',
   teams: 'Teams',

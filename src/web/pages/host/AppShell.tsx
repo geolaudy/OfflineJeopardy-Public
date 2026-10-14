@@ -8,18 +8,13 @@ import { present as sendPresent, useLive } from '../../lib/socket';
 import { ConnectionBadge, Drawer, cx } from '../../components/ui';
 import { PAGE_LABELS, type PresentRequest } from '../../../shared/presentation';
 import { isDesktopApp } from '../../lib/desktop';
+import { NAV, type NavId } from '../../../shared/navigation';
 
-export const HOST_NAV: { to: string; label: string; icon: LucideIcon; end?: boolean }[] = [
-  { to: '/host', label: 'Home', icon: House, end: true },
-  { to: '/host/boards', label: 'Boards', icon: LayoutGrid },
-  { to: '/host/players', label: 'Players', icon: Users },
-  { to: '/host/teams', label: 'Teams', icon: UsersRound },
-  { to: '/host/buzzers', label: 'Buzzers', icon: Gamepad2 },
-  { to: '/host/leaderboard', label: 'Leaderboard', icon: Medal },
-  { to: '/host/history', label: 'History', icon: HistoryIcon },
-  { to: '/host/tournaments', label: 'Tournaments', icon: Trophy },
-  { to: '/host/settings', label: 'Settings', icon: SettingsIcon },
-  { to: '/host/help', label: 'Help', icon: CircleHelp },
+const NAV_ICONS: Record<NavId, LucideIcon> = { home: House, boards: LayoutGrid, players: Users, teams: UsersRound, buzzers: Gamepad2, leaderboards: Medal, history: HistoryIcon, tournaments: Trophy, settings: SettingsIcon, help: CircleHelp };
+
+/** Host navigation in the shared order (R4-9). */
+export const HOST_NAV: { to: string; label: string; icon: LucideIcon; end?: boolean; id: NavId }[] = [
+  ...NAV.map((n) => ({ to: n.path, label: n.label, icon: NAV_ICONS[n.id], end: n.id === 'home', id: n.id })),
 ];
 
 /** Which public page the TV shows for a host page (null = private page: the TV is left alone). */
@@ -108,12 +103,12 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   const nav = (
     <ul className="space-y-1">
-      {HOST_NAV.map(({ to, label, icon: Icon, end }) => (
+      {HOST_NAV.map(({ to, label, icon: Icon, end, id }) => (
         <li key={to}>
           <NavLink
             to={to}
             end={end}
-            data-testid={`hostnav-${label.toLowerCase()}`}
+            data-testid={`hostnav-${id === 'leaderboards' ? 'leaderboard' : label.toLowerCase()}`}
             className={({ isActive }) => cx('flex min-h-11 items-center gap-3 rounded-xl px-3 font-semibold', isActive ? 'bg-blue-50 text-blue-800' : 'text-slate-700 hover:bg-slate-50')}
           >
             <Icon size={20} strokeWidth={1.9} aria-hidden />

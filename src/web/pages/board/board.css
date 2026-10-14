@@ -1,4 +1,4 @@
-/* TV board presentation. Only system fonts (fully offline); no external assets.
+/* TV board presentation. Fully offline: bundled OFL fonts (fonts.css) and CSS-only backgrounds.
    Theme colours come from the .board-theme variables in src/web/styles.css; this file adds
    layout variables and the classic look. Animate transform/opacity only. */
 
@@ -49,7 +49,10 @@
   --b-fg: #ffffff;
   --b-accent: #ffcc00;
   --b-font: Impact, Haettenschweiler, "Arial Narrow Bold", "Franklin Gothic Heavy", "Arial Black", sans-serif;
-  --b-clue-font: Georgia, "Times New Roman", Times, serif;
+  /* R4-17: Korinna-style clues, Swiss 911 Compressed-style categories and values (fonts.css). */
+  --b-clue-font: "OJ User Clue", "OJ Korinna", "Merriweather", Georgia, "Times New Roman", serif;
+  --b-cat-font: "OJ User Category", "OJ Swiss Compressed", "Anton", Impact, Haettenschweiler, sans-serif;
+  --b-value-font: "OJ User Value", "OJ User Category", "OJ Swiss Compressed", "Anton", Impact, Haettenschweiler, sans-serif;
   --b-radius: 0px;
   --b-shadow: none;
   --bt-gap: 0.5vh;
@@ -58,7 +61,13 @@
   --bt-cat-sep: 0.7vh;
   --bt-heavy: 400; /* Impact has a single heavy weight; avoid faux bold */
   --bt-tile-bg: radial-gradient(ellipse 85% 85% at 50% 42%, #1520ff 0%, #060ce9 58%, #0409c4 100%);
-  --bt-panel: radial-gradient(ellipse 80% 80% at 50% 45%, #121dff 0%, #060ce9 60%, #0307b8 100%);
+  --bt-panel: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.55 0 0 0 0 0.6 0 0 0 0 1 0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse 38% 46% at 74% 34%, rgba(16, 30, 145, 0.85), transparent 70%),
+    radial-gradient(ellipse 34% 40% at 22% 70%, rgba(14, 27, 140, 0.7), transparent 70%),
+    radial-gradient(ellipse 30% 38% at 38% 28%, rgba(0, 8, 105, 0.75), transparent 72%),
+    radial-gradient(ellipse 36% 34% at 64% 86%, rgba(1, 10, 112, 0.7), transparent 70%),
+    linear-gradient(160deg, #04117f 0%, #071483 45%, #061280 100%);
+  --bt-panel-color: #061383;
   --bt-text-shadow: 0.3vh 0.3vh 0 #000, 0 0 0.8vh rgba(0, 0, 0, 0.35);
   --bt-value-shadow: 0.45vh 0.45vh 0 #000, 0.2vh 0.2vh 0.8vh rgba(0, 0, 0, 0.6);
   --bt-clue-shadow: 0.3vh 0.3vh 0 #000, 0 0 1vh rgba(0, 0, 0, 0.35);
@@ -113,8 +122,12 @@
 .board-theme:not([data-theme="classic"]) .bt-cat {
   background: var(--b-cat);
 }
+.board-theme[data-theme="classic"] .bt-cat-text {
+  text-shadow: none;
+  letter-spacing: 0.03em;
+}
 .bt-cat-text {
-  font-family: var(--b-font);
+  font-family: var(--b-cat-font, var(--b-font));
   font-weight: var(--bt-heavy);
   text-transform: uppercase;
   text-align: center;
@@ -135,7 +148,7 @@
   background: var(--b-used);
 }
 .bt-value {
-  font-family: var(--b-font);
+  font-family: var(--b-value-font, var(--b-font));
   font-weight: var(--bt-heavy);
   font-size: calc(min(60cqh, 25cqw) * var(--bt-value-scale, 1));
   line-height: 1;
@@ -163,6 +176,7 @@
   overflow: hidden;
   transform-origin: 0 0;
   background: var(--bt-panel);
+  background-color: var(--bt-panel-color, transparent);
   color: var(--b-fg);
   border-radius: var(--b-radius);
 }
@@ -450,18 +464,21 @@
   display: flex;
   flex-shrink: 0;
   justify-content: center;
-  gap: 0.8vw;
-  padding: 0.6vh 1vw 1vh;
+  gap: 1vw;
+  padding: 1vh 1vw 1vh;
   background: var(--bt-score-bg);
 }
 .bt-podium {
   position: relative;
   display: flex;
   min-width: 0;
-  max-width: 23vw;
+  max-width: 26vw;
   flex: 1;
   flex-direction: column;
   overflow: hidden;
+  transition: outline-color 0.4s ease, box-shadow 0.4s ease;
+  outline: 0.5vh solid transparent;
+  outline-offset: 0.25vh;
   border-top: 0.55vh solid var(--pc, #64748b);
   border-radius: var(--b-radius);
   background: var(--bt-podium);
@@ -474,16 +491,24 @@
 .bt-podium.is-winner {
   box-shadow: inset 0 0 0 0.4vh var(--b-accent);
 }
+/* R4-14: whose turn it is to pick the next clue — the round-title mustard, no animation loop. */
+.bt-podium.is-control {
+  outline-color: var(--b-accent);
+  box-shadow: 0 0 1.6vh 0.2vh color-mix(in srgb, var(--b-accent) 45%, transparent);
+}
+.bt-podium.is-control.is-winner {
+  box-shadow: inset 0 0 0 0.4vh var(--b-accent), 0 0 1.6vh 0.2vh color-mix(in srgb, var(--b-accent) 45%, transparent);
+}
 .bt-podium-name {
   display: flex;
   min-width: 0;
   align-items: center;
   justify-content: center;
   gap: 0.8vh;
-  padding: 0.7vh 1vh 0.2vh;
+  padding: 0.8vh 1vh 0.2vh;
   font-family: var(--b-font);
   font-weight: var(--bt-heavy);
-  font-size: 2.4vh;
+  font-size: 2.8vh;
   line-height: 1.1;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -502,9 +527,9 @@
   padding: 0.3vh 0;
   border-radius: calc(var(--b-radius) * 0.6);
   background: var(--bt-podium-score);
-  font-family: var(--b-font);
+  font-family: var(--b-value-font, var(--b-font));
   font-weight: var(--bt-heavy);
-  font-size: 3.8vh;
+  font-size: 4.6vh;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
   text-shadow: var(--bt-text-shadow);
@@ -841,8 +866,10 @@
 }
 .bt-ind-bottom {
   bottom: 0;
+  height: 7vh;
   background: linear-gradient(to top, var(--bt-ind-glow), transparent);
-  border-bottom: 0.45vh solid var(--bt-ind-c);
+  border-bottom: 0.8vh solid var(--bt-ind-c);
+  box-shadow: 0 0 2.2vh 0.4vh var(--bt-ind-glow);
 }
 .bt-ind-dot {
   position: absolute;

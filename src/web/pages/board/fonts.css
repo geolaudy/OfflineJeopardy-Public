@@ -1,0 +1,21 @@
+/* TV typography (R4-17). Bundled, offline, SIL Open Font License look-alikes:
+   - clue text: Merriweather (bold, upper case) in place of ITC Korinna;
+   - categories and dollar values: Anton in place of Swiss 911 Compressed.
+   Licensed originals take over automatically when they are installed in Windows (local() names
+   below), or when font files are placed in the data folder's "fonts" directory (clue.*,
+   category.*, value.* — declared at runtime by BoardPage as "OJ User …"). Nothing is downloaded. */
+@import '@fontsource/merriweather/700.css';
+@import '@fontsource/merriweather/900.css';
+@import '@fontsource/anton/400.css';
+
+@font-face {
+  font-family: 'OJ Korinna';
+  src: local('ITC Korinna Std Bold'), local('ITCKorinnaStd-Bold'), local('ITC Korinna Bold'), local('Korinna Bold'), local('KorinnaBold'), local('Korinna-Bold'), local('Korinna');
+  font-weight: 400 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'OJ Swiss Compressed';
+  src: local('Swiss 911 Compressed'), local('Swiss911 XCm BT'), local('Swiss911BT-ExtraCompressed'), local('Swiss 911 Extra Compressed'), local('Swiss 921'), local('Swiss921BT-RegularA');
+  font-display: swap;
+}

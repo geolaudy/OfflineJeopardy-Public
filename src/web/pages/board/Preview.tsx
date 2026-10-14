@@ -13,6 +13,7 @@ import { Scoreboard } from './Scoreboard';
 import { CluePanel } from './ClueZoom';
 import { Intro } from './Intro';
 import { ThemeLogo } from './BoardPage';
+import './fonts.css';
 import './board.css';
 
 export type PreviewView = 'board' | 'clue' | 'intro' | 'title';

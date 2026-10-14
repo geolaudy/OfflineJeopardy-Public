@@ -124,7 +124,11 @@ export function Avatar({ profile, size = 40, className }: { profile?: Pick<Profi
       {profile?.pictureUrl ? (
         <img src={profile.pictureUrl} alt="" className="h-full w-full object-cover" draggable={false} />
       ) : (
-        <span style={{ fontSize: size * 0.58, lineHeight: 1 }}>{avatarEmoji(profile?.avatar)}</span>
+        // Centred in the circle (R4-12): a full-size flex box, so the glyph's own side bearings and
+        // line box do not push it off-centre.
+        <span className="flex h-full w-full items-center justify-center" style={{ fontSize: size * 0.58, lineHeight: 1, paddingTop: size * 0.03 }}>
+          {avatarEmoji(profile?.avatar)}
+        </span>
       )}
     </span>
   );

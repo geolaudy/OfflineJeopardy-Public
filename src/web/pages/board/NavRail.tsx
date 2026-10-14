@@ -3,18 +3,13 @@
 import { motion } from 'motion/react';
 import { Gamepad2, LayoutGrid, QrCode, ScrollText, Shield, Trophy, Users, type LucideIcon } from 'lucide-react';
 import type { PresentPage } from '../../../shared/presentation';
+import { NAV } from '../../../shared/navigation';
 import { cx } from '../../components/ui';
 import { EASE_MORPH_ARR, T } from './timing';
 
-const ITEMS: { id: PresentPage; label: string; icon: LucideIcon }[] = [
-  { id: 'lobby', label: 'Lobby', icon: QrCode },
-  { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
-  { id: 'players', label: 'Players', icon: Users },
-  { id: 'teams', label: 'Teams', icon: Shield },
-  { id: 'boards', label: 'Boards', icon: LayoutGrid },
-  { id: 'rules', label: 'Settings', icon: ScrollText },
-  { id: 'buzzers', label: 'Buzzers', icon: Gamepad2 },
-];
+const ICONS: Partial<Record<PresentPage, LucideIcon>> = { lobby: QrCode, boards: LayoutGrid, players: Users, teams: Shield, buzzers: Gamepad2, leaderboard: Trophy, rules: ScrollText };
+/** Same order as the host navigation (shared/navigation.ts, R4-9). */
+const ITEMS: { id: PresentPage; label: string; icon: LucideIcon }[] = NAV.filter((n) => n.tv).map((n) => ({ id: n.tv!, label: n.tvLabel ?? n.label, icon: ICONS[n.tv!] ?? QrCode }));
 
 /** The rail entry a page belongs to (a single player is part of Players, a board of Boards). */
 export const railPage = (p: PresentPage): PresentPage => (p === 'player' ? 'players' : p === 'board' ? 'boards' : p === 'tournament' ? 'leaderboard' : p === 'team' ? 'teams' : p);
