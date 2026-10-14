@@ -66,11 +66,9 @@ export function SoundPackPicker({ fx, sound, onPick }: { fx: TvFx; sound: { enab
                 <span className={cx('mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2', on ? 'border-blue-700 bg-blue-700 text-white' : 'border-slate-300')} aria-hidden>
                   {on && <Check size={12} strokeWidth={3} />}
                 </span>
-                <span className="min-w-0">
-                  <span className="block font-bold leading-tight">
-                    {p.title}
-                    {p.id === 'buzzinga' && <span className="ml-1 font-semibold text-slate-500">(Default)</span>}
-                  </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-bold leading-tight break-words">{p.title}</span>
+                  {p.id === 'buzzinga' && <span className="block text-xs font-semibold tracking-wide text-blue-700 uppercase">(Default)</span>}
                   <span className="block text-xs text-slate-500">{p.id === 'buzzinga' ? (count ? `${count} of ${SOUND_CUES.length} sounds installed` : 'No sound files installed yet') : p.sub}</span>
                 </span>
               </button>

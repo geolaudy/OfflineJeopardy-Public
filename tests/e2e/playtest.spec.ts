@@ -194,3 +194,26 @@ test('play-test: a TV that reloads during the round intro does not replay the bo
   await api.post('/api/games/close', { headers: H });
   await api.dispose();
 });
+
+test('play-test: profile creation with a default picture on a small phone, sound packs on an iPad in portrait', async () => {
+  const p = await (await wk.newContext({ ...devices['iPhone SE'] })).newPage();
+  await p.goto(`${BASE}/join`);
+  await p.getByTestId('new-profile').click();
+  await p.getByLabel('Your name', { exact: true }).fill('Picture Pat');
+  await expect(p.getByTestId('picture-mode-default')).toHaveAttribute('aria-checked', 'true');
+  await p.getByRole('radio', { name: 'Unicorn' }).click();
+  await expect(p.getByRole('radio', { name: 'Unicorn' })).toHaveAttribute('aria-checked', 'true');
+  await expect(p.getByText('Preferred Color')).toBeVisible();
+  await shot(p, 'phone-create-profile');
+  await p.getByLabel('PIN', { exact: true }).fill('2468');
+  await p.getByLabel('Confirm PIN').fill('2468');
+  await p.getByRole('button', { name: 'Create profile' }).click();
+  await expect(p.getByTestId('me-name')).toHaveText('Picture Pat');
+
+  const ipad = await (await wk.newContext({ ...devices['iPad Pro 11'] })).newPage();
+  await ipad.goto(`${BASE}/host/settings`);
+  const card = ipad.getByTestId('tv-presentation-settings');
+  await expect(card.getByTestId('fx-pack-buzzinga')).toBeVisible();
+  await card.getByTestId('fx-pack-buzzinga').scrollIntoViewIfNeeded();
+  await shot(ipad, 'ipad-portrait-sound-packs');
+});

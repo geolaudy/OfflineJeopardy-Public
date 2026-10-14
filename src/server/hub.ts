@@ -206,7 +206,17 @@ export class Hub {
       c.msgWindow = now;
       c.msgCount = 0;
     }
-    if (++c.msgCount > 120) return;
+    // Phones and TVs: 120 messages a second. The host and the game computer's input bridge (every
+    // Joy-Con/key press *and* release of all controllers on one connection) get far more room, and
+    // a dropped host action is answered instead of silently ignored.
+    const limit = c.trusted || c.role === 'host' ? 2000 : 120;
+    if (++c.msgCount > limit) {
+      if (c.role === 'host' && /"t":"host"/.test(raw.slice(0, 40))) {
+        const id = Number(/"id":(\d+)/.exec(raw)?.[1]);
+        if (Number.isFinite(id)) this.send(c, { t: 'result', id, ok: false, error: 'Too many actions at once — try again' });
+      }
+      return;
+    }
     if (raw.length > 20_000) return;
     let data: unknown;
     try {
