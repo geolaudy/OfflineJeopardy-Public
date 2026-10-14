@@ -20,7 +20,11 @@ export default function Help() {
         </ol>
       </Section>
       <Section title="The TV while you set up">
-        <p>While a lobby is open and <b>Present on TV</b> is on, the TV follows what you open on the iPad: the lobby, the leaderboard, a player's public statistics, teams, boards (categories only), the rules or the buzzer overview. Switch to <b>Private view</b> to browse without changing the TV. Answers, PINs, settings and device details are never shown on the TV.</p>
+        <p>While a lobby is open and <b>Present on TV</b> is on, the TV follows what you open on the iPad: the lobby, the leaderboard, a player's public statistics, teams, boards (categories only), the game settings or the buzzer overview. Switch to <b>Private view</b> to browse without changing the TV. Answers, PINs and device details are never shown on the TV.</p>
+        <p><b>Show Leaderboard on TV</b> (Leaderboard page) and <b>Show on TV</b> (Settings and game setup) work even in Private view. While the leaderboard is on the TV, changing the ranking updates it straight away; tap a player or team to show their statistics, then <b>Previous page</b> or <b>Lobby</b> to go back.</p>
+      </Section>
+      <Section title="After a game">
+        <p><b>Return to Lobby</b> keeps everyone in: players, teams, Joy-Cons, phones, the board and the settings. Scores, used clues and buzzes start over; the finished game is already saved in History. <b>Create new lobby</b> starts fresh — players join again.</p>
       </Section>
       <Section title="Before you start: buzzer check">
         <p>On the Buzzers page (or the lobby's Buzzers tab) press <b>Start check</b> and ask everyone to press their buzzer once. You see who registered, in which order, and how quick each phone's connection is. These presses never count in the game.</p>

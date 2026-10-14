@@ -3,7 +3,7 @@
 // only — the server builds it), and a way back to the start screen on the game computer.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { ArrowLeft, CircleHelp, Gamepad2, History as HistoryIcon, House, LayoutGrid, Trophy, Menu, Monitor, MonitorOff, Settings as SettingsIcon, Users, UsersRound, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, CircleHelp, Gamepad2, History as HistoryIcon, House, LayoutGrid, Medal, Trophy, Menu, Monitor, MonitorOff, Settings as SettingsIcon, Users, UsersRound, type LucideIcon } from 'lucide-react';
 import { present as sendPresent, useLive } from '../../lib/socket';
 import { ConnectionBadge, Drawer, cx } from '../../components/ui';
 import { PAGE_LABELS, type PresentRequest } from '../../../shared/presentation';
@@ -15,6 +15,7 @@ export const HOST_NAV: { to: string; label: string; icon: LucideIcon; end?: bool
   { to: '/host/players', label: 'Players', icon: Users },
   { to: '/host/teams', label: 'Teams', icon: UsersRound },
   { to: '/host/buzzers', label: 'Buzzers', icon: Gamepad2 },
+  { to: '/host/leaderboard', label: 'Leaderboard', icon: Medal },
   { to: '/host/history', label: 'History', icon: HistoryIcon },
   { to: '/host/tournaments', label: 'Tournaments', icon: Trophy },
   { to: '/host/settings', label: 'Settings', icon: SettingsIcon },
@@ -32,6 +33,7 @@ export function presentationForPath(path: string): PresentRequest | null {
   if (p === '/host/teams') return { page: 'teams' };
   if (p === '/host/buzzers') return { page: 'buzzers' };
   if (p === '/host/settings') return { page: 'rules' };
+  if (p === '/host/leaderboard') return { page: 'leaderboard' };
   const t = /^\/host\/tournaments\/([^/]+)$/.exec(p);
   if (t) return { page: 'tournament', tournamentId: t[1] };
   return null; // history (until the leaderboard tab is chosen), themes, help…

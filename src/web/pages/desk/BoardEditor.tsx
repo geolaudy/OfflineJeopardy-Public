@@ -6,7 +6,8 @@ import { ActionButton, Button, Field, Modal, cx, inputCls, toast } from '../../c
 import { blankBoard, blankCategory, blankClue, blankFinal, blankRound, boardStats, uid, validateBoard } from '../../../shared/boardUtils';
 import { boardContentSchema } from '../../../shared/boardIO';
 import type { BoardContent, Category, Clue, ClueLayout, ClueUnlock, MediaRef, Round } from '../../../shared/game';
-import { Eye, Plus, Star, ArrowLeft, Image, OctagonAlert, TriangleAlert, ChevronLeft, ChevronRight, X, Download } from 'lucide-react';
+import { Eye, Star, ArrowLeft, Image, Music, Film, OctagonAlert, TriangleAlert, ChevronLeft, ChevronRight, X, Download } from 'lucide-react';
+import { acceptFor, formatList, MEDIA_FORMATS, type MediaKind } from '../../../shared/mediaTypes';
 
 // ---------- types & helpers ----------
 
@@ -1041,20 +1042,21 @@ function ClueFields({ clue, onChange, final }: { clue: Clue; onChange: (p: Parti
 
 /** Upload / caption / remove media for one side of a clue. */
 function MediaList({ label, hint, items, onItems, testId }: { label: string; hint: string; items: MediaRef[]; onItems: (m: MediaRef[]) => void; testId: string }) {
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-  const upload = async (e: ChangeEvent<HTMLInputElement>) => {
+  const fileRefs = useRef<Partial<Record<MediaKind, HTMLInputElement | null>>>({});
+  const [uploading, setUploading] = useState<MediaKind | null>(null);
+  const upload = async (e: ChangeEvent<HTMLInputElement>, kind: MediaKind) => {
     const f = e.target.files?.[0];
     e.target.value = '';
     if (!f) return;
     if (items.length >= MAX_MEDIA) return toast(`At most ${MAX_MEDIA} media items here.`, 'error');
     const fd = new FormData();
     fd.append('file', f);
-    setUploading(true);
-    const r = await attempt(() => hostApi<{ id: string; kind: MediaRef['kind']; url: string }>('POST', '/api/media', undefined, fd), 'Media added');
-    setUploading(false);
+    setUploading(kind);
+    const r = await attempt(() => hostApi<{ id: string; kind: MediaRef['kind']; url: string }>('POST', `/api/media?kind=${kind}`, undefined, fd), `${MEDIA_FORMATS[kind].label} added`);
+    setUploading(null);
     if (r) onItems([...items, { kind: r.kind, url: r.url }]);
   };
+  const kindIcon = { image: Image, audio: Music, video: Film } as const;
   return (
     <div data-testid={testId}>
       <p className="text-sm font-semibold text-slate-700">{label}</p>
@@ -1087,10 +1089,40 @@ function MediaList({ label, hint, items, onItems, testId }: { label: string; hin
           ))}
         </ul>
       ) : null}
-      <input ref={fileRef} type="file" accept="image/*,audio/*,video/*" className="hidden" aria-hidden tabIndex={-1} onChange={(e) => void upload(e)} />
-      <Button size="sm" variant="secondary" busy={uploading} disabled={items.length >= MAX_MEDIA} onClick={() => fileRef.current?.click()}>
-        <Plus size={16} aria-hidden /> Add image, audio or video
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        {(['image', 'audio', 'video'] as const).map((kind) => {
+          const Icon = kindIcon[kind];
+          return (
+            <span key={kind}>
+              <input
+                ref={(el) => {
+                  fileRefs.current[kind] = el;
+                }}
+                type="file"
+                accept={acceptFor(kind)}
+                className="hidden"
+                aria-hidden
+                tabIndex={-1}
+                data-testid={`${testId}-${kind}-input`}
+                onChange={(e) => void upload(e, kind)}
+              />
+              <Button
+                size="sm"
+                variant="secondary"
+                busy={uploading === kind}
+                disabled={items.length >= MAX_MEDIA || (uploading !== null && uploading !== kind)}
+                title={`Supported: ${formatList(kind)}`}
+                onClick={() => fileRefs.current[kind]?.click()}
+              >
+                <Icon size={16} aria-hidden /> Add {kind}
+              </Button>
+            </span>
+          );
+        })}
+      </div>
+      <p className="mt-1 text-xs text-slate-500">
+        Images: {formatList('image')} · Audio: {formatList('audio')} · Video: {formatList('video')}
+      </p>
     </div>
   );
 }

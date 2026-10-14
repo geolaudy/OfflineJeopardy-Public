@@ -6,6 +6,7 @@ import { Button, Card, Field, cx } from '../../components/ui';
 import { configureSound } from '../../lib/sound';
 import type { TvFx } from '../../../shared/tvFx';
 import { PresentationSettings } from './PresentationSettings';
+import { ShowSettingsOnTv } from '../host/ShowSettingsOnTv';
 import { desktop } from '../../lib/desktop';
 import { Palette, ChevronRight, ChevronDown, Download, Upload } from 'lucide-react';
 
@@ -61,7 +62,10 @@ export default function Settings() {
   const v = s.data;
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-6">
-      <h1 className="text-3xl font-black">Settings</h1>
+      <div className="flex flex-wrap items-center gap-2">
+        <h1 className="min-w-0 flex-1 text-3xl font-black">Settings</h1>
+        <ShowSettingsOnTv size="md" />
+      </div>
       <Card className="space-y-3">
         <h2 className="text-lg font-bold">Game board look</h2>
         <p className="text-slate-700">

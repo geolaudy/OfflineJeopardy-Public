@@ -199,3 +199,24 @@ Last run 2026-10-12: Vitest 58/58 (43 unit, 15 integration), Playwright 8/8.
 | R2-23 | Board intro (checker reveal) animation + settings | P2 | TESTED | board/fx.tsx BoardReveal + checkerDelays, Intro.tsx (reveal before the round title, then title over the dimmed board), Grid checker fill when no intro, tvFx.boardIntro/introSpeed (also paces auto category intro), skip/replay via host intro controls | E (practice.spec: reveal visible after Start, gone after Skip; screenshot), E (settings toggle) | Reduced motion = simple fade (checked in CSS, not visually) |
 | R2-24 | Buzzer unlock indicator styles | P2 | TESTED | board/fx.tsx UnlockIndicator (side edges, top glow, bottom glow, status dot, brief pulse, none; colour/theme colour, intensity, full-strength duration, persist while open, optional label, screen-reader status always), cue 'unlock' for sound, settings previews | E (practice.spec: dot style on the TV after auto-unlock; settings style change) | — |
 | R2-25 | UX consistency pass | P3 | IMPLEMENTED | components/ui.tsx PageTitleBar (title keeps a real width; actions wrap), consistent page headers with icon buttons, host Home: one bar on phones (nav button + TV switch move into the game bar; Pause/Menu icon-only below sm; game menu uses ⋮ so it differs from navigation), short buzzer button labels on phones, editor category controls wrap, start screen padding | E (full suite) + audit screenshots on iPad (gen 7), iPad Mini, iPhone 13 and iPhone SE (WebKit) | Not verified in Safari on real devices (K2/K14) |
+
+## User feedback round 3 (2026-10-13) — see USER_FEEDBACK.md "Round 3"
+
+| ID | Feature | Pri | Status | Source | Tests | Limitations |
+|---|---|---|---|---|---|---|
+| R3-1 | Media file picker filters per media kind | P1 | TESTED | shared/mediaTypes.ts (explicit extensions + MIME per kind), desk/BoardEditor.tsx MediaList (Add image / Add audio / Add video), app.ts /api/media?kind= check (audio-only MP4/WebM accepted from Audio) | U (mediaTypes.test), I (server.test R3-1), E (media.spec pickers: accept lists, audio upload plays, picture via Audio refused) | Not verified in the real Windows file dialog (automated tests set files directly) |
+| R3-2 | Show Leaderboard on TV (metric, player/team selection, return) | P1 | TESTED | host/LeaderboardPage.tsx (new nav item + History tab), join/Leaderboard.tsx (Teams view, selection), shared/leaderboard.ts (team criteria; Points earned, Incorrect answers), stats.teamLeaderboard, lobby.ts team page + `back`, PresentPages TeamPage | I (round3: teams view, team page, previous page, incorrect metric, privacy), E (practice.spec: Private view → Show Leaderboard on TV → metric + Teams follow live → Lobby) | Leaderboard shows up to 12 rows on the TV |
+| R3-3 | Return to Lobby after a game (keep players/bindings/pairing) | P1 | TESTED | gameManager.rematch, POST /api/games/current/rematch (tournament carried over), host/Results.tsx (Return to Lobby primary, Create new lobby secondary), lobby.ts phone readiness fix | I (round3: three consecutive games — roster, bindings, bot, room code kept; scores/clues/buzzes reset; history + stats counted once; disconnected phone not ready, reconnects), E (practice.spec) | Undo of the previous game's end is no longer offered after returning |
+| R3-4 | Read-only public Settings page on TV | P1 | TESTED | shared/rulesSummary.publicSettings (grouped, explained), lobby.ts rules() (game rules / host draft / defaults), POST /api/lobby/draft, host/ShowSettingsOnTv.tsx (Settings page + game setup), PresentPages RulesPage (measured fit) | I (round3: draft live, game rules, no room code/token/PIN), E (practice.spec: no controls, screenshot) | — |
+| R3-5 | Bot difficulty badge (TV lobby, host lobby, bot dialog) | P1 | TESTED | RosterRow.bot, lobbyModel level, LobbyFull badge, host/Setup.tsx badge (dialog already shows levels) | I (round3 roster bot: Hard), E (practice.spec: Easy → Expert updates the TV) | — |
+| R3-6 | Lobby player cards with wins / games played | P2 | NOT STARTED | — | — | — |
+| R3-7 | Crown (reigning winner) + all-time wins leader marker | P2 | NOT STARTED | — | — | — |
+| R3-8 | Bot player cards | P2 | NOT STARTED | — | — | — |
+| R3-9 | Bots select clues | P1 | NOT STARTED | — | — | — |
+| R3-10 | Visible bot answers + host judgment | P1 | NOT STARTED | — | — | — |
+| R3-11 | Plausible local wrong answers | P2 | NOT STARTED | — | — | — |
+| R3-12 | Difficulty-based bot timing | P2 | NOT STARTED | — | — | — |
+| R3-13 | Awaiting-judgment state stops the answer timer | P1 | NOT STARTED | — | — | — |
+| R3-14 | Optional AI-powered bots (secure key, fallback) | P3 | NOT STARTED | — | — | — |
+| R3-15 | Windows installer + portable builds with verification | P2 | NOT STARTED | — | — | — |
+| R3-16 | GitHub Releases + Actions workflow on version tags | P3 | NOT STARTED | — | — | — |

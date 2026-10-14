@@ -70,6 +70,37 @@ export class GameManager {
     return s;
   }
 
+  /**
+   * Return to Lobby (R3-3): the finished game stays completed in history; a fresh game starts in
+   * the lobby with the same players, teams, controller bindings, room code, rules, mode and board
+   * (re-read from the library so edits apply). Only match state (scores, used clues, buzzes,
+   * timers, wagers, lockouts, media) starts over.
+   */
+  rematch(board: { id: string; content: BoardContent } | null): GameState | null {
+    const old = this.current;
+    if (!old || old.phase !== 'ended') return null;
+    const s = createGame({
+      id: newId(),
+      now: this.clock(),
+      roomCode: old.roomCode || newRoomCode(),
+      title: old.title,
+      boardId: board?.id ?? old.boardId,
+      board: board ? board.content : old.board,
+      mode: old.mode,
+      rules: old.rules,
+      practice: old.practice,
+    });
+    s.competitors = structuredClone(old.competitors);
+    s.unassigned = structuredClone(old.unassigned);
+    s.bindings = structuredClone(old.bindings);
+    s.showJoinQr = old.showJoinQr;
+    persistGame(this.db, s, []);
+    snapshotClues(this.db, s);
+    this.setCurrent(s);
+    audit(this.db, 'host', 'game.rematch', { id: s.id, previous: old.id });
+    return s;
+  }
+
   load(id: string): GameState | null {
     const s = loadGame(this.db, id);
     if (!s) return null;

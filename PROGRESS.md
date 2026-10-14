@@ -1,5 +1,11 @@
 # Progress
 
+## Session 5 — 2026-10-13 (user feedback round 3)
+
+- Baseline: v0.5.0 already pushed (main = origin/main). Round-3 requirements recorded (USER_FEEDBACK.md Round 3, FEATURE_MATRIX, IMPLEMENTATION_PLAN milestone 17).
+- **Milestone A (R3-1…R3-5):** media pickers per kind with real file filters (root cause: wildcard `accept` → registry-based filter on Windows); host Leaderboard page with **Show Leaderboard on TV** (live metric/view, saved-teams view, player/team stats on TV, Previous page / Lobby); **Return to Lobby** after a game (new game record with the same players, teams, bindings, bots, room code, board and rules; tournament carried over); read-only grouped **Settings page on the TV** (game rules, or the host's draft before the game exists); bot difficulty badges. Also fixed: phone bindings showed "ready" while the phone was disconnected; lobby refresh timer could fire after shutdown.
+- Tests: Vitest 128/128 (new round3.test.ts, mediaTypes.test.ts), Playwright 24/24.
+
 ## Session 4 — 2026-10-13 (user feedback round 2)
 
 - Checkpoint: tag **v0.3.0** pushed before any change (Vitest 74/74, Playwright 12/12). Round-2 requirements recorded (USER_FEEDBACK.md Round 2, PROJECT_SPEC §44, FEATURE_MATRIX, IMPLEMENTATION_PLAN milestone 16).

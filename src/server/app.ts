@@ -41,6 +41,7 @@ import { rulesSchema } from '../shared/actions.js';
 import { boardContentSchema, exportBoardCsv, exportBoardJson, importBoardCsv, importBoardJson } from '../shared/boardIO.js';
 import { reassignIds, validateBoard } from '../shared/boardUtils.js';
 import { SAMPLE_BOARD, SAMPLE_BOARD_TITLE } from '../shared/sampleBoards.js';
+import { formatList, isMediaKind, type MediaKind } from '../shared/mediaTypes.js';
 
 export const APP_VERSION = '0.2.0'; // keep in sync with package.json "version"
 const MAX_PACKAGE_BYTES = 300 * 1024 * 1024;
@@ -579,9 +580,16 @@ export async function startServer(opts: ServerOptions) {
 
   // ---------- media for clues ----------
   /** Validates (content sniffing / image decoding), stores and registers one clue media file. */
-  async function storeClueMedia(buf: Buffer, originalName: string) {
+  async function storeClueMedia(buf: Buffer, originalName: string, expected?: MediaKind) {
     const id = repo.newId();
-    const av = sniffMedia(buf);
+    let av = sniffMedia(buf);
+    // MP4/WebM containers can hold sound only; trust the button the host used for those.
+    if (av && expected === 'audio' && av.kind === 'video') av = { kind: 'audio', ext: av.ext, mime: av.ext === 'webm' ? 'audio/webm' : 'audio/mp4' };
+    const actual: MediaKind = av ? av.kind : 'image';
+    if (expected && actual !== expected) {
+      const what = av ? `${actual === 'audio' ? 'an audio' : 'a video'} file` : 'not an audio or video file we can play';
+      throw new ImageError(expected === 'image' ? `That is ${what} — use the Audio or Video button for it.` : `That file is ${what}. Supported ${expected}: ${formatList(expected)}.`);
+    }
     let out: { file: string; mime: string; kind: 'image' | 'audio' | 'video' };
     if (av) {
       const name = `${id}.${av.ext}`;
@@ -602,7 +610,8 @@ export async function startServer(opts: ServerOptions) {
     const buf = await file.toBuffer().catch(() => null);
     if (!buf) return bad(reply, 'File is too large', 413);
     try {
-      return await storeClueMedia(buf, file.filename);
+      const kind = (req.query as { kind?: string }).kind;
+      return await storeClueMedia(buf, file.filename, isMediaKind(kind) ? kind : undefined);
     } catch (e) {
       if (e instanceof ImageError) return bad(reply, e.message);
       throw e;
@@ -853,6 +862,36 @@ export async function startServer(opts: ServerOptions) {
     const res = games.dispatch({ type: 'setBoard', boardId: b.id, board: structuredClone(b.content), title: retitle ? b.title : undefined });
     return res.ok ? { ok: true } : bad(reply, res.error ?? 'Could not change the board');
   });
+  // Return to Lobby (R3-3): keep everyone and every buzzer, start a fresh match in the same lobby.
+  app.post('/api/games/current/rematch', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const old = games.current;
+    if (!old) return bad(reply, 'No game is loaded', 409);
+    if (old.phase !== 'ended') return bad(reply, 'Finish the game first', 409);
+    const b = old.boardId ? repo.getBoard(db, old.boardId) : null;
+    const usable = b && !validateBoard(b.content).some((i) => i.level === 'error');
+    const tid = tour.tournamentOfGame(db, old.id);
+    const s = games.rematch(usable ? { id: b.id, content: structuredClone(b.content) } : null);
+    if (!s) return bad(reply, 'Could not return to the lobby', 409);
+    const t = tid ? tour.getTournament(db, tid) : null;
+    if (t && t.status === 'active' && !s.practice) tour.attachGame(db, s.id, t.id);
+    lobby.setReigning(old);
+    return { id: s.id };
+  });
+  // Settings the host is choosing before the game exists, for the TV's Settings page (R3-4).
+  app.post('/api/lobby/draft', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const body = parse(
+      z.object({
+        draft: z.object({ mode: z.enum(['solo', 'team']), boardId: z.string().max(64).nullable(), rules: rulesSchema, practice: z.boolean().default(false), tournamentId: z.string().max(64).nullable().default(null) }).nullable(),
+      }),
+      req.body,
+      reply,
+    );
+    if (!body) return;
+    lobby.setDraft(body.draft);
+    return { ok: true };
+  });
   app.post('/api/games/:id/load', async (req, reply) => {
     if (!requireHost(req, reply)) return;
     const s = games.load((req.params as { id: string }).id);
@@ -960,6 +999,12 @@ export async function startServer(opts: ServerOptions) {
     if (!s) return bad(reply, 'Sign in to view the leaderboard', 401);
     if (s.kind !== 'host' && !getSetting(db, 'publicLeaderboard', true)) return bad(reply, 'The host has turned off the leaderboard', 403);
     return stats.leaderboard(db);
+  });
+  app.get('/api/stats/team-leaderboard', async (req, reply) => {
+    const s = sessionOf(req);
+    if (!s) return bad(reply, 'Sign in to view the leaderboard', 401);
+    if (s.kind !== 'host' && !getSetting(db, 'publicLeaderboard', true)) return bad(reply, 'The host has turned off the leaderboard', 403);
+    return stats.teamLeaderboard(db);
   });
   app.get('/api/stats/export/:kind', async (req, reply) => {
     if (!requireHost(req, reply)) return;

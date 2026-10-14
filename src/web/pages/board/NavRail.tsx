@@ -12,12 +12,12 @@ const ITEMS: { id: PresentPage; label: string; icon: LucideIcon }[] = [
   { id: 'players', label: 'Players', icon: Users },
   { id: 'teams', label: 'Teams', icon: Shield },
   { id: 'boards', label: 'Boards', icon: LayoutGrid },
-  { id: 'rules', label: 'Rules', icon: ScrollText },
+  { id: 'rules', label: 'Settings', icon: ScrollText },
   { id: 'buzzers', label: 'Buzzers', icon: Gamepad2 },
 ];
 
 /** The rail entry a page belongs to (a single player is part of Players, a board of Boards). */
-export const railPage = (p: PresentPage): PresentPage => (p === 'player' ? 'players' : p === 'board' ? 'boards' : p === 'tournament' ? 'leaderboard' : p);
+export const railPage = (p: PresentPage): PresentPage => (p === 'player' ? 'players' : p === 'board' ? 'boards' : p === 'tournament' ? 'leaderboard' : p === 'team' ? 'teams' : p);
 
 export function NavRail({ page }: { page: PresentPage }) {
   const current = railPage(page);

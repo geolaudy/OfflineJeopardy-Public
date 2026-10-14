@@ -24,6 +24,7 @@ const BoardEditor = lazy(() => import('../desk/BoardEditor'));
 const Players = lazy(() => import('../desk/Players'));
 const Teams = lazy(() => import('../desk/Teams'));
 const History = lazy(() => import('../desk/History'));
+const LeaderboardPage = lazy(() => import('./LeaderboardPage'));
 const Settings = lazy(() => import('../desk/Settings'));
 const Help = lazy(() => import('../desk/Help'));
 const Themes = lazy(() => import('../desk/Themes'));
@@ -160,6 +161,7 @@ function HostApp() {
           <Route path="players" element={<Players />} />
           <Route path="teams" element={<Teams />} />
           <Route path="buzzers" element={<ControllersPage />} />
+          <Route path="leaderboard" element={<LeaderboardPage />} />
           <Route path="history" element={<History />} />
           <Route path="tournaments" element={<Tournaments />} />
           <Route path="tournaments/:id" element={<Tournaments />} />

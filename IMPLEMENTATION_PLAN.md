@@ -52,3 +52,12 @@ Rollback point: tag v0.3.0. Order (dependencies first; see USER_FEEDBACK.md Roun
 - **F — Import:** R2-21 importer architecture, R2-20 Buzzinga investigation + import.
 - Unfinished from the round-1 roadmap: survival UI (O8), tournament mode.
 
+
+## Milestone 17 — User feedback round 3 (started 2026-10-13, session 5)
+
+Rollback point: tag v0.5.0. Order (see USER_FEEDBACK.md Round 3):
+- **A — Immediate fixes:** R3-1 picker filters, R3-2 leaderboard on TV, R3-3 return to lobby, R3-4 settings on TV, R3-5 bot difficulty badge.
+- **E (early part) — Build/release basics:** version bump, `npm run dist` + artifact verification script, GitHub Actions Windows workflow (release only on `v*` tags), CHANGELOG.md.
+- **B — Lobby statistics:** R3-6 cards, R3-7 crown, R3-8 bot cards.
+- **C — Bot gameplay:** R3-9 clue selection, R3-10/R3-13 visible answers + awaiting judgment, R3-11 local wrong answers, R3-12 timing.
+- **D — Optional AI bots:** R3-14 provider abstraction, secure key storage (Electron safeStorage where available), host settings, test connection, fallback.

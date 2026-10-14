@@ -7,12 +7,22 @@ import * as repo from './repos.js';
 import * as stats from './stats.js';
 import type { GameState } from '../shared/game.js';
 import { BOT_LEVELS } from '../shared/game.js';
-import { summarizeRules } from '../shared/rulesSummary.js';
-import { rankRows, secondaryLine, formatValue, VIEW_LABELS, type LeaderView } from '../shared/leaderboard.js';
+import { publicSettings } from '../shared/rulesSummary.js';
+import { rankRows, rankTeamRows, secondaryLine, teamSecondaryLine, formatValue, TEAMS_VIEW_LABEL, VIEW_LABELS, type LeaderView } from '../shared/leaderboard.js';
+import { normalizeRules, type GameRules } from '../shared/game.js';
 import type { PresentationState, PresentRequest, PublicLobby, PublicRoster, RosterRow } from '../shared/presentation.js';
 import { humanCount } from './engine/engine.js';
 import type { ControllerRegistry } from './controllers.js';
 import * as tour from './tournaments.js';
+
+/** Game settings the host is choosing before the game exists (shown on the TV's Settings page). */
+export interface SettingsDraft {
+  mode: 'solo' | 'team';
+  boardId: string | null;
+  rules: GameRules;
+  practice: boolean;
+  tournamentId: string | null;
+}
 
 export interface LobbySession {
   name: string;
@@ -27,6 +37,9 @@ export class LobbyManager {
   lobby: LobbySession | null = null;
   presentation: PresentationState = { page: 'lobby', rev: 0 };
   private request: PresentRequest = { page: 'lobby' };
+  /** What the TV showed before the current page (host "Back" on the TV). */
+  private previous: PresentRequest | null = null;
+  private draft: SettingsDraft | null = null;
   private refreshTimer: ReturnType<typeof setTimeout> | null = null;
   onChange: () => void = () => {};
 
@@ -46,7 +59,30 @@ export class LobbyManager {
   /** Closing the lobby invalidates its pairing code (already paired hosts keep their session). */
   close() {
     this.lobby = null;
+    this.draft = null;
+    this.previous = null;
+    this.reigning = null;
     this.present({ page: 'lobby' });
+  }
+
+  /** Winner(s) of the previous match in this lobby (crown on the lobby cards). */
+  reigning: { profileIds: string[]; botNames: string[]; teamNames: string[] } | null = null;
+
+  setReigning(prev: GameState) {
+    const winners = (prev.results ?? []).filter((r) => r.isWinner).map((r) => prev.competitors.find((c) => c.id === r.competitorId)).filter((c) => !!c);
+    this.reigning = winners.length
+      ? {
+          profileIds: winners.filter((c) => !c.bot).flatMap((c) => c.memberIds),
+          botNames: winners.filter((c) => c.bot).map((c) => c.name),
+          teamNames: winners.filter((c) => c.kind === 'team').map((c) => c.name),
+        }
+      : null;
+    this.refreshSoon();
+  }
+
+  setDraft(d: (Omit<SettingsDraft, 'rules'> & { rules: Partial<GameRules> }) | null) {
+    this.draft = d ? { ...d, rules: normalizeRules(d.rules) } : null;
+    if (this.request.page === 'rules' && !this.game()) this.refreshSoon();
   }
 
   newPairingCode() {
@@ -60,7 +96,9 @@ export class LobbyManager {
     return this.lobby ? { open: true, name: this.lobby.name, hostConnected, createdAt: this.lobby.createdAt } : null;
   }
 
-  present(req: PresentRequest) {
+  present(input: PresentRequest) {
+    const { back: _back, ...req }: PresentRequest = input.back ? (this.previous ?? { page: 'lobby' }) : input;
+    if (req.page !== this.request.page) this.previous = this.request;
     this.request = req;
     this.presentation = { ...this.build(req), roster: this.roster(), rev: this.presentation.rev + 1 };
     this.onChange();
@@ -70,21 +108,27 @@ export class LobbyManager {
   refreshSoon() {
     const phase = this.game()?.phase;
     // During play the TV shows the game, not presentation pages.
-    if (this.refreshTimer || phase === 'board' || phase === 'clue' || phase === 'final') return;
+    if (this.disposed || this.refreshTimer || phase === 'board' || phase === 'clue' || phase === 'final') return;
     this.refreshTimer = setTimeout(() => {
       this.refreshTimer = null;
       this.present(this.request);
     }, 400);
   }
 
+  private disposed = false;
   dispose() {
+    this.disposed = true;
     if (this.refreshTimer) clearTimeout(this.refreshTimer);
   }
 
   private build(req: PresentRequest): Omit<PresentationState, 'rev'> {
     switch (req.page) {
       case 'leaderboard':
-        return { page: 'leaderboard', leaderboard: this.leaderboard(req.view ?? 'solo', req.metric) };
+        return { page: 'leaderboard', leaderboard: req.view === 'teams' ? this.teamLeaderboard(req.metric) : this.leaderboard(req.view ?? 'solo', req.metric) };
+      case 'team': {
+        const t = req.teamId ? this.team(req.teamId) : null;
+        return t ? { page: 'team', team: t } : { page: 'teams', teams: this.teams() };
+      }
       case 'player':
         return req.profileId ? { page: 'player', player: this.player(req.profileId) ?? undefined } : { page: 'players', players: this.players() };
       case 'players':
@@ -127,6 +171,54 @@ export class LobbyManager {
         secondary: secondaryLine(view, r),
       })),
       unranked: unranked.length,
+    };
+  }
+
+  private teamLeaderboard(metric?: string): PresentationState['leaderboard'] {
+    const { crit, ranked, unranked } = rankTeamRows(stats.teamLeaderboard(this.db), metric);
+    return {
+      viewLabel: TEAMS_VIEW_LABEL.label,
+      metricLabel: crit.label,
+      minNote: crit.min ? `Ranked: teams with ${crit.min.label}` : null,
+      rows: ranked.slice(0, 12).map(({ r, rank }) => ({
+        rank,
+        id: r.id,
+        name: r.name,
+        color: r.color,
+        avatar: r.avatar,
+        pictureUrl: null,
+        value: formatValue(crit.value(r), crit.format),
+        secondary: teamSecondaryLine(r),
+      })),
+      unranked: unranked.length,
+    };
+  }
+
+  /** One saved team's own statistics (team results; no member's private statistics). */
+  private team(id: string): PresentationState['team'] | null {
+    const t = repo.listTeams(this.db, true).find((x) => x.id === id);
+    if (!t) return null;
+    const s = stats.teamStats(this.db, id);
+    const profiles = repo.profilesByIds(this.db, t.memberIds);
+    const cats = s.categories.filter((c) => c.correct + c.incorrect >= 2).sort((a, b) => (b.accuracy ?? 0) - (a.accuracy ?? 0)).slice(0, 3);
+    return {
+      id: t.id,
+      name: t.name,
+      color: t.color,
+      avatar: t.avatar,
+      members: t.memberIds.map((m) => profiles[m]).filter(Boolean),
+      stats: {
+        games: s.games.played,
+        wins: s.games.wins,
+        winRate: pctText(s.games.winRate),
+        averageScore: scoreText(s.games.averageScore),
+        correct: s.answers.correct,
+        incorrect: s.answers.incorrect,
+        accuracy: pctText(s.answers.accuracy),
+        wagers: s.wagers.attempted ? `${s.wagers.won} won · ${s.wagers.lost} lost` : '—',
+        buzzSpeed: s.buzzer.averageReactionMs == null ? '—' : `${(s.buzzer.averageReactionMs / 1000).toFixed(2)} s`,
+      },
+      topCategories: cats.map((c) => ({ name: c.category, accuracy: pctText(c.accuracy) })),
     };
   }
 
@@ -256,12 +348,29 @@ export class LobbyManager {
     };
   }
 
+  /** Read-only public settings (R3-4): the live game's rules, or the host's draft before it exists. */
   private rules(): PresentationState['rules'] {
     const s = this.game();
-    if (!s) return { title: 'Game rules', lines: [{ label: 'Status', value: 'The host is still choosing the game settings.' }] };
-    const board = s.boardId ? repo.getBoard(this.db, s.boardId)?.title : null;
-    const lines = summarizeRules(s.rules, { mode: s.mode, boardTitle: board ?? s.title, practice: s.practice, bots: s.competitors.filter((c) => c.bot).map((c) => `${c.name} (${BOT_LEVELS[c.bot!].label})`) });
-    return { title: s.title, lines };
+    const boardTitle = (id: string | null) => (id ? (repo.getBoard(this.db, id)?.title ?? null) : null);
+    if (s) {
+      const tid = tour.tournamentOfGame(this.db, s.id);
+      const sections = publicSettings(s.rules, {
+        mode: s.mode,
+        boardTitle: boardTitle(s.boardId) ?? s.title,
+        practice: s.practice,
+        bots: s.competitors.filter((c) => c.bot).map((c) => `${c.name} (${BOT_LEVELS[c.bot!].label})`),
+        teams: s.competitors.filter((c) => c.kind === 'team').map((c) => ({ name: c.name, members: c.memberIds.length, shared: c.buzzerMode === 'shared' })),
+        tournament: tid ? (tour.getTournament(this.db, tid)?.name ?? null) : null,
+      });
+      return { title: s.title, note: s.phase === 'lobby' ? 'The host can still change these before the game starts.' : null, sections };
+    }
+    const d = this.draft;
+    if (d) {
+      const tournament = d.tournamentId ? (tour.getTournament(this.db, d.tournamentId)?.name ?? null) : null;
+      const sections = publicSettings(d.rules, { mode: d.mode, boardTitle: boardTitle(d.boardId), practice: d.practice, tournament });
+      return { title: boardTitle(d.boardId) ?? 'Game settings', note: 'The host is still choosing — these settings may change.', sections };
+    }
+    return { title: 'Game settings', note: 'The host has not chosen the settings yet. These are the standard rules.', sections: publicSettings(normalizeRules({}), { mode: 'solo' }) };
   }
 
   /** Public lobby summary: who is in, on which team, and whether their buzzer is ready. */
@@ -297,25 +406,28 @@ export class LobbyManager {
     const describe = (controllerId: string, kind: string) => {
       const info = this.controllers.get(controllerId);
       const device = kind === 'joycon' ? `Joy-Con${info?.side ? ` (${info.side})` : ''}` : kind === 'keyboard' ? 'Keyboard key' : kind === 'gamepad' ? 'Controller' : 'Phone';
-      return { device, ready: kind === 'phone' ? true : !!info?.connected };
+      return { device, ready: !!info?.connected };
     };
+    // A phone binding is ready only while that phone's player has the game open.
+    const describeFor = (b: GameState['bindings'][number], memberIds: string[]) =>
+      b.kind === 'phone' ? { device: 'Phone', ready: memberIds.some((m) => online.has(m)) } : describe(b.controllerId, b.kind);
     const rows: RosterRow[] = [];
     for (const c of s.competitors) {
       if (c.bot) {
-        rows.push({ name: c.name, color: c.color, avatar: 'robot', pictureUrl: null, team: null, teamColor: null, device: 'Computer', ready: true });
+        rows.push({ name: c.name, color: c.color, avatar: 'robot', pictureUrl: null, team: null, teamColor: null, device: 'Computer', ready: true, bot: BOT_LEVELS[c.bot].label });
         continue;
       }
       const shared = c.kind === 'team' && c.buzzerMode === 'shared';
       if (shared) {
         const b = s.bindings.find((x) => x.target.kind === 'competitor' && x.target.competitorId === c.id);
-        const d = b ? describe(b.controllerId, b.kind) : { device: 'No team buzzer yet', ready: false };
+        const d = b ? describeFor(b, c.memberIds) : { device: 'No team buzzer yet', ready: false };
         rows.push({ name: `${c.name} (team)`, color: c.color, avatar: c.avatar ?? 'shield', pictureUrl: null, team: c.name, teamColor: c.color, ...d });
         continue;
       }
       for (const m of c.memberIds) {
         const p = profiles[m];
         const b = s.bindings.find((x) => x.target.kind === 'profile' && x.target.profileId === m);
-        const d = b ? describe(b.controllerId, b.kind) : { device: 'Phone', ready: online.has(m) };
+        const d = b ? describeFor(b, [m]) : { device: 'Phone', ready: online.has(m) };
         rows.push({ name: p?.nickname?.trim() || p?.name || 'Player', color: p?.color ?? c.color, avatar: p?.avatar ?? 'fox', pictureUrl: p?.pictureUrl ?? null, team: c.kind === 'team' ? c.name : null, teamColor: c.kind === 'team' ? c.color : null, ...d });
       }
     }

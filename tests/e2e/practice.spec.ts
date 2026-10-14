@@ -69,6 +69,46 @@ test('practice game: computer opponent, answer hidden until revealed, buzzers op
   pc.once('dialog', (d) => d.accept());
   await pc.getByRole('button', { name: 'End game' }).click();
   await expect(tv.getByTestId('winner')).toContainText('Solo Sue wins!');
+
+  // Return to Lobby (R3-3): same players and computer opponent, scores start over.
+  await expect(pc.getByTestId('return-to-lobby')).toBeVisible();
+  await expect(pc.getByTestId('create-new-lobby')).toBeVisible();
+  await pc.getByTestId('return-to-lobby').click();
+  await expect(tv.getByTestId('tv-lobby-full')).toBeVisible();
+  await expect(tv.getByTestId('tv-lobby-player')).toHaveCount(2);
+  await expect(tv.getByTestId('tv-bot-level')).toHaveText('Easy'); // R3-5
+  await expect(pc.getByTestId('setup-player')).toContainText('Solo Sue');
+  await expect(pc.getByTestId('bot-level-badge')).toContainText('Easy');
+  await pc.getByLabel('Robo Rita difficulty').selectOption('expert');
+  await expect(tv.getByTestId('tv-bot-level')).toHaveText('Expert');
+  await tv.waitForTimeout(600);
+  await tv.screenshot({ path: 'test-results/screens/tv-lobby-after-return.png' });
+
+  // Leaderboard on the TV from the host's Leaderboard page (R3-2).
+  // In Private view the TV stays on the lobby until the host asks for the leaderboard.
+  await pc.getByTestId('present-toggle').click();
+  await expect(pc.getByTestId('present-toggle')).toHaveAttribute('aria-checked', 'false');
+  await pc.getByTestId('hostnav-leaderboard').click();
+  await expect(tv.getByTestId('tv-lobby-full')).toBeVisible();
+  await pc.getByTestId('show-leaderboard-on-tv').click();
+  await expect(tv.getByTestId('tv-present-page')).toHaveAttribute('data-page', 'leaderboard');
+  await expect(pc.getByTestId('leaderboard-on-tv')).toBeVisible();
+  await pc.getByLabel('Ranked by').selectOption({ label: 'Games played' });
+  await expect(tv.getByRole('heading', { name: 'Games played' })).toBeVisible();
+  await pc.getByRole('tab', { name: 'Teams', exact: true }).click();
+  await expect(tv.getByText('Leaderboard · Teams')).toBeVisible();
+  await pc.getByTestId('tv-lobby').click();
+  await expect(tv.getByTestId('tv-lobby-full')).toBeVisible();
+
+  // Settings on the TV (R3-4): read-only summary of this game's rules.
+  await pc.getByTestId('hostnav-settings').click();
+  await pc.getByTestId('show-settings-on-tv').click();
+  await expect(tv.getByTestId('tv-settings')).toBeVisible();
+  await expect(tv.getByTestId('tv-settings')).toContainText('Buzzers open');
+  await expect(tv.getByTestId('tv-settings')).toContainText('Robo Rita (Expert)');
+  await expect(tv.locator('.tvp-settings input, .tvp-settings button, .tvp-settings select')).toHaveCount(0);
+  await tv.waitForTimeout(800);
+  await tv.screenshot({ path: 'test-results/screens/tv-settings.png' });
   await api.post('/api/games/close', { headers: H });
   await api.put('/api/settings', { headers: H, data: { tvFx: fx } });
   await api.dispose();

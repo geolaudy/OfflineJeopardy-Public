@@ -116,3 +116,34 @@ test('media-first clue with caption, answer image reveal, host-controlled audio 
   await api.post('/api/games/close', { headers: H });
   await api.dispose();
 });
+
+test('board editor: separate image / audio / video pickers with matching file filters (R3-1)', async () => {
+  const api = await request.newContext({ baseURL: BASE });
+  const host = (await (await api.post('/api/host/local-login')).json()).token as string;
+  const H = { authorization: `Bearer ${host}` };
+  const board = await (await api.post('/api/boards', { headers: H, data: { title: 'Picker Board', description: '', tags: [], content: structuredClone(SAMPLE_BOARD) } })).json();
+  const pc = await (await cr.newContext({ viewport: { width: 1366, height: 900 } })).newPage();
+  await pc.goto(`${BASE}/host/boards/${board.id}`);
+  await pc.getByRole('button', { name: /^Edit History 200/ }).click();
+  const clue = pc.getByTestId('clue-media');
+  await expect(clue.getByRole('button', { name: 'Add image' })).toBeVisible();
+  await expect(clue.getByRole('button', { name: 'Add audio' })).toBeVisible();
+  await expect(clue.getByRole('button', { name: 'Add video' })).toBeVisible();
+  const audioAccept = (await clue.getByTestId('clue-media-audio-input').getAttribute('accept'))!;
+  expect(audioAccept).toContain('.mp3');
+  expect(audioAccept).toContain('.wav');
+  expect(audioAccept).not.toMatch(/image|\.png/);
+  expect(await clue.getByTestId('clue-media-image-input').getAttribute('accept')).not.toMatch(/audio|video/);
+  expect(await clue.getByTestId('clue-media-video-input').getAttribute('accept')).toContain('.mp4');
+  // Choosing a sound through the Audio button adds an audio player to the clue.
+  await clue.getByTestId('clue-media-audio-input').setInputFiles({ name: 'tone.wav', mimeType: 'audio/wav', buffer: wav(1) });
+  await expect(clue.locator('audio')).toHaveCount(1);
+  // A picture sent through the Audio button is refused with a clear message.
+  const png = await sharp({ create: { width: 40, height: 40, channels: 3, background: '#000' } }).png().toBuffer();
+  await clue.getByTestId('clue-media-audio-input').setInputFiles({ name: 'x.png', mimeType: 'image/png', buffer: png });
+  await expect(pc.getByText(/Supported audio: MP3/)).toBeVisible();
+  await expect(clue.locator('img')).toHaveCount(0);
+  await clue.screenshot({ path: 'test-results/screens/editor-media-pickers.png' });
+  await api.delete(`/api/boards/${board.id}`, { headers: H });
+  await api.dispose();
+});

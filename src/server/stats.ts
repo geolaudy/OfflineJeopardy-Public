@@ -2,6 +2,8 @@
 // completed games. Solo statistics, individual contributions in team games and team
 // statistics are computed separately and never merged into one average.
 import type { DB } from './db/db.js';
+import { listTeams } from './repos.js';
+import type { TeamLeaderRow } from '../shared/leaderboard.js';
 
 const COMPLETED = `g.status = 'completed'`;
 /** Games that count in statistics: completed and not marked as practice. */
@@ -288,6 +290,7 @@ export function leaderboard(db: DB, opts: { includePrivate?: boolean } = {}) {
         correct: st.solo.answers.correct,
         incorrect: st.solo.answers.incorrect,
         accuracy: st.solo.answers.accuracy,
+        earned: st.solo.answers.pointsEarned,
       },
       team: {
         games: st.team.games.played,
@@ -308,6 +311,27 @@ export function leaderboard(db: DB, opts: { includePrivate?: boolean } = {}) {
       correct: st.combined.correct,
       incorrect: st.combined.incorrect,
       accuracy: st.combined.correct + st.combined.incorrect ? st.combined.correct / (st.combined.correct + st.combined.incorrect) : null,
+    };
+  });
+}
+
+/** Saved teams with their own team statistics (team points, not members' contributions). */
+export function teamLeaderboard(db: DB): TeamLeaderRow[] {
+  return listTeams(db).map((t) => {
+    const st = teamStats(db, t.id);
+    return {
+      id: t.id,
+      name: t.name,
+      color: t.color,
+      avatar: t.avatar,
+      members: t.memberIds.length,
+      games: st.games.played,
+      wins: st.games.wins,
+      winRate: st.games.winRate,
+      averageScore: st.games.averageScore,
+      correct: st.answers.correct,
+      incorrect: st.answers.incorrect,
+      accuracy: st.answers.accuracy,
     };
   });
 }

@@ -1,20 +1,15 @@
-import { useCallback, useState } from 'react';
-import { usePresent } from '../host/AppShell';
-import type { LeaderView } from '../../../shared/leaderboard';
+import { useState } from 'react';
 import { downloadFile, hostApi } from '../../lib/api';
 import { attempt, useFetch } from '../../lib/hooks';
 import { HistoryList } from '../../components/StatsView';
 import { Button, cx } from '../../components/ui';
-import Leaderboard from '../join/Leaderboard';
+import { LeaderboardPanel } from '../host/LeaderboardPage';
 import { Download } from 'lucide-react';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export default function History() {
   const [tab, setTab] = useState<'games' | 'leaderboard'>('games');
   const games = useFetch(() => hostApi<any[]>('GET', '/api/history'), []);
-  const { show } = usePresent();
-  // The leaderboard (public names and totals) follows on the TV while presenting; game lists stay private.
-  const presentBoard = useCallback((view: LeaderView, metric: string) => show({ page: 'leaderboard', view, metric }), [show]);
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-6">
       <div className="flex flex-wrap items-center gap-2">
@@ -33,7 +28,7 @@ export default function History() {
           </button>
         ))}
       </div>
-      {tab === 'games' ? games.data ? <HistoryList rows={games.data} as="host" /> : <p>{games.error ?? 'Loading…'}</p> : <Leaderboard asHost onViewChange={presentBoard} />}
+      {tab === 'games' ? games.data ? <HistoryList rows={games.data} as="host" /> : <p>{games.error ?? 'Loading…'}</p> : <LeaderboardPanel />}
     </div>
   );
 }

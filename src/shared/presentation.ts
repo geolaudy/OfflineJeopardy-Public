@@ -7,14 +7,17 @@
 import { z } from 'zod';
 import type { ProfilePublic } from './views.js';
 
-export const PRESENT_PAGES = ['lobby', 'leaderboard', 'players', 'player', 'teams', 'boards', 'board', 'rules', 'buzzers', 'tournament'] as const;
+export const PRESENT_PAGES = ['lobby', 'leaderboard', 'players', 'player', 'teams', 'team', 'boards', 'board', 'rules', 'buzzers', 'tournament'] as const;
 export type PresentPage = (typeof PRESENT_PAGES)[number];
 
 export const presentRequestSchema = z.object({
   page: z.enum(PRESENT_PAGES),
-  view: z.enum(['solo', 'team', 'contribution']).optional(),
+  view: z.enum(['solo', 'team', 'contribution', 'teams']).optional(),
   metric: z.string().max(20).optional(),
   profileId: z.string().max(64).optional(),
+  teamId: z.string().max(64).optional(),
+  /** Return the TV to what it showed before the current page (lobby when there is nothing). */
+  back: z.boolean().optional(),
   boardId: z.string().max(64).optional(),
   tournamentId: z.string().max(64).optional(),
 });
@@ -50,6 +53,8 @@ export interface RosterRow {
   /** Device type only ("Phone", "Joy-Con (L)", "Keyboard key", "Computer"…), never an id. */
   device: string;
   ready: boolean;
+  /** Computer opponent: its difficulty label ("Easy", "Hard"…). */
+  bot?: string;
 }
 
 /** Public summary of the game being set up (for the full and the compact lobby). */
@@ -81,10 +86,25 @@ export interface PresentationState {
   teams?: { teams: { id: string; name: string; color: string; avatar: string; members: ProfilePublic[]; games: number; wins: number }[] };
   boards?: { boards: { id: string; title: string; description: string; rounds: number; categories: number; clues: number; tags: string[] }[]; selectedId: string | null };
   board?: { id: string; title: string; description: string; rounds: { name: string; kind: 'standard' | 'final'; categories: string[] }[]; clues: number; media: number };
-  rules?: { title: string; lines: { label: string; value: string }[] };
+  rules?: { title: string; note: string | null; sections: SettingsSection[] };
+  team?: {
+    id: string;
+    name: string;
+    color: string;
+    avatar: string;
+    members: ProfilePublic[];
+    stats: { games: number; wins: number; winRate: string; averageScore: string; correct: number; incorrect: number; accuracy: string; wagers: string; buzzSpeed: string };
+    topCategories: { name: string; accuracy: string }[];
+  };
   buzzers?: { rows: RosterRow[]; phonesNote: string };
   /** Tournament standings (names, avatars and points only). */
   tournament?: { id: string; name: string; note: string; finished: boolean; rows: PresentedLeaderRow[] };
+}
+
+/** Public, read-only game settings grouped for the TV (never secrets, PINs or device details). */
+export interface SettingsSection {
+  title: string;
+  items: { label: string; value: string; hint?: string }[];
 }
 
 export const PAGE_LABELS: Record<PresentPage, string> = {
@@ -93,9 +113,10 @@ export const PAGE_LABELS: Record<PresentPage, string> = {
   players: 'Players',
   player: 'Player',
   teams: 'Teams',
+  team: 'Team',
   boards: 'Boards',
   board: 'Board',
-  rules: 'Rules',
+  rules: 'Settings',
   buzzers: 'Buzzers',
   tournament: 'Tournament',
 };

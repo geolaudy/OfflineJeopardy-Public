@@ -186,7 +186,14 @@ function SoloSetup({ g }: { g: GameView }) {
             return (
               <li key={c.id} className="flex items-center gap-3 rounded-xl bg-slate-50 p-2" data-testid={c.bot ? 'setup-bot' : 'setup-player'}>
                 <Avatar profile={competitorAvatar(c, g)} size={40} />
-                <span className="min-w-0 flex-1 truncate font-semibold">{name}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-semibold">{name}</span>
+                  {c.bot && (
+                    <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700" data-testid="bot-level-badge">
+                      <Bot size={12} aria-hidden /> Computer · {BOT_LEVELS[c.bot].label}
+                    </span>
+                  )}
+                </span>
                 {c.bot ? (
                   <select
                     className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm"

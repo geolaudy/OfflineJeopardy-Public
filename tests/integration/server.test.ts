@@ -508,7 +508,7 @@ describe('lobby session and public presentation (R2-1/2/7/8, R2-A)', () => {
     expect(JSON.stringify(last().p)).not.toContain('phone:');
     h.send({ t: 'present', req: { page: 'rules' } });
     await tv.wait((m) => m.t === 'presentation' && (m as any).p.page === 'rules');
-    expect(last().p.rules.lines.map((l: { label: string }) => l.label)).toContain('Early buzzing');
+    expect(last().p.rules.sections.flatMap((x: { items: { label: string }[] }) => x.items.map((l) => l.label))).toContain('Buzzing too early');
 
     // Player limit is enforced.
     await h.act({ type: 'updateRules', rules: { ...h.state!.rules, maxPlayers: 1 } });
@@ -656,6 +656,30 @@ describe('board packages and full backups (L9, K6, K7)', () => {
     const r = await fetch(s.url + url, { method: 'POST', headers: { authorization: `Bearer ${token}` }, body: fd });
     return { status: r.status, data: await r.json() };
   };
+
+  it('checks clue media against the picker that was used (R3-1)', async () => {
+    const s = await start();
+    const host = await hostToken(s);
+    const png = await sharp({ create: { width: 64, height: 64, channels: 3, background: '#0000aa' } }).png().toBuffer();
+    // Minimal WAV header (RIFF....WAVE) + a few silent samples.
+    const wav = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WAVEfmt '), Buffer.alloc(64)]);
+    // MP4 with a non-M4A brand: sniffed as video, accepted as audio from the Audio button.
+    const mp4 = Buffer.concat([Buffer.from([0, 0, 0, 24]), Buffer.from('ftypisom'), Buffer.alloc(32)]);
+    expect((await upload(s, '/api/media?kind=image', host, 'a.png', png, 'image/png')).data.kind).toBe('image');
+    expect((await upload(s, '/api/media?kind=audio', host, 'a.wav', wav, 'audio/wav')).data.kind).toBe('audio');
+    expect((await upload(s, '/api/media?kind=audio', host, 'a.mp4', mp4, 'audio/mp4')).data.kind).toBe('audio');
+    expect((await upload(s, '/api/media?kind=video', host, 'a.mp4', mp4, 'video/mp4')).data.kind).toBe('video');
+    const wrong = await upload(s, '/api/media?kind=image', host, 'a.wav', wav, 'audio/wav');
+    expect(wrong.status).toBe(400);
+    expect(wrong.data.error).toMatch(/Audio or Video button/);
+    const notAudio = await upload(s, '/api/media?kind=audio', host, 'a.png', png, 'image/png');
+    expect(notAudio.status).toBe(400);
+    expect(notAudio.data.error).toMatch(/MP3/);
+    // Without a kind (older clients) anything supported is accepted as before.
+    expect((await upload(s, '/api/media', host, 'b.wav', wav, 'audio/wav')).data.kind).toBe('audio');
+    const served = await fetch(s.url + (await upload(s, '/api/media?kind=audio', host, 'c.wav', wav, 'audio/wav')).data.url);
+    expect(served.headers.get('content-type')).toContain('audio/wav');
+  });
 
   it('exports a board with its media as one ZIP and imports it on another installation', async () => {
     const a = await start();

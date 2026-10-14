@@ -129,7 +129,14 @@ function PersonCard({ p, av, isNew, animateAvatar }: { p: LobbyPerson; av: numbe
       <Fade className="tvp-person-bg" />
       <SharedAvatar p={p} size={av} animateIn={animateAvatar} />
       <Fade className="tvp-person-text">
-        <span className="tvp-person-name">{p.name}</span>
+        <span className="tvp-person-name">
+          {p.name}
+          {p.level && (
+            <span className="tvp-bot-badge" data-testid="tv-bot-level">
+              {p.level}
+            </span>
+          )}
+        </span>
         <DeviceTag device={p.device} ready={p.ready} />
       </Fade>
     </motion.div>

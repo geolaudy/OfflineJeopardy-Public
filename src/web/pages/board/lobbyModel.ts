@@ -4,6 +4,7 @@
 import type { GameView } from '../../../shared/views';
 import type { PublicLobby, PublicRoster } from '../../../shared/presentation';
 import { profileName } from '../../lib/view';
+import { BOT_LEVELS } from '../../../shared/game';
 
 export interface LobbyPerson {
   /** Stable React / shared-layout key (derived from team and name; never shown). */
@@ -16,6 +17,8 @@ export interface LobbyPerson {
   device: string;
   ready: boolean;
   bot: boolean;
+  /** Computer opponent difficulty ("Easy", "Hard"…). */
+  level?: string;
 }
 
 export interface LobbyTeam {
@@ -109,6 +112,7 @@ export function buildLobbyModel(g: GameView | null, lobby: PublicLobby | null, r
       device: r.device,
       ready: r.ready,
       bot: r.device === 'Computer',
+      level: r.bot,
     });
     let teams: LobbyTeam[] | null = null;
     let people: LobbyPerson[];
@@ -164,7 +168,7 @@ export function buildLobbyModel(g: GameView | null, lobby: PublicLobby | null, r
   } else {
     for (const c of g.competitors) {
       if (c.bot) {
-        people.push({ key: key(null, c.name), name: c.name, color: c.color, avatar: 'robot', pictureUrl: null, device: 'Computer', ready: true, bot: true });
+        people.push({ key: key(null, c.name), name: c.name, color: c.color, avatar: 'robot', pictureUrl: null, device: 'Computer', ready: true, bot: true, level: BOT_LEVELS[c.bot].label });
         continue;
       }
       const p = c.profileId ? g.profiles[c.profileId] : undefined;

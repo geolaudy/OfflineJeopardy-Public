@@ -11,6 +11,7 @@ import { RULE_PRESETS, rulesFromPreset, type GameRules } from '../../../shared/g
 import { summarizeRules } from '../../../shared/rulesSummary';
 import RulesEditor from './RulesEditor';
 import { usePresent } from './AppShell';
+import { ShowSettingsOnTv } from './ShowSettingsOnTv';
 
 interface BoardSummary {
   id: string;
@@ -51,6 +52,13 @@ export default function GamePicker() {
     () => [...(tournament ? [{ label: 'Tournament', value: `${tournament.name} (game ${tournament.games + 1})` }] : []), ...summarizeRules(rules, { mode, boardTitle: selected?.title, practice: mode === 'solo' && practice })],
     [rules, mode, selected?.title, practice, tournament],
   );
+
+  // The TV's Settings page shows these choices (public rules only) until the game exists (R3-4).
+  const draftKey = JSON.stringify({ mode, boardId: selected?.id ?? null, rules, practice: mode === 'solo' && practice, tournamentId: tournament?.id ?? null });
+  useEffect(() => {
+    const t = setTimeout(() => void hostApi('POST', '/api/lobby/draft', { draft: JSON.parse(draftKey) }).catch(() => {}), 300);
+    return () => clearTimeout(t);
+  }, [draftKey]);
 
   // Choosing a board previews it on the TV (category names only) while presenting.
   useEffect(() => {
@@ -162,7 +170,10 @@ export default function GamePicker() {
 
         <section className="space-y-4">
           <Card className="space-y-3" data-testid="setup-summary">
-            <h2 className="text-lg font-bold">Summary</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="min-w-0 flex-1 text-lg font-bold">Summary</h2>
+              <ShowSettingsOnTv />
+            </div>
             <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm">
               {summary.map((l) => (
                 <div key={l.label} className="contents">

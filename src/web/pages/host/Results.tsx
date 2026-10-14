@@ -4,7 +4,7 @@ import { hostApi } from '../../lib/api';
 import { attempt, useFetch } from '../../lib/hooks';
 import { ActionButton, Avatar, cx, fmtScore } from '../../components/ui';
 import { competitorAvatar, competitorName, findCompetitor, profileName } from '../../lib/view';
-import { Monitor, Trophy, Undo2 } from 'lucide-react';
+import { DoorOpen, Monitor, Plus, Trophy, Undo2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { usePresent } from './AppShell';
 import type { StandingRow, Tournament } from '../../../shared/tournament';
@@ -35,13 +35,23 @@ export default function Results({ g }: { g: GameView }) {
       </div>
       <TournamentStandings g={g} />
       <p className="text-sm text-slate-600">Results, statistics and the full game history are saved. Players can see them in their profile.</p>
-      <div className="flex flex-wrap gap-2">
-        <ActionButton size="lg" onAction={() => attempt(() => hostApi('POST', '/api/games/close'))}>
-          New game
+      <div className="space-y-3 rounded-2xl bg-white p-4 shadow-sm">
+        <ActionButton size="lg" className="w-full" onAction={() => attempt(() => hostApi('POST', '/api/games/current/rematch'))} data-testid="return-to-lobby">
+          <DoorOpen size={20} aria-hidden /> Return to Lobby
         </ActionButton>
-        <ActionButton size="lg" variant="secondary" onAction={async () => (confirm('Re-open the game? The final result will be undone.') ? act({ type: 'undo' }) : undefined)}>
-          <Undo2 size={18} aria-hidden /> Undo end of game
-        </ActionButton>
+        <p className="text-sm text-slate-600">Everyone stays in: players, teams, Joy-Cons and phones, the board and the settings. Scores start again from zero.</p>
+        <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+          <ActionButton
+            variant="secondary"
+            onAction={async () => (confirm('Start over with a new lobby? Players will need to join again.') ? attempt(() => hostApi('POST', '/api/games/close')) : undefined)}
+            data-testid="create-new-lobby"
+          >
+            <Plus size={18} aria-hidden /> Create new lobby
+          </ActionButton>
+          <ActionButton variant="ghost" onAction={async () => (confirm('Re-open the game? The final result will be undone.') ? act({ type: 'undo' }) : undefined)}>
+            <Undo2 size={18} aria-hidden /> Undo end of game
+          </ActionButton>
+        </div>
       </div>
     </div>
   );

@@ -128,3 +128,32 @@ Statuses are tracked in FEATURE_MATRIX.md → "User feedback round 2".
 Architecture requirement (R2-A): keep separate state for game, lobby, host navigation, public
 presentation, profiles, controller assignments and media playback. The TV receives only
 authorised public presentation data via explicit presentation state.
+
+---
+
+# User Feedback — Round 3 (received 2026-10-13, session 5)
+
+Rollback point before this work: tag **v0.5.0** (Vitest 123/123, Playwright 23/23).
+Must keep working: Joy-Con Bluetooth, iPad host, TV presentation, profiles, sync, team mode,
+game rules, saved boards and history, lobby + host pairing.
+
+Statuses are tracked in FEATURE_MATRIX.md → "User feedback round 3".
+
+| ID | Requirement (summary) | Milestone | Acceptance criteria |
+|---|---|---|---|
+| R3-1 | **Media file picker filters**: image picker shows images, audio picker audio, video picker video; a combined button shows all supported media | A | No need to pick "All files"; accept lists match what the server actually validates/plays |
+| R3-2 | **Show Leaderboard on TV** from the host leaderboard page (+ host navigation): change metric/category, select player/team → public stats; return the TV to lobby/previous page | A | Uses the existing presentation system; only existing statistics; host stays private |
+| R3-3 | **Return to Lobby after a game** (primary) + Create New Lobby (secondary): keep lobby, players, profiles, teams, controller/Joy-Con/phone bindings, host pairing, settings, mode, board; reset only match state; results finalised first | A | Consecutive games in one lobby: scores reset, history/stats correct, assignments kept, no duplicates, no stale buzzes/state; disconnected devices stay members but show disconnected |
+| R3-4 | **Settings on TV**: presenting Settings shows a read-only public settings summary (mode, board, limit, teams, buzzer/early-buzz rules, timers, wagers, auto-unlock…) updated live; no secrets/PINs/tokens/API keys; no controls | A | — |
+| R3-5 | **Bot difficulty badge** on TV lobby, host lobby and bot dialog; updates immediately | A | Only implemented levels |
+| R3-6 | **Lobby player cards with history**: picture, name, team, controller status, wins, games played, optional win % / streak | B | Solo vs team wins separated; refreshed after each game |
+| R3-7 | **Crown**: reigning winner of the previous match in this lobby; separate subtle all-time wins leader; legend/tooltip; nothing when nobody qualifies | B | — |
+| R3-8 | **Bot cards**: name, difficulty, status, bot stats if tracked; clearly bots | B | — |
+| R3-9 | **Bots select clues** on their turn (difficulty-based strategy; never unavailable clues; same turn rules) | C | — |
+| R3-10 | **Visible bot answers**: bot prepares an answer → host sees it (with difficulty, expected answer privately) → TV shows it → host judges; no automatic scoring | C | Submitted answer + judgment recorded in history |
+| R3-11 | **Plausible wrong answers** related to clue/category; difficulty controls quality | C | No random strings / placeholders |
+| R3-12 | **Bot timing** varies by difficulty (reaction, preparation, willingness) | C | — |
+| R3-13 | **Awaiting host judgment**: once a bot submits, the answer timer stops and never auto-marks it wrong; human timers unchanged | C | — |
+| R3-14 | **Optional AI bots** (external LLM): provider config in Settings (desk + host), API key stored securely (never in Git/WS/TV/phones/logs/exports), test connection, model choice, enable/disable, fallback, timeouts, request limits; backend-only requests; structured output validated | D | Game never blocks; offline play unaffected |
+| R3-15 | **Windows builds**: installer + portable via existing electron-builder; verification script; artifacts at session end | E | Report what was/wasn't executed on Windows |
+| R3-16 | **GitHub Releases** for major milestones only (semver, changelog: New Features / Improvements / Bug Fixes / Known Issues, installer + portable attached); optional GitHub Actions Windows workflow publishing only on version tags | E | Never move tags or overwrite releases |

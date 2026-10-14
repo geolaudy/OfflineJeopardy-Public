@@ -1,10 +1,10 @@
 // Public pages the host can present on the TV (R2-7). Rendered ONLY from the server's explicit
 // presentation payload (public profiles/stats, category names without clues, rules summary,
 // controller readiness without device ids).
-import { useRef, type CSSProperties, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { motion } from 'motion/react';
 import { Bot, Crown, Gamepad2, Keyboard, Lock, Smartphone, Sparkles, Trophy } from 'lucide-react';
-import type { PresentationState, PresentPage, RosterRow } from '../../../shared/presentation';
+import type { PresentationState, PresentPage, RosterRow, SettingsSection } from '../../../shared/presentation';
 import { Avatar, cx } from '../../components/ui';
 import { avatarEmoji } from '../../lib/avatars';
 import { profileName } from '../../lib/view';
@@ -24,6 +24,8 @@ export function pageKey(p: PresentationState | null): string {
       return `board:${p.board?.id ?? ''}`;
     case 'tournament':
       return `tournament:${p.tournament?.id ?? ''}`;
+    case 'team':
+      return `team:${p.team?.id ?? ''}`;
     default:
       return p.page;
   }
@@ -54,6 +56,8 @@ function PageBody({ p }: { p: PresentationState }) {
       return p.players ? <PlayersPage d={p.players} /> : <Missing page={p.page} />;
     case 'teams':
       return p.teams ? <TeamsPage d={p.teams} /> : <Missing page={p.page} />;
+    case 'team':
+      return p.team ? <TeamPage d={p.team} /> : <Missing page={p.page} />;
     case 'boards':
       return p.boards ? <BoardsPage d={p.boards} /> : <Missing page={p.page} />;
     case 'board':
@@ -416,19 +420,132 @@ function BoardDetailPage({ d }: { d: NonNullable<PresentationState['board']> }) 
 // ---------------------------------------------------------------- Rules
 
 function RulesPage({ d }: { d: NonNullable<PresentationState['rules']> }) {
-  const twoCols = d.lines.length > 6;
+  const narrow = useNarrow();
+  const cols = narrow ? 2 : 3;
+  // Balance the cards over the columns (heaviest first into the shortest column), then shrink the
+  // type a little if the tallest column would not fit the screen.
+  const weight = (sec: SettingsSection) => 1.6 + sec.items.reduce((a, i) => a + 1.55 + (i.hint ? 0.75 * Math.ceil(i.hint.length / 34) : 0), 0);
+  const columns: { secs: { sec: SettingsSection; i: number }[]; h: number }[] = Array.from({ length: cols }, () => ({ secs: [], h: 0 }));
+  d.sections
+    .map((sec, i) => ({ sec, i, w: weight(sec) }))
+    .sort((a, b) => b.w - a.w)
+    .forEach(({ sec, i, w }) => {
+      const c = columns.reduce((m, x) => (x.h < m.h ? x : m), columns[0]);
+      c.secs.push({ sec, i });
+      c.h += w;
+    });
+  for (const c of columns) c.secs.sort((a, b) => a.i - b.i);
+  // Shrink the type until the tallest column fits (measured, so any screen size works).
+  const box = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  const contentKey = JSON.stringify(d.sections) + cols;
+  useLayoutEffect(() => setScale(1), [contentKey]);
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const fit = () => {
+      const need = Math.max(...[...el.children].map((c) => (c as HTMLElement).scrollHeight));
+      const have = el.clientHeight;
+      if (have > 0 && need > have + 1) setScale((v) => Math.max(0.55, Math.floor(v * (have / need) * 100) / 100));
+    };
+    fit();
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(fit);
+    ro?.observe(el);
+    return () => ro?.disconnect();
+  }, [scale, contentKey]);
+  let n = 0;
   return (
     <>
-      <Head kicker="Rules" title={d.title} />
-      <dl className={cx('tvp-rules', twoCols && 'is-two')}>
-        {d.lines.map((l, i) => (
-          <motion.div key={l.label} className="tvp-rule" {...item(i)}>
-            <dt>{l.label}</dt>
-            <dd>{l.value}</dd>
+      <Head kicker="Game settings" title={d.title} sub={d.note} />
+      <div ref={box} className="tvp-settings" style={{ '--s': scale, gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` } as CSSProperties} data-testid="tv-settings">
+        {columns.map((c, ci) => (
+          <div key={ci} className="tvp-set-col">
+            {c.secs.map(({ sec }) => (
+              <motion.section key={sec.title} className="tvp-set-card" {...item(n++)}>
+                <h2 className="tvp-set-title">{sec.title}</h2>
+                <dl>
+                  {sec.items.map((l) => (
+                    <div key={l.label + l.value} className="tvp-set-row">
+                      <dt>{l.label}</dt>
+                      <dd>{l.value}</dd>
+                      {l.hint && <p className="tvp-set-hint">{l.hint}</p>}
+                    </div>
+                  ))}
+                </dl>
+              </motion.section>
+            ))}
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------- Team
+
+function TeamPage({ d }: { d: NonNullable<PresentationState['team']> }) {
+  const ctx = useBoard();
+  const s = d.stats;
+  const tiles = [
+    { k: 'Games', v: String(s.games) },
+    { k: 'Wins', v: String(s.wins) },
+    { k: 'Win %', v: s.winRate },
+    { k: 'Average score', v: s.averageScore },
+    { k: 'Correct answers', v: String(s.correct) },
+    { k: 'Incorrect answers', v: String(s.incorrect) },
+    { k: 'Accuracy', v: s.accuracy },
+    { k: 'Wagers', v: s.wagers },
+  ];
+  return (
+    <div className="tvp-player" style={{ '--pc': d.color } as CSSProperties} data-testid="tv-team-page">
+      <header className="tvp-player-top">
+        <span className="tvp-team-emoji tvp-team-emoji-xl" aria-hidden>
+          {avatarEmoji(d.avatar)}
+        </span>
+        <div className="min-w-0">
+          <p className="tvp-kicker">Team</p>
+          <h1 className="tvp-title tvp-title-xl truncate">{d.name}</h1>
+          <div className="tvp-tcard-members">
+            {d.members.slice(0, 8).map((m) => (
+              <span key={m.id} className="tvp-member-chip">
+                <Avatar profile={m} size={vhPx(ctx, 3.4)} />
+                <span className="truncate">{profileName(m)}</span>
+              </span>
+            ))}
+            {d.members.length > 8 && <span className="tvp-member-chip">+{d.members.length - 8}</span>}
+          </div>
+        </div>
+      </header>
+      <div className="tvp-tiles">
+        {tiles.map((t, i) => (
+          <motion.div key={t.k} className="tvp-tile" {...item(i)}>
+            <span className="tvp-tile-v">{t.v}</span>
+            <span className="tvp-tile-k">{t.k}</span>
           </motion.div>
         ))}
-      </dl>
-    </>
+      </div>
+      <div className="tvp-player-lists">
+        <section>
+          <h2 className="tvp-h2">Best categories</h2>
+          {d.topCategories.length ? (
+            <ul className="tvp-list">
+              {d.topCategories.map((c, i) => (
+                <motion.li key={c.name} {...item(i + 8)}>
+                  <span className="tvp-list-main truncate">{c.name}</span>
+                  <span className="tvp-list-value">{c.accuracy}</span>
+                </motion.li>
+              ))}
+            </ul>
+          ) : (
+            <p className="tvp-muted">Not enough answers yet.</p>
+          )}
+        </section>
+        <section>
+          <h2 className="tvp-h2">Buzzer</h2>
+          <p className="tvp-muted">Average buzz speed: {s.buzzSpeed}</p>
+        </section>
+      </div>
+    </div>
   );
 }
 
