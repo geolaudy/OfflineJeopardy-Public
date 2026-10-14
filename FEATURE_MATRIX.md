@@ -218,5 +218,5 @@ Last run 2026-10-12: Vitest 58/58 (43 unit, 15 integration), Playwright 8/8.
 | R3-12 | Difficulty-based bot timing | P2 | NOT STARTED | — | — | — |
 | R3-13 | Awaiting-judgment state stops the answer timer | P1 | NOT STARTED | — | — | — |
 | R3-14 | Optional AI-powered bots (secure key, fallback) | P3 | NOT STARTED | — | — | — |
-| R3-15 | Windows installer + portable builds with verification | P2 | NOT STARTED | — | — | — |
-| R3-16 | GitHub Releases + Actions workflow on version tags | P3 | NOT STARTED | — | — | — |
+| R3-15 | Windows installer + portable builds with verification | P2 | TESTED | package.json dist/dist:verify/release:local, scripts/verify-dist.mjs, electron/main.ts `--smoke-test`, build-electron.mjs version injection | Local: 14/14 checks incl. headless start of the unpacked app and the portable exe on Windows 10 | Installer not executed (needs UAC); unsigned |
+| R3-16 | GitHub Releases + Actions workflow on version tags | P3 | IMPLEMENTED | .github/workflows/windows-build.yml, scripts/release-notes.mjs, CHANGELOG.md | release-notes extractor run locally | Workflow not yet run on GitHub |

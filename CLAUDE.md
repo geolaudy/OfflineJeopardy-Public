@@ -955,3 +955,22 @@ Do not declare the project complete until:
 Continue working toward these requirements within authorized session limits.
 
 The primary goal is a polished, reliable, fully offline game with minimal unnecessary user involvement.
+## 35. WINDOWS BUILDS AND RELEASES (permanent)
+
+Every stable milestone: run tests, build, update docs, commit and push to `origin/main`.
+
+Windows builds:
+
+- `npm run dist` builds the NSIS installer and the portable exe into `release/` (unsigned, `--publish never`).
+- `npm run dist:verify` (scripts/verify-dist.mjs) checks the artifacts and the asar contents and starts both packaged executables headlessly with `--smoke-test=<report.json>`.
+- `npm run release:local` = typecheck + Vitest + dist + verify.
+- Before ending a session, build the latest stable version and record artifact paths in `SESSION_HANDOFF.md`.
+
+GitHub Releases (major milestones only, never for small fixes):
+
+1. Run Vitest and Playwright; bump `package.json` version (semver); write the `CHANGELOG.md` section (New Features / Improvements / Bug Fixes / Known Issues, plain language).
+2. Build + verify locally, commit, push.
+3. Create and push the tag `vX.Y.Z`. `.github/workflows/windows-build.yml` then tests, packages, verifies and publishes the release with the installer, portable exe and SHA256SUMS.txt.
+4. Verify the release and its assets exist; record the version in `PROGRESS.md`.
+
+Never move or delete published tags, overwrite releases, force-push, or attach unverified binaries, API keys or player databases.

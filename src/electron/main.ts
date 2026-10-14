@@ -176,7 +176,55 @@ ipcMain.handle('oj:relaunch', () => {
   app.quit();
 });
 
-if (!app.requestSingleInstanceLock()) {
+/**
+ * Packaged-build smoke test (`OfflineJeopardy.exe --smoke-test=<report.json>`): starts the embedded
+ * server on a throwaway data folder, checks that the database, the native image library, the
+ * bundled web app and the user guide are all found, writes a JSON report and exits. No windows.
+ */
+async function smokeTest(reportFile: string) {
+  const report: Record<string, unknown> = { version: app.getVersion(), packaged: app.isPackaged, startedAt: new Date().toISOString() };
+  let ok = false;
+  const dataDir = fs.mkdtempSync(path.join(app.getPath('temp'), 'oj-smoke-'));
+  try {
+    const webDir = path.join(app.getAppPath(), 'dist', 'web');
+    report.webIndex = fs.existsSync(path.join(webDir, 'index.html'));
+    report.userGuide = fs.existsSync(path.join(process.resourcesPath, 'USER_GUIDE.md')) || !app.isPackaged;
+    const s = await startServer({ dataDir, port: 0, host: '127.0.0.1', webDir });
+    try {
+      const info = (await (await fetch(`${s.url}/api/info`)).json()) as { version?: string };
+      report.serverVersion = info.version ?? null;
+      const page = await fetch(`${s.url}/board`);
+      report.boardPage = page.ok && (await page.text()).includes('<div id="root"');
+      const token = ((await (await fetch(`${s.url}/api/host/local-login`, { method: 'POST' })).json()) as { token: string }).token;
+      const boards = (await (await fetch(`${s.url}/api/boards`, { headers: { authorization: `Bearer ${token}` } })).json()) as unknown[];
+      report.sampleBoards = boards.length;
+      // A tiny PNG through the clue-media pipeline proves sharp (native) loads from the package.
+      const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+      const fd = new FormData();
+      fd.append('file', new Blob([png], { type: 'image/png' }), 'dot.png');
+      const media = await fetch(`${s.url}/api/media?kind=image`, { method: 'POST', headers: { authorization: `Bearer ${token}` }, body: fd });
+      report.imagePipeline = media.ok;
+    } finally {
+      await s.close();
+    }
+    ok = report.serverVersion === app.getVersion() && report.webIndex === true && report.userGuide === true && report.boardPage === true && report.imagePipeline === true && Number(report.sampleBoards) > 0;
+  } catch (e) {
+    report.error = e instanceof Error ? e.stack : String(e);
+  }
+  report.ok = ok;
+  try {
+    fs.writeFileSync(reportFile, JSON.stringify(report, null, 2));
+  } catch {
+    /* nowhere to report */
+  }
+  fs.rmSync(dataDir, { recursive: true, force: true });
+  app.exit(ok ? 0 : 1);
+}
+
+const smokeArg = process.argv.find((a) => a.startsWith('--smoke-test='));
+if (smokeArg) {
+  app.whenReady().then(() => smokeTest(smokeArg.slice('--smoke-test='.length)));
+} else if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   app.on('second-instance', () => {

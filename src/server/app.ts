@@ -43,7 +43,9 @@ import { reassignIds, validateBoard } from '../shared/boardUtils.js';
 import { SAMPLE_BOARD, SAMPLE_BOARD_TITLE } from '../shared/sampleBoards.js';
 import { formatList, isMediaKind, type MediaKind } from '../shared/mediaTypes.js';
 
-export const APP_VERSION = '0.2.0'; // keep in sync with package.json "version"
+declare const __APP_VERSION__: string | undefined;
+/** Injected from package.json by the Electron build; npm sets it when running scripts in development. */
+export const APP_VERSION: string = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : (process.env.npm_package_version ?? '0.0.0-dev');
 const MAX_PACKAGE_BYTES = 300 * 1024 * 1024;
 const MAX_BACKUP_BYTES = 1024 * 1024 * 1024;
 
