@@ -27,12 +27,18 @@ function secretCodec() {
 }
 
 /**
- * Jeopardy!/Buzzinga sound files (R4-1): a personal build carries them in resources/soundpacks;
- * in development they come from new_sfx/. Public releases contain neither (the folder is
- * git-ignored, so the release workflow never has it); players can install files in Settings.
+ * Jeopardy!/Buzzinga sound files (R4-1, R5-9): a personal build carries them in
+ * resources/soundpacks; in development they come from new_sfx/. Public releases contain neither
+ * (the recordings are not ours to redistribute; the folder is git-ignored, so the release
+ * workflow never has it). Any build also picks up a "Sounds" (or "new_sfx") folder placed next to
+ * OfflineJeopardy.exe — for the portable exe, next to the .exe file itself — and inside the data
+ * folder, so the owner's files work without choosing them one by one.
  */
-function soundPackDirs(): string[] {
-  return app.isPackaged ? [path.join(process.resourcesPath, 'soundpacks', 'buzzinga')] : [path.join(app.getAppPath(), 'new_sfx')];
+function soundPackDirs(dataDir: string): string[] {
+  const names = ['Sounds', 'new_sfx', 'OfflineJeopardy Sounds'];
+  const beside = [process.env.PORTABLE_EXECUTABLE_DIR, path.dirname(process.execPath), dataDir].filter((d): d is string => !!d);
+  const found = beside.flatMap((d) => names.map((n) => path.join(d, n)));
+  return app.isPackaged ? [path.join(process.resourcesPath, 'soundpacks', 'buzzinga'), ...found] : [path.join(app.getAppPath(), 'new_sfx'), ...found];
 }
 
 /** Data lives in %APPDATA%/OfflineJeopardy/data, or next to the portable .exe. */
@@ -59,7 +65,7 @@ async function boot() {
   let lastErr: unknown;
   for (let port = 3000; port <= 3010; port++) {
     try {
-      server = await startServer({ dataDir, port, host: '0.0.0.0', webDir, secretCodec: secretCodec(), soundPackDirs: soundPackDirs() });
+      server = await startServer({ dataDir, port, host: '0.0.0.0', webDir, secretCodec: secretCodec(), soundPackDirs: soundPackDirs(dataDir) });
       break;
     } catch (e) {
       lastErr = e;

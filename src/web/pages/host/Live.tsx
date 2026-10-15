@@ -656,7 +656,39 @@ function EarlyBuzzes({ g, run }: { g: GameView; run: Run }) {
 }
 
 function DailyWagerForm({ g, run }: { g: GameView; run: Run }) {
-  const [cid, setCid] = useState(g.controlCompetitorId ?? g.competitors[0]?.id);
+  // R5-20: the player (team) who picked it enters the wager on their phone; the host locks it.
+  const owner = findCompetitor(g, g.clue?.wagerBy ?? undefined);
+  const pending = g.clue?.pendingWager ?? null;
+  const [manual, setManual] = useState(!owner || !!owner.bot);
+  if (owner && !manual) {
+    return (
+      <div className="space-y-3 rounded-xl bg-amber-50 p-3 ring-2 ring-amber-400" data-testid="host-dd-phone">
+        <p className="font-bold"><Dices size={18} className="mr-1 inline align-[-3px]" aria-hidden />Daily Double! — the TV is hiding the clue until the wager is locked.</p>
+        {pending && pending.amount != null ? (
+          <>
+            <p className="text-lg">
+              <b>{competitorName(owner, g)}</b>
+              {owner.kind === 'team' && pending.profileId ? <span className="text-slate-600"> (entered by {profileName(g.profiles[pending.profileId])})</span> : null} wagered{' '}
+              <b className="text-2xl tabular-nums" data-testid="host-dd-pending">{fmtScore(pending.amount)}</b>
+            </p>
+            <ActionButton size="lg" className="w-full" onAction={() => run({ type: 'setDailyWager', competitorId: owner.id, amount: pending.amount!, profileId: pending.profileId })} data-testid="host-dd-lock">
+              Lock wager & show clue
+            </ActionButton>
+          </>
+        ) : (
+          <p className="text-slate-700" data-testid="host-dd-waiting">Waiting for <b>{competitorName(owner, g)}</b> to enter the wager on their phone…</p>
+        )}
+        <button className="min-h-11 text-sm font-semibold text-blue-700 underline" onClick={() => setManual(true)}>
+          No phone? Enter the wager for them
+        </button>
+      </div>
+    );
+  }
+  return <ManualDailyWager g={g} run={run} />;
+}
+
+function ManualDailyWager({ g, run }: { g: GameView; run: Run }) {
+  const [cid, setCid] = useState(g.clue?.wagerBy ?? g.controlCompetitorId ?? g.competitors[0]?.id);
   const c = findCompetitor(g, cid);
   const round = g.rounds[g.roundIndex];
   const roundMax = Math.max(0, ...(round?.categories.flatMap((x) => x.clues.map((q) => q.value)) ?? [0]));

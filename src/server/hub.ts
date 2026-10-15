@@ -297,6 +297,13 @@ export class Hub {
         const res = this.games.dispatch({ type: 'setPlayerColor', profileId: c.profileId, color: m.color }, `profile:${c.profileId}`);
         return this.send(c, res.ok ? { t: 'result', ok: true } : { t: 'result', ok: false, error: res.error });
       }
+      case 'dailyWager': {
+        if (c.role !== 'player' || !c.profileId) return this.send(c, { t: 'result', ok: false, error: 'Sign in first' });
+        const comp = this.games.current?.competitors.find((x) => x.memberIds.includes(c.profileId!));
+        if (!comp) return this.send(c, { t: 'result', ok: false, error: 'You are not playing in this game' });
+        const res = this.games.dispatch({ type: 'submitDailyWager', competitorId: comp.id, profileId: c.profileId, amount: m.amount }, `profile:${c.profileId}`);
+        return this.send(c, res.ok ? { t: 'result', ok: true } : { t: 'result', ok: false, error: res.error });
+      }
       case 'finalWager':
       case 'finalAnswer': {
         if (c.role !== 'player' || !c.profileId) return this.send(c, { t: 'result', ok: false, error: 'Sign in first' });
@@ -306,7 +313,7 @@ export class Hub {
         const res =
           m.t === 'finalWager'
             ? this.games.dispatch({ type: 'setFinalWager', competitorId: comp.id, amount: m.amount }, `profile:${c.profileId}`)
-            : this.games.dispatch({ type: 'setFinalAnswer', competitorId: comp.id, answer: m.answer }, `profile:${c.profileId}`);
+            : this.games.dispatch({ type: 'setFinalAnswer', competitorId: comp.id, answer: m.answer, submit: m.submit !== false }, `profile:${c.profileId}`);
         return this.send(c, res.ok ? { t: 'result', ok: true } : { t: 'result', ok: false, error: res.error });
       }
       case 'controller': {

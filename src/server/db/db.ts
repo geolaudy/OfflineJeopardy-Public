@@ -257,6 +257,13 @@ UPDATE boards SET content_json = REPLACE(REPLACE(content_json,
 WHERE content_json LIKE '%"Final Wager"%';
 `,
   },
+  {
+    // R5-16: choosing a default picture hides an uploaded one instead of deleting it, so the
+    // player can switch back. The file is removed only when they delete or replace it.
+    version: 6,
+    name: 'profile-picture-off',
+    sql: `ALTER TABLE profiles ADD COLUMN picture_off INTEGER NOT NULL DEFAULT 0;`,
+  },
 ];
 
 export function openDatabase(file: string): DB {

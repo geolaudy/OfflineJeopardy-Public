@@ -391,13 +391,16 @@ export async function startServer(opts: ServerOptions) {
     preferredSide: z.enum(['any', 'L', 'R']).optional(),
     preferredKey: z.string().max(20).nullable().optional(),
     statsPrivate: z.boolean().optional(),
+    /** false = show the default picture; the upload is kept for switching back (R5-16). */
+    usePicture: z.boolean().optional(),
   });
+  const profilePatch = ({ usePicture, ...rest }: z.infer<typeof patchMeSchema>) => ({ ...rest, ...(usePicture === undefined ? {} : { pictureOff: usePicture ? 0 : 1 }) });
   app.patch('/api/me', async (req, reply) => {
     const p = requireProfile(req, reply);
     if (!p) return;
     const body = parse(patchMeSchema, req.body, reply);
     if (!body) return;
-    repo.updateProfile(db, p.id, body);
+    repo.updateProfile(db, p.id, profilePatch(body));
     // A new preferred colour also becomes the lobby colour when nobody else has it (R4-13).
     if (body.color && games.current?.playerColors?.[p.id]) games.dispatch({ type: 'setPlayerColor', profileId: p.id, color: body.color }, `profile:${p.id}`);
     hub.profilesChanged();
@@ -412,7 +415,7 @@ export async function startServer(opts: ServerOptions) {
     const p = requireProfile(req, reply);
     if (!p) return;
     removePictureFile(p.picture_file);
-    repo.updateProfile(db, p.id, { pictureFile: null });
+    repo.updateProfile(db, p.id, { pictureFile: null, pictureOff: 0 });
     hub.profilesChanged();
     return repo.toPrivate(repo.getProfile(db, p.id)!);
   });
@@ -487,7 +490,7 @@ export async function startServer(opts: ServerOptions) {
     try {
       const name = await processProfilePicture(buf, profileMediaDir, p.id, crop);
       removePictureFile(p.picture_file);
-      repo.updateProfile(db, p.id, { pictureFile: name });
+      repo.updateProfile(db, p.id, { pictureFile: name, pictureOff: 0 });
     } catch (e) {
       if (e instanceof ImageError) return bad(reply, e.message);
       throw e;
@@ -521,7 +524,7 @@ export async function startServer(opts: ServerOptions) {
     if (!repo.getProfile(db, id)) return bad(reply, 'Profile not found', 404);
     const body = parse(patchMeSchema, req.body, reply);
     if (!body) return;
-    repo.updateProfile(db, id, body);
+    repo.updateProfile(db, id, profilePatch(body));
     if (body.color && games.current?.playerColors?.[id]) games.dispatch({ type: 'setPlayerColor', profileId: id, color: body.color });
     audit(db, 'host', 'profile.update', { id, fields: Object.keys(body) });
     hub.profilesChanged();
@@ -538,7 +541,7 @@ export async function startServer(opts: ServerOptions) {
     const p = repo.getProfile(db, (req.params as { id: string }).id);
     if (!p) return bad(reply, 'Profile not found', 404);
     removePictureFile(p.picture_file);
-    repo.updateProfile(db, p.id, { pictureFile: null });
+    repo.updateProfile(db, p.id, { pictureFile: null, pictureOff: 0 });
     hub.profilesChanged();
     return repo.toPrivate(repo.getProfile(db, p.id)!);
   });

@@ -115,8 +115,22 @@ const SYNTH: Record<SoundCue, (p: Synth, out?: AudioNode) => void> = {
   finalThink: (p, out) => out && thinkMelody(p, out),
   countdown: (p) => phrase(p, [[1000, 0, 0.06]], 0.35, p === 'soft' ? 'sine' : 'square'),
   roundEnd: (p) => phrase(p, [[659, 0, 0.2], [523, 0.15, 0.2], [784, 0.3, 0.45]], 0.7),
-  winner: (p) => phrase(p, [523, 659, 784, 1047, 784, 1047].map((f, i) => [f, i * 0.12, 0.35] as [number, number, number]), 0.9),
+  winner: (p) => fanfare(p),
 };
+
+/** Victory fanfare (R5-10): a short pickup, a warm sustained major chord and a light sparkle on
+ *  top — about 2.5 s, kept below the level of the buzz so it never blares. Original, synthesised. */
+function fanfare(p: Synth) {
+  const lead: OscillatorType = p === 'arcade' ? 'square' : 'triangle';
+  const g = p === 'arcade' ? 0.09 : 0.17;
+  // Pickup: G G G → C, then up to E, G.
+  for (const [f, t, d] of [[392, 0, 0.13], [392, 0.14, 0.13], [392, 0.28, 0.13], [523, 0.44, 0.42], [659, 0.86, 0.2], [784, 1.06, 1.1]] as [number, number, number][])
+    tone(f, t, d * VOICES[p].decay + 0.05, lead, g);
+  // Sustained C-major chord under the last note.
+  for (const f of [262, 330, 392, 523]) tone(f, 1.04, 1.5 * VOICES[p].decay, 'sine', g * 0.55);
+  // Sparkle.
+  [1047, 1319, 1568, 2093].forEach((f, i) => tone(f, 1.12 + i * 0.07, 0.35, 'sine', g * 0.28));
+}
 
 function load(url: string): Promise<AudioBuffer | null> {
   const c = ac();

@@ -271,7 +271,7 @@ export class BotDriver {
       for (const e of f.entries) {
         const b = bots.find((x) => x.id === e.competitorId);
         if (!b || !fc) continue;
-        if ((f.stage === 'category' || f.stage === 'wagers') && e.wager == null)
+        if (f.stage === 'wagers' && e.wager == null)
           out.set(`fw:${s.id}:${b.id}`, { delay: 2000 + this.between([0, 1500], b), action: () => ({ type: 'setFinalWager', competitorId: b.id, amount: this.finalWager(s, b) }) });
         const knows = this.decide(`fknow:${s.id}:${b.id}`, Math.min(0.95, BOT_PARAMS[b.bot!].know * 0.85));
         if (f.stage === 'clue' && !e.answer) {

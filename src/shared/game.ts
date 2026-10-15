@@ -318,6 +318,10 @@ export interface ActiveClue {
   isDailyWager: boolean;
   stage: 'wager' | 'question';
   wager: { competitorId: Id; amount: number; profileId: Id | null } | null;
+  /** Daily Double!: who wagers (the competitor in control when it was picked, R5-20). */
+  wagerBy?: Id | null;
+  /** Daily Double!: the wager sent from a phone, waiting for the host to lock it (R5-20). */
+  pendingWager?: { competitorId: Id; amount: number; profileId: Id | null; at: number } | null;
   answerRevealed: boolean;
   resolved: boolean; // correct answer given or host closed scoring
   /** The answering opportunity is over (correct answer, time ran out, host ended it, or nobody
@@ -388,7 +392,12 @@ export interface IntroState {
 export interface FinalEntry {
   competitorId: Id;
   wager: number | null;
+  /** The last answer the player submitted (kept while they edit it, R5-19). */
   answer: string | null;
+  /** Green border on the TV: an answer is submitted and not being changed (R5-6/R5-19). */
+  submitted?: boolean;
+  /** Text typed but not submitted (autosaved). Used only if nothing was ever submitted. */
+  draft?: string | null;
   judged: boolean;
   correct: boolean | null;
   profileId: Id | null; // optional attribution (statistics only)

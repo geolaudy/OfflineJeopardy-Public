@@ -272,8 +272,8 @@ export function gameDetail(db: DB, gameId: string) {
  *  within one group at a time and never mixes them. */
 export function leaderboard(db: DB, opts: { includePrivate?: boolean } = {}) {
   const profiles = db
-    .prepare(`SELECT id, display_name AS name, nickname, color, avatar, picture_file AS pictureFile FROM profiles WHERE deleted_at IS NULL${opts.includePrivate ? '' : ' AND stats_private = 0'}`)
-    .all() as { id: string; name: string; nickname: string; color: string; avatar: string; pictureFile: string | null }[];
+    .prepare(`SELECT id, display_name AS name, nickname, color, avatar, picture_file AS pictureFile, picture_off AS pictureOff FROM profiles WHERE deleted_at IS NULL${opts.includePrivate ? '' : ' AND stats_private = 0'}`)
+    .all() as { id: string; name: string; nickname: string; color: string; avatar: string; pictureFile: string | null; pictureOff: number }[];
   return profiles.map((p) => {
     const st = profileStats(db, p.id);
     return {
@@ -282,7 +282,7 @@ export function leaderboard(db: DB, opts: { includePrivate?: boolean } = {}) {
       nickname: p.nickname,
       color: p.color,
       avatar: p.avatar,
-      pictureUrl: p.pictureFile ? `/media/profiles/${p.pictureFile}` : null,
+      pictureUrl: p.pictureFile && !p.pictureOff ? `/media/profiles/${p.pictureFile}` : null,
       solo: {
         games: st.solo.games.played,
         wins: st.solo.games.wins,

@@ -189,3 +189,32 @@ Statuses: FEATURE_MATRIX.md → "User feedback round 4".
 | R4-18 | **Clue background** like the classic TV blue (provided image evaluated; CSS recreation preferred for scaling/licensing) | D |
 | R4-19 | **Board-fill animation synced with its sound** (one timeline from the audio duration; graceful without audio; no repeat on reconnect) | D |
 | R4-20 | **Return to the existing lobby after a game** (primary), New Lobby secondary; keep lobby/join code/players/colours/phones/Joy-Cons/teams/bots/pairing/settings/board; reset only match state; ≥3 consecutive games tested | A |
+
+# User Feedback — Round 5 (received 2026-10-15, session 7, reviewing v0.9.0)
+
+Rollback point: tag **v0.9.0** (Vitest 166/166, Playwright 32/32). Must keep working: Joy-Con
+Bluetooth, iPad hosting, profiles + statistics, persistent lobbies, phone buzzers, team play,
+offline play, board editing, media clues, history, sync. IDs follow the sections of the request.
+Statuses: FEATURE_MATRIX.md → "User feedback round 5".
+
+| ID | Requirement (summary) | Milestone |
+|---|---|---|
+| R5-2 | **TV home screen** when no lobby is open (logo, subtitle, "Waiting for the host to open a lobby", 2–3 recent-game cards: board, date, winner, winning score, players; no categories, no setup controls); **host home** with the same content + **Create Lobby** + pick a recent game to show its details on the TV | B |
+| R5-3 | **Active lobby** redesign: selected board, mode, players/teams, rules summary (early-buzz lockout, buzz time, answer time, Daily Double!/Final rules, think time, other rules; live; no secrets), QR at ~60 % size with a tight frame (quiet zone kept); board choices on the TV only while the host is choosing (lobby minimized), then back; minimized lobby shows teams | B |
+| R5-4 | **No separate Setup Game screen**: Home → Create Lobby → lobby management (players, teams, rules, board, settings) → open joining → start; settings summary on the iPad with Customize Rules/Timers/Buzzers + Rules under it; player/team limits right under **Play As** (individual: max players; teams: number of teams + max per team) | B |
+| R5-5 | **Team management**: default teams = ceil(players / 2); switching to teams keeps everyone in **Unassigned Players** + empty team slots; players pick/leave/switch teams on their phones; host drag-and-drop (touch) + tap alternative; `n / max Players` with over-capacity highlight blocking Start; empty teams excluded at start; unassigned players warning (continue allowed, not a team); team setup kept across Teams → Individuals → Teams; any member edits team name/colour (race-safe); team name prominent on buzz-in with "Buzzed by …" | C |
+| R5-6 | **Final Jeopardy! visuals**: no "…"/✓ — green border = submitted, gray = not; swipe transition (with sound) into the reveal and between contestants, one per action, no overlaps | A (borders), F (swipes) |
+| R5-7 | **Score changes**: +$400 green / −$400 red next to the score in the money font, slightly smaller; quicker, smoother pop (one system for clues, Daily Double!, Final) | F |
+| R5-8 | **Consistent game typography** (buzz-in names, Final names, team names, reveal labels) | F |
+| R5-9 | **Jeopardy!/Buzzinga pack works without picking files**: map `new_sfx` automatically, packaged correctly, tested in a packaged build; public releases only with redistribution rights → local import + fallbacks | A |
+| R5-10 | **Winner**: better victory sound; **podium** (1st centre/tallest, 2nd left, 3rd right; name, picture/team identity, score, place; <3 adapts, >3 listed below; ties) | F |
+| R5-11 | **Google Gemini** (official API, model list from the API, quotas/rate limits respected) + provider architecture; host settings: provider, key, model, test, save, enable bots; keys never leave the backend; offline fallback | G |
+| R5-12 | **Category introduction**: live TV preview on the host, **Previous Category**, tap any category (one swipe in the right direction), **Stop Auto** (no stale timers) | E |
+| R5-13 | **iPad board** = replica of the TV board (same aspect); remove "Tap a clue…" and "Picks Next"; heading "{Player} is choosing a clue" (team identity in team mode) | E |
+| R5-14 | **iPad clue view**: answer banner (red, centred) + large clue (TV aspect) + compact footer; image answers → private lightbox; Unlock Buzzers bottom-right; compact timer; buzzed-in contestant + Correct/Incorrect side by side; Reveal Answer in the footer when no timer; More menu; Return to Board after correct/reveal | E |
+| R5-15 | **Final Jeopardy! Undo** back into answering restarts the timer (synced, no stale timers, answers kept) | A |
+| R5-16 | **Profile picture**: opening/choosing default pictures must not delete the upload; preview, cancel, confirm | A |
+| R5-17 | **Phone lobby**: no buzzer before the game; profile choice with **I'm New** first; lobby view (players, teams, board, controller status, own profile, join/leave teams); view others' public stats; per-lobby **nickname** (not the profile name) shown as **Nickname** *(Profile name)* everywhere except the TV buzz-in; buzzer + team/teammates during play; back to the lobby view after the game | D |
+| R5-18 | **Wager permissions**: no wager input or acceptance before the host opens wagering (Final and Daily Double!), also for direct WebSocket messages; closed after | A |
+| R5-19 | **Final answer on phones**: after Submit show the answer read-only + **Change Answer** (editing = not ready on the TV); locked when answering ends; last submitted answer kept | A |
+| R5-20 | **Daily Double! wager from the phone** of the picking player/team (validated, host sees it and reveals the clue; no change after lock; team conflicts prevented; host entry only as recovery) | A |

@@ -70,3 +70,16 @@ Rollback point: tag v0.7.0. See USER_FEEDBACK.md "Round 4"; statuses in FEATURE_
 - **C — Profiles and pre-lobby:** R4-13 (profile picture, preferred colour, lobby colour assignment), R4-11 (pre-lobby TV).
 - **D — Visual and audio:** R4-1 + R4-3 sound pack and think music, R4-6 bottom glow, R4-17 typography, R4-18 clue background, R4-19 board-fill sync.
 - Tests for each item (Vitest + Playwright); release v0.8.0 when A–D are done.
+
+## Milestone 19 — User feedback round 5 (started 2026-10-15, session 7)
+
+Rollback point: tag v0.9.0. See USER_FEEDBACK.md "Round 5"; statuses in FEATURE_MATRIX.md.
+- **A — Critical gameplay bugs:** R5-15 Final undo timer, R5-18 wager permissions, R5-16 profile picture, R5-19 Final answer submission, R5-20 Daily Double! phone wagers, R5-9 sound pack folders, R5-6 submission borders.
+- **B — Home and lobby:** R5-2 TV/host home + recent games, R5-4 no Setup screen, R5-3 active lobby + rules summary + smaller QR + board choosing on the TV + minimized lobby with teams.
+- **C — Teams:** R5-5 (defaults, Unassigned group, drag-and-drop + tap, phone self-selection, capacity, empty teams, warning, persistence across mode switches, name/colour by members, team-first buzz-in).
+- **D — Phones:** R5-17 (profile choice with I'm New, lobby view, no buzzer before play, nicknames, others' stats, team info).
+- **E — Host gameplay:** R5-12 category controls + preview, R5-13 board replica, R5-14 clue view.
+- **F — Presentation:** R5-6 swipes, R5-7 score deltas, R5-8 typography, R5-10 podium + victory sound.
+- **G — AI providers:** R5-11 Gemini + provider registry.
+- Dependencies: C builds on the B lobby screen; D's team picker uses C's engine actions; E/F are independent of B–D. Release v0.10.0 when A–G are done and tested.
+

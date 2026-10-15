@@ -19,7 +19,7 @@ export default function FinalControl({ g, run }: { g: GameView; run: Run }) {
   const f = g.final!;
   const remaining = useTimer(g.timer);
   const missingWagers = f.entries.filter((e) => !e.hasWager).length;
-  const missingAnswers = f.entries.filter((e) => !e.hasAnswer).length;
+  const missingAnswers = f.entries.filter((e) => !e.submitted).length;
   return (
     <div className="mx-auto max-w-4xl space-y-4" data-testid="final-control">
       <div className="rounded-2xl bg-white p-4 shadow-sm">
@@ -79,7 +79,7 @@ export default function FinalControl({ g, run }: { g: GameView; run: Run }) {
           </ActionButton>
         )}
       </div>
-      {(f.stage === 'category' || f.stage === 'wagers' || f.stage === 'clue') && <Recovery g={g} run={run} />}
+      {(f.stage === 'wagers' || f.stage === 'clue') && <Recovery g={g} run={run} />}
     </div>
   );
 }
@@ -92,7 +92,7 @@ function SubmissionStatus({ g }: { g: GameView }) {
     <div className="rounded-2xl bg-white p-4 shadow-sm">
       <p className="mb-2 text-sm text-slate-600">
         {f.stage === 'category'
-          ? 'Players will wager on their own phones (teams: any member). Wagers stay hidden — from you too — until the reveal.'
+          ? 'Players wager on their own phones (teams: any member) once you open wagering. Wagers stay hidden — from you too — until the reveal.'
           : f.stage === 'wagers'
             ? 'Waiting for wagers. Only whether each player has wagered is shown.'
             : 'Players are writing their answers. Answers stay hidden until the reveal.'}
@@ -100,7 +100,7 @@ function SubmissionStatus({ g }: { g: GameView }) {
       <ul className="grid gap-2 sm:grid-cols-2">
         {f.entries.map((e) => {
           const c = findCompetitor(g, e.competitorId)!;
-          const done = kind === 'wager' ? e.hasWager : e.hasAnswer;
+          const done = kind === 'wager' ? e.hasWager : e.submitted;
           const online = c.bot || c.memberIds.some((m) => g.online?.includes(m));
           return (
             <li key={e.competitorId} className="flex items-center gap-2 rounded-xl bg-slate-50 p-2" data-testid="final-status">
@@ -108,7 +108,7 @@ function SubmissionStatus({ g }: { g: GameView }) {
               <span className="min-w-0 flex-1 truncate font-semibold">{competitorName(c, g)}</span>
               {!online && <span className="text-xs font-semibold text-amber-700">phone offline</span>}
               <span className={cx('rounded-full px-2.5 py-1 text-sm font-bold', done ? 'bg-green-100 text-green-800' : 'bg-slate-200 text-slate-600')}>
-                {f.stage === 'category' ? (e.hasWager ? 'Wagered ✓' : '—') : done ? (kind === 'wager' ? 'Wagered ✓' : 'Answered ✓') : 'Waiting…'}
+                {f.stage === 'category' ? 'Wagering not open' : done ? (kind === 'wager' ? 'Wagered ✓' : 'Answered ✓') : kind === 'answer' && e.hasAnswer ? 'Changing answer…' : 'Waiting…'}
               </span>
             </li>
           );
@@ -212,7 +212,7 @@ function Recovery({ g, run }: { g: GameView; run: Run }) {
   const [cid, setCid] = useState((f.entries.find((e) => !findCompetitor(g, e.competitorId)?.bot) ?? f.entries[0])?.competitorId ?? '');
   const [value, setValue] = useState('');
   const c = findCompetitor(g, cid);
-  const wagerStage = f.stage === 'category' || f.stage === 'wagers';
+  const wagerStage = f.stage === 'wagers';
   if (!f.entries.length) return null;
   // Practice game: the host is the player, so their own wager/answer box is simply open (K27).
   return (

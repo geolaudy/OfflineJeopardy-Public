@@ -33,7 +33,12 @@ export interface EngineCtx {
   newId: () => string;
   /** A profile's preferred colour (R4-13), looked up by the server. */
   colorOf?: (profileId: Id) => string | null;
+  /** Who sent the action ('host', 'profile:<id>', 'bot', 'timer', …). */
+  actor?: string;
 }
+
+/** Inputs players send themselves: never an undo step, so the host's Undo skips over them. */
+const PLAYER_INPUTS = new Set(['setFinalWager', 'setFinalAnswer']);
 
 export type EngineResult =
   | { ok: true; state: GameState; touchedEvents: GameplayEvent[]; ignored?: boolean; info?: string }
@@ -93,6 +98,7 @@ export function normalizeState(s: GameState): GameState {
   if (typeof s.roomCode !== 'string') s.roomCode = ''; // filled with a random code on load
   if (!s.playerColors) s.playerColors = {};
   if (!Array.isArray(s.colorPrompts)) s.colorPrompts = [];
+  if (s.final) for (const e of s.final.entries) if (typeof e.submitted !== 'boolean') e.submitted = !!e.answer;
   if (s.final && !Array.isArray(s.final.order)) {
     // Saved before the one-at-a-time reveal (R4-2): rebuild the order from pre-Final scores.
     const pre = scoresOf(s.events.filter((x) => !(x.type === 'answer' && x.note === 'final')));
@@ -193,7 +199,7 @@ function attribution(c: Competitor, requested: Id | null | undefined, fallback: 
   return pid;
 }
 
-function roundMaxValue(s: GameState): number {
+export function roundMaxValue(s: GameState): number {
   const round = s.board.rounds[s.roundIndex];
   let max = 0;
   for (const cat of round?.categories ?? []) for (const cl of cat.clues) max = Math.max(max, cl.value);
@@ -324,7 +330,8 @@ export function applyAction(prev: GameState, action: EngineAction, ctx: EngineCt
   const s: GameState = structuredClone(prev);
   const tx: Tx = { s, ctx, touched: new Map() };
   try {
-    if (UNDOABLE.has(action.type)) snapshot(s, undoLabel(action.type));
+    const playerInput = PLAYER_INPUTS.has(action.type) && !!ctx.actor && ctx.actor !== 'host';
+    if (UNDOABLE.has(action.type) && !playerInput) snapshot(s, undoLabel(action.type));
     const res = reduce(tx, action);
     syncPlayerColors(s, ctx);
     return { ok: true, state: s, touchedEvents: [...tx.touched.values()], ...(res ?? {}) };
@@ -716,6 +723,8 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
         isDailyWager: dw,
         stage: dw ? 'wager' : 'question',
         wager: null,
+        wagerBy: dw ? s.controlCompetitorId : null,
+        pendingWager: null,
         answerRevealed: false,
         resolved: false,
         answeringEnded: false,
@@ -742,6 +751,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
         fail(`Wager must be between ${s.rules.dailyWagerMin} and ${max}`);
       const pid = attribution(c, a.profileId, null);
       clue.wager = { competitorId: c.id, amount: a.amount, profileId: pid };
+      clue.pendingWager = null;
       clue.stage = 'question';
       maybeAutoTimer(s, 'answer', now);
       emit(tx, {
@@ -753,6 +763,22 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
         profileId: pid,
         wager: a.amount,
       });
+      return;
+    }
+    case 'submitDailyWager': {
+      // R5-20: the wagering player (or a member of the wagering team) sends the wager from their
+      // phone; the host sees it and locks it, which shows the clue.
+      const clue = activeClue(s);
+      if (!clue.isDailyWager || clue.stage !== 'wager') fail('Wagering is not open');
+      const owner = clue.wagerBy ?? null;
+      if (!owner || owner !== a.competitorId) fail('It is not your Daily Double!');
+      const c = competitorOf(s, a.competitorId);
+      const prev = clue.pendingWager;
+      if (prev && c.kind === 'team' && prev.profileId && a.profileId && prev.profileId !== a.profileId) fail('A teammate already entered your team’s wager');
+      const score = scoresOf(s.events)[c.id] ?? 0;
+      const max = Math.max(score, roundMaxValue(s));
+      if (!Number.isInteger(a.amount) || a.amount < s.rules.dailyWagerMin || a.amount > max) fail(`Wager must be between ${s.rules.dailyWagerMin} and ${max}`);
+      clue.pendingWager = { competitorId: c.id, amount: a.amount, profileId: attribution(c, a.profileId, null), at: now };
       return;
     }
     case 'revealAnswer': {
@@ -979,6 +1005,8 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
     case 'timerExpire': {
       const t = s.timer;
       if (!t || !t.running || timerRemaining(t, now) > 25) return { ignored: true };
+      // Answers closing is a step the host can undo (back to writing, with fresh think time).
+      if (t.kind === 'final' && s.phase === 'final' && s.final?.stage === 'clue') snapshot(s, 'Final answers closed');
       t.remainingMs = 0;
       t.startedAt = null;
       t.running = false;
@@ -1011,7 +1039,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       s.final = {
         stage: 'category',
         roundIndex: idx,
-        entries: eligible.map((c) => ({ competitorId: c.id, wager: null, answer: null, judged: false, correct: null, profileId: null })),
+        entries: eligible.map((c) => ({ competitorId: c.id, wager: null, answer: null, submitted: false, draft: null, judged: false, correct: null, profileId: null })),
         order: finalRevealOrder(eligible.map((c) => c.id), preScores, s.competitors.map((c) => c.id)),
         preScores,
         cursor: 0,
@@ -1064,7 +1092,9 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
     }
     case 'setFinalWager': {
       const f = finalState(s);
-      if (f.stage !== 'category' && f.stage !== 'wagers') fail('Wagers are locked');
+      // Wagers are accepted only after the host opens wagering (R5-18) and until they close.
+      if (f.stage === 'category') fail('Wagering has not opened yet');
+      if (f.stage !== 'wagers') fail('Wagers are locked');
       const e = f.entries.find((x) => x.competitorId === a.competitorId);
       if (!e) fail('Not playing in the Final');
       const score = scoresOf(s.events)[a.competitorId] ?? 0;
@@ -1078,7 +1108,17 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       if (f.stage !== 'clue') fail('Answers are not open');
       const e = f.entries.find((x) => x.competitorId === a.competitorId);
       if (!e) fail('Not playing in the Final');
-      e!.answer = a.answer.trim();
+      const text = a.answer.trim();
+      if (a.submit === false) {
+        // Typing / "Change answer": the last submitted answer stays until a new one is submitted.
+        e!.draft = text || null;
+        e!.submitted = false;
+      } else {
+        if (!text) fail('Write an answer first');
+        e!.answer = text;
+        e!.submitted = true;
+        e!.draft = null;
+      }
       return;
     }
     case 'judgeFinal': {
@@ -1131,8 +1171,12 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       for (const e of s.events) if (e.seq > snap!.seq && e.id !== u.id && !e.voided) voidEvent(tx, e, u.id);
       const data = JSON.parse(snap!.data);
       for (const k of RESTORABLE) (s as unknown as Record<string, unknown>)[k] = data[k];
-      // Timers are not resurrected by undo; the host restarts them if needed.
-      if (s.timer) s.timer = { ...s.timer, running: false, startedAt: null };
+      // Timers are not resurrected by undo; the host restarts them if needed. Exception (R5-15):
+      // back in Final Jeopardy! wagering or answering, that stage's timer starts again from its
+      // full duration, so nobody is left without time (answers and wagers given so far are kept).
+      const finalTimer = s.phase === 'final' && s.timer && ((s.final?.stage === 'clue' && s.timer.kind === 'final') || (s.final?.stage === 'wagers' && s.timer.kind === 'wager'));
+      if (finalTimer) s.timer = makeTimer(s.timer!.kind, s.timer!.durationMs / 1000, now);
+      else if (s.timer) s.timer = { ...s.timer, running: false, startedAt: null };
       normalizeState(s); // snapshots taken by older versions may lack newer fields
       if (s.intro) s.intro.auto = false;
       // Removing a player is not undoable: a restored snapshot must not bring their turn back.
@@ -1178,6 +1222,10 @@ function startFinalReveal(tx: Tx) {
   const f = s.final!;
   const clue = s.board.rounds[f.roundIndex]?.categories[0]?.clues[0];
   for (const e of f.entries) {
+    // Nothing submitted: whatever was typed counts (the last submitted answer otherwise, R5-19).
+    if (!e.answer && e.draft) e.answer = e.draft;
+    e.draft = null;
+    e.submitted = !!e.answer;
     if (!e.answer) continue;
     const c = s.competitors.find((x) => x.id === e.competitorId);
     emit(tx, { type: 'submission', result: 'final', clueId: clue?.id, roundIndex: f.roundIndex, competitorId: e.competitorId, sourceKind: c?.bot ? 'bot' : 'phone', note: e.answer });

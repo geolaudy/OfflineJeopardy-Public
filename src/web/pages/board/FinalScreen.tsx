@@ -38,16 +38,17 @@ export function FinalScreen({ g }: { g: GameView }) {
   );
 }
 
-/** Who has locked in a wager / written an answer (never what). */
+/** Who has locked in a wager / submitted an answer (never what): green border = in, gray = not
+ *  (or being changed) (R5-6). */
 function SubmissionChips({ g, kind }: { g: GameView; kind: 'wager' | 'answer' }) {
   const f = g.final!;
   return (
     <div className="flex shrink-0 flex-wrap justify-center gap-[1.2vw]" data-testid="tv-final-status">
       {f.entries.map((e) => {
-        const done = kind === 'wager' ? e.hasWager : e.hasAnswer;
+        const done = kind === 'wager' ? e.hasWager : e.submitted;
         return (
-          <span key={e.competitorId} className={cx('bt-chip', done && 'is-done')}>
-            {competitorName(findCompetitor(g, e.competitorId), g)} {done ? '✓' : '…'}
+          <span key={e.competitorId} className={cx('bt-chip bt-name bt-submit-chip', done ? 'is-in' : 'is-out')} data-done={done ? 'true' : 'false'}>
+            {competitorName(findCompetitor(g, e.competitorId), g)}
           </span>
         );
       })}

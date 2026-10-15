@@ -23,6 +23,8 @@ const HistoryPage = lazy(() => import('./HistoryPages').then((m) => ({ default: 
 const GameDetailPage = lazy(() => import('./HistoryPages').then((m) => ({ default: m.GameDetailPage })));
 
 export interface Me extends ProfilePublic {
+  /** The uploaded picture, also while a default picture is shown (R5-16). */
+  uploadedPictureUrl?: string | null;
   preferredBuzzer: string;
   preferredButton: string;
   preferredSide: string;

@@ -127,7 +127,8 @@ export const hostActionSchema = z.discriminatedUnion('type', [
   /** A player's lobby colour (R4-13). */
   z.object({ type: z.literal('setPlayerColor'), profileId: id, color: z.string().regex(/^#[0-9a-fA-F]{6}$/) }),
   z.object({ type: z.literal('setFinalWager'), competitorId: id, amount: int }),
-  z.object({ type: z.literal('setFinalAnswer'), competitorId: id, answer: z.string().max(200) }),
+  // submit=false: a draft (autosave / "Change answer"), the TV shows the player as not ready (R5-19).
+  z.object({ type: z.literal('setFinalAnswer'), competitorId: id, answer: z.string().max(200), submit: z.boolean().optional() }),
   z.object({
     type: z.literal('judgeFinal'),
     competitorId: id,
@@ -162,6 +163,8 @@ export type SystemAction =
       sourceKind: 'joycon' | 'phone' | 'keyboard' | 'gamepad' | 'host' | 'bot';
     }
   | { type: 'timerExpire' }
+  /** A player's Daily Double! wager from their phone; the host locks it (R5-20). */
+  | { type: 'submitDailyWager'; competitorId: string; profileId: string | null; amount: number }
   | { type: 'playerJoin'; profileId: string; code?: string }
   | { type: 'setRoomCode'; code: string }
   | { type: 'mediaEnded'; clueId: string }

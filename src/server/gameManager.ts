@@ -138,7 +138,7 @@ export class GameManager {
     if (!s) return { ok: false, error: 'No game is loaded' };
     // Randomness stays out of the pure engine: the server picks the new code.
     if (action.type === 'newRoomCode') action = { type: 'setRoomCode', code: newRoomCode() };
-    const res = applyAction(s, action, { now: this.clock(), newId, colorOf: (pid) => this.preferredColor(pid) });
+    const res = applyAction(s, action, { now: this.clock(), newId, colorOf: (pid) => this.preferredColor(pid), actor });
     if (!res.ok) return res;
     if (res.ignored && res.touchedEvents.length === 0 && action.type === 'buzz') {
       // Rejected buzz with no state change: nothing to persist or broadcast.

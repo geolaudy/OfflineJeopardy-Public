@@ -20,6 +20,8 @@ export interface ProfileRow {
   color: string;
   avatar: string;
   picture_file: string | null;
+  /** 1 = the player chose a default picture; the uploaded file is kept (R5-16). */
+  picture_off: number;
   pin_hash: string;
   preferred_buzzer: string;
   preferred_button: string;
@@ -34,6 +36,8 @@ export interface ProfileRow {
 }
 
 export interface ProfilePrivate extends ProfilePublic {
+  /** The uploaded picture, also while a default picture is in use (owner/host only, R5-16). */
+  uploadedPictureUrl: string | null;
   preferredBuzzer: string;
   preferredButton: string;
   preferredSide: string;
@@ -48,8 +52,8 @@ export function newRoomCode() {
   return Array.from({ length: 4 }, () => ROOM_CODE_ALPHABET[crypto.randomInt(ROOM_CODE_ALPHABET.length)]).join('');
 }
 
-export function pictureUrl(row: Pick<ProfileRow, 'picture_file'>) {
-  return row.picture_file ? `/media/profiles/${row.picture_file}` : null;
+export function pictureUrl(row: Pick<ProfileRow, 'picture_file'> & { picture_off?: number }) {
+  return row.picture_file && !row.picture_off ? `/media/profiles/${row.picture_file}` : null;
 }
 
 export function toPublic(r: ProfileRow): ProfilePublic {
@@ -59,6 +63,7 @@ export function toPublic(r: ProfileRow): ProfilePublic {
 export function toPrivate(r: ProfileRow): ProfilePrivate {
   return {
     ...toPublic(r),
+    uploadedPictureUrl: pictureUrl({ picture_file: r.picture_file }),
     preferredBuzzer: r.preferred_buzzer,
     preferredButton: r.preferred_button,
     preferredSide: r.preferred_side,
@@ -103,6 +108,7 @@ const PROFILE_FIELDS: Record<string, string> = {
   color: 'color',
   avatar: 'avatar',
   pictureFile: 'picture_file',
+  pictureOff: 'picture_off',
   preferredBuzzer: 'preferred_buzzer',
   preferredButton: 'preferred_button',
   preferredSide: 'preferred_side',

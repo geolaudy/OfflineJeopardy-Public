@@ -7,7 +7,7 @@ import { hostApi } from '../../lib/api';
 import { attempt, useFetch } from '../../lib/hooks';
 import { configureSound, playCue, unlockAudio } from '../../lib/sound';
 import { Button, cx, toast } from '../../components/ui';
-import { CUE_LABELS, SOUND_CUES, type PackFiles, type SoundCue, type SoundPack, type TvFx } from '../../../shared/tvFx';
+import { CUE_LABELS, SOUND_CUES, cueForFileName, type PackFiles, type SoundCue, type SoundPack, type TvFx } from '../../../shared/tvFx';
 
 interface PackInfo {
   files: { name: string; cue: SoundCue | null; source: 'installed' | 'bundled'; url: string | null; bytes: number }[];
@@ -26,7 +26,12 @@ const PREVIEW: SoundCue[] = ['buzz', 'correct'];
 export function SoundPackPicker({ fx, sound, onPick }: { fx: TvFx; sound: { enabled: boolean; volume: number }; onPick: (p: SoundPack) => void }) {
   const info = useFetch(() => hostApi<PackInfo>('GET', '/api/soundpacks'), []);
   const fileRef = useRef<HTMLInputElement>(null);
+  const folderRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  // Folder import (R5-9): webkitdirectory is not in React's input typings.
+  useEffect(() => {
+    folderRef.current?.setAttribute('webkitdirectory', '');
+  }, []);
   const have = info.data?.cues ?? {};
   const count = Object.keys(have).length;
   // Test buttons on this page play the installed files too.
@@ -42,10 +47,15 @@ export function SoundPackPicker({ fx, sound, onPick }: { fx: TvFx; sound: { enab
     setTimeout(() => configureSound({ enabled: sound.enabled, volume: sound.volume, fx, packFiles: have }), PREVIEW.length * 1300 + 200);
   };
 
-  const install = async (files: FileList | null) => {
-    if (!files?.length) return;
+  const install = async (files: FileList | null, folder = false) => {
+    // A whole folder: only audio files whose names match a sound are sent (pictures etc. are skipped).
+    const list = Array.from(files ?? []).filter((f) => !folder || (/\.(mp3|wav|ogg|m4a)$/i.test(f.name) && cueForFileName(f.name)));
+    if (!list.length) {
+      if (folder) toast('No matching sound files in that folder (names like board_fill.mp3, buzzed_in.mp3…)', 'error');
+      return;
+    }
     const fd = new FormData();
-    for (const f of Array.from(files)) fd.append('files', f, f.name);
+    for (const f of list) fd.append('files', f, f.name);
     setBusy(true);
     const r = await attempt(() => hostApi<PackInfo & { installed: string[]; rejected: { name: string; reason: string }[] }>('POST', '/api/soundpacks/buzzinga', undefined, fd));
     setBusy(false);
@@ -91,7 +101,7 @@ export function SoundPackPicker({ fx, sound, onPick }: { fx: TvFx; sound: { enab
       {fx.soundPack === 'buzzinga' && (
         <div className="space-y-2 rounded-xl border border-slate-200 p-3" data-testid="buzzinga-files">
           <p className="text-sm text-slate-600">
-            This pack plays sound files that you provide; they stay on this computer and are not part of the public download. Each file is recognised by its name (for example <code>board_fill.mp3</code>, <code>buzzed_in.mp3</code>, <code>final_jeopardy_think.mp3</code>). Sounds without a file use the Classic tone.
+            This pack plays game-show recordings that you provide. They can’t be included in the public download (we don’t have the rights to share them), so add them once: choose <b>Add a folder</b> and pick your sounds folder — they are kept in the data folder and stay when you update. A folder named <code>Sounds</code> next to OfflineJeopardy.exe is also found automatically. Each file is recognised by its name (for example <code>board_fill.mp3</code>, <code>buzzed_in.mp3</code>, <code>final_jeopardy_think.mp3</code>); sounds without a file use the Classic tone.
           </p>
           <ul className="grid gap-1 text-sm sm:grid-cols-2">
             {SOUND_CUES.map((cue) => {
@@ -118,12 +128,16 @@ export function SoundPackPicker({ fx, sound, onPick }: { fx: TvFx; sound: { enab
             })}
           </ul>
           <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm" variant="secondary" disabled={busy} onClick={() => fileRef.current?.click()} data-testid="buzzinga-add">
-              <FolderOpen size={16} aria-hidden /> {busy ? 'Adding…' : 'Add sound files'}
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => folderRef.current?.click()} data-testid="buzzinga-add-folder">
+              <FolderOpen size={16} aria-hidden /> {busy ? 'Adding…' : 'Add a folder'}
+            </Button>
+            <Button size="sm" variant="ghost" disabled={busy} onClick={() => fileRef.current?.click()} data-testid="buzzinga-add">
+              <Music size={16} aria-hidden /> Add sound files
             </Button>
             <span className="text-xs text-slate-500">MP3, WAV, OGG or M4A, up to 8 MB each. Only use recordings you are allowed to use.</span>
           </div>
           <input ref={fileRef} type="file" multiple accept="audio/mpeg,audio/wav,audio/ogg,audio/mp4,.mp3,.wav,.ogg,.m4a" className="hidden" onChange={(e) => (void install(e.target.files), (e.target.value = ''))} data-testid="buzzinga-input" />
+          <input ref={folderRef} type="file" multiple className="hidden" onChange={(e) => (void install(e.target.files, true), (e.target.value = ''))} data-testid="buzzinga-folder-input" />
         </div>
       )}
     </div>

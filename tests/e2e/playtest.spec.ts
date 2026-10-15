@@ -101,12 +101,17 @@ test('play-test: a full evening on an iPad in portrait, a 4:3 TV and three phone
   await ipad.getByTestId('correct').click();
   await ipad.getByTestId('back-to-board').click();
 
-  // Daily Double! for Kai (who now picks): 100, correct.
-  await expect(ipad.getByTestId('picks-next')).toHaveValue(/.+/);
+  // Daily Double! for Kai (who now picks): Kai wagers 100 on the phone (R5-20), correct.
   await ipad.getByRole('button', { name: /Science for 800/ }).click();
   await expect(tv.getByText('DAILY DOUBLE!')).toBeVisible();
-  await ipad.getByLabel('Wager amount').fill('100');
-  await ipad.getByRole('button', { name: 'Lock wager & show clue' }).click();
+  await expect(pj.getByTestId('phone-daily-wager')).toHaveCount(0); // not Jon's
+  await pk.getByTestId('phone-dd-input').fill('100');
+  await pk.getByTestId('phone-dd-submit').click();
+  await expect(pk.getByTestId('phone-dd-done')).toBeVisible();
+  await expect(ipad.getByTestId('host-dd-pending')).toContainText('100');
+  await expect(tv.getByTestId('clue-text')).toHaveCount(0);
+  await ipad.getByTestId('host-dd-lock').click();
+  await expect(tv.getByTestId('clue-text')).toBeVisible();
   await ipad.getByTestId('correct').click();
   await ipad.getByTestId('back-to-board').click();
 
@@ -126,9 +131,16 @@ test('play-test: a full evening on an iPad in portrait, a 4:3 TV and three phone
   await expect(pj.getByLabel('Your answer')).toBeVisible();
   await pj.getByLabel('Your answer').fill('Buda');
   await pj.getByTestId('phone-final-answer-submit').click();
-  // Kai types but never presses Submit — the answer is saved as typed.
+  // Kai types but never presses Submit — the text is kept as a draft and counts (R5-19).
   await pk.getByLabel('Your answer').fill('Budapest');
-  await expect(ipad.getByTestId('final-status').filter({ hasText: 'Kai Play' })).toContainText('Answered ✓', { timeout: 5000 });
+  await expect(pk.getByTestId('phone-final-answer')).toHaveAttribute('data-draft-saved', 'true', { timeout: 5000 });
+  await expect(ipad.getByTestId('final-status').filter({ hasText: 'Jon Play' })).toContainText('Answered ✓');
+  await expect(ipad.getByTestId('final-status').filter({ hasText: 'Kai Play' })).toContainText('Waiting…');
+  // TV: green border for Jon (submitted), gray for Kai.
+  await expect(tv.getByTestId('tv-final-status').getByText('Jon Play')).toHaveAttribute('data-done', 'true');
+  await expect(tv.getByTestId('tv-final-status').getByText('Kai Play')).toHaveAttribute('data-done', 'false');
+  // Jon's phone shows the read-only answer with Change answer.
+  await expect(pj.getByTestId('phone-final-answer-done')).toContainText('Buda');
   await shot(ipad, 'ipad-portrait-final-answers');
   await ipad.getByTestId('final-next').click(); // close answers → reveal
   // Lowest score first: Jon (200 or 300) before Kai.
@@ -200,7 +212,7 @@ test('play-test: profile creation with a default picture on a small phone, sound
   await p.goto(`${BASE}/join`);
   await p.getByTestId('new-profile').click();
   await p.getByLabel('Your name', { exact: true }).fill('Picture Pat');
-  await expect(p.getByTestId('picture-mode-default')).toHaveAttribute('aria-checked', 'true');
+  await expect(p.getByTestId('picture-mode-default')).toHaveAttribute('aria-selected', 'true');
   await p.getByRole('radio', { name: 'Unicorn' }).click();
   await expect(p.getByRole('radio', { name: 'Unicorn' })).toHaveAttribute('aria-checked', 'true');
   await expect(p.getByText('Preferred Color')).toBeVisible();

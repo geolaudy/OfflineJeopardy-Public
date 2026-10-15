@@ -18,6 +18,7 @@ interface AdminProfile {
   color: string;
   avatar: string;
   pictureUrl: string | null;
+  uploadedPictureUrl?: string | null;
   locked: boolean;
   createdAt: number;
 }
@@ -137,7 +138,8 @@ function EditProfile({ p, onClose }: { p: AdminProfile; onClose: () => void }) {
   const [color, setColor] = useState(p.color);
   const [avatar, setAvatar] = useState(p.avatar);
   const [pin, setPin] = useState('');
-  const [pictureUrl, setPictureUrl] = useState<string | null>(p.pictureUrl ?? null);
+  const [upload, setUpload] = useState<string | null>(p.uploadedPictureUrl ?? p.pictureUrl ?? null);
+  const [usePicture, setUsePicture] = useState(!!p.pictureUrl);
   return (
     <Modal open onClose={onClose} title={`Edit ${profileName(p)}`} wide>
       <div className="space-y-4">
@@ -145,17 +147,21 @@ function EditProfile({ p, onClose }: { p: AdminProfile; onClose: () => void }) {
           name={name}
           color={color}
           avatar={avatar}
-          pictureUrl={pictureUrl}
-          onAvatar={setAvatar}
+          uploadUrl={upload}
+          usePicture={!!upload && usePicture}
+          onAvatar={(id) => {
+            setAvatar(id);
+            setUsePicture(false);
+          }}
+          onUsePicture={() => setUsePicture(true)}
           onPickFile={async (f) => {
             const fd = new FormData();
             fd.append('file', f, f.name || 'photo.jpg');
             const r = await attempt(() => hostApi<{ pictureUrl: string | null }>('POST', `/api/admin/profiles/${p.id}/picture`, undefined, fd), 'Picture updated');
-            if (r) setPictureUrl(r.pictureUrl);
-          }}
-          onUseDefault={async () => {
-            const r = await attempt(() => hostApi<{ pictureUrl: string | null }>('DELETE', `/api/admin/profiles/${p.id}/picture`), 'Uploaded picture removed');
-            if (r) setPictureUrl(null);
+            if (r) {
+              setUpload(r.pictureUrl);
+              setUsePicture(true);
+            }
           }}
         />
         <div className="grid gap-3 sm:grid-cols-2">
@@ -172,7 +178,7 @@ function EditProfile({ p, onClose }: { p: AdminProfile; onClose: () => void }) {
         <Button
           size="lg"
           onClick={async () => {
-            const r = await attempt(() => hostApi('PATCH', `/api/admin/profiles/${p.id}`, { name: name.trim(), nickname: nickname.trim(), color, avatar }), 'Saved');
+            const r = await attempt(() => hostApi('PATCH', `/api/admin/profiles/${p.id}`, { name: name.trim(), nickname: nickname.trim(), color, avatar, ...(upload ? { usePicture } : {}) }), 'Saved');
             if (r) onClose();
           }}
           disabled={!name.trim()}

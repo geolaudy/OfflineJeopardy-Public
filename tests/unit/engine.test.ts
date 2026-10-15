@@ -205,7 +205,7 @@ describe('wagers', () => {
     expect(projectState(s, 'host', {}).events?.filter((e) => e.type === 'wager').every((e) => e.wager === undefined)).toBe(true);
     s = run(s, { type: 'setFinalAnswer', competitorId: alex, answer: 'Vienna' }, { type: 'setFinalAnswer', competitorId: jordan, answer: 'Budapest' });
     expect(projectState(s, 'host', {}).final?.entries.map((e) => [e.hasAnswer, e.answer])).toEqual([[true, null], [true, null]]);
-    expect(playerContext(s, 'alex', clock).final).toEqual({ wager: 1000, answer: 'Vienna' }); // own submission only
+    expect(playerContext(s, 'alex', clock).final).toMatchObject({ wager: 1000, answer: 'Vienna', submitted: true }); // own submission only
     s = run(s, { type: 'finalNext' });
     expect(s.final).toMatchObject({ stage: 'reveal', cursor: 0, step: 'contestant' });
     // Written answers are recorded for history, but stay out of the host's event list until revealed.

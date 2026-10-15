@@ -110,6 +110,8 @@ export default function PlayTab({ me }: { me: Me }) {
 
       {g.phase === 'final' && g.final ? (
         <FinalForm me={me} />
+      ) : ctx.dailyWager ? (
+        <DailyWagerForm />
       ) : (
         <>
           {g.clue && (
@@ -205,28 +207,36 @@ function FinalForm({ me }: { me: Me }) {
   const myComp = findCompetitor(g, ctx?.competitorId);
   const mine = ctx?.final ?? null;
   const [wager, setWager] = useState('');
-  const [answer, setAnswer] = useState(mine?.answer ?? '');
-  const [sent, setSent] = useState<string | null>(null);
-  useEffect(() => setSent(null), [f.stage]);
+  const [changingWager, setChangingWager] = useState(false);
+  const [answer, setAnswer] = useState(mine?.draft ?? mine?.answer ?? '');
+  useEffect(() => setChangingWager(false), [f.stage]);
   // A phone that reconnects (or a teammate's phone) picks up what was already written.
   useEffect(() => {
-    if (f.stage === 'clue' && mine?.answer && !answer) setAnswer(mine.answer);
+    if (f.stage === 'clue' && !answer && (mine?.draft || mine?.answer)) setAnswer(mine.draft ?? mine.answer ?? '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mine?.answer, f.stage]);
-  // The answer is saved as it is typed, so nothing is lost when the think music ends (R4-2).
+  }, [mine?.answer, mine?.draft, f.stage]);
+  const editing = f.stage === 'clue' && !mine?.submitted;
+  // While editing, the text is autosaved as a draft so nothing is lost when the think music ends
+  // (it counts only if no answer was ever submitted, R5-19).
   useEffect(() => {
-    if (f.stage !== 'clue' || !answer.trim() || answer.trim() === (mine?.answer ?? '')) return;
-    const t = setTimeout(() => send({ t: 'finalAnswer', answer }), 700);
+    if (!editing || !answer.trim() || answer.trim() === (mine?.draft ?? '')) return;
+    const t = setTimeout(() => send({ t: 'finalAnswer', answer, submit: false }), 700);
     return () => clearTimeout(t);
-  }, [answer, f.stage, mine?.answer]);
+  }, [answer, editing, mine?.draft]);
   if (!entry) return <Idle text="Final Jeopardy! — you're watching this one. Good luck to the finalists!" />;
   const max = Math.max(0, myComp?.score ?? 0);
   const team = myComp?.kind === 'team';
+  const showWagerInput = f.stage === 'wagers' && (mine?.wager == null || changingWager);
   return (
     <div className="space-y-4 rounded-2xl bg-white p-4 shadow-sm" data-testid="phone-final">
       <p className="text-center text-sm font-bold tracking-widest text-slate-500 uppercase">Final Jeopardy!</p>
       <p className="text-center text-2xl font-black">{f.category}</p>
-      {(f.stage === 'category' || f.stage === 'wagers') && (
+      {f.stage === 'category' && (
+        <p className="rounded-xl bg-slate-100 p-3 text-center font-semibold text-slate-700" data-testid="phone-final-wait">
+          Think about how much to wager — wagering opens when the host is ready.
+        </p>
+      )}
+      {showWagerInput && (
         <>
           <p className="text-center text-slate-600">
             Wager between 0 and {max.toLocaleString()}. Nobody sees it — not even the host — until the reveal.{team ? ' Any team member can enter the team’s wager.' : ''}
@@ -238,44 +248,142 @@ function FinalForm({ me }: { me: Me }) {
             disabled={wager === '' || Number(wager) > max}
             onClick={() => {
               send({ t: 'finalWager', amount: Number(wager) });
-              setSent(`Wager of ${Number(wager).toLocaleString()} submitted`);
               setWager('');
+              setChangingWager(false);
             }}
             data-testid="phone-final-wager-submit"
           >
-            {mine?.wager != null ? 'Change wager' : 'Submit wager'}
+            Submit wager
           </Button>
-          {(sent || mine?.wager != null) && (
-            <p className="text-center font-semibold text-green-700" data-testid="phone-final-wager-done">
-              {sent ?? `Your wager: ${mine!.wager!.toLocaleString()} ✓`}
-            </p>
-          )}
         </>
+      )}
+      {f.stage === 'wagers' && !showWagerInput && mine?.wager != null && (
+        <div className="space-y-3 text-center" data-testid="phone-final-wager-done">
+          <p className="text-sm text-slate-500">{team ? 'Your team’s wager' : 'Your wager'}</p>
+          <p className="text-3xl font-black tabular-nums">{fmtScore(mine.wager)}</p>
+          <Button variant="secondary" className="w-full" onClick={() => setChangingWager(true)} data-testid="phone-final-wager-change">
+            Change wager
+          </Button>
+        </div>
       )}
       {f.stage === 'clue' && (
         <>
           <p className="text-center text-lg">{f.question}</p>
-          <textarea className={inputCls} rows={2} value={answer} onChange={(e) => setAnswer(e.target.value)} aria-label="Your answer" placeholder="Your answer" maxLength={200} />
-          <Button
-            size="lg"
-            className="w-full"
-            disabled={!answer.trim()}
-            onClick={() => {
-              send({ t: 'finalAnswer', answer });
-              setSent('Answer saved — you can change it until time is up');
-            }}
-            data-testid="phone-final-answer-submit"
-          >
-            Submit answer
-          </Button>
-          {(sent || mine?.answer) && <p className="text-center font-semibold text-green-700">{sent ?? 'Answer saved ✓ — you can change it until time is up'}</p>}
+          {editing ? (
+            <>
+              <textarea className={inputCls} rows={2} value={answer} onChange={(e) => setAnswer(e.target.value)} aria-label="Your answer" placeholder="Your answer" maxLength={200} data-testid="phone-final-answer" data-draft-saved={!!answer.trim() && answer.trim() === (mine?.draft ?? '') ? 'true' : 'false'} />
+              <Button size="lg" className="w-full" disabled={!answer.trim()} onClick={() => send({ t: 'finalAnswer', answer, submit: true })} data-testid="phone-final-answer-submit">
+                Submit answer
+              </Button>
+              {mine?.answer && <p className="text-center text-sm text-slate-500">Not submitted yet — your last answer “{mine.answer}” counts until you submit again.</p>}
+            </>
+          ) : (
+            <>
+              <div className="rounded-xl bg-green-50 p-3 text-center ring-2 ring-green-500" data-testid="phone-final-answer-done">
+                <p className="text-sm font-semibold text-green-800">{team ? 'Your team’s answer is in' : 'Your answer is in'}</p>
+                <p className="mt-1 text-xl font-bold break-words">{mine?.answer}</p>
+              </div>
+              <Button
+                variant="secondary"
+                size="lg"
+                className="w-full"
+                onClick={() => {
+                  setAnswer(mine?.answer ?? '');
+                  send({ t: 'finalAnswer', answer: mine?.answer ?? '', submit: false });
+                }}
+                data-testid="phone-final-answer-change"
+              >
+                Change answer
+              </Button>
+            </>
+          )}
           <TimerLine />
         </>
       )}
       {(f.stage === 'reveal' || f.stage === 'done') && (
-        <p className="text-center text-lg">
-          Watch the TV for the reveal! {entry.judged ? (entry.correct ? '✅' : '❌') : ''}
-        </p>
+        <div className="space-y-2 text-center">
+          {mine?.answer && (
+            <p className="text-slate-600" data-testid="phone-final-locked">
+              Answers are closed. {team ? 'Your team’s answer' : 'Your answer'}: <b className="text-slate-900">{mine.answer}</b>
+            </p>
+          )}
+          <p className="text-lg">
+            Watch the TV for the reveal! {entry.judged ? (entry.correct ? '✅' : '❌') : ''}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** R5-20: the Daily Double! wager, entered on the phone of the player (or team) who picked it. */
+function DailyWagerForm() {
+  const g = useLive((s) => s.game)!;
+  const ctx = useLive((s) => s.me);
+  const dw = ctx?.dailyWager;
+  const [amount, setAmount] = useState('');
+  const [changing, setChanging] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    const onErr = (e: Event) => setError((e as CustomEvent<string>).detail);
+    window.addEventListener('oj-error', onErr);
+    return () => window.removeEventListener('oj-error', onErr);
+  }, []);
+  if (!dw) return null;
+  const n = Number(amount);
+  const valid = amount !== '' && Number.isInteger(n) && n >= dw.min && n <= dw.max;
+  const by = dw.pendingBy ? profileName(g.profiles[dw.pendingBy]) : null;
+  const showInput = dw.mine && (dw.pending == null || changing);
+  return (
+    <div className="space-y-4 rounded-2xl bg-amber-50 p-4 shadow-sm ring-2 ring-amber-400" data-testid="phone-daily-wager">
+      <p className="text-center text-2xl font-black text-amber-900">Daily Double!</p>
+      <p className="text-center text-sm text-slate-600">{g.clue?.categoryName}</p>
+      {showInput ? (
+        <>
+          <p className="text-center text-slate-700">
+            Wager between {dw.min.toLocaleString()} and {dw.max.toLocaleString()}.
+          </p>
+          <input className={inputCls} inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/\D/g, ''))} aria-label="Daily Double wager" placeholder="Your wager" data-testid="phone-dd-input" />
+          <div className="flex flex-wrap justify-center gap-2">
+            {[...new Set([Math.round(dw.max / 2), dw.max])].filter((v) => v >= dw.min).map((v) => (
+              <Button key={v} size="sm" variant="secondary" onClick={() => setAmount(String(v))}>
+                {v === dw.max ? `All in (${v.toLocaleString()})` : v.toLocaleString()}
+              </Button>
+            ))}
+          </div>
+          <Button
+            size="lg"
+            className="w-full"
+            disabled={!valid}
+            onClick={() => {
+              setError(null);
+              send({ t: 'dailyWager', amount: n });
+              setChanging(false);
+              setAmount('');
+            }}
+            data-testid="phone-dd-submit"
+          >
+            Submit wager
+          </Button>
+          {error && (
+            <p className="rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-800" role="alert">
+              {error}
+            </p>
+          )}
+        </>
+      ) : dw.pending != null ? (
+        <div className="space-y-3 text-center" data-testid="phone-dd-done">
+          <p className="text-sm text-slate-600">{dw.mine ? 'Your wager' : `${by ?? 'A teammate'} wagered for your team`}</p>
+          <p className="text-3xl font-black tabular-nums">{fmtScore(dw.pending)}</p>
+          <p className="text-sm text-slate-600">Waiting for the host to show the clue…</p>
+          {dw.mine && (
+            <Button variant="secondary" className="w-full" onClick={() => setChanging(true)}>
+              Change wager
+            </Button>
+          )}
+        </div>
+      ) : (
+        <p className="text-center text-slate-700">A teammate is entering your team’s wager…</p>
       )}
     </div>
   );

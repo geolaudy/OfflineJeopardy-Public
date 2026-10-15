@@ -56,6 +56,10 @@ export interface ClueView {
   notes: string | null; // host only
   media: MediaRef[];
   wager: { competitorId: Id; amount: number; profileId: Id | null } | null;
+  /** Daily Double!: who wagers (R5-20). */
+  wagerBy?: Id | null;
+  /** Daily Double!: wager sent from a phone, not locked yet. The amount is for the host only. */
+  pendingWager?: { competitorId: Id; amount: number | null; profileId: Id | null } | null;
   answerRevealed: boolean;
   resolved: boolean;
   answeringEnded: boolean;
@@ -71,6 +75,8 @@ export interface FinalEntryView {
   competitorId: Id;
   hasWager: boolean;
   hasAnswer: boolean;
+  /** An answer is submitted and the player is not changing it (TV: green border, R5-6). */
+  submitted: boolean;
   wager: number | null; // hidden from everyone until its reveal step
   answer: string | null; // hidden from everyone until its reveal step
   judged: boolean;
@@ -149,5 +155,7 @@ export interface PlayerContext {
   /** Lobby colour (R4-13): current colour, whether to ask the player to choose, colours taken by others. */
   color?: { current: string; choose: boolean; taken: string[] } | null;
   /** This player's (team's) own Final Jeopardy! wager and answer (private to them). */
-  final?: { wager: number | null; answer: string | null } | null;
+  final?: { wager: number | null; answer: string | null; submitted: boolean; draft: string | null } | null;
+  /** Daily Double! wager stage for this player's competitor (R5-20). */
+  dailyWager?: { min: number; max: number; pending: number | null; pendingBy: Id | null; mine: boolean } | null;
 }

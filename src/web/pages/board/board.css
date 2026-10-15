@@ -692,6 +692,14 @@
   background: rgba(0, 0, 0, 0.55);
   box-shadow: inset 0 0 0 0.25vh var(--b-accent);
 }
+.bt-submit-chip {
+  border: 0.45vh solid rgba(148, 163, 184, 0.75);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.bt-submit-chip.is-in {
+  border-color: #22c55e;
+  box-shadow: 0 0 1.6vh rgba(34, 197, 94, 0.45);
+}
 .bt-final-card {
   padding: 1.4vh 1.8vh;
   border-radius: var(--b-radius);

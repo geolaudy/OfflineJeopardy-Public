@@ -16,23 +16,30 @@ export default function ProfileTab({ me, setMe, signOut, view = 'profile' }: { m
   const [pinOpen, setPinOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
-  // Switching from an uploaded picture to a default one removes the upload when saving (R4-13).
-  const [dropPicture, setDropPicture] = useState(false);
+  // Choosing a default picture only previews it; Save confirms. The upload is kept (R5-16).
+  const [usePicture, setUsePicture] = useState(!!me.pictureUrl);
 
   useEffect(() => {
     setName(me.name);
     setNickname(me.nickname);
     setColor(me.color);
     setAvatar(me.avatar);
-    setDropPicture(false);
+    setUsePicture(!!me.pictureUrl);
   }, [me.id, me.updatedAt]);
 
-  const dirty = name !== me.name || nickname !== me.nickname || color !== me.color || avatar !== me.avatar || dropPicture;
+  const upload = me.uploadedPictureUrl ?? me.pictureUrl;
+  const dirty = name !== me.name || nickname !== me.nickname || color !== me.color || avatar !== me.avatar || usePicture !== !!me.pictureUrl;
+  const revert = () => {
+    setName(me.name);
+    setNickname(me.nickname);
+    setColor(me.color);
+    setAvatar(me.avatar);
+    setUsePicture(!!me.pictureUrl);
+  };
   const save = async () => {
     setBusy(true);
     try {
-      if (dropPicture && me.pictureUrl) await meApi<Me>('DELETE', '/api/me/picture');
-      setMe(await meApi<Me>('PATCH', '/api/me', { name: name.trim(), nickname: nickname.trim(), color, avatar }));
+      setMe(await meApi<Me>('PATCH', '/api/me', { name: name.trim(), nickname: nickname.trim(), color, avatar, ...(upload ? { usePicture } : {}) }));
       toast('Saved — the TV and host see it now', 'success');
     } catch (e) {
       toast((e as Error).message, 'error');
@@ -58,15 +65,20 @@ export default function ProfileTab({ me, setMe, signOut, view = 'profile' }: { m
           name={name}
           color={color}
           avatar={avatar}
-          pictureUrl={dropPicture ? null : me.pictureUrl}
-          onAvatar={setAvatar}
-          onPickFile={(f) => {
-            setDropPicture(false);
-            setFile(f);
+          uploadUrl={upload ?? null}
+          usePicture={!!upload && usePicture}
+          onAvatar={(id) => {
+            setAvatar(id);
+            setUsePicture(false);
           }}
-          onUseDefault={() => setDropPicture(true)}
+          onUsePicture={() => setUsePicture(true)}
+          onPickFile={setFile}
         />
-        {dropPicture && me.pictureUrl && <p className="mt-2 text-center text-xs text-slate-500">Your uploaded picture will be removed when you save.</p>}
+        {dirty && (usePicture !== !!me.pictureUrl || avatar !== me.avatar) && (
+          <p className="mt-2 text-center text-xs text-slate-500" data-testid="picture-pending">
+            Preview — tap <b>Save changes</b> to use this picture, or <b>Cancel</b> to keep your current one.{upload && !usePicture ? ' Your uploaded picture is kept.' : ''}
+          </p>
+        )}
       </section>
 
       <section className="space-y-4 rounded-2xl bg-white p-4 shadow-sm">
@@ -79,9 +91,16 @@ export default function ProfileTab({ me, setMe, signOut, view = 'profile' }: { m
         <Field label="Preferred Color" group hint="Used in a game whenever nobody else has it; otherwise you pick another one there.">
           <ColorPicker value={color} onChange={setColor} />
         </Field>
-        <Button size="lg" className="w-full" disabled={!dirty || !name.trim()} busy={busy} onClick={save} data-testid="save-profile">
-          Save changes
-        </Button>
+        <div className="flex gap-2">
+          {dirty && (
+            <Button size="lg" variant="secondary" onClick={revert} data-testid="cancel-profile">
+              Cancel
+            </Button>
+          )}
+          <Button size="lg" className="flex-1" disabled={!dirty || !name.trim()} busy={busy} onClick={save} data-testid="save-profile">
+            Save changes
+          </Button>
+        </div>
       </section>
       </>
       )}

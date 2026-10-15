@@ -2,7 +2,7 @@
 // locations) are removed here, before data ever leaves the server.
 import { finalEntryReveal, findClue, livesOf, scoresOf, type GameState, type Id } from '../../shared/game.js';
 import type { GameView, PlayerContext, ProfilePublic, ViewRole } from '../../shared/views.js';
-import { buzzBlockReason, competitorForProfile, lockoutUntil } from './engine.js';
+import { buzzBlockReason, competitorForProfile, lockoutUntil, roundMaxValue } from './engine.js';
 
 export function projectState(s: GameState, role: ViewRole, rawProfiles: Record<Id, ProfilePublic>): GameView {
   const host = role === 'host';
@@ -47,6 +47,8 @@ export function projectState(s: GameState, role: ViewRole, rawProfiles: Record<I
       notes: host ? (f?.clue.notes ?? null) : null,
       media: hideQuestion ? [] : (f?.clue.media ?? []),
       wager: s.clue.wager,
+      wagerBy: s.clue.wagerBy ?? null,
+      pendingWager: s.clue.pendingWager ? { competitorId: s.clue.pendingWager.competitorId, amount: host ? s.clue.pendingWager.amount : null, profileId: s.clue.pendingWager.profileId } : null,
       answerRevealed: s.clue.answerRevealed,
       resolved: s.clue.resolved,
       answeringEnded: s.clue.answeringEnded,
@@ -80,6 +82,7 @@ export function projectState(s: GameState, role: ViewRole, rawProfiles: Record<I
           competitorId: e.competitorId,
           hasWager: e.wager != null,
           hasAnswer: !!e.answer,
+          submitted: !!e.submitted && !!e.answer,
           wager: shown !== 'none' ? e.wager : null,
           answer: shown === 'answer' ? e.answer : null,
           judged: e.judged,
@@ -170,7 +173,11 @@ export function playerContext(s: GameState, profileId: Id, now: number): PlayerC
     // The player's own (team's) Final submission, so a reconnecting phone shows what was sent.
     final: c && s.final ? (() => {
       const e = s.final!.entries.find((x) => x.competitorId === c.id);
-      return e ? { wager: e.wager, answer: e.answer } : null;
+      return e ? { wager: e.wager, answer: e.answer, submitted: !!e.submitted && !!e.answer, draft: e.draft ?? null } : null;
+    })() : null,
+    dailyWager: c && s.phase === 'clue' && s.clue?.isDailyWager && s.clue.stage === 'wager' && s.clue.wagerBy === c.id ? (() => {
+      const p = s.clue!.pendingWager;
+      return { min: s.rules.dailyWagerMin, max: Math.max(scoresOf(s.events)[c.id] ?? 0, roundMaxValue(s)), pending: p?.amount ?? null, pendingBy: p?.profileId ?? null, mine: !p || !p.profileId || p.profileId === profileId };
     })() : null,
   };
 }

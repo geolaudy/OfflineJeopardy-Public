@@ -37,7 +37,10 @@ export const ClientMessageSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('buzz') }),
   z.object({ t: z.literal('join'), code: z.string().max(12).optional() }),
   z.object({ t: z.literal('finalWager'), amount: z.number().int() }),
-  z.object({ t: z.literal('finalAnswer'), answer: z.string().max(200) }),
+  // submit=false: autosaved draft or "Change answer" (the player is shown as not ready, R5-19).
+  z.object({ t: z.literal('finalAnswer'), answer: z.string().max(200), submit: z.boolean().optional() }),
+  // R5-20: the Daily Double! wager from the wagering player's phone.
+  z.object({ t: z.literal('dailyWager'), amount: z.number().int().min(0).max(10_000_000) }),
   z.object({ t: z.literal('pickColor'), color: z.string().regex(/^#[0-9a-fA-F]{6}$/) }),
   // rtt: the client's last measured round trip (ms), for connection diagnostics.
   z.object({ t: z.literal('ping'), c: z.number(), rtt: z.number().min(0).max(60_000).optional() }),

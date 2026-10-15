@@ -73,8 +73,8 @@ describe('Final Jeopardy! (R4-2)', () => {
     expect(JSON.stringify(h.state)).not.toContain('"wager":1000');
     await pa.waitState((_g, me) => me?.final?.wager === 1000);
     await ps.waitState((_g, me) => me?.final?.wager === 0);
-    expect(pa.me.final).toEqual({ wager: 1000, answer: null }); // own submission only
-    expect(ps.me.final).toEqual({ wager: 0, answer: null });
+    expect(pa.me.final).toMatchObject({ wager: 1000, answer: null, submitted: false }); // own submission only
+    expect(ps.me.final).toMatchObject({ wager: 0, answer: null });
     await h.act({ type: 'finalNext' }); // lock wagers (Kim → 0), clue + think time
     pa.send({ t: 'finalAnswer', answer: 'Alexs guess Budapesht' });
     ps.send({ t: 'finalAnswer', answer: 'Vienna' });
@@ -85,7 +85,7 @@ describe('Final Jeopardy! (R4-2)', () => {
     pk.close();
     const pk2 = await client(s, 'player', kim.token);
     await pk2.waitState((g, me) => g?.phase === 'final' && !!me?.final);
-    expect(pk2.me.final).toEqual({ wager: 0, answer: null });
+    expect(pk2.me.final).toMatchObject({ wager: 0, answer: null });
     // The host's controller reconnects mid-Final.
     h.close();
     const h2 = await client(s, 'host', host);
@@ -370,7 +370,8 @@ describe('saved boards are renamed to Final Jeopardy! (R4-7, migration v5)', () 
     const content = JSON.stringify({ rounds: [{ id: 'r1', name: 'Round 1', kind: 'standard', categories: [] }, { id: 'r2', name: 'Final Wager', kind: 'final', categories: [] }] });
     db.prepare('INSERT INTO boards (id, title, content_json, created_at, updated_at) VALUES (?, ?, ?, 1, 1)').run('b1', 'Old board', content);
     db.prepare('INSERT INTO board_versions (board_id, title, content_json, saved_at) VALUES (?, ?, ?, 1)').run('b1', 'Old board', content);
-    db.exec('DELETE FROM schema_migrations WHERE version = 5');
+    db.exec('DELETE FROM schema_migrations WHERE version >= 5');
+    db.exec('ALTER TABLE profiles DROP COLUMN picture_off'); // v6 runs again too
     migrate(db);
     const b = JSON.parse((db.prepare('SELECT content_json AS c FROM boards WHERE id = ?').get('b1') as { c: string }).c);
     expect(b.rounds.map((r: { name: string }) => r.name)).toEqual(['Round 1', 'Final Jeopardy!']);

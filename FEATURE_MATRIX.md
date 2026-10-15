@@ -245,3 +245,27 @@ Last run 2026-10-12: Vitest 58/58 (43 unit, 15 integration), Playwright 8/8.
 | R4-14 | Mustard ring on the picking player's score box + larger TV score boxes | P2 | IMPLEMENTED | Scoreboard.tsx is-control (board + clue), board.css podium sizes; host score bar ring | E (screenshots) | — |
 | R4-17 | TV typography (Korinna-style clues, Swiss 911-style categories/values; licensed fonts pluggable) | P2 | IMPLEMENTED | board/fonts.css (Merriweather 700/900, Anton via @fontsource, OFL; local() names of the licensed fonts), board.css font variables, app.ts /fonts/user + public `fonts`, BoardPage UserFonts | E (screenshots) | Look-alikes, not the original fonts; licensed files never bundled |
 | R4-18 | Classic clue background | P2 | IMPLEMENTED | board.css --bt-panel (CSS gradients + SVG noise recreating the provided image; the image itself is not shipped) | E (screenshots) | — |
+
+## User feedback round 5 (2026-10-15) — see USER_FEEDBACK.md "Round 5"
+
+| ID | Feature | Pri | Status | Source | Tests | Limitations |
+|---|---|---|---|---|---|---|
+| R5-15 | Undo back into Final Jeopardy! answering (or wagering) restarts that stage's timer from its full duration; answers kept; player inputs are not undo steps; think-time expiry is an undo step | P1 | TESTED | engine (PLAYER_INPUTS, `actor` in EngineCtx, timerExpire snapshot, undo timer rule), gameManager passes the actor | U (round5: expiry → undo ×3, early close → undo, host entries undoable), I (round5: timer running on host, TV and phone after undo) | Policy documented in DECISIONS D55 |
+| R5-18 | Wagers only while the host has wagering open (Final: Wagers stage only; Daily Double!: wager stage only), enforced on the server | P1 | TESTED | engine setFinalWager / submitDailyWager, bots, PlayTab (no input before opening), FinalControl recovery only when open | U (round5), I (round5: hand-written early/late socket messages refused) | — |
+| R5-19 | Final answers: Submit → read-only + Change Answer; editing = not submitted (gray on TV); draft autosave counts only if nothing was ever submitted; locked after close | P1 | TESTED | FinalEntry submitted/draft, setFinalAnswer submit flag, protocol finalAnswer.submit, PlayTab FinalForm, FinalControl status | U, I (round5), E (playtest: draft counts, Jon green / Kai gray, read-only card) | — |
+| R5-20 | Daily Double! wager entered on the picking player's phone (team: first member owns it), host sees it and locks it → clue; host entry is the recovery path | P1 | TESTED | ActiveClue wagerBy/pendingWager, engine submitDailyWager, hub dailyWager, projection (amount host-only), PlayerContext.dailyWager, PlayTab DailyWagerForm, Live.tsx DailyWagerForm | U (round5: limits, owner only, team clash, closed after lock), I (round5), E (playtest phone flow, game.spec recovery) | — |
+| R5-16 | Choosing a default picture keeps the upload (hidden, switchable back); picker previews, Save confirms, Cancel reverts | P1 | TESTED | migration v6 `profiles.picture_off`, repos toPublic/toPrivate (uploadedPictureUrl), PATCH usePicture, ProfilePicturePicker (tabs only browse), ProfileTab, ProfileCreateForm, host Players | I (round5: hide, file kept, restore), E (playtest create profile) | — |
+| R5-9 | Jeopardy!/Buzzinga files found automatically: every bundled folder (personal build resources, `Sounds`/`new_sfx` beside the exe or in the data folder) merged; Add a folder import; public builds still ship none | P1 | IMPLEMENTED | soundPacks.ts (multi-folder), electron main soundPackDirs, SoundPackPicker | I (round5: multi-folder, first wins, missing folders skipped; round4 install/remove) | Packaged-build check pending; recordings are not redistributable (K28) |
+| R5-6 | Final submission indicators: green border = submitted, gray = not (no "…"/✓) | P2 | TESTED | FinalScreen SubmissionChips, board.css .bt-submit-chip | E (playtest data-done) | Swipe transitions: NOT STARTED |
+| R5-10a | Victory fanfare (synthesised, moderate level) for every pack without a winner file | P2 | IMPLEMENTED | sound.ts fanfare | — (audio) | Podium: NOT STARTED |
+| R5-2 | TV + host home screen with recent games | P1 | NOT STARTED | | | |
+| R5-3 | Active lobby redesign, rules summary, smaller QR, board choosing on the TV, minimized lobby with teams | P1 | NOT STARTED | | | |
+| R5-4 | Setup screen merged into the lobby; limits under Play As | P1 | NOT STARTED | | | |
+| R5-5 | Team management (defaults, Unassigned, drag-and-drop, phone self-selection, capacity, persistence, name/colour, team-first buzz-in) | P1 | NOT STARTED | | | |
+| R5-7 | Score delta labels + quicker pop | P2 | NOT STARTED | | | |
+| R5-8 | Consistent game typography | P2 | NOT STARTED | | | |
+| R5-11 | Gemini + provider registry | P2 | NOT STARTED | | | |
+| R5-12 | Category intro controls + host preview | P2 | NOT STARTED | | | |
+| R5-13 | iPad board replica | P2 | NOT STARTED | | | |
+| R5-14 | iPad clue hosting view | P1 | NOT STARTED | | | |
+| R5-17 | Phone lobby experience + nicknames | P1 | NOT STARTED | | | |
