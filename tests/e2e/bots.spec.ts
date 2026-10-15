@@ -98,6 +98,15 @@ test('AI answers settings: key is saved write-only, nothing is sent until enable
   expect(JSON.stringify(st)).not.toContain('sk-ant-e2e');
   expect(await pc.content()).not.toContain('sk-ant-e2e-fake-key');
   expect(external).toEqual([]); // the browser never talks to the AI provider
+  // Local AI (Ollama, LM Studio): a server address instead of a required key.
+  await api.put('/api/ai', { headers: H, data: { clearKey: true } });
+  await pc.reload();
+  await card.getByLabel('AI provider').selectOption('openai');
+  await expect(card.getByTestId('ai-base-url')).toHaveValue('http://127.0.0.1:11434/v1');
+  await expect(card.getByTestId('ai-model-input')).toHaveValue('llama3.2');
+  await expect(card.getByTestId('ai-test')).toBeEnabled(); // no key needed
+  await expect(card.getByText(/optional — local servers usually need none/)).toBeVisible();
+  await expect.poll(async () => (await (await api.get('/api/ai', { headers: H })).json()).config.provider).toBe('openai');
   await api.put('/api/ai', { headers: H, data: { config: { ...st.config, enabled: false }, clearKey: true } });
   await api.dispose();
 });

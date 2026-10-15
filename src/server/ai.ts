@@ -10,7 +10,7 @@ import path from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 import type { DB } from './db/db.js';
 import { getSetting, setSetting } from './db/db.js';
-import { aiConfigSchema, DEFAULT_AI_CONFIG, type AiConfig, type AiStatus } from '../shared/ai.js';
+import { aiConfigSchema, DEFAULT_AI_CONFIG, keyRequired, type AiConfig, type AiStatus } from '../shared/ai.js';
 import type { BotLevel } from '../shared/game.js';
 import type { ClueContext } from './botAnswers.js';
 
@@ -39,6 +39,32 @@ const norm = (t: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 
+/** An HTTP error from an OpenAI-compatible server (local Ollama / LM Studio or a cloud service). */
+class CompatError extends Error {
+  constructor(
+    readonly status: number,
+    readonly detail: string,
+  ) {
+    super(`HTTP ${status}`);
+  }
+}
+
+/** Reads {"answer": "..."} even when a local model wraps it in prose or a code fence. */
+function parseAnswerJson(raw: string): string | null {
+  const tryParse = (t: string) => {
+    try {
+      const v = (JSON.parse(t) as { answer?: unknown }).answer;
+      return typeof v === 'string' ? v : null;
+    } catch {
+      return null;
+    }
+  };
+  return tryParse(raw) ?? (() => {
+    const m = /\{[\s\S]*\}/.exec(raw);
+    return m ? tryParse(m[0]) : null;
+  })();
+}
+
 /** Our own deadline on top of the SDK's, so nothing can keep a bot waiting. */
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -59,6 +85,8 @@ export class AiService {
   private cache = new Map<string, string>();
   /** Replaced in tests. */
   makeClient: (key: string, timeoutMs: number) => Anthropic = (apiKey, timeout) => new Anthropic({ apiKey, timeout, maxRetries: 0 });
+  /** Replaced in tests (OpenAI-compatible provider). */
+  fetchImpl: typeof fetch = (input, init) => fetch(input, init);
 
   constructor(
     private db: DB,
@@ -101,12 +129,47 @@ export class AiService {
   status(gameId: string | null): AiStatus {
     const config = this.config();
     const keySaved = this.readKey() != null;
-    return { config, keySaved, keyProtected: !!this.codec, ready: config.enabled && keySaved, ...this.stats, gameRequests: gameId ? (this.perGame.get(gameId) ?? 0) : 0 };
+    const needsKey = keyRequired(config.provider);
+    return { config, keySaved, keyProtected: !!this.codec, keyRequired: needsKey, ready: config.enabled && (keySaved || !needsKey), ...this.stats, gameRequests: gameId ? (this.perGame.get(gameId) ?? 0) : 0 };
   }
 
-  /** AI answers are possible right now (enabled + key). */
+  /** AI answers are possible right now (enabled + key when the provider needs one). */
   usable() {
-    return this.config().enabled && this.readKey() != null;
+    const cfg = this.config();
+    return cfg.enabled && (!keyRequired(cfg.provider) || this.readKey() != null);
+  }
+
+  /**
+   * One chat request to an OpenAI-compatible server (/chat/completions). Works with a local Ollama
+   * or LM Studio on the game computer or the LAN — no internet needed — or a cloud service with a key.
+   */
+  private async compatChat(cfg: AiConfig, system: string, user: string, timeoutMs: number, json: boolean): Promise<string> {
+    const key = this.readKey();
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const res = await this.fetchImpl(`${cfg.baseUrl.replace(/\/+$/, '')}/chat/completions`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...(key ? { authorization: `Bearer ${key}` } : {}) },
+        body: JSON.stringify({
+          model: cfg.model,
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: user },
+          ],
+          temperature: 0.7,
+          max_tokens: 200,
+          stream: false,
+          ...(json ? { response_format: { type: 'json_object' } } : {}),
+        }),
+        signal: ctrl.signal,
+      });
+      if (!res.ok) throw new CompatError(res.status, (await res.text().catch(() => '')).slice(0, 200));
+      const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+      return body.choices?.[0]?.message?.content ?? '';
+    } finally {
+      clearTimeout(t);
+    }
   }
 
   private sdk(timeoutMs: number): Anthropic {
@@ -123,7 +186,19 @@ export class AiService {
   private describe(e: unknown): string {
     const key = this.readKey();
     let msg: string;
-    if (e instanceof Anthropic.AuthenticationError) msg = 'The API key was not accepted.';
+    const where = this.config().baseUrl;
+    if (e instanceof CompatError) {
+      msg =
+        e.status === 401 || e.status === 403
+          ? 'The AI server did not accept the API key.'
+          : e.status === 404
+            ? /model/i.test(e.detail)
+              ? `That model is not available on the AI server (for Ollama: "ollama pull ${this.config().model}").`
+              : 'The AI server address looks wrong (expected something like http://localhost:11434/v1).'
+            : `The AI server returned an error (${e.status}).`;
+    } else if (e instanceof Error && (e.name === 'AbortError' || e.name === 'TimeoutError')) msg = 'The AI took too long to answer.';
+    else if (e instanceof TypeError && /fetch/i.test(e.message)) msg = `Could not reach the AI server at ${where} — is it running?`;
+    else if (e instanceof Anthropic.AuthenticationError) msg = 'The API key was not accepted.';
     else if (e instanceof Anthropic.PermissionDeniedError) msg = 'This API key may not use that model.';
     else if (e instanceof Anthropic.NotFoundError) msg = 'That model was not found.';
     else if (e instanceof Anthropic.RateLimitError) msg = 'The provider is rate-limiting requests (or the account is out of credit).';
@@ -150,6 +225,16 @@ export class AiService {
   async test(): Promise<{ ok: boolean; latencyMs?: number; error?: string }> {
     const cfg = this.config();
     const started = Date.now();
+    if (cfg.provider === 'openai') {
+      try {
+        const reply = await this.compatChat(cfg, 'You are a connection test.', 'Reply with the single word: ready', Math.max(cfg.timeoutSeconds, 15) * 1000, false);
+        this.stats.lastLatencyMs = Date.now() - started;
+        this.stats.lastError = null;
+        return { ok: reply.trim().length > 0, latencyMs: this.stats.lastLatencyMs };
+      } catch (e) {
+        return { ok: false, error: this.fail(e) };
+      }
+    }
     try {
       const client = this.sdk(cfg.timeoutSeconds * 1000);
       const extra = this.request(cfg.model);
@@ -167,6 +252,14 @@ export class AiService {
 
   /** Models this key can use (ids only). */
   async models(): Promise<string[]> {
+    const cfg = this.config();
+    if (cfg.provider === 'openai') {
+      const key = this.readKey();
+      const res = await this.fetchImpl(`${cfg.baseUrl.replace(/\/+$/, '')}/models`, { headers: key ? { authorization: `Bearer ${key}` } : {}, signal: AbortSignal.timeout(cfg.timeoutSeconds * 1000) });
+      if (!res.ok) throw new CompatError(res.status, '');
+      const body = (await res.json()) as { data?: { id?: string }[] };
+      return (body.data ?? []).map((m) => m.id).filter((id): id is string => !!id);
+    }
     const client = this.sdk(this.config().timeoutSeconds * 1000);
     const out: string[] = [];
     for await (const m of client.models.list({ limit: 100 })) out.push(m.id);
@@ -181,10 +274,10 @@ export class AiService {
   async answer(req: { gameId: string; level: BotLevel; ctx: ClueContext; correct: boolean; avoid: Set<string>; final: boolean; budgetMs?: number }): Promise<{ text: string } | { text: null; reason: string }> {
     const cfg = this.config();
     if (!cfg.enabled) return { text: null, reason: 'AI answers are turned off' };
-    if (!this.readKey()) return { text: null, reason: 'No API key saved' };
+    if (keyRequired(cfg.provider) && !this.readKey()) return { text: null, reason: 'No API key saved' };
     const used = this.perGame.get(req.gameId) ?? 0;
     if (cfg.maxPerGame > 0 && used >= cfg.maxPerGame) return { text: null, reason: `AI limit of ${cfg.maxPerGame} answers for this game reached` };
-    const cacheKey = `${cfg.model}|${req.level}|${req.correct}|${req.ctx.question}|${req.ctx.answer}`;
+    const cacheKey = `${cfg.provider}|${cfg.model}|${req.level}|${req.correct}|${req.ctx.question}|${req.ctx.answer}`;
     const cached = this.cache.get(cacheKey);
     if (cached && !req.avoid.has(cached)) return { text: cached };
 
@@ -198,6 +291,18 @@ export class AiService {
     this.perGame.set(req.gameId, used + 1);
     if (this.perGame.size > 50) this.perGame.delete(this.perGame.keys().next().value!);
     this.stats.requests++;
+    const system = 'You play a contestant in a friendly, offline trivia party game. Reply only with the JSON object asked for.';
+    if (cfg.provider === 'openai') {
+      try {
+        const raw = await this.compatChat(cfg, system, `${prompt}\nReply with JSON only, exactly like {"answer": "..."}.`, timeoutMs, true);
+        this.stats.lastLatencyMs = Date.now() - started;
+        const parsed = parseAnswerJson(raw);
+        if (parsed == null) return { text: null, reason: this.fail(new Error('The AI reply could not be read.')) };
+        return this.accept(req, parsed, cacheKey);
+      } catch (e) {
+        return { text: null, reason: this.fail(e) };
+      }
+    }
     try {
       const client = this.sdk(timeoutMs);
       const res = await withTimeout(client.beta.messages.create(
@@ -205,7 +310,7 @@ export class AiService {
           model: cfg.model,
           max_tokens: 1024,
           ...this.request(cfg.model),
-          system: 'You play a contestant in a friendly, offline trivia party game. Reply only with the JSON object asked for.',
+          system,
           output_config: {
             effort: 'low',
             format: { type: 'json_schema', schema: { type: 'object', properties: { answer: { type: 'string' } }, required: ['answer'], additionalProperties: false } },
@@ -224,20 +329,25 @@ export class AiService {
       } catch {
         return { text: null, reason: this.fail(new Error('The AI reply could not be read.')) };
       }
-      text = text.replace(/\s+/g, ' ').replace(/^["“']+|["”']+$/g, '').trim();
-      if (!text || text.length > 120) return { text: null, reason: this.fail(new Error('The AI reply was empty or too long.')) };
-      // A "wrong" answer that is actually right would hand out points the bot should not get.
-      if (!req.correct) {
-        const a = norm(text);
-        const b = norm(req.ctx.answer);
-        if (a === b || (b.length > 3 && a.includes(b))) return { text: null, reason: 'The AI gave the right answer when it should not have; used an offline answer instead' };
-      }
-      this.stats.lastError = null;
-      this.cache.set(cacheKey, text);
-      if (this.cache.size > 300) this.cache.delete(this.cache.keys().next().value!);
-      return { text };
+      return this.accept(req, text, cacheKey);
     } catch (e) {
       return { text: null, reason: this.fail(e) };
     }
+  }
+
+  /** Checks shared by every provider: tidy the text, refuse empty/long replies and right "wrong" answers. */
+  private accept(req: { correct: boolean; ctx: ClueContext }, raw: string, cacheKey: string): { text: string } | { text: null; reason: string } {
+    const text = raw.replace(/\s+/g, ' ').replace(/^["“']+|["”']+$/g, '').trim();
+    if (!text || text.length > 120) return { text: null, reason: this.fail(new Error('The AI reply was empty or too long.')) };
+    // A "wrong" answer that is actually right would hand out points the bot should not get.
+    if (!req.correct) {
+      const a = norm(text);
+      const b = norm(req.ctx.answer);
+      if (a === b || (b.length > 3 && a.includes(b))) return { text: null, reason: 'The AI gave the right answer when it should not have; used an offline answer instead' };
+    }
+    this.stats.lastError = null;
+    this.cache.set(cacheKey, text);
+    if (this.cache.size > 300) this.cache.delete(this.cache.keys().next().value!);
+    return { text };
   }
 }
