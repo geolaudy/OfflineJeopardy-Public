@@ -5,9 +5,9 @@ Read this first in a new session, then `PROGRESS.md` (top section) and `FEATURE_
 ## Current state (updated 2026-10-14, session 6)
 
 - Branch: `main`, pushed to `origin/main`.
-- Releases: v0.6.0, v0.7.0 and **v0.8.0** published (v0.8.0: installer + portable + SHA256SUMS, verified via the API).
-- `package.json` version: **0.8.0**. Tests at the last full run: Vitest 154/154, Playwright 27/27.
-- Local artifacts (include the owner's sounds — personal use only, do not upload): `release/OfflineJeopardy-Setup-0.8.0.exe`, `release/OfflineJeopardy-Portable-0.8.0.exe`, `release/win-unpacked/` (verify-dist 15/15).
+- Releases: v0.6.0 … **v0.9.0** published (each with installer + portable + SHA256SUMS, verified via the API).
+- `package.json` version: **0.9.0**. Tests at the last full run: Vitest 165/165, Playwright 31/31.
+- Local artifacts (include the owner's sounds — personal use only, do not upload): `release/OfflineJeopardy-Setup-0.9.0.exe`, `release/OfflineJeopardy-Portable-0.9.0.exe`, `release/win-unpacked/` (verify-dist 15/15).
 - Round-4 requirements: USER_FEEDBACK.md "Round 4" (R4-1 … R4-20), IMPLEMENTATION_PLAN milestone 18.
 
 ## Round 4 status
@@ -36,8 +36,15 @@ Unchanged from session 5: `npm run dist` + `npm run dist:verify`; release = bump
 - Python edit scripts: write with `newline=''`; **never put regexes with `\b` in a heredoc** — write the script to a file (a heredoc turned `\b` into backspace characters once).
 - Stopping a Playwright run can leave its test server on port 3210; check `netstat -ano | grep 3210` before re-running.
 
+## After v0.8.0 (same session)
+
+- Play-testing: engine fuzzer (`tests/unit/playtest.fuzz.test.ts`, `FUZZ_GAMES=3000` locally), browser play-test (`tests/e2e/playtest.spec.ts`), soak test (`tests/integration/soak.test.ts`). Fixed stuck states when removing players mid-game, Final with nobody eligible, input-bridge flood limit, small-screen overflows.
+- Features: practice games advance by themselves, per-sound volume, leaderboard minimums, local/OpenAI-compatible AI provider, Create a board with AI, head to head on the TV, migration v5 ("Final Wager" → "Final Jeopardy!").
+- E2E specs must clean up what they leave behind (lobbies, boards, settings) — game.spec restores "trust localhost" in afterEach.
+
 ## Next recommended tasks
 
-1. Owner: listen to the Jeopardy!/Buzzinga pack on the real TV (board fill sync, think music), check QR scanning distance with the smaller code, try Final Jeopardy! on real phones.
+1. Owner: listen to the Jeopardy!/Buzzinga pack on the real TV (board fill sync, think music), check QR scanning distance with the smaller code, try Final Jeopardy! on real phones, try a real Ollama/LM Studio (K30).
+2. Further AI helpers from spec §19 (rewrite a clue, suggest a wrong-answer-proof answer list, duplicate detection across boards).
 2. Optional: per-cue volume; rename old boards' "Final Wager" round to "Final Jeopardy!" automatically.
 3. Earlier open items: AI answers with a real key (K26), Joy-Con vibration on hardware (K25).
