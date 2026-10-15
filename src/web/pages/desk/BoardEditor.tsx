@@ -589,6 +589,11 @@ export default function BoardEditor() {
             </label>
           </div>
         </details>
+        {/AI-generated/i.test(meta.tagsText) && (
+          <p className="rounded-2xl border border-violet-200 bg-violet-50 p-3 text-sm text-violet-900" data-testid="ai-generated-note">
+            <b>Written by AI.</b> Check every clue and answer before playing — AI can be wrong. Clues it wrote carry the note “AI-generated”; blank clues are for you to fill in. Remove the “AI-generated” tag when you have checked the board.
+          </p>
+        )}
         <details className={cx('rounded-2xl border p-3', errors.length ? 'border-red-200 bg-red-50' : 'border-slate-200 bg-white')}>
           <summary className="flex min-h-9 cursor-pointer flex-wrap items-center gap-x-3 font-semibold">
             <span>Checks</span>

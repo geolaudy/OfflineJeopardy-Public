@@ -47,6 +47,9 @@ export default function Help() {
         <p>Settings → Sounds: <b>Jeopardy!/Buzzinga</b> (default) plays your own game-show sound files; <b>Classic</b>, <b>Arcade</b> and <b>Soft</b> are built in. Press <b>Add sound files</b> and pick files named like <code>board_fill.mp3</code>, <code>buzzed_in.mp3</code>, <code>correct_answer.mp3</code>, <code>wrong_answer.mp3</code>, <code>daily_double.mp3</code>, <code>times_up.mp3</code>, <code>catagory_swipe.mp3</code>, <code>final_category_reveal.mp3</code> and <code>final_jeopardy_think.mp3</code>. Sounds without a file use the Classic tone. Sounds play only on the TV.</p>
         <p>The TV uses free look-alike fonts. If you own ITC Korinna or Swiss 911 Compressed, install them in Windows — or put <code>clue.woff2</code>, <code>category.woff2</code> and <code>value.woff2</code> in the <code>fonts</code> folder next to the game data — and the TV uses them.</p>
       </Section>
+      <Section title="AI helpers (optional)">
+        <p>Everything works without AI. If you like, Settings → AI answers connects a model: a <b>local AI</b> such as Ollama or LM Studio on this computer or your network (free, no internet) or Anthropic (needs an API key and internet; may cost money). Computer opponents set to <b>AI answers</b> then answer more naturally, and Boards → <b>Create with AI</b> writes a first draft of a board from a topic. AI drafts are marked “AI-generated” — check every clue before playing.</p>
+      </Section>
       <Section title="Saving and resuming">
         <p>Every action is saved immediately. If the computer restarts, open OfflineJeopardy and the game is restored where it was (timers paused, buzzers locked for safety). The iPad can disconnect and reconnect at any time.</p>
       </Section>

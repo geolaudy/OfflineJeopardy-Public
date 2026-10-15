@@ -20,6 +20,8 @@
   - **Head to head on the TV:** host Players → Compare → Show on TV; big pictures, record against each other, headline numbers with the better one highlighted; public numbers only (a private player is named but not compared). Comparison logic moved to `stats.compareSide` (route and TV share it).
   - Test isolation: game.spec now always restores "trust localhost" (a failure there used to cascade into a dozen unrelated failures); compare.spec closes the lobby it opens.
   - Tests: Vitest 163/163, Playwright 30/30.
+  - **Create a board with AI (spec §19, O7):** Boards → Create with AI (topic, categories, clues each, difficulty, Final Jeopardy!) → a draft board tagged AI-generated, every AI clue noted "AI-generated — check before playing", missing/duplicate answers left blank, editor notice; works with the local provider (no internet) or Anthropic; clear errors and nothing created when the reply is unusable or AI is not set up.
+  - Tests: Vitest 165/165, Playwright 31/31.
 
 - Baseline: v0.7.0 pushed and in sync (main = origin/main). Round-4 requirements recorded (USER_FEEDBACK.md Round 4, IMPLEMENTATION_PLAN milestone 18, FEATURE_MATRIX round 4). `new_sfx/` (owner's sounds + clue background) git-ignored.
 - **Return to Lobby investigation (R4-20):** the button and endpoint existed (tested in 0.6/0.7), but the lobby session lived only in memory — after an app restart, Return to Lobby produced a game without a lobby (TV "Getting ready", no join QR); and the Results back arrow silently closed the game (= new lobby). Fixed: lobby session persisted and restored with the recovered game, rematch re-opens a lobby, back arrow removed, Return to Lobby is the first/largest action, "New Lobby" secondary.

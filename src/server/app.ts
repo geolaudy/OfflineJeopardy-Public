@@ -258,6 +258,31 @@ export async function startServer(opts: ServerOptions) {
     audit(db, 'host', 'ai.update', { config: body.config ?? null, key: body.clearKey ? 'removed' : body.apiKey ? 'replaced' : 'unchanged' });
     return ai.status(games.current?.id ?? null);
   });
+  // Spec §19: a draft board written by the AI from a topic (host reviews it in the editor).
+  app.post('/api/ai/generate-board', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const body = parse(
+      z.object({
+        topic: z.string().trim().min(2).max(80),
+        categories: z.number().int().min(1).max(6).default(6),
+        rows: z.number().int().min(3).max(5).default(5),
+        difficulty: z.enum(['easy', 'medium', 'hard']).default('medium'),
+        final: z.boolean().default(true),
+      }),
+      req.body,
+      reply,
+    );
+    if (!body) return;
+    const r = await ai.generateBoard(body);
+    if (!r.ok) return bad(reply, r.error, 502);
+    const board = repo.saveBoard(
+      db,
+      { title: `${body.topic} (AI)`.slice(0, 120), description: `Generated with AI from the topic "${body.topic}". Check every clue before playing — AI can be wrong.`, tags: ['AI-generated'], content: r.content },
+      { version: true },
+    );
+    audit(db, 'host', 'ai.generate-board', { id: board.id, topic: body.topic, filled: r.filled, total: r.total });
+    return { id: board.id, filled: r.filled, total: r.total };
+  });
   app.post('/api/ai/test', async (req, reply) => {
     if (!requireHost(req, reply)) return;
     return ai.test();

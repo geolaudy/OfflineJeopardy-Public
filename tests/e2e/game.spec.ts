@@ -78,6 +78,7 @@ test('full game: iPad host pairing, phone profiles + buzzing, private answers, l
   await createProfileOnPhone(android, 'Sam', '9876');
 
   // Host creates a solo game from the starter board
+  await ipad.getByRole('button', { name: /Starter Trivia Night/ }).first().click();
   await ipad.getByRole('button', { name: 'Open lobby' }).click();
   await expect(ipad.getByTestId('start-game')).toBeVisible();
   await expect(tv.getByText('Scan to join')).toBeVisible();

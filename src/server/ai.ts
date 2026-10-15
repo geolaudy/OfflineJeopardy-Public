@@ -11,7 +11,9 @@ import Anthropic from '@anthropic-ai/sdk';
 import type { DB } from './db/db.js';
 import { getSetting, setSetting } from './db/db.js';
 import { aiConfigSchema, DEFAULT_AI_CONFIG, keyRequired, type AiConfig, type AiStatus } from '../shared/ai.js';
-import type { BotLevel } from '../shared/game.js';
+import type { BotLevel, BoardContent, Category } from '../shared/game.js';
+import { blankClue, uid } from '../shared/boardUtils.js';
+import { z } from 'zod';
 import type { ClueContext } from './botAnswers.js';
 
 /** Electron's safeStorage, injected by the desktop app. */
@@ -143,7 +145,7 @@ export class AiService {
    * One chat request to an OpenAI-compatible server (/chat/completions). Works with a local Ollama
    * or LM Studio on the game computer or the LAN — no internet needed — or a cloud service with a key.
    */
-  private async compatChat(cfg: AiConfig, system: string, user: string, timeoutMs: number, json: boolean): Promise<string> {
+  private async compatChat(cfg: AiConfig, system: string, user: string, timeoutMs: number, json: boolean, maxTokens = 200): Promise<string> {
     const key = this.readKey();
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -158,7 +160,7 @@ export class AiService {
             { role: 'user', content: user },
           ],
           temperature: 0.7,
-          max_tokens: 200,
+          max_tokens: maxTokens,
           stream: false,
           ...(json ? { response_format: { type: 'json_object' } } : {}),
         }),
@@ -335,6 +337,66 @@ export class AiService {
     }
   }
 
+  /** AI is set up for content creation (provider chosen, key saved when the provider needs one). */
+  configured() {
+    const cfg = this.config();
+    return !keyRequired(cfg.provider) || this.readKey() != null;
+  }
+
+  /**
+   * Spec §19 (optional offline AI): a whole board from a topic. Works with a local model (no internet,
+   * no cost) or Anthropic. The result is a draft for the host to check — every clue is marked as
+   * AI-generated, and anything missing or duplicated is left blank to fill in by hand.
+   */
+  async generateBoard(req: { topic: string; categories: number; rows: number; difficulty: 'easy' | 'medium' | 'hard'; final: boolean }): Promise<{ ok: true; content: BoardContent; filled: number; total: number } | { ok: false; error: string }> {
+    const cfg = this.config();
+    if (!this.configured()) return { ok: false, error: 'Set up AI first (Settings → AI answers): choose a local AI server or save an API key.' };
+    const timeoutMs = Math.min(180, Math.max(90, cfg.timeoutSeconds * 6)) * 1000;
+    const system = 'You write accurate trivia for a friendly offline quiz party game. Reply only with the JSON object asked for.';
+    const prompt = [
+      `Write a trivia board about: ${req.topic}.`,
+      `Make exactly ${req.categories} categories, each with exactly ${req.rows} clues ordered from easiest to hardest (${req.difficulty} overall).`,
+      'Each clue is a short factual statement (at most 25 words) in game-show style; its answer is a short response (1–5 words): a person, place, thing, title or number.',
+      'Only use facts you are sure are true. Category names are short (at most 4 words), fun and different from each other. No answer may appear twice.',
+      req.final ? 'Also write one harder Final Jeopardy! clue with its own category.' : '',
+      'Reply with JSON only, exactly in this shape: {"categories":[{"name":"...","clues":[{"clue":"...","answer":"..."}]}]' + (req.final ? ',"final":{"category":"...","clue":"...","answer":"..."}' : '') + '}',
+    ]
+      .filter(Boolean)
+      .join('\n');
+    let raw: string;
+    this.stats.requests++;
+    const started = Date.now();
+    try {
+      if (cfg.provider === 'openai') raw = await this.compatChat(cfg, system, prompt, timeoutMs, true, 6000);
+      else {
+        const res = await withTimeout(
+          this.sdk(timeoutMs).beta.messages.create(
+            {
+              model: cfg.model,
+              max_tokens: 16000,
+              ...this.request(cfg.model),
+              system,
+              output_config: { effort: 'low', format: { type: 'json_schema', schema: GENERATED_JSON_SCHEMA } },
+              messages: [{ role: 'user', content: prompt }],
+            },
+            { timeout: timeoutMs },
+          ),
+          timeoutMs + 500,
+        );
+        if (res.stop_reason === 'refusal') return { ok: false, error: this.fail(new Error('The AI declined to write this board — try another topic.')) };
+        const block = res.content.find((b) => b.type === 'text');
+        raw = block && block.type === 'text' ? block.text : '';
+      }
+    } catch (e) {
+      return { ok: false, error: this.fail(e) };
+    }
+    this.stats.lastLatencyMs = Date.now() - started;
+    const parsed = generatedBoardSchema.safeParse(parseJsonObject(raw));
+    if (!parsed.success) return { ok: false, error: this.fail(new Error('The AI reply was not a usable board — try again, or try a larger model.')) };
+    this.stats.lastError = null;
+    return { ok: true, ...buildGeneratedBoard(parsed.data, req) };
+  }
+
   /** Checks shared by every provider: tidy the text, refuse empty/long replies and right "wrong" answers. */
   private accept(req: { correct: boolean; ctx: ClueContext }, raw: string, cacheKey: string): { text: string } | { text: null; reason: string } {
     const text = raw.replace(/\s+/g, ' ').replace(/^["“']+|["”']+$/g, '').trim();
@@ -350,4 +412,79 @@ export class AiService {
     if (this.cache.size > 300) this.cache.delete(this.cache.keys().next().value!);
     return { text };
   }
+}
+
+// ---------- AI board generation (spec §19) ----------
+
+// Lenient on purpose: an empty or odd clue becomes a blank slot instead of rejecting the board.
+const genClue = z.object({ clue: z.string().trim().max(400).optional(), answer: z.string().trim().max(120).optional() });
+const generatedBoardSchema = z.object({
+  categories: z.array(z.object({ name: z.string().trim().max(60).default(''), clues: z.array(genClue).max(10).default([]) })).min(1).max(8),
+  final: z.object({ category: z.string().trim().min(1).max(60), clue: z.string().trim().min(3).max(400), answer: z.string().trim().min(1).max(120) }).optional(),
+});
+type GeneratedBoard = z.infer<typeof generatedBoardSchema>;
+
+const GENERATED_JSON_SCHEMA = {
+  type: 'object',
+  properties: {
+    categories: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: { name: { type: 'string' }, clues: { type: 'array', items: { type: 'object', properties: { clue: { type: 'string' }, answer: { type: 'string' } }, required: ['clue', 'answer'], additionalProperties: false } } },
+        required: ['name', 'clues'],
+        additionalProperties: false,
+      },
+    },
+    final: { type: 'object', properties: { category: { type: 'string' }, clue: { type: 'string' }, answer: { type: 'string' } }, required: ['category', 'clue', 'answer'], additionalProperties: false },
+  },
+  required: ['categories'],
+  additionalProperties: false,
+} as const;
+
+/** The first JSON object in a reply (local models sometimes add prose or a code fence). */
+function parseJsonObject(raw: string): unknown {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    const m = /\{[\s\S]*\}/.exec(raw);
+    if (!m) return null;
+    try {
+      return JSON.parse(m[0]);
+    } catch {
+      return null;
+    }
+  }
+}
+
+export const AI_NOTE = 'AI-generated — check before playing';
+
+/** A draft board from the AI reply: values 200…, every clue marked as AI-generated, gaps left blank. */
+function buildGeneratedBoard(g: GeneratedBoard, req: { categories: number; rows: number; final: boolean }) {
+  const seen = new Set<string>();
+  const key = (a: string) => a.toLowerCase().replace(/[^a-z0-9]/g, '');
+  let filled = 0;
+  const categories: Category[] = g.categories.slice(0, req.categories).map((cat) => ({
+    id: uid('c'),
+    name: cat.name,
+    clues: Array.from({ length: req.rows }, (_, i) => {
+      const value = (i + 1) * 200;
+      const c = cat.clues[i];
+      // Missing, incomplete or duplicate answers are left for the host to write.
+      if (!c?.clue || c.clue.length < 3 || !c.answer || seen.has(key(c.answer))) return blankClue(value);
+      seen.add(key(c.answer));
+      filled++;
+      return { id: uid('q'), value, question: c.clue, answer: c.answer, notes: AI_NOTE };
+    }),
+  }));
+  while (categories.length < req.categories) categories.push({ id: uid('c'), name: '', clues: Array.from({ length: req.rows }, (_, i) => blankClue((i + 1) * 200)) });
+  const content: BoardContent = { rounds: [{ id: uid('r'), name: 'Round 1', kind: 'standard', categories }] };
+  if (req.final)
+    content.rounds.push({
+      id: uid('r'),
+      name: 'Final Jeopardy!',
+      kind: 'final',
+      categories: [{ id: uid('c'), name: g.final?.category ?? '', clues: [g.final ? { id: uid('q'), value: 0, question: g.final.clue, answer: g.final.answer, notes: AI_NOTE } : blankClue(0)] }],
+    });
+  return { content, filled, total: req.categories * req.rows };
 }

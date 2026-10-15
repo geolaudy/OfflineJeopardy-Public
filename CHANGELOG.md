@@ -4,6 +4,31 @@ All notable changes to OfflineJeopardy. Versions follow [semantic versioning](ht
 GitHub Releases (with the Windows installer and portable exe) are published for major milestones;
 their notes come from the matching section below (`scripts/release-notes.mjs`).
 
+## [0.9.0] — 2026-10-14
+
+### New Features
+- **Local AI, no internet needed**: computer opponents can now get their "AI answers" from a local model such as Ollama or LM Studio running on the game computer or your network — free and offline. Anthropic is still available.
+- **Create a board with AI**: Boards → Create with AI writes a first draft from a topic (choose categories, clues each, difficulty and a Final Jeopardy! clue). The draft opens in the editor, clearly marked AI-generated, with anything it couldn't write left blank for you.
+- **Head to head on the TV**: Players → Compare → Show on TV puts two players side by side with their record against each other.
+- **Practice games run themselves**: when a round is played out the game moves on to the next round, then Final Jeopardy!, then the results. In practice games your own Final Jeopardy! wager and answer box is right on the screen.
+- **Volume per sound** (Settings → Sounds) — for example, turn the think music down without muting the buzzer.
+- **Leaderboard minimums** are now a setting: how many games before someone is ranked by win % or average, and how many answers before accuracy.
+
+### Improvements
+- Boards saved with the old round name "Final Wager" are renamed "Final Jeopardy!" automatically (finished games keep their history as it was).
+- Many buttons and pressing Joy-Cons quickly from several controllers no longer risk being ignored by the game computer.
+- On an iPad in portrait the score bar's Undo button and the sound-pack cards no longer overflow.
+- During a game your phone shows your picture in your lobby colour.
+
+### Bug Fixes
+- Removing a player who was buzzed in, wagering a Daily Double! or waiting in the Final Jeopardy! reveal could leave the host unable to continue.
+- Undo could bring a removed player back into the Final Jeopardy! reveal.
+- If nobody qualified for Final Jeopardy!, the host had no button to finish the game.
+
+### Known Issues
+- Local AI has been tested with a simulated server, not yet with a real Ollama or LM Studio install. Small models on older PCs can be slow — raise "Wait at most" in Settings.
+- AI-written clues can be wrong; always check a draft before playing.
+
 ## [0.8.0] — 2026-10-14
 
 ### New Features

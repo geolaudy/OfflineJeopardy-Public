@@ -102,3 +102,49 @@ describe('AI answers from a local / OpenAI-compatible server', () => {
     expect((await api(s, 'PUT', '/api/ai', { config: { ...DEFAULT_AI_CONFIG, provider: 'openai', baseUrl: 'file:///etc/passwd' } }, host)).status).toBe(400);
   });
 });
+
+describe('Create a board with AI (spec §19)', () => {
+  it('writes a draft board from a topic: marked AI-generated, duplicates and gaps left blank', async () => {
+    const reply = {
+      categories: [
+        { name: 'Moons', clues: [{ clue: 'Earth has just one of these', answer: 'The Moon' }, { clue: 'Largest moon of Saturn', answer: 'Titan' }, { clue: 'Volcanic moon of Jupiter', answer: 'Io' }] },
+        { name: 'Rockets', clues: [{ clue: 'Rocket that took Apollo 11 to the Moon', answer: 'Saturn V' }, { clue: 'Repeat of an earlier answer', answer: 'titan' }, { clue: '', answer: '' }] },
+      ],
+      final: { category: 'Space firsts', clue: 'First person in space', answer: 'Yuri Gagarin' },
+    };
+    const fake = await fakeOllama(() => ({ content: '```json\n' + JSON.stringify(reply) + '\n```' }));
+    const { s, host } = await setup(fake.url);
+    const r = await api(s, 'POST', '/api/ai/generate-board', { topic: 'Space', categories: 3, rows: 3, difficulty: 'easy', final: true }, host);
+    expect(r.status).toBe(200);
+    expect(r.data).toMatchObject({ filled: 4, total: 9 });
+    const b = (await api(s, 'GET', `/api/boards/${r.data.id}`, undefined, host)).data;
+    expect(b).toMatchObject({ title: 'Space (AI)', tags: ['AI-generated'] });
+    expect(b.description).toMatch(/Check every clue/);
+    const [round, final] = b.content.rounds;
+    expect(round.categories.map((c: { name: string }) => c.name)).toEqual(['Moons', 'Rockets', '']);
+    expect(round.categories[0].clues.map((q: { value: number }) => q.value)).toEqual([200, 400, 600]);
+    expect(round.categories[0].clues[1]).toMatchObject({ question: 'Largest moon of Saturn', answer: 'Titan', notes: 'AI-generated — check before playing' });
+    expect(round.categories[1].clues[1]).toMatchObject({ question: '', answer: '' }); // duplicate answer → blank
+    expect(round.categories[1].clues[2]).toMatchObject({ question: '', answer: '' }); // empty → blank
+    expect(final).toMatchObject({ kind: 'final', categories: [{ name: 'Space firsts', clues: [{ question: 'First person in space', answer: 'Yuri Gagarin' }] }] });
+    const prompt = fake.seen.find((x) => x.path === '/v1/chat/completions')!.body;
+    expect(prompt.max_tokens).toBeGreaterThan(1000);
+    expect(prompt.messages[1].content).toMatch(/exactly 3 categories/);
+  });
+
+  it('reports an unusable reply and missing setup clearly; nothing is created', async () => {
+    const fake = await fakeOllama(() => ({ content: 'Sorry, I cannot help with that.' }));
+    const { s, host } = await setup(fake.url);
+    const before = (await api(s, 'GET', '/api/boards', undefined, host)).data.length;
+    const r = await api(s, 'POST', '/api/ai/generate-board', { topic: 'Space' }, host);
+    expect(r.status).toBe(502);
+    expect(JSON.stringify(r.data)).toMatch(/not a usable board/);
+    expect((await api(s, 'GET', '/api/boards', undefined, host)).data.length).toBe(before);
+    // Anthropic without a key: tells the host what to set up.
+    await api(s, 'PUT', '/api/ai', { config: { ...DEFAULT_AI_CONFIG, provider: 'anthropic' } }, host);
+    const r2 = await api(s, 'POST', '/api/ai/generate-board', { topic: 'Space' }, host);
+    expect(JSON.stringify(r2.data)).toMatch(/Set up AI first/);
+    const p = await createProfile(s, 'Pat');
+    expect((await api(s, 'POST', '/api/ai/generate-board', { topic: 'Space' }, p.token)).status).toBe(401);
+  });
+});

@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { downloadFile, hostApi } from '../../lib/api';
 import { attempt, useFetch } from '../../lib/hooks';
 import { ActionButton, Button, Card, Empty, Field, Modal, PageTitleBar, cx, inputCls, toast } from '../../components/ui';
-import { Eye, Link2, Plus, Upload, Folder, FileText, ChevronDown, ChevronUp } from 'lucide-react';
+import { Eye, Link2, Plus, Upload, Folder, FileText, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
 import { ImportFromSourceModal } from './ImportFromSource';
+import { GenerateBoardModal } from './GenerateBoard';
 import { clueComplete } from '../../../shared/boardUtils';
 import { CSV_HEADER } from '../../../shared/boardIO';
 import type { BoardContent, Clue } from '../../../shared/game';
@@ -71,6 +72,7 @@ export default function Library() {
   const [deleteTarget, setDeleteTarget] = useState<BoardSummary | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [sourceImportOpen, setSourceImportOpen] = useState(false);
+  const [generateOpen, setGenerateOpen] = useState(false);
   const closeSourceImport = useCallback(() => setSourceImportOpen(false), []);
   const [templatesOpen, setTemplatesOpen] = useState(false);
 
@@ -133,6 +135,9 @@ export default function Library() {
             </Button>
             <Button variant="secondary" onClick={() => setSourceImportOpen(true)} data-testid="import-from-source">
               <Link2 size={18} aria-hidden /> From link or dataset
+            </Button>
+            <Button variant="secondary" onClick={() => setGenerateOpen(true)} data-testid="generate-board-open">
+              <Sparkles size={18} aria-hidden /> Create with AI
             </Button>
             {templates.length > 0 ? (
               <Button variant="secondary" onClick={() => setTemplatesOpen(true)}>
@@ -305,6 +310,15 @@ export default function Library() {
 
       <ImportModal open={importOpen} onClose={closeImport} onSaved={openEditor} />
       <ImportFromSourceModal open={sourceImportOpen} onClose={closeSourceImport} onSaved={openEditor} />
+      <GenerateBoardModal
+        open={generateOpen}
+        onClose={() => setGenerateOpen(false)}
+        onCreated={(id) => {
+          setGenerateOpen(false);
+          toast('Draft written — check every clue before playing', 'success');
+          openEditor(id);
+        }}
+      />
 
       <Modal open={templatesOpen} onClose={closeTemplates} title="Start from a template">
         <p className="mb-3 text-sm text-slate-600">A copy of the template is created; the template itself stays unchanged.</p>
