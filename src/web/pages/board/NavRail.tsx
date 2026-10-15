@@ -12,7 +12,7 @@ const ICONS: Partial<Record<PresentPage, LucideIcon>> = { lobby: QrCode, boards:
 const ITEMS: { id: PresentPage; label: string; icon: LucideIcon }[] = NAV.filter((n) => n.tv).map((n) => ({ id: n.tv!, label: n.tvLabel ?? n.label, icon: ICONS[n.tv!] ?? QrCode }));
 
 /** The rail entry a page belongs to (a single player is part of Players, a board of Boards). */
-export const railPage = (p: PresentPage): PresentPage => (p === 'player' ? 'players' : p === 'board' ? 'boards' : p === 'tournament' ? 'leaderboard' : p === 'team' ? 'teams' : p);
+export const railPage = (p: PresentPage): PresentPage => (p === 'player' ? 'players' : p === 'board' ? 'boards' : p === 'tournament' ? 'leaderboard' : p === 'team' ? 'teams' : p === 'compare' ? 'players' : p);
 
 export function NavRail({ page }: { page: PresentPage }) {
   const current = railPage(page);

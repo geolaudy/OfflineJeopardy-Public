@@ -7,7 +7,7 @@
 import { z } from 'zod';
 import type { ProfilePublic } from './views.js';
 
-export const PRESENT_PAGES = ['lobby', 'leaderboard', 'players', 'player', 'teams', 'team', 'boards', 'board', 'rules', 'buzzers', 'tournament'] as const;
+export const PRESENT_PAGES = ['lobby', 'leaderboard', 'players', 'player', 'teams', 'team', 'boards', 'board', 'rules', 'buzzers', 'tournament', 'compare'] as const;
 export type PresentPage = (typeof PRESENT_PAGES)[number];
 
 export const presentRequestSchema = z.object({
@@ -15,6 +15,8 @@ export const presentRequestSchema = z.object({
   view: z.enum(['solo', 'team', 'contribution', 'teams']).optional(),
   metric: z.string().max(20).optional(),
   profileId: z.string().max(64).optional(),
+  /** Head to head: the second player. */
+  otherId: z.string().max(64).optional(),
   teamId: z.string().max(64).optional(),
   /** Return the TV to what it showed before the current page (lobby when there is nothing). */
   back: z.boolean().optional(),
@@ -127,6 +129,14 @@ export interface PresentationState {
   /** Before the host opens the lobby (R4-11): the boards to choose from (with the one the host is
    *  looking at), a preview of it and the public settings. No join code is shown at this point. */
   setup?: { boards: NonNullable<PresentationState['boards']>; board: PresentationState['board'] | null; rules: NonNullable<PresentationState['rules']> };
+  /** Head to head on the TV: public numbers only; a private player is named but not compared. */
+  compare?:
+    | {
+        a: { profile: ProfilePublic; summary: { games: number; wins: number; accuracy: number | null; bestScore: number | null; avgReactionMs: number | null } };
+        b: { profile: ProfilePublic; summary: { games: number; wins: number; accuracy: number | null; bestScore: number | null; avgReactionMs: number | null } };
+        record: { games: number; aAhead: number; bAhead: number; tied: number; teammateGames: number; teammateWins: number };
+      }
+    | { unavailable: string };
   /** Tournament standings (names, avatars and points only). */
   tournament?: { id: string; name: string; note: string; finished: boolean; rows: PresentedLeaderRow[] };
 }
@@ -149,4 +159,5 @@ export const PAGE_LABELS: Record<PresentPage, string> = {
   rules: 'Settings',
   buzzers: 'Buzzers',
   tournament: 'Tournament',
+  compare: 'Head to head',
 };

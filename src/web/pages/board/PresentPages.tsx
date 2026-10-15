@@ -26,6 +26,8 @@ export function pageKey(p: PresentationState | null): string {
       return `tournament:${p.tournament?.id ?? ''}`;
     case 'team':
       return `team:${p.team?.id ?? ''}`;
+    case 'compare':
+      return `compare:${p.compare && 'a' in p.compare ? `${p.compare.a.profile.id}:${p.compare.b.profile.id}` : 'x'}`;
     default:
       return p.page;
   }
@@ -66,6 +68,8 @@ function PageBody({ p }: { p: PresentationState }) {
       return p.rules ? <RulesPage d={p.rules} /> : <Missing page={p.page} />;
     case 'buzzers':
       return p.buzzers ? <BuzzersPage d={p.buzzers} /> : <Missing page={p.page} />;
+    case 'compare':
+      return p.compare ? <ComparePage d={p.compare} /> : <Missing page={p.page} />;
     case 'tournament':
       // Standings use the leaderboard layout.
       return p.tournament ? <LeaderboardPage d={{ kicker: p.tournament.finished ? 'Tournament · final standings' : 'Tournament standings', viewLabel: '', metricLabel: p.tournament.name, minNote: p.tournament.note, rows: p.tournament.rows, unranked: 0, empty: 'No games finished yet' }} /> : <Missing page={p.page} />;
@@ -414,6 +418,77 @@ function BoardDetailPage({ d }: { d: NonNullable<PresentationState['board']> }) 
         </motion.div>
       )}
     </>
+  );
+}
+
+// ---------------------------------------------------------------- Head to head
+
+function ComparePage({ d }: { d: NonNullable<PresentationState['compare']> }) {
+  const ctx = useBoard();
+  if ('unavailable' in d)
+    return (
+      <>
+        <Head kicker="Head to head" title="Not available" />
+        <Empty title={d.unavailable} />
+      </>
+    );
+  const { a, b, record } = d;
+  const pct = (v: number | null) => (v == null ? '—' : `${Math.round(v * 100)}%`);
+  const secs = (ms: number | null) => (ms == null ? '—' : `${(ms / 1000).toFixed(2)} s`);
+  const score = (v: number | null) => (v == null ? '—' : v.toLocaleString());
+  const rows: { label: string; a: string; b: string; av: number | null; bv: number | null; lower?: boolean }[] = [
+    { label: 'Games', a: String(a.summary.games), b: String(b.summary.games), av: a.summary.games, bv: b.summary.games },
+    { label: 'Wins', a: String(a.summary.wins), b: String(b.summary.wins), av: a.summary.wins, bv: b.summary.wins },
+    { label: 'Accuracy', a: pct(a.summary.accuracy), b: pct(b.summary.accuracy), av: a.summary.accuracy, bv: b.summary.accuracy },
+    { label: 'Best score', a: score(a.summary.bestScore), b: score(b.summary.bestScore), av: a.summary.bestScore, bv: b.summary.bestScore },
+    { label: 'Buzz speed', a: secs(a.summary.avgReactionMs), b: secs(b.summary.avgReactionMs), av: a.summary.avgReactionMs, bv: b.summary.avgReactionMs, lower: true },
+  ];
+  const better = (r: (typeof rows)[number]) => (r.av == null || r.bv == null || r.av === r.bv ? null : (r.lower ? r.av < r.bv : r.av > r.bv) ? 'a' : 'b');
+  const av = vhPx(ctx, 15);
+  return (
+    <div className="tvp-h2h" data-testid="tv-compare">
+      <Head kicker="Head to head" title={`${profileName(a.profile)} vs ${profileName(b.profile)}`} />
+      <div className="tvp-h2h-top">
+        <motion.div className="tvp-h2h-who" {...item(0)}>
+          <Avatar profile={a.profile} size={av} />
+          <span className="tvp-h2h-name">{profileName(a.profile)}</span>
+        </motion.div>
+        <motion.div className="tvp-card tvp-h2h-record" {...item(1)} data-testid="tv-compare-record">
+          {record.games ? (
+            <>
+              <span className="tvp-h2h-label">Against each other · {record.games} {record.games === 1 ? 'game' : 'games'}</span>
+              <span className="tvp-h2h-score">
+                {record.aAhead} <span>–</span> {record.bAhead}
+              </span>
+              <span className="tvp-h2h-label">finished ahead{record.tied ? ` · ${record.tied} tied` : ''}</span>
+            </>
+          ) : (
+            <span className="tvp-h2h-label">No games against each other yet</span>
+          )}
+          {record.teammateGames > 0 && (
+            <span className="tvp-h2h-label">
+              Teammates {record.teammateGames}× · won {record.teammateWins}
+            </span>
+          )}
+        </motion.div>
+        <motion.div className="tvp-h2h-who" {...item(2)}>
+          <Avatar profile={b.profile} size={av} />
+          <span className="tvp-h2h-name">{profileName(b.profile)}</span>
+        </motion.div>
+      </div>
+      <div className="tvp-card tvp-h2h-rows">
+        {rows.map((r, i) => {
+          const w = better(r);
+          return (
+            <motion.div key={r.label} className="tvp-h2h-row" {...item(3 + i)}>
+              <span className={cx('tvp-h2h-val text-right', w === 'a' && 'is-better')}>{r.a}</span>
+              <span className="tvp-h2h-stat">{r.label}</span>
+              <span className={cx('tvp-h2h-val', w === 'b' && 'is-better')}>{r.b}</span>
+            </motion.div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

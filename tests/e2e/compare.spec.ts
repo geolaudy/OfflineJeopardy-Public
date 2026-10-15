@@ -42,5 +42,17 @@ test('head to head on the phone and on the host', async () => {
   await pc.getByRole('button', { name: 'Compare Riley Rival' }).click();
   await pc.getByLabel('Compare with').selectOption({ label: 'Morgan Me' });
   await expect(pc.getByRole('dialog').getByTestId('head-to-head')).toContainText('Morgan Me');
+  // Show it on the TV (needs an open lobby).
+  const auth = { authorization: `Bearer ${(await (await api.post('/api/host/local-login')).json()).token}` };
+  await api.post('/api/games/close', { headers: auth });
+  await api.post('/api/lobby', { headers: auth, data: { name: 'Rivals' } });
+  const tv = await (await cr.newContext({ viewport: { width: 1920, height: 1080 } })).newPage();
+  await tv.goto(`${BASE}/board`);
+  await pc.getByTestId('compare-show-tv').click();
+  await expect(tv.getByTestId('tv-compare')).toContainText('Riley Rival vs Morgan Me');
+  await expect(tv.getByTestId('tv-compare-record')).toContainText('No games against each other yet');
+  await tv.waitForTimeout(700);
+  await tv.screenshot({ path: 'test-results/screens/tv-compare.png' });
+  await api.delete('/api/lobby', { headers: auth }); // leave the TV as other tests expect it
   await api.dispose();
 });

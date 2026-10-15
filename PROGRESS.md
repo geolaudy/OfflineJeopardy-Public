@@ -17,6 +17,9 @@
   - Leaderboard minimums are a host setting (K17): games before win %/average, answers before accuracy; used by the TV, host and phone leaderboards.
   - **Local AI answers:** new provider "Local AI or OpenAI-compatible (Ollama, LM Studio…)" — server address (default Ollama on this PC), key optional, model typed or loaded from the server, test connection; same prompt, limits, right-answer guard and fallbacks as the cloud provider; replies wrapped in prose are still read. Works without internet.
   - Tests: Vitest 162/162 (new ai-local.test.ts with a real fake OpenAI-compatible HTTP server), Playwright 30/30.
+  - **Head to head on the TV:** host Players → Compare → Show on TV; big pictures, record against each other, headline numbers with the better one highlighted; public numbers only (a private player is named but not compared). Comparison logic moved to `stats.compareSide` (route and TV share it).
+  - Test isolation: game.spec now always restores "trust localhost" (a failure there used to cascade into a dozen unrelated failures); compare.spec closes the lobby it opens.
+  - Tests: Vitest 163/163, Playwright 30/30.
 
 - Baseline: v0.7.0 pushed and in sync (main = origin/main). Round-4 requirements recorded (USER_FEEDBACK.md Round 4, IMPLEMENTATION_PLAN milestone 18, FEATURE_MATRIX round 4). `new_sfx/` (owner's sounds + clue background) git-ignored.
 - **Return to Lobby investigation (R4-20):** the button and endpoint existed (tested in 0.6/0.7), but the lobby session lived only in memory — after an app restart, Return to Lobby produced a game without a lobby (TV "Getting ready", no join QR); and the Results back arrow silently closed the game (= new lobby). Fixed: lobby session persisted and restored with the recovered game, rematch re-opens a lobby, back arrow removed, Return to Lobby is the first/largest action, "New Lobby" secondary.

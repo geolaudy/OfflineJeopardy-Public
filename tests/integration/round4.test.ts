@@ -411,3 +411,34 @@ describe('leaderboard minimums (K17)', () => {
     expect(r.crit.min?.label).toBe('at least 1 solo game');
   });
 });
+
+describe('head to head on the TV', () => {
+  it('shows public numbers and the record; a private player is not compared', async () => {
+    const s = await boot();
+    servers.push(s);
+    const host = await hostToken(s);
+    const [ann, ben] = await Promise.all([createProfile(s, 'Ann'), createProfile(s, 'Ben')]);
+    await api(s, 'POST', '/api/lobby', {}, host);
+    await api(s, 'POST', '/api/games', { boardId: await sampleBoardId(s, host), mode: 'solo' }, host);
+    const h = await client(s, 'host', host);
+    const tv = await client(s, 'public');
+    await h.act({ type: 'addPlayer', profileId: ann.id });
+    await h.act({ type: 'addPlayer', profileId: ben.id });
+    await h.act({ type: 'startGame' });
+    await h.act({ type: 'introSkip' });
+    const annC = h.state!.competitors.find((c) => c.profileId === ann.id)!.id;
+    await h.act({ type: 'adjustScore', competitorId: annC, delta: 400, note: 't' });
+    await h.act({ type: 'endGame' });
+    await api(s, 'POST', '/api/games/current/rematch', {}, host);
+    h.send({ t: 'present', req: { page: 'compare', profileId: ann.id, otherId: ben.id } });
+    const m = (await tv.wait((x) => x.t === 'presentation' && (x as any).p.page === 'compare', 3000)) as any;
+    expect(m.p.compare.record).toMatchObject({ games: 1, aAhead: 1, bAhead: 0 });
+    expect(m.p.compare.a.summary).toMatchObject({ games: 1, wins: 1 });
+    expect(JSON.stringify(m.p)).not.toMatch(/pin|token|stats_private/i);
+    await api(s, 'PATCH', '/api/me', { statsPrivate: true }, ben.token);
+    h.send({ t: 'present', req: { page: 'compare', profileId: ann.id, otherId: ben.id } });
+    const m2 = (await tv.wait((x) => x.t === 'presentation' && !!(x as any).p.compare?.unavailable, 3000)) as any;
+    expect(m2.p.compare.unavailable).toMatch(/Ben keeps their statistics private/);
+    expect(m2.p.compare.a).toBeUndefined();
+  });
+});

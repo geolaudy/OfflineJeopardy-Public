@@ -6,9 +6,9 @@ import { attempt, useFetch } from '../../lib/hooks';
 import { Avatar, Button, ColorPicker, Empty, Field, Modal, PageTitleBar, inputCls, toast } from '../../components/ui';
 import { ProfileCreateForm, ProfilePicturePicker } from '../../components/ProfileForm';
 import { ProfileStats } from '../../components/StatsView';
-import { useLive } from '../../lib/socket';
+import { present as sendPresent, useLive } from '../../lib/socket';
 import { profileName } from '../../lib/view';
-import { Lock, Plus, Swords } from 'lucide-react';
+import { Lock, Monitor, Plus, Swords } from 'lucide-react';
 import HeadToHead, { type CompareData } from '../../components/HeadToHead';
 
 interface AdminProfile {
@@ -220,6 +220,9 @@ function CompareModal({ first, players, onClose }: { first: AdminProfile; player
   const others = players.filter((p) => p.id !== first.id);
   const [other, setOther] = useState(others[0]?.id ?? '');
   const d = useFetch(() => (other ? hostApi<CompareData>('GET', '/api/stats/compare?a=' + first.id + '&b=' + other) : Promise.resolve(null)), [first.id, other]);
+  const lobbyOpen = useLive((s) => !!s.lobby?.open);
+  const phase = useLive((s) => s.game?.phase);
+  const tvOk = lobbyOpen && phase !== 'board' && phase !== 'clue' && phase !== 'final';
   return (
     <Modal open onClose={onClose} title={`Compare ${profileName(first)}`} wide>
       <div className="space-y-4">
@@ -233,6 +236,20 @@ function CompareModal({ first, players, onClose }: { first: AdminProfile; player
           </select>
         </Field>
         {!others.length ? <p className="text-slate-500">Add another player to compare.</p> : d.error ? <p className="text-slate-600">{d.error}</p> : d.data ? <HeadToHead d={d.data} /> : <p className="text-slate-500">Loading…</p>}
+        {other && d.data && (
+          <Button
+            variant="secondary"
+            disabled={!tvOk}
+            onClick={() => {
+              sendPresent({ page: 'compare', profileId: first.id, otherId: other });
+              toast('Head to head is on the TV');
+            }}
+            data-testid="compare-show-tv"
+          >
+            <Monitor size={18} aria-hidden /> Show on TV
+          </Button>
+        )}
+        {other && d.data && !tvOk && <p className="text-xs text-slate-500">Open a lobby to show this on the TV (during play the TV shows the game).</p>}
       </div>
     </Modal>
   );

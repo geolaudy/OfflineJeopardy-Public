@@ -3,6 +3,7 @@
 // statistics are computed separately and never merged into one average.
 import type { DB } from './db/db.js';
 import { listTeams } from './repos.js';
+import * as repo from './repos.js';
 import type { TeamLeaderRow } from '../shared/leaderboard.js';
 import type { PersonSummary } from '../shared/presentation.js';
 
@@ -429,6 +430,26 @@ export interface HeadToHead {
   /** Counted team games where both played on the same team. */
   teammates: { games: number; wins: number };
   recent: { gameId: string; title: string; endedAt: number | null; together: boolean; aPlace: number | null; bPlace: number | null; aScore: number; bScore: number; won: 'a' | 'b' | 'both' | 'none' }[];
+}
+
+/** One side of a comparison (T10): public profile + headline numbers, or why it cannot be shown. */
+export function compareSide(db: DB, id: string, allowPrivate: boolean) {
+  const p = repo.getProfile(db, id);
+  if (!p || p.deleted_at) return { ok: false as const, error: 'Profile not found', code: 404 };
+  if (!allowPrivate && p.stats_private) return { ok: false as const, error: `${repo.toPublic(p).name} keeps their statistics private`, code: 403 };
+  const st = profileStats(db, id);
+  const c = st.combined;
+  return {
+    ok: true as const,
+    profile: repo.toPublic(p),
+    summary: {
+      games: c.gamesPlayed,
+      wins: c.wins,
+      accuracy: c.correct + c.incorrect ? c.correct / (c.correct + c.incorrect) : null,
+      bestScore: st.solo.games.highestScore ?? null,
+      avgReactionMs: st.solo.buzzer.averageReactionMs ?? st.team.buzzer.averageReactionMs ?? null,
+    },
+  };
 }
 
 export function headToHead(db: DB, a: string, b: string): HeadToHead {

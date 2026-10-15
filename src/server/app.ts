@@ -1054,25 +1054,7 @@ export async function startServer(opts: ServerOptions) {
     const s = sessionOf(req);
     if (!s) return bad(reply, 'Sign in first', 401);
     if (!q.a || !q.b || q.a === q.b) return bad(reply, 'Choose two different players');
-    const side = (id: string) => {
-      const p = repo.getProfile(db, id);
-      if (!p || p.deleted_at) return { ok: false as const, error: 'Profile not found', code: 404 };
-      const own = s.kind === 'profile' && s.profileId === id;
-      if (!own && s.kind !== 'host' && p.stats_private) return { ok: false as const, error: `${repo.toPublic(p).name} keeps their statistics private`, code: 403 };
-      const st = stats.profileStats(db, id);
-      const c = st.combined;
-      return {
-        ok: true as const,
-        profile: repo.toPublic(p),
-        summary: {
-          games: c.gamesPlayed,
-          wins: c.wins,
-          accuracy: c.correct + c.incorrect ? c.correct / (c.correct + c.incorrect) : null,
-          bestScore: st.solo.games.highestScore ?? null,
-          avgReactionMs: st.solo.buzzer.averageReactionMs ?? st.team.buzzer.averageReactionMs ?? null,
-        },
-      };
-    };
+    const side = (id: string) => stats.compareSide(db, id, s.kind === 'host' || (s.kind === 'profile' && s.profileId === id));
     const a = side(q.a);
     if (!a.ok) return bad(reply, a.error, a.code);
     const b = side(q.b);

@@ -14,6 +14,19 @@ test.beforeAll(async () => {
 test.afterEach(async () => {
   for (const b of [wk, cr]) for (const c of b?.contexts() ?? []) await c.close();
 });
+// game.spec turns off "trust localhost" for its iPad; always restore it, even when a test fails,
+// so later specs that host from this computer are not affected.
+let adminToken = '';
+test.beforeAll(async () => {
+  const ctx = await request.newContext({ baseURL: BASE });
+  adminToken = (await (await ctx.post('/api/host/local-login')).json()).token; // while localhost is trusted
+  await ctx.dispose();
+});
+test.afterEach(async () => {
+  const ctx = await request.newContext({ baseURL: BASE });
+  await ctx.put('/api/settings', { headers: { authorization: `Bearer ${adminToken}` }, data: { trustLocalhost: true } });
+  await ctx.dispose();
+});
 test.afterAll(async () => {
   await wk?.close();
   await cr?.close();

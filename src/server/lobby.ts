@@ -165,6 +165,17 @@ export class LobbyManager {
         return { page: 'rules', rules: this.rules() };
       case 'buzzers':
         return { page: 'buzzers', buzzers: this.buzzers() };
+      case 'compare': {
+        if (!req.profileId || !req.otherId || req.profileId === req.otherId) return { page: 'players', players: this.players() };
+        const a = stats.compareSide(this.db, req.profileId, false);
+        const b = stats.compareSide(this.db, req.otherId, false);
+        if (!a.ok || !b.ok) return { page: 'compare', compare: { unavailable: !a.ok ? a.error : (b as { error: string }).error } };
+        const h = stats.headToHead(this.db, req.profileId, req.otherId);
+        return {
+          page: 'compare',
+          compare: { a: { profile: a.profile, summary: a.summary }, b: { profile: b.profile, summary: b.summary }, record: { ...h.opponents, teammateGames: h.teammates.games, teammateWins: h.teammates.wins } },
+        };
+      }
       case 'tournament': {
         const t = req.tournamentId ? this.tournament(req.tournamentId) : null;
         return t ? { page: 'tournament', tournament: t } : { page: 'lobby' };
