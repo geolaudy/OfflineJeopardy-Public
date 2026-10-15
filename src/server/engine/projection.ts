@@ -9,6 +9,8 @@ export function projectState(s: GameState, role: ViewRole, rawProfiles: Record<I
   // Everyone sees the lobby colour (R4-13); the profile's own colour stays its preference.
   const profiles: Record<Id, ProfilePublic> = { ...rawProfiles };
   for (const [pid, color] of Object.entries(s.playerColors ?? {})) if (profiles[pid]) profiles[pid] = { ...profiles[pid], color };
+  // In a game the nickname is the one chosen for this lobby (R5-17); `name` stays the profile name.
+  for (const pid of Object.keys(profiles)) profiles[pid] = { ...profiles[pid], nickname: s.nicknames?.[pid] ?? '' };
   const scores = scoresOf(s.events);
   const lives = livesOf(s);
   const used = new Set(s.usedClueIds);

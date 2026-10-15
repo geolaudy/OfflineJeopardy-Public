@@ -38,6 +38,7 @@ export const rulesSchema = z.object({
   survivalLives: z.number().int().min(0).max(20).optional(),
   autoUnlock: z.enum(['off', 'all', 'mediaOnly', 'perClue']).optional(),
   maxPlayers: z.number().int().min(0).max(200).optional(),
+  maxPerTeam: z.number().int().min(0).max(50).optional(),
   categoryIntro: z.boolean().optional(),
   timers: timerRules,
 });
@@ -54,6 +55,12 @@ export const hostActionSchema = z.discriminatedUnion('type', [
     memberIds: z.array(id).max(50),
   }),
   z.object({ type: z.literal('removeCompetitor'), competitorId: id }),
+  /** Lobby, team games: the number of team slots (R5-5). Removing a slot moves its players to Unassigned. */
+  z.object({ type: z.literal('setTeamCount'), count: z.number().int().min(1).max(12) }),
+  /** Lobby: game title / practice flag (the Setup screen is part of the lobby now, R5-4). */
+  z.object({ type: z.literal('updateGameInfo'), title: z.string().trim().min(1).max(120).optional(), practice: z.boolean().optional() }),
+  /** Lobby nickname of a player (R5-17); empty = none. */
+  z.object({ type: z.literal('setNickname'), profileId: id, nickname: z.string().trim().max(24) }),
   z.object({ type: z.literal('addBot'), name, level: z.enum(['easy', 'medium', 'hard', 'expert']), color: color.optional(), ai: z.boolean().optional() }),
   // The host buzzes on behalf of a competitor (single-player practice, or a player whose device failed).
   z.object({ type: z.literal('hostBuzz'), competitorId: id }),
@@ -67,7 +74,8 @@ export const hostActionSchema = z.discriminatedUnion('type', [
     botLevel: z.enum(['easy', 'medium', 'hard', 'expert']).optional(),
     botAi: z.boolean().optional(),
   }),
-  z.object({ type: z.literal('assignMember'), profileId: id, competitorId: id.nullable() }),
+  // index: position in the team's member list (drag-and-drop reordering, R5-5.4).
+  z.object({ type: z.literal('assignMember'), profileId: id, competitorId: id.nullable(), index: z.number().int().min(0).max(50).optional() }),
   z.object({ type: z.literal('approvePlayer'), profileId: id }),
   z.object({ type: z.literal('removeParticipant'), profileId: id }),
   z.object({
@@ -163,6 +171,10 @@ export type SystemAction =
       sourceKind: 'joycon' | 'phone' | 'keyboard' | 'gamepad' | 'host' | 'bot';
     }
   | { type: 'timerExpire' }
+  /** A player picks (or leaves, competitorId null) a team on their phone in the lobby (R5-5.3). */
+  | { type: 'joinTeam'; profileId: string; competitorId: string | null }
+  /** A team member renames / recolours their team in the lobby (R5-5.9). */
+  | { type: 'setTeamIdentity'; profileId: string; competitorId: string; name?: string; color?: string }
   /** A player's Daily Double! wager from their phone; the host locks it (R5-20). */
   | { type: 'submitDailyWager'; competitorId: string; profileId: string | null; amount: number }
   | { type: 'playerJoin'; profileId: string; code?: string }

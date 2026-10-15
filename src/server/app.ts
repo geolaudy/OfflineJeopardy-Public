@@ -37,7 +37,8 @@ import { PACK_ID, SoundPacks } from './soundPacks.js';
 import { DEFAULT_THRESHOLDS, type Thresholds } from '../shared/leaderboard.js';
 import { ratingOf } from '../shared/teamBalance.js';
 import * as tour from './tournaments.js';
-import { normalizeRules, rulesFromPreset, RULE_PRESETS } from '../shared/game.js';
+import { defaultTeamCount, normalizeRules, rulesFromPreset, RULE_PRESETS, type GameRules } from '../shared/game.js';
+import { humanCount } from './engine/engine.js';
 import { customThemeSchema, isPreset, newThemeData, type ThemeFile } from '../shared/themes.js';
 import { rulesSchema } from '../shared/actions.js';
 import { boardContentSchema, exportBoardCsv, exportBoardJson, importBoardCsv, importBoardJson } from '../shared/boardIO.js';
@@ -134,6 +135,7 @@ export async function startServer(opts: ServerOptions) {
   games.onCurrentChange = () => lobby.refreshSoon();
   games.recover();
   lobby.restore();
+  if (!lobby.lobby) lobby.present({ page: 'lobby' }); // the TV home screen with recent games (R5-2)
 
   const pinLimiter = new RateLimiter(20, 60_000);
   const hostLimiter = new RateLimiter(10, 60_000);
@@ -318,14 +320,46 @@ export async function startServer(opts: ServerOptions) {
   });
   app.post('/api/lobby', async (req, reply) => {
     if (!requireHost(req, reply)) return;
-    const body = parse(z.object({ name: z.string().trim().max(60).optional() }), req.body ?? {}, reply);
+    const body = parse(z.object({ name: z.string().trim().max(60).optional(), game: z.boolean().optional() }), req.body ?? {}, reply);
     if (!body) return;
+    // Create Lobby (R5-4): with `game`, the lobby opens straight into lobby management with the
+    // last game's board, mode and rules (the host changes them in the lobby).
+    if (body.game && !games.current) {
+      const made = createLobbyGame();
+      if ('error' in made) return bad(reply, made.error, 409);
+    }
     const l = lobby.lobby ?? lobby.create(body.name);
+    if (body.game) lobby.present({ page: 'lobby' });
     audit(db, 'host', 'lobby.create', { name: l.name });
-    return { lobby: { name: l.name, createdAt: l.createdAt }, pairingCode: l.pairingCode };
+    return { lobby: { name: l.name, createdAt: l.createdAt }, pairingCode: l.pairingCode, gameId: games.current?.id ?? null };
   });
+  /** A new game in its lobby phase with sensible defaults: the last game's board/mode/rules. */
+  function createLobbyGame(): { id: string } | { error: string } {
+    const last = db.prepare(`SELECT state_json AS s FROM games WHERE status <> 'abandoned' ORDER BY updated_at DESC LIMIT 1`).get() as { s: string } | undefined;
+    let prev: { boardId?: string | null; mode?: 'solo' | 'team'; rules?: GameRules } = {};
+    try {
+      if (last) prev = JSON.parse(last.s);
+    } catch {
+      /* unreadable old state: use the defaults */
+    }
+    const usable = (id: string | null | undefined) => {
+      const b = id ? repo.getBoard(db, id) : null;
+      return b && !b.archived && !validateBoard(b.content).some((i) => i.level === 'error') ? b : null;
+    };
+    const listed = repo.listBoards(db).filter((b) => !b.archived).sort((a, c) => Number(c.favorite) - Number(a.favorite));
+    const board = usable(prev.boardId) ?? listed.map((b) => usable(b.id)).find((b) => !!b) ?? null;
+    if (!board) return { error: 'Create a board first (Boards), then create the lobby' };
+    const mode = prev.mode === 'team' ? 'team' : 'solo';
+    const s = games.create({ title: board.title, boardId: board.id, board: structuredClone(board.content), mode, rules: prev.rules ? normalizeRules(prev.rules) : rulesFromPreset('classic'), practice: false });
+    // Team games start with two empty team slots for players to pick (R5-5.1).
+    if (mode === 'team') games.dispatch({ type: 'setTeamCount', count: defaultTeamCount(0) });
+    return { id: s.id };
+  }
   app.delete('/api/lobby', async (req, reply) => {
     if (!requireHost(req, reply)) return;
+    // A lobby closed before anyone joined leaves nothing to resume.
+    const g = games.current;
+    if (g && g.phase === 'lobby' && humanCount(g) === 0) db.prepare(`UPDATE games SET status = 'abandoned', updated_at = ? WHERE id = ?`).run(Date.now(), g.id);
     lobby.close();
     // The game (if any) stays saved; the TV goes back to its start screen.
     games.unload();
@@ -872,6 +906,29 @@ export async function startServer(opts: ServerOptions) {
   app.get('/api/games', async (req, reply) => {
     if (!requireHost(req, reply)) return;
     return { current: games.current?.id ?? null, games: repo.listGames(db, ['setup', 'active']), presets: RULE_PRESETS };
+  });
+  // Host home (R5-2.3): recent finished games (the TV shows the same cards).
+  app.get('/api/games/recent', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    return { recent: stats.recentGames(db, 6) };
+  });
+  // Lobby: put the game in a tournament, or take it out (the Setup screen is part of the lobby, R5-4).
+  app.post('/api/games/current/tournament', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const body = parse(z.object({ tournamentId: z.string().max(64).nullable() }), req.body, reply);
+    if (!body) return;
+    const g = games.current;
+    if (!g || g.phase !== 'lobby') return bad(reply, 'Only before the game starts', 409);
+    if (body.tournamentId) {
+      const t = tour.getTournament(db, body.tournamentId);
+      if (!t) return bad(reply, 'Tournament not found', 404);
+      if (t.status !== 'active') return bad(reply, 'That tournament is finished');
+      if (t.mode !== g.mode) return bad(reply, t.mode === 'team' ? 'This tournament is for teams' : 'This tournament is for individuals');
+      if (g.practice) return bad(reply, 'Practice games do not count in tournaments');
+      tour.attachGame(db, g.id, t.id);
+    } else tour.attachGame(db, g.id, null);
+    lobby.refreshSoon();
+    return { tournament: tour.tournamentOfGame(db, g.id) };
   });
   app.post('/api/games', async (req, reply) => {
     if (!requireHost(req, reply)) return;

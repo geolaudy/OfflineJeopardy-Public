@@ -790,11 +790,12 @@ describe('lobby controls: change mode and board before the game starts (R2-6)', 
     );
     s = run(s, { type: 'setMode', mode: 'team' });
     expect(s.mode).toBe('team');
-    expect(s.competitors).toHaveLength(0); // the computer opponent leaves (solo only)
+    // The computer opponent leaves (solo only); 2 players → 1 empty team slot to pick (R5-5.1).
+    expect(s.competitors.map((c) => [c.kind, c.name, c.memberIds.length])).toEqual([['team', 'Blue Team', 0]]);
     expect(s.unassigned.map((u) => u.profileId).sort()).toEqual(['alex', 'jordan']);
     expect(s.bindings.map((b) => b.controllerId)).toEqual(['jc-1', 'kb-1']); // personal buzzers stay with the player
     s = run(s, { type: 'addTeam', name: 'Owls', color: '#2563eb', buzzerMode: 'shared', memberIds: ['alex', 'jordan'] });
-    s = run(s, { type: 'bindController', controllerId: 'jc-2', kind: 'joycon', label: 'Joy-Con (R)', target: { kind: 'competitor', competitorId: s.competitors[0].id } });
+    s = run(s, { type: 'bindController', controllerId: 'jc-2', kind: 'joycon', label: 'Joy-Con (R)', target: { kind: 'competitor', competitorId: s.competitors.find((c) => c.name === 'Owls')!.id } });
     s = run(s, { type: 'setMode', mode: 'solo' });
     expect(s.competitors.map((c) => c.profileId).sort()).toEqual(['alex', 'jordan']);
     expect(s.unassigned).toHaveLength(0);

@@ -98,6 +98,15 @@ export class GameManager {
     // Same lobby, same colours (R4-20 / R4-13).
     s.playerColors = structuredClone(old.playerColors ?? {});
     s.colorPrompts = structuredClone(old.colorPrompts ?? []);
+    s.nicknames = structuredClone(old.nicknames ?? {});
+    // Team slots that stayed empty in the last game come back with the lobby (R5-5.6).
+    if (old.mode === 'team' && old.lobbyTeams?.length) {
+      const playing = new Set(s.competitors.map((c) => c.id));
+      s.competitors.push(...structuredClone(old.lobbyTeams.filter((t) => !playing.has(t.id)).map((t) => ({ ...t, memberIds: [] }))));
+      const order = old.lobbyTeams.map((t) => t.id);
+      const pos = (id: string) => (order.includes(id) ? order.indexOf(id) : order.length);
+      s.competitors.sort((a, b) => pos(a.id) - pos(b.id));
+    }
     s.showJoinQr = old.showJoinQr;
     persistGame(this.db, s, []);
     snapshotClues(this.db, s);

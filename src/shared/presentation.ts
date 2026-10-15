@@ -7,7 +7,7 @@
 import { z } from 'zod';
 import type { ProfilePublic } from './views.js';
 
-export const PRESENT_PAGES = ['lobby', 'leaderboard', 'players', 'player', 'teams', 'team', 'boards', 'board', 'rules', 'buzzers', 'tournament', 'compare'] as const;
+export const PRESENT_PAGES = ['lobby', 'leaderboard', 'players', 'player', 'teams', 'team', 'boards', 'board', 'rules', 'buzzers', 'tournament', 'compare', 'game'] as const;
 export type PresentPage = (typeof PRESENT_PAGES)[number];
 
 export const presentRequestSchema = z.object({
@@ -22,6 +22,8 @@ export const presentRequestSchema = z.object({
   back: z.boolean().optional(),
   boardId: z.string().max(64).optional(),
   tournamentId: z.string().max(64).optional(),
+  /** A finished game's summary (R5-2.3). */
+  gameId: z.string().max(64).optional(),
 });
 export type PresentRequest = z.infer<typeof presentRequestSchema>;
 
@@ -46,7 +48,10 @@ export interface PresentedLeaderRow {
 }
 
 export interface RosterRow {
+  /** Lobby nickname, or the profile name when there is none. */
   name: string;
+  /** The profile name, when a lobby nickname is shown instead (R5-17.6). */
+  realName?: string;
   color: string;
   avatar: string;
   pictureUrl: string | null;
@@ -86,7 +91,13 @@ export interface PublicRoster {
   rows: RosterRow[];
   ready: number; // rows whose buzzer is ready
   waiting: string[]; // joined, not on a team yet
+  /** Unassigned players with their pictures (team games, R5-5.2). */
+  waitingPeople?: { name: string; realName?: string; color: string; avatar: string; pictureUrl: string | null }[];
   practice: boolean;
+  /** Team games: most players per team (0 = no limit). */
+  maxPerTeam?: number;
+  /** The selected board (R5-3.3): title and size only; categories stay for the game. */
+  board?: { title: string; description: string; rounds: number; clues: number; final: boolean } | null;
   /** History summaries for every player in the lobby, by profile id. */
   people?: Record<string, PersonSummary>;
   /** Profiles that won the previous match in this lobby (crown). */
@@ -139,6 +150,36 @@ export interface PresentationState {
     | { unavailable: string };
   /** Tournament standings (names, avatars and points only). */
   tournament?: { id: string; name: string; note: string; finished: boolean; rows: PresentedLeaderRow[] };
+  /** No lobby open (R5-2): the home screen's recent games and a paused game, if any. */
+  home?: { recent: RecentGameCard[]; unfinished: { title: string; updatedAt: number; started: boolean } | null };
+  /** A finished game's public summary (R5-2.3). */
+  game?: GameSummaryCard | null;
+}
+
+export interface RecentGameCard {
+  id: string;
+  title: string;
+  boardTitle: string;
+  endedAt: number;
+  mode: 'solo' | 'team';
+  practice: boolean;
+  winners: { name: string; color: string; avatar: string; pictureUrl: string | null; team: boolean }[];
+  winningScore: number | null;
+  players: number;
+  bots: number;
+  teams: number;
+}
+
+export interface GameSummaryCard {
+  id: string;
+  title: string;
+  boardTitle: string;
+  mode: 'solo' | 'team';
+  practice: boolean;
+  startedAt: number | null;
+  endedAt: number;
+  cluesPlayed: number;
+  standings: { placement: number | null; name: string; color: string; team: boolean; avatar: string; pictureUrl: string | null; score: number | null; isWinner: boolean; members: string[]; correct: number; incorrect: number }[];
 }
 
 /** Public, read-only game settings grouped for the TV (never secrets, PINs or device details). */
@@ -160,4 +201,5 @@ export const PAGE_LABELS: Record<PresentPage, string> = {
   buzzers: 'Buzzers',
   tournament: 'Tournament',
   compare: 'Head to head',
+  game: 'Game',
 };

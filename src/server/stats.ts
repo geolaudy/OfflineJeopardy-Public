@@ -496,3 +496,110 @@ export function headToHead(db: DB, a: string, b: string): HeadToHead {
   }
   return out;
 }
+
+/** A finished game as the TV home screen and the host's recent-games list show it (R5-2). Only
+ *  what history recorded: no winner is invented for games without recorded results. */
+export interface RecentGame {
+  id: string;
+  title: string;
+  boardTitle: string;
+  endedAt: number;
+  mode: 'solo' | 'team';
+  practice: boolean;
+  /** Winner(s) from the recorded results (empty when none were recorded). */
+  winners: { name: string; color: string; avatar: string; pictureUrl: string | null; team: boolean }[];
+  winningScore: number | null;
+  /** People who played (computer opponents counted separately). */
+  players: number;
+  bots: number;
+  teams: number;
+}
+
+type CompRow = { gameId: string; kind: 'player' | 'team'; teamId: string | null; profileId: string | null; name: string; color: string; score: number | null; placement: number | null; isWinner: number | null };
+
+function competitorIdentity(db: DB, r: CompRow, profiles: Record<string, { avatar: string; pictureUrl: string | null }>, teams: Map<string, { avatar: string }>) {
+  if (r.kind === 'team') return { avatar: (r.teamId && teams.get(r.teamId)?.avatar) || 'shield', pictureUrl: null };
+  if (!r.profileId) return { avatar: 'robot', pictureUrl: null }; // computer opponent
+  const p = profiles[r.profileId];
+  return { avatar: p?.avatar ?? 'fox', pictureUrl: p?.pictureUrl ?? null };
+}
+
+export function recentGames(db: DB, limit = 3): RecentGame[] {
+  const games = db
+    .prepare(
+      `SELECT g.id, g.title, g.mode, g.practice, g.ended_at AS endedAt, b.title AS boardTitle,
+         (SELECT COUNT(*) FROM game_participants p WHERE p.game_id = g.id) AS players
+       FROM games g LEFT JOIN boards b ON b.id = g.board_id WHERE ${COMPLETED} AND g.ended_at IS NOT NULL ORDER BY g.ended_at DESC LIMIT ?`,
+    )
+    .all(limit) as { id: string; title: string; mode: 'solo' | 'team'; practice: number; endedAt: number; boardTitle: string | null; players: number }[];
+  if (!games.length) return [];
+  const comps = db
+    .prepare(
+      `SELECT game_id AS gameId, kind, team_id AS teamId, profile_id AS profileId, name_snapshot AS name, color, final_score AS score, placement, is_winner AS isWinner
+       FROM game_competitors WHERE game_id IN (${games.map(() => '?').join(',')})`,
+    )
+    .all(...games.map((g) => g.id)) as CompRow[];
+  const profiles = repo.profilesByIds(db, [...new Set(comps.map((c) => c.profileId).filter((x): x is string => !!x))]);
+  const teams = new Map(listTeams(db, true).map((t) => [t.id, t]));
+  return games.map((g) => {
+    const mine = comps.filter((c) => c.gameId === g.id);
+    const won = mine.filter((c) => !!c.isWinner);
+    return {
+      id: g.id,
+      title: g.title,
+      boardTitle: g.boardTitle ?? g.title,
+      endedAt: g.endedAt,
+      mode: g.mode,
+      practice: !!g.practice,
+      winners: won.map((c) => ({ name: c.name, color: c.color, team: c.kind === 'team', ...competitorIdentity(db, c, profiles, teams) })),
+      winningScore: won.length && won[0].score != null ? won[0].score : null,
+      players: g.players,
+      bots: mine.filter((c) => c.kind === 'player' && !c.profileId).length,
+      teams: mine.filter((c) => c.kind === 'team').length,
+    };
+  });
+}
+
+/** Public summary of one finished game for the TV (R5-2.3): final standings and simple counts. */
+export function gameSummary(db: DB, gameId: string) {
+  const g = db
+    .prepare(`SELECT g.id, g.title, g.mode, g.practice, g.started_at AS startedAt, g.ended_at AS endedAt, b.title AS boardTitle FROM games g LEFT JOIN boards b ON b.id = g.board_id WHERE g.id = ? AND ${COMPLETED}`)
+    .get(gameId) as { id: string; title: string; mode: 'solo' | 'team'; practice: number; startedAt: number | null; endedAt: number; boardTitle: string | null } | undefined;
+  if (!g) return null;
+  const comps = db
+    .prepare(
+      `SELECT game_id AS gameId, competitor_id AS competitorId, kind, team_id AS teamId, profile_id AS profileId, name_snapshot AS name, color, final_score AS score, placement, is_winner AS isWinner
+       FROM game_competitors WHERE game_id = ? ORDER BY placement, name_snapshot`,
+    )
+    .all(gameId) as (CompRow & { competitorId: string })[];
+  const members = db.prepare('SELECT competitor_id AS competitorId, name_snapshot AS name FROM game_participants WHERE game_id = ?').all(gameId) as { competitorId: string; name: string }[];
+  const answers = db
+    .prepare(`SELECT competitor_id AS competitorId, result, COUNT(*) AS n FROM gameplay_events WHERE game_id = ? AND type = 'answer' AND voided = 0 GROUP BY competitor_id, result`)
+    .all(gameId) as { competitorId: string; result: string; n: number }[];
+  const played = (db.prepare(`SELECT COUNT(*) AS n FROM gameplay_events WHERE game_id = ? AND type = 'clue_open' AND voided = 0`).get(gameId) as { n: number }).n;
+  const profiles = repo.profilesByIds(db, comps.map((c) => c.profileId).filter((x): x is string => !!x));
+  const teams = new Map(listTeams(db, true).map((t) => [t.id, t]));
+  const count = (id: string, result: string) => answers.find((a) => a.competitorId === id && a.result === result)?.n ?? 0;
+  return {
+    id: g.id,
+    title: g.title,
+    boardTitle: g.boardTitle ?? g.title,
+    mode: g.mode,
+    practice: !!g.practice,
+    startedAt: g.startedAt,
+    endedAt: g.endedAt,
+    cluesPlayed: played,
+    standings: comps.map((c) => ({
+      placement: c.placement,
+      name: c.name,
+      color: c.color,
+      team: c.kind === 'team',
+      ...competitorIdentity(db, c, profiles, teams),
+      score: c.score,
+      isWinner: !!c.isWinner,
+      members: members.filter((m) => m.competitorId === c.competitorId).map((m) => m.name),
+      correct: count(c.competitorId, 'correct'),
+      incorrect: count(c.competitorId, 'incorrect'),
+    })),
+  };
+}

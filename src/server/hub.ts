@@ -297,6 +297,21 @@ export class Hub {
         const res = this.games.dispatch({ type: 'setPlayerColor', profileId: c.profileId, color: m.color }, `profile:${c.profileId}`);
         return this.send(c, res.ok ? { t: 'result', ok: true } : { t: 'result', ok: false, error: res.error });
       }
+      case 'pickTeam':
+      case 'teamIdentity':
+      case 'nickname': {
+        if (c.role !== 'player' || !c.profileId) return this.send(c, { t: 'result', ok: false, error: 'Sign in first' });
+        const pid = c.profileId;
+        const team = this.games.current?.competitors.find((x) => x.kind === 'team' && x.memberIds.includes(pid));
+        if (m.t === 'teamIdentity' && !team) return this.send(c, { t: 'result', ok: false, error: 'Join a team first' });
+        const res =
+          m.t === 'pickTeam'
+            ? this.games.dispatch({ type: 'joinTeam', profileId: pid, competitorId: m.competitorId }, `profile:${pid}`)
+            : m.t === 'teamIdentity'
+              ? this.games.dispatch({ type: 'setTeamIdentity', profileId: pid, competitorId: team!.id, name: m.name, color: m.color }, `profile:${pid}`)
+              : this.games.dispatch({ type: 'setNickname', profileId: pid, nickname: m.nickname }, `profile:${pid}`);
+        return this.send(c, res.ok ? { t: 'result', ok: true } : { t: 'result', ok: false, error: res.error });
+      }
       case 'dailyWager': {
         if (c.role !== 'player' || !c.profileId) return this.send(c, { t: 'result', ok: false, error: 'Sign in first' });
         const comp = this.games.current?.competitors.find((x) => x.memberIds.includes(c.profileId!));

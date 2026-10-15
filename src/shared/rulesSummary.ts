@@ -90,3 +90,34 @@ export function publicSettings(r: GameRules, ctx: PublicSettingsContext): { titl
     { title: 'Scoring and wagers', items: scoring },
   ];
 }
+
+/**
+ * The lobby's rules panel (R5-3.1, R5-4.1) — the same short list on the iPad and the TV, updated
+ * live: buzzing, timers, Daily Double! and Final Jeopardy! rules, and anything unusual that is on.
+ */
+export function lobbyRules(r: GameRules, ctx: { mode: 'solo' | 'team'; teams?: number }): { label: string; value: string }[] {
+  const secs = (n: number) => (n > 0 ? `${n} s` : 'No limit');
+  const early =
+    r.earlyBuzzPenalty === 'lockout'
+      ? `${(r.earlyBuzzLockoutMs / 1000).toFixed(r.earlyBuzzLockoutMs % 1000 ? 2 : 0).replace(/0$/, '')} s lockout`
+      : r.earlyBuzzPenalty === 'points'
+        ? `Lose ${r.earlyBuzzPoints}`
+        : EARLY_BUZZ_OPTIONS[r.earlyBuzzPenalty].label;
+  return [
+    ...(ctx.mode === 'team'
+      ? [{ label: 'Teams', value: `${ctx.teams ?? 0} ${ctx.teams === 1 ? 'team' : 'teams'}${r.maxPerTeam ? ` · up to ${r.maxPerTeam} each` : ''}` }]
+      : [{ label: 'Players', value: r.maxPlayers ? `Up to ${r.maxPlayers}` : 'No limit' }]),
+    { label: 'Early buzz', value: early },
+    { label: 'Time to buzz in', value: secs(r.timers.buzzSeconds) },
+    { label: 'Time to answer', value: secs(r.timers.answerSeconds) },
+    { label: 'Wrong answers', value: r.incorrectDeducts ? 'Lose the clue value' : 'No penalty' },
+    { label: 'Daily Double!', value: `Wager ${r.dailyWagerMin} up to your score (or the round’s top value)` },
+    { label: 'Final Jeopardy!', value: `${r.finalAllowNonPositive ? 'Everyone plays' : 'Positive scores only'} · wager up to your score` },
+    { label: 'Think time', value: secs(r.timers.finalSeconds) },
+    ...(r.autoUnlock !== 'off' ? [{ label: 'Buzzers open', value: AUTO_UNLOCK[r.autoUnlock] }] : []),
+    ...(!r.autoReopenAfterIncorrect ? [{ label: 'After a wrong answer', value: 'The host reopens the buzzers' }] : []),
+    ...(ctx.mode === 'team' && r.teamRetry === 'otherMembers' ? [{ label: 'Second try', value: 'A teammate may try' }] : []),
+    ...(r.survivalLives ? [{ label: 'Survival', value: `${r.survivalLives} ${r.survivalLives === 1 ? 'life' : 'lives'}` }] : []),
+    ...(r.requireRoomCode ? [{ label: 'Joining', value: 'Room code required' }] : []),
+  ];
+}

@@ -39,6 +39,11 @@ export const ClientMessageSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('finalWager'), amount: z.number().int() }),
   // submit=false: autosaved draft or "Change answer" (the player is shown as not ready, R5-19).
   z.object({ t: z.literal('finalAnswer'), answer: z.string().max(200), submit: z.boolean().optional() }),
+  // R5-5.3 / R5-5.9 / R5-17: in the lobby a player picks or leaves a team, renames or recolours
+  // their team, and chooses a nickname for this lobby.
+  z.object({ t: z.literal('pickTeam'), competitorId: z.string().max(64).nullable() }),
+  z.object({ t: z.literal('teamIdentity'), name: z.string().max(30).optional(), color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional() }),
+  z.object({ t: z.literal('nickname'), nickname: z.string().max(24) }),
   // R5-20: the Daily Double! wager from the wagering player's phone.
   z.object({ t: z.literal('dailyWager'), amount: z.number().int().min(0).max(10_000_000) }),
   z.object({ t: z.literal('pickColor'), color: z.string().regex(/^#[0-9a-fA-F]{6}$/) }),

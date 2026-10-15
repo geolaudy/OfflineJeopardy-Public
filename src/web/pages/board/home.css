@@ -1,0 +1,286 @@
+/* TV home screen (R5-2). Sizes in vh/vw so it holds at 16:9 and 4:3; colours from the theme. */
+.tvh {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  color: var(--b-fg);
+}
+.tvh-in {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5vh;
+  padding: 5vh 5vw;
+}
+.tvh-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.6vh;
+  text-align: center;
+}
+.tvh-logo {
+  font-family: var(--b-font);
+  font-weight: var(--bt-heavy);
+  font-size: min(13vh, 8.5vw);
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-shadow: 0.7vh 0.7vh 0 #000, 0 0 2vh rgba(0, 0, 0, 0.4);
+}
+.tvh-logo span {
+  color: var(--b-accent);
+}
+.board-theme:not([data-theme="classic"]) .tvh-logo {
+  text-shadow: var(--bt-text-shadow);
+}
+.tvh-sub {
+  font-size: 3vh;
+  opacity: 0.85;
+}
+.tvh-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.2vh;
+  margin-top: 1.4vh;
+  padding: 1.2vh 2.6vh;
+  border-radius: 999px;
+  background: var(--tvp-surface, rgba(0, 0, 0, 0.3));
+  font-size: 2.6vh;
+  font-weight: 600;
+}
+.tvh-dot {
+  width: 1.4vh;
+  height: 1.4vh;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+.tvh-dot.is-on {
+  background: var(--b-accent);
+  animation: tvh-pulse 2.4s ease-in-out infinite;
+}
+@keyframes tvh-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.8); }
+}
+.reduce-motion .tvh-dot.is-on {
+  animation: none;
+}
+.tvh-paused {
+  display: inline-flex;
+  align-items: center;
+  gap: 1vh;
+  font-size: 2.2vh;
+  opacity: 0.85;
+}
+.tvh-paused svg {
+  width: 2.6vh;
+  height: 2.6vh;
+  color: var(--b-accent);
+}
+.tvh-kicker {
+  margin-bottom: 1.6vh;
+  font-family: var(--b-font);
+  font-weight: var(--bt-heavy);
+  font-size: 2.3vh;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--b-accent);
+  text-align: center;
+}
+.tvh-recent {
+  width: min(100%, 150vh);
+}
+.tvh-cards {
+  display: grid;
+  grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+  gap: 2vw;
+  justify-content: center;
+}
+.tvh-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1.2vh;
+  padding: 2.4vh 1.8vw;
+  border-radius: 2vh;
+  background: var(--tvp-surface, rgba(0, 0, 0, 0.3));
+  box-shadow: var(--tvp-shadow, none), inset 0 0.6vh 0 var(--pc);
+}
+.tvh-card-board {
+  overflow: hidden;
+  font-family: var(--b-font);
+  font-weight: var(--bt-heavy);
+  font-size: 3vh;
+  letter-spacing: 0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+.tvh-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.7vh;
+  font-size: 1.9vh;
+  opacity: 0.8;
+}
+.tvh-card-meta svg {
+  width: 2vh;
+  height: 2vh;
+}
+.tvh-card-sep {
+  width: 0.6vh;
+}
+.tvh-card-tag {
+  margin-left: 0.8vh;
+  padding: 0.2vh 0.9vh;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--b-accent) 25%, transparent);
+  font-weight: 700;
+}
+.tvh-card-winner {
+  display: flex;
+  align-items: center;
+  gap: 1.4vh;
+  margin-top: 0.6vh;
+}
+.tvh-card-av {
+  position: relative;
+  flex: none;
+}
+.tvh-crown {
+  position: absolute;
+  top: -1.6vh;
+  right: -1vh;
+  width: 3.2vh;
+  height: 3.2vh;
+  fill: #fbbf24;
+  color: #b45309;
+  filter: drop-shadow(0 0.2vh 0.3vh rgba(0, 0, 0, 0.5));
+}
+.tvh-card-name {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  font-size: 2.6vh;
+  font-weight: 700;
+}
+.tvh-card-name span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tvh-card-name small {
+  font-size: 1.8vh;
+  font-weight: 500;
+  opacity: 0.75;
+}
+.tvh-card-score,
+.tvh-standing-score {
+  font-family: var(--bt-value-font, var(--b-font));
+  font-weight: var(--bt-heavy);
+  font-size: 3.4vh;
+  color: var(--b-value, var(--b-accent));
+  font-variant-numeric: tabular-nums;
+  text-shadow: var(--bt-text-shadow);
+}
+.tvh-card-none {
+  font-size: 2.1vh;
+  opacity: 0.7;
+}
+.tvh-foot {
+  font-size: 2vh;
+  opacity: 0.7;
+}
+.tvh-foot span {
+  font-family: ui-monospace, monospace;
+}
+
+/* Recap */
+.tvh-recap {
+  display: flex;
+  width: min(100%, 140vh);
+  flex-direction: column;
+  align-items: stretch;
+}
+.tvh-recap .tvh-kicker {
+  text-align: left;
+  margin-bottom: 0.6vh;
+}
+.tvh-recap-title {
+  overflow: hidden;
+  font-family: var(--b-font);
+  font-weight: var(--bt-heavy);
+  font-size: min(7vh, 4.4vw);
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: var(--bt-text-shadow);
+}
+.tvh-recap-meta {
+  margin: 0.8vh 0 3vh;
+  font-size: 2.3vh;
+  opacity: 0.8;
+}
+.tvh-standings {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1vh;
+}
+.tvh-standing {
+  display: flex;
+  align-items: center;
+  gap: 1.6vw;
+  padding: 1.1vh 2vw 1.1vh 1.2vw;
+  border-radius: 1.6vh;
+  background: var(--tvp-surface, rgba(0, 0, 0, 0.3));
+  box-shadow: inset 0.6vh 0 0 var(--pc);
+  font-size: 2.6vh;
+}
+.tvh-standing.is-winner {
+  background: color-mix(in srgb, var(--b-accent) 18%, var(--tvp-surface, rgba(0, 0, 0, 0.3)));
+}
+.tvh-rank {
+  width: 4vh;
+  font-family: var(--bt-value-font, var(--b-font));
+  font-weight: var(--bt-heavy);
+  font-size: 3.4vh;
+  text-align: center;
+}
+.tvh-standing-name {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  font-weight: 700;
+}
+.tvh-standing-name > span {
+  display: flex;
+  align-items: center;
+  gap: 0.8vh;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.tvh-standing-name small {
+  overflow: hidden;
+  font-size: 1.8vh;
+  font-weight: 500;
+  opacity: 0.75;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tvh-crown-inline {
+  width: 2.8vh;
+  height: 2.8vh;
+  flex: none;
+  fill: #fbbf24;
+  color: #b45309;
+}
+.tvh-standing-stats {
+  font-size: 2vh;
+  opacity: 0.75;
+  white-space: nowrap;
+}

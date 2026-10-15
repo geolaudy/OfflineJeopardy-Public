@@ -25,6 +25,8 @@ import {
   scoresOf,
   timerRemaining,
   TEAM_COLORS,
+  TEAM_SLOT_NAMES,
+  defaultTeamCount,
 } from '../../shared/game.js';
 export { TEAM_COLORS };
 
@@ -99,6 +101,7 @@ export function normalizeState(s: GameState): GameState {
   if (!s.playerColors) s.playerColors = {};
   if (!Array.isArray(s.colorPrompts)) s.colorPrompts = [];
   if (s.final) for (const e of s.final.entries) if (typeof e.submitted !== 'boolean') e.submitted = !!e.answer;
+  if (!s.nicknames) s.nicknames = {};
   if (s.final && !Array.isArray(s.final.order)) {
     // Saved before the one-at-a-time reveal (R4-2): rebuild the order from pre-Final scores.
     const pre = scoresOf(s.events.filter((x) => !(x.type === 'answer' && x.note === 'final')));
@@ -154,6 +157,7 @@ export function createGame(opts: {
     endedAt: null,
     results: null,
     undoStack: [],
+    nicknames: {},
   };
 }
 
@@ -449,10 +453,83 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       if (a.competitorId) {
         const to = competitorOf(s, a.competitorId);
         if (to.kind !== 'team') fail('Can only assign players to teams');
-        to.memberIds.push(a.profileId);
+        // The host may over-fill a team (it is highlighted and blocks the start, R5-5.5).
+        const at = a.index === undefined ? to.memberIds.length : Math.min(a.index, to.memberIds.length);
+        to.memberIds.splice(at, 0, a.profileId);
       } else {
         s.unassigned.push({ profileId: a.profileId, joinedAt: now, pending: false });
       }
+      return;
+    }
+    case 'joinTeam': {
+      // R5-5.3: players choose their own team on their phones (lobby only, within the team size).
+      if (s.phase !== 'lobby') fail('Teams can only be changed in the lobby');
+      if (s.mode !== 'team') fail('Not a team game');
+      const from = competitorForProfile(s, a.profileId);
+      const u = s.unassigned.find((x) => x.profileId === a.profileId);
+      if (!from && !u) fail('Join the game first');
+      if (u?.pending) fail('Wait for the host to let you in');
+      if ((from?.id ?? null) === a.competitorId) return { ignored: true };
+      if (a.competitorId) {
+        const to = competitorOf(s, a.competitorId);
+        if (to.kind !== 'team') fail('That is not a team');
+        if (s.rules.maxPerTeam > 0 && to.memberIds.length >= s.rules.maxPerTeam) fail(`${to.name} is full (${s.rules.maxPerTeam} players)`);
+      }
+      return reduce(tx, { type: 'assignMember', profileId: a.profileId, competitorId: a.competitorId });
+    }
+    case 'setTeamIdentity': {
+      // R5-5.9: any member renames or recolours their team (lobby only; the server applies one
+      // change at a time, so simultaneous edits never mix).
+      if (s.phase !== 'lobby') fail('The team name and colour can only be changed in the lobby');
+      const c = competitorOf(s, a.competitorId);
+      if (c.kind !== 'team' || !c.memberIds.includes(a.profileId)) fail('You can only change your own team');
+      if (a.name !== undefined) {
+        const name = a.name.trim().replace(/\s+/g, ' ');
+        if (!name || name.length > 30) fail('Team names are 1 to 30 characters');
+        if (s.competitors.some((x) => x.id !== c.id && x.name.toLowerCase() === name.toLowerCase())) fail('Another team already has that name');
+        c.name = name;
+      }
+      if (a.color !== undefined) {
+        const color = a.color.toLowerCase();
+        if (!/^#[0-9a-f]{6}$/.test(color)) fail('Invalid colour');
+        if (s.competitors.some((x) => x.id !== c.id && x.kind === 'team' && x.color.toLowerCase() === color)) fail('Another team already has that colour');
+        c.color = color;
+      }
+      return;
+    }
+    case 'setTeamCount': {
+      if (s.phase !== 'lobby') fail('Teams can only be changed before the game starts');
+      if (s.mode !== 'team') fail('Switch to teams first');
+      const teams = s.competitors.filter((c) => c.kind === 'team');
+      for (let i = teams.length; i < a.count; i++) s.competitors.push(teamSlot(s, ctx));
+      // Fewest players first, from the end: their players go back to Unassigned (never removed).
+      while (s.competitors.filter((c) => c.kind === 'team').length > a.count) {
+        const list = s.competitors.filter((c) => c.kind === 'team');
+        const victim = [...list].reverse().sort((x, y) => x.memberIds.length - y.memberIds.length)[0];
+        reduce(tx, { type: 'removeCompetitor', competitorId: victim.id });
+      }
+      return;
+    }
+    case 'updateGameInfo': {
+      if (s.phase !== 'lobby') fail('This can only be changed before the game starts');
+      if (a.title !== undefined) s.title = a.title;
+      if (a.practice !== undefined) {
+        if (a.practice && s.mode === 'team') fail('Practice games are played as individuals');
+        s.practice = a.practice;
+      }
+      return;
+    }
+    case 'setNickname': {
+      // R5-17: a nickname for this lobby only; the profile name is never changed.
+      if (s.phase !== 'lobby' && s.phase !== 'ended') fail('Nicknames can be changed in the lobby');
+      if (!humanParticipants(s).includes(a.profileId)) fail('That player is not in this game');
+      const nick = a.nickname.trim().replace(/\s+/g, ' ');
+      const taken = Object.entries(s.nicknames ?? {}).some(([p, n]) => p !== a.profileId && n.toLowerCase() === nick.toLowerCase());
+      if (nick && taken) fail('Someone in this lobby already uses that nickname');
+      const next = { ...(s.nicknames ?? {}) };
+      if (nick) next[a.profileId] = nick;
+      else delete next[a.profileId];
+      s.nicknames = next;
       return;
     }
     case 'setPlayerColor': {
@@ -541,12 +618,28 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       // with that player; buzzers assigned to a team (or a solo seat) are released.
       const people = [...new Set([...s.competitors.filter((c) => !c.bot).flatMap((c) => c.memberIds), ...s.unassigned.filter((u) => !u.pending).map((u) => u.profileId)])];
       const pending = s.unassigned.filter((u) => u.pending);
+      if (s.mode === 'team') {
+        // R5-5.8: keep the team setup (names, colours, members, shared buzzers) for switching back.
+        s.teamDraft = structuredClone(s.competitors.filter((c) => c.kind === 'team'));
+        s.teamDraftBindings = structuredClone(s.bindings.filter((b) => b.target.kind === 'competitor'));
+      }
       s.bindings = s.bindings.filter((b) => b.target.kind === 'profile');
       s.competitors = [];
       s.controlCompetitorId = null;
       s.mode = a.mode;
       if (a.mode === 'team') {
-        s.unassigned = [...people.map((profileId) => ({ profileId, joinedAt: now, pending: false })), ...pending];
+        // R5-5.2: everyone waits in Unassigned (never put on an arbitrary team) next to empty team
+        // slots, or the previous team setup comes back with its members who are still here.
+        const here = new Set(people);
+        const draft = (s.teamDraft ?? []).map((t) => ({ ...t, memberIds: t.memberIds.filter((m) => here.has(m)) }));
+        const placed = new Set(draft.flatMap((t) => t.memberIds));
+        s.competitors = draft;
+        if (!draft.length) for (let i = 0, n = defaultTeamCount(people.length); i < n; i++) s.competitors.push(teamSlot(s, ctx));
+        const ids = new Set(draft.map((t) => t.id));
+        s.bindings.push(...(s.teamDraftBindings ?? []).filter((b) => b.target.kind === 'competitor' && ids.has(b.target.competitorId)));
+        s.unassigned = [...people.filter((p) => !placed.has(p)).map((profileId) => ({ profileId, joinedAt: now, pending: false })), ...pending];
+        s.teamDraft = null;
+        s.teamDraftBindings = null;
       } else {
         s.unassigned = pending;
         for (const profileId of people)
@@ -628,9 +721,19 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
     // ----- game flow -----
     case 'startGame': {
       if (s.phase !== 'lobby') fail('Game already started');
+      if (s.mode === 'team') {
+        const max = s.rules.maxPerTeam;
+        const over = max > 0 ? s.competitors.find((c) => c.kind === 'team' && c.memberIds.length > max) : undefined;
+        if (over) fail(`${over.name} has ${over.memberIds.length} players but the limit is ${max}: move ${over.memberIds.length - max} first`);
+        if (!s.competitors.some((c) => c.kind === 'team' && c.memberIds.length > 0)) fail('Put at least one player on a team first');
+        // R5-5.6: empty team slots do not play (no scores, no buzzers); the lobby keeps them for
+        // Return to Lobby. Players still in Unassigned stay in the lobby without playing (R5-5.7).
+        s.lobbyTeams = structuredClone(s.competitors.filter((c) => c.kind === 'team'));
+        const empty = new Set(s.competitors.filter((c) => c.kind === 'team' && c.memberIds.length === 0).map((c) => c.id));
+        s.competitors = s.competitors.filter((c) => !empty.has(c.id));
+        s.bindings = s.bindings.filter((b) => !(b.target.kind === 'competitor' && empty.has(b.target.competitorId)));
+      }
       if (s.competitors.length === 0) fail('Add at least one player or team first');
-      const empty = s.competitors.find((c) => c.kind === 'team' && c.memberIds.length === 0);
-      if (empty) fail(`Team "${empty.name}" has no players`);
       s.phase = 'board';
       s.startedAt = now;
       s.showJoinQr = false;
@@ -1198,7 +1301,20 @@ export function humanCount(s: GameState) {
 }
 
 function checkRoom(s: GameState) {
-  if (s.rules.maxPlayers > 0 && humanCount(s) >= s.rules.maxPlayers) fail('This game is full (' + s.rules.maxPlayers + ' players)');
+  // Team games are limited per team (R5-4.2); joining is never blocked there: extra players wait in Unassigned.
+  if (s.mode === 'solo' && s.rules.maxPlayers > 0 && humanCount(s) >= s.rules.maxPlayers) fail('This game is full (' + s.rules.maxPlayers + ' players)');
+}
+
+/** A new, empty team slot with the first free default name and colour (R5-5.1). */
+function teamSlot(s: GameState, ctx: EngineCtx): Competitor {
+  const names = new Set(s.competitors.map((c) => c.name.toLowerCase()));
+  const colors = new Set(s.competitors.filter((c) => c.kind === 'team').map((c) => c.color.toLowerCase()));
+  let i = TEAM_SLOT_NAMES.findIndex((n, k) => !names.has(n.toLowerCase()) && !colors.has(TEAM_COLORS[k]));
+  if (i < 0) i = TEAM_SLOT_NAMES.findIndex((n) => !names.has(n.toLowerCase()));
+  let name = i >= 0 ? TEAM_SLOT_NAMES[i] : '';
+  for (let n = s.competitors.length + 1; !name; n++) if (!names.has(`team ${n}`)) name = `Team ${n}`;
+  const color = i >= 0 && !colors.has(TEAM_COLORS[i]) ? TEAM_COLORS[i] : (TEAM_COLORS.find((c) => !colors.has(c)) ?? TEAM_COLORS[s.competitors.length % TEAM_COLORS.length]);
+  return { id: ctx.newId(), kind: 'team', name, color, avatar: 'shield', buzzerMode: 'individual', memberIds: [] };
 }
 
 function buzzBlockReasonIgnoringStatus(s: GameState, c: Competitor): string | null {

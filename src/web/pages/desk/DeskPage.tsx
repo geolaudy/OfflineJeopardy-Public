@@ -69,7 +69,8 @@ function Start() {
   const d = desktop();
 
   const create = async () => {
-    const r = await attempt(() => hostApi('POST', '/api/lobby', {}));
+    // Straight into lobby management (R5-4): the lobby opens with a game in its lobby phase.
+    const r = await attempt(() => hostApi('POST', '/api/lobby', { game: true }));
     // The TV window opens with the lobby (on the second screen when there is one).
     if (r && d) {
       const list = await d.listDisplays();

@@ -9,7 +9,7 @@ import { connect, disconnect, useLive, act, present as sendPresent } from '../..
 import { Button, Drawer, toast, cx } from '../../components/ui';
 import { phaseLabel } from '../../lib/view';
 import { attempt } from '../../lib/hooks';
-import GamePicker from './GamePicker';
+import HostLanding from './HostLanding';
 import Setup from './Setup';
 import Live from './Live';
 import Results from './Results';
@@ -205,9 +205,9 @@ function HostHome() {
       else navigate('/host');
     }
   };
-  // Back arrow from the lobby setup to the list of games. Not on the results: there the way on is
-  // Return to Lobby (same players), and a back arrow quietly meant "start a new lobby" (R4-20).
-  const canGoBack = !!game && game.phase === 'lobby';
+  // No back arrow: the lobby is managed in place (R5-4) and left with Close lobby; on the results
+  // the way on is Return to Lobby (R4-20).
+  const canGoBack = false;
   const playing = !!game && game.phase !== 'lobby' && game.phase !== 'ended';
 
   return (
@@ -251,7 +251,7 @@ function HostHome() {
         </div>
       </header>
       <div className="scroll-area min-h-0 flex-1">
-        {!ready ? <div className="p-6 text-center text-slate-500">Connecting to the game computer…</div> : !game ? <GamePicker /> : game.phase === 'lobby' ? <Setup g={game} /> : game.phase === 'ended' ? <Results g={game} /> : <Live g={game} run={run} />}
+        {!ready ? <div className="p-6 text-center text-slate-500">Connecting to the game computer…</div> : !game ? <HostLanding /> : game.phase === 'lobby' ? <Setup g={game} /> : game.phase === 'ended' ? <Results g={game} /> : <Live g={game} run={run} />}
       </div>
       <Drawer
         open={menu}

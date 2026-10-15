@@ -180,10 +180,22 @@ export class LobbyManager {
         const t = req.tournamentId ? this.tournament(req.tournamentId) : null;
         return t ? { page: 'tournament', tournament: t } : { page: 'lobby' };
       }
+      case 'game': {
+        const g = req.gameId ? stats.gameSummary(this.db, req.gameId) : null;
+        return g ? { page: 'game', game: g, ...(this.lobby ? {} : { home: this.home() }) } : this.build({ page: 'lobby' });
+      }
       default:
-        // No game yet: the pre-lobby preview instead of the join screen (R4-11).
-        return this.lobby && !this.game() ? { page: 'lobby', setup: this.setup() } : { page: 'lobby' };
+        // No lobby: the home screen (R5-2). Lobby without a game yet: the pre-lobby preview (R4-11).
+        if (!this.lobby) return { page: 'lobby', home: this.home() };
+        return !this.game() ? { page: 'lobby', setup: this.setup() } : { page: 'lobby' };
     }
+  }
+
+  /** Home screen (R5-2): the last three finished games and a saved game that can be resumed. */
+  private home(): NonNullable<PresentationState['home']> {
+    const open = repo.listGames(this.db, ['setup', 'active']);
+    const paused = open.find((g) => g.status === 'active') ?? null;
+    return { recent: stats.recentGames(this.db, 3), unfinished: paused ? { title: paused.title, updatedAt: paused.updatedAt, started: true } : null };
   }
 
   private thresholds(): Thresholds {
@@ -433,15 +445,25 @@ export class LobbyManager {
         teamRecords[c.name] = { games: ts.games.played, wins: ts.games.wins };
       }
     const reign = this.reigning;
+    const waiting = s.unassigned.filter((u) => !u.pending).map((u) => {
+      const p = profiles[u.profileId];
+      const nick = s.nicknames?.[u.profileId];
+      return { name: nick || p?.name || 'Player', ...(nick && p ? { realName: p.name } : {}), color: s.playerColors?.[u.profileId] ?? p?.color ?? '#64748b', avatar: p?.avatar ?? 'fox', pictureUrl: p?.pictureUrl ?? null };
+    });
+    const b = s.boardId ? repo.getBoard(this.db, s.boardId) : null;
+    const standard = s.board.rounds.filter((r) => r.kind === 'standard');
     return {
       title: s.title,
       boardTitle: board ?? s.title,
+      board: { title: b?.title ?? s.title, description: b?.description ?? '', rounds: standard.length, clues: standard.reduce((n, r) => n + r.categories.reduce((m, c) => m + c.clues.length, 0), 0), final: s.board.rounds.some((r) => r.kind === 'final') },
       mode: s.mode,
       count: humanCount(s),
-      max: s.rules.maxPlayers,
+      max: s.mode === 'solo' ? s.rules.maxPlayers : 0,
+      maxPerTeam: s.rules.maxPerTeam,
       rows,
       ready: rows.filter((r) => r.ready).length,
-      waiting: s.unassigned.filter((u) => !u.pending).map((u) => profiles[u.profileId]?.nickname?.trim() || profiles[u.profileId]?.name || 'Player'),
+      waiting: waiting.map((w) => w.name),
+      waitingPeople: waiting,
       practice: s.practice,
       people,
       reigning: reign ? reign.profileIds.filter((id) => ids.includes(id)) : [],
@@ -487,7 +509,8 @@ export class LobbyManager {
         const p = profiles[m];
         const b = s.bindings.find((x) => x.target.kind === 'profile' && x.target.profileId === m);
         const d = b ? describeFor(b, [m]) : { device: 'Phone', ready: online.has(m) };
-        rows.push({ name: p?.nickname?.trim() || p?.name || 'Player', color: s.playerColors?.[m] ?? p?.color ?? c.color, avatar: p?.avatar ?? 'fox', pictureUrl: p?.pictureUrl ?? null, team: c.kind === 'team' ? c.name : null, teamColor: c.kind === 'team' ? c.color : null, ...d, profileId: m, crown: !!this.reigning?.profileIds.includes(m) });
+        const nick = s.nicknames?.[m];
+        rows.push({ name: nick || p?.name || 'Player', ...(nick && p ? { realName: p.name } : {}), color: s.playerColors?.[m] ?? p?.color ?? c.color, avatar: p?.avatar ?? 'fox', pictureUrl: p?.pictureUrl ?? null, team: c.kind === 'team' ? c.name : null, teamColor: c.kind === 'team' ? c.color : null, ...d, profileId: m, crown: !!this.reigning?.profileIds.includes(m) });
       }
     }
     return rows;

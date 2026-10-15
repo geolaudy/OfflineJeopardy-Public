@@ -11,6 +11,7 @@ import { profileName } from '../../lib/view';
 import { useBoard, vhPx } from './common';
 import { fitCards, useBoxSize, useNarrow } from './presentKit';
 import { EASE_OUT_ARR, T } from './timing';
+import { Recap } from './TvHome';
 
 /** Stable identity of what is presented (a new key cross-fades; a data refresh does not). */
 export function pageKey(p: PresentationState | null): string {
@@ -26,6 +27,8 @@ export function pageKey(p: PresentationState | null): string {
       return `tournament:${p.tournament?.id ?? ''}`;
     case 'team':
       return `team:${p.team?.id ?? ''}`;
+    case 'game':
+      return `game:${p.game?.id ?? ''}`;
     case 'compare':
       return `compare:${p.compare && 'a' in p.compare ? `${p.compare.a.profile.id}:${p.compare.b.profile.id}` : 'x'}`;
     default:
@@ -73,6 +76,8 @@ function PageBody({ p }: { p: PresentationState }) {
     case 'tournament':
       // Standings use the leaderboard layout.
       return p.tournament ? <LeaderboardPage d={{ kicker: p.tournament.finished ? 'Tournament · final standings' : 'Tournament standings', viewLabel: '', metricLabel: p.tournament.name, minNote: p.tournament.note, rows: p.tournament.rows, unranked: 0, empty: 'No games finished yet' }} /> : <Missing page={p.page} />;
+    case 'game':
+      return p.game ? <Recap g={p.game} /> : <Missing page={p.page} />;
     default:
       return null;
   }

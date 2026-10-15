@@ -187,3 +187,85 @@ describe('Daily Double! wager from the phone (R5-20)', () => {
     expect(attempt(s, { type: 'submitDailyWager', competitorId: cid(s, 'sam'), profileId: 'sam', amount: 100 }, 'profile:sam').ok).toBe(false); // other team
   });
 });
+
+describe('team management (R5-5)', () => {
+  const lobby = (players: string[]) => {
+    let s = createGame({ id: 'gt', title: 'T', boardId: 'b1', board: SAMPLE_BOARD, mode: 'solo', rules: { ...DEFAULT_RULES }, now: clock });
+    for (const p of players) s = act(s, { type: 'addPlayer', profileId: p });
+    return s;
+  };
+  const teams = (s: GameState) => s.competitors.filter((c) => c.kind === 'team');
+  const pick = (s: GameState, p: string, competitorId: string | null) => act(s, { type: 'joinTeam', profileId: p, competitorId }, `profile:${p}`);
+
+  it('default team count is ceil(players / 2); everyone waits in Unassigned', () => {
+    for (const [n, expected] of [[0, 2], [2, 1], [3, 2], [4, 2], [5, 3], [6, 3]] as const) {
+      const s = act(lobby(['a', 'b', 'c', 'd', 'e', 'f'].slice(0, n)), { type: 'setMode', mode: 'team' });
+      expect(teams(s)).toHaveLength(expected);
+      expect(teams(s).every((t) => t.memberIds.length === 0)).toBe(true);
+      expect(s.unassigned.map((u) => u.profileId).sort()).toEqual(['a', 'b', 'c', 'd', 'e', 'f'].slice(0, n));
+    }
+    const s = act(lobby(['a', 'b', 'c']), { type: 'setMode', mode: 'team' });
+    expect(teams(s).map((t) => [t.name, t.color])).toEqual([['Blue Team', '#2563eb'], ['Red Team', '#dc2626']]);
+  });
+
+  it('players pick, switch and leave teams within the team size; the host can over-fill, which blocks the start', () => {
+    let s = act(lobby(['a', 'b', 'c', 'd']), { type: 'setMode', mode: 'team' });
+    s = act(s, { type: 'updateRules', rules: { ...s.rules, maxPerTeam: 2 } });
+    const [blue, red] = teams(s).map((t) => t.id);
+    s = pick(pick(s, 'a', blue), 'b', blue);
+    const full = attempt(s, { type: 'joinTeam', profileId: 'c', competitorId: blue }, 'profile:c');
+    expect(full.ok ? '' : full.error).toMatch(/full/);
+    s = pick(s, 'b', red); // switch
+    s = pick(s, 'c', blue);
+    s = pick(s, 'c', null); // back to Unassigned
+    expect(s.unassigned.map((u) => u.profileId).sort()).toEqual(['c', 'd']);
+    // Host drag-and-drop may exceed the limit (at a position) → highlighted, start blocked.
+    s = run(s, { type: 'assignMember', profileId: 'c', competitorId: blue, index: 0 }, { type: 'assignMember', profileId: 'd', competitorId: blue });
+    expect(teams(s)[0].memberIds).toEqual(['c', 'a', 'd']);
+    const blocked = attempt(s, { type: 'startGame' });
+    expect(blocked.ok ? '' : blocked.error).toMatch(/limit is 2: move 1/);
+    s = run(s, { type: 'assignMember', profileId: 'd', competitorId: null });
+    // Start: d (unassigned) stays in the lobby but does not play; no extra team.
+    s = run(s, { type: 'setTeamCount', count: 3 }, { type: 'startGame' });
+    expect(s.competitors.map((c) => c.name)).toEqual(['Blue Team', 'Red Team']); // the empty Green Team is left out
+    expect(s.unassigned.map((u) => u.profileId)).toEqual(['d']);
+    expect(s.lobbyTeams?.map((t) => t.name)).toEqual(['Blue Team', 'Red Team', 'Green Team']);
+    expect(attempt(s, { type: 'joinTeam', profileId: 'd', competitorId: blue }, 'profile:d').ok).toBe(false); // lobby only
+  });
+
+  it('teams → individuals → teams restores names, colours and members', () => {
+    let s = act(lobby(['a', 'b', 'c']), { type: 'setMode', mode: 'team' });
+    const [blue] = teams(s).map((t) => t.id);
+    s = pick(pick(s, 'a', blue), 'b', blue);
+    s = act(s, { type: 'setTeamIdentity', profileId: 'a', competitorId: blue, name: 'The Blue Team', color: '#0891b2' }, 'profile:a');
+    s = run(s, { type: 'setMode', mode: 'solo' });
+    expect(s.competitors.map((c) => c.kind)).toEqual(['player', 'player', 'player']);
+    s = run(s, { type: 'setMode', mode: 'team' });
+    expect(teams(s).map((t) => [t.name, t.color, t.memberIds])).toEqual([['The Blue Team', '#0891b2', ['a', 'b']], ['Red Team', '#dc2626', []]]);
+    expect(s.unassigned.map((u) => u.profileId)).toEqual(['c']);
+  });
+
+  it('team identity: members only, names and colours unique; team count changes keep players', () => {
+    let s = act(lobby(['a', 'b', 'c', 'd']), { type: 'setMode', mode: 'team' });
+    const [blue, red] = teams(s).map((t) => t.id);
+    s = pick(pick(s, 'a', blue), 'c', red);
+    expect(attempt(s, { type: 'setTeamIdentity', profileId: 'c', competitorId: blue, name: 'Mine' }, 'profile:c').ok).toBe(false);
+    expect(attempt(s, { type: 'setTeamIdentity', profileId: 'a', competitorId: blue, name: 'red team' }, 'profile:a').ok).toBe(false);
+    expect(attempt(s, { type: 'setTeamIdentity', profileId: 'a', competitorId: blue, color: '#dc2626' }, 'profile:a').ok).toBe(false);
+    s = run(s, { type: 'setTeamCount', count: 1 });
+    expect(teams(s).map((t) => t.memberIds)).toEqual([['a']]); // the Red Team went; c is back in Unassigned
+    expect(s.unassigned.map((u) => u.profileId).sort()).toEqual(['b', 'c', 'd']);
+  });
+
+  it('lobby nicknames: unique, shown as the nickname in every projection, never the profile name', () => {
+    let s = lobby(['a', 'b']);
+    s = act(s, { type: 'setNickname', profileId: 'a', nickname: '  Quiz   Master ' }, 'profile:a');
+    expect(s.nicknames).toEqual({ a: 'Quiz Master' });
+    expect(attempt(s, { type: 'setNickname', profileId: 'b', nickname: 'quiz master' }, 'profile:b').ok).toBe(false);
+    const v = projectState(s, 'public', { a: { id: 'a', name: 'Alexander', nickname: 'Old', color: '#000000', avatar: 'fox', pictureUrl: null }, b: { id: 'b', name: 'Bea', nickname: 'Permanent', color: '#000000', avatar: 'fox', pictureUrl: null } });
+    expect(v.profiles.a).toMatchObject({ name: 'Alexander', nickname: 'Quiz Master' });
+    expect(v.profiles.b.nickname).toBe(''); // only lobby nicknames count in a game
+    s = act(s, { type: 'setNickname', profileId: 'a', nickname: '' }, 'profile:a');
+    expect(s.nicknames).toEqual({});
+  });
+});

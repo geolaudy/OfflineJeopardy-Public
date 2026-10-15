@@ -109,8 +109,10 @@ export interface GameRules {
   /** Automatic buzzer unlock when a clue opens: off (host unlocks), all clues, only clues that are
    *  media without text, or follow each clue's own setting. Per-clue settings apply unless 'off'. */
   autoUnlock: AutoUnlock;
-  /** Maximum number of (human) players in this game; 0 = no limit. */
+  /** Maximum number of (human) players in this game; 0 = no limit. Individual games only. */
   maxPlayers: number;
+  /** Team games: most players per team (0 = no limit). Over-full teams block the start (R5-5). */
+  maxPerTeam: number;
   timers: TimerRules;
 }
 
@@ -131,6 +133,7 @@ export const DEFAULT_RULES: GameRules = {
   survivalLives: 0,
   autoUnlock: 'off',
   maxPlayers: 0,
+  maxPerTeam: 0,
   timers: { autoStart: true, buzzSeconds: 10, answerSeconds: 8, wagerSeconds: 30, finalSeconds: 30 },
 };
 
@@ -198,6 +201,13 @@ export function rulesFromPreset(preset: string): GameRules {
 // ---------- Competitors / controllers ----------
 
 export const TEAM_COLORS = ['#2563eb', '#dc2626', '#16a34a', '#d97706', '#7c3aed', '#db2777', '#0891b2', '#65a30d'];
+/** Default names of the team slots a lobby starts with, matching TEAM_COLORS (R5-5). */
+export const TEAM_SLOT_NAMES = ['Blue Team', 'Red Team', 'Green Team', 'Orange Team', 'Purple Team', 'Pink Team', 'Teal Team', 'Lime Team'];
+/** Default number of teams: about two players per team (an empty lobby starts with two). */
+export function defaultTeamCount(players: number) {
+  return players > 0 ? Math.ceil(players / 2) : 2;
+}
+export const MAX_TEAMS = 12;
 
 /** Player colours: the profile's preferred colour is chosen from these (all pass 4.5:1 with white). */
 export const PLAYER_COLORS = ['#1d4ed8', '#b91c1c', '#15803d', '#b45309', '#6d28d9', '#be185d', '#0e7490', '#4d7c0f', '#c2410c', '#334155', '#0f766e', '#7e22ce'];
@@ -535,6 +545,13 @@ export interface GameState {
   playerColors?: Record<Id, string>;
   /** Players whose preferred colour was taken: their phone asks them to choose another. */
   colorPrompts?: Id[];
+  /** Nickname for this lobby (R5-17): shown instead of the profile name; never changes the profile. */
+  nicknames?: Record<Id, string>;
+  /** Team setup kept while the lobby is switched to individuals (R5-5.8): restored on switching back. */
+  teamDraft?: Competitor[] | null;
+  teamDraftBindings?: ControllerBinding[] | null;
+  /** Every team slot of the lobby when the game started, empty ones included (restored on Return to Lobby). */
+  lobbyTeams?: Competitor[] | null;
 }
 
 export interface UndoSnapshot {

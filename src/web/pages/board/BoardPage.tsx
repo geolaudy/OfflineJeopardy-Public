@@ -25,6 +25,7 @@ import { Intro } from './Intro';
 import { FinalScreen } from './FinalScreen';
 import { Scoreboard } from './Scoreboard';
 import { Presenter } from './Presenter';
+import { TvHome } from './TvHome';
 import { EASE_OUT_ARR, T } from './timing';
 import './fonts.css';
 import './board.css';
@@ -127,7 +128,7 @@ export default function BoardPage() {
           onClick={unlockAudio}
         >
           {screen === 'splash' ? (
-            <Splash info={info} status={status} />
+            <TvHome p={presented} status={status} hostUrl={info?.urls.host ?? null} logo={<ThemeLogo className="max-h-[14vh]" />} />
           ) : screen === 'present' ? (
             <Presenter g={game} lobby={lobby} presentation={presented} joinUrl={info?.urls.join ?? null} />
           ) : screen === 'results' && game ? (
@@ -307,20 +308,6 @@ function RoomCode({ g, className }: { g: GameView; className?: string }) {
 export function ThemeLogo({ className }: { className?: string }) {
   const { logo } = useBoard();
   return logo ? <img src={logo} alt="" aria-hidden className={cx('w-auto max-w-[40vw] object-contain', className)} data-testid="theme-logo" /> : null;
-}
-
-function Splash({ info, status }: { info: { urls: { join: string; host: string } } | null; status: string }) {
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-[4vh] p-[4vw] text-center">
-      <ThemeLogo className="max-h-[16vh]" />
-      <h1 className="bt-headline">OfflineJeopardy</h1>
-      <p className="text-[3vh] opacity-90">
-        {status === 'open' ? 'Waiting for the host — create a lobby on the game computer to begin.' : 'Connecting…'}
-      </p>
-      {/* No player QR before the host opens a lobby (R4-11): joining starts with Open Lobby. */}
-      {info && <p className="text-[2.2vh] opacity-80">Host controller (iPad): <span className="font-mono">{info.urls.host}</span></p>}
-    </div>
-  );
 }
 
 function Results({ g }: { g: GameView }) {
