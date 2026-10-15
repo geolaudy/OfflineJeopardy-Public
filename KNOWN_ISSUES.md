@@ -6,7 +6,7 @@
 | K2 | iPad | ~~Not on a real iPad~~ — **verified by the user on a real iPad (2026-10-13).** | — |
 | K3 | Packaging | Installer/portable exe are **unsigned** → Windows SmartScreen warning. The NSIS firewall rule hasn't been exercised on a clean machine. | Click "More info → Run anyway"; allow on private networks when Windows asks. |
 | K4 | Packaging | electron-builder's WASM icon converter fails on this dev machine ("WebAssembly.Memory(): could not allocate memory"); we ship a pre-built `build/icon.ico` (`node scripts/make-icon.mjs`). | None for users. |
-| K5 | Editor | Library import, clue editing, package export/import, duplicate and archive/restore are E2E-tested; drag-and-drop, the version-restore button and the editor media-upload button are not yet browser-tested. | Next E2E task. |
+| K5 | Editor | ~~Drag-and-drop, version restore and media upload not browser-tested~~ — **all covered now** (editor.spec drag-and-drop + arrow buttons with saved order; library.spec version restore; media.spec upload buttons). | — |
 | K6 | Backup | ~~Backups excluded media~~ — resolved in session 3: full backups are a .zip with database + pictures + media. Whole archive is built in memory (fine for typical sizes; very large media libraries need RAM). | — |
 | K7 | Media | Plain JSON/CSV board export still references media by URL only. | Use **Export package (with media)** (L9, session 3). |
 | K8 | Images | HEIC images are not decoded by the bundled sharp build. | iOS Safari normally converts to JPEG on upload. |

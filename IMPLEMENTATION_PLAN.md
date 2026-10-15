@@ -8,7 +8,7 @@ Order follows CLAUDE.md §31. ✅ done · 🔶 partial · ⬜ not started.
 | 2 | Electron shell + embedded local server | ✅ | Dev + packaged launch verified |
 | 3 | Public board + iPad host controller + WebSocket sync | ✅ | E2E (WebKit iPad) |
 | 4 | Profile portal, single QR, PIN auth | ✅ | I + E |
-| 5 | Board editor + library | 🔶 | Built; needs browser tests (K5) |
+| 5 | Board editor + library | ✅ | Browser-tested incl. drag-and-drop, versions, media (K5 closed in session 6) |
 | 6 | Core gameplay, scoring, timers, wagers | ✅ | Final UI needs E2E |
 | 7 | Unified buzzer engine | ✅ | |
 | 8 | Joy-Con / phone / keyboard buzzers | 🔶 | Joy-Con needs real-hardware validation (K1) |
@@ -27,7 +27,7 @@ Order follows CLAUDE.md §31. ✅ done · 🔶 partial · ⬜ not started.
 4. ✅ Theme editor (custom colors/fonts/background/logo) + theme import/export (session 3). Open: custom sound packs / transition styles.
 5. ✅ Host keyboard shortcuts; ✅ statistics export (CSV); latency diagnostics view still open.
 6. ✅ Computer opponents / practice mode, ✅ room codes (session 3); open: tournament & survival modes.
-7. Optional: Ollama-based question generation with manual fallback; workspaces.
+7. ✅ Ollama-based board generation + clue helper with manual fallback (session 6); open: workspaces.
 
 ## Milestone 15 — User feedback round 1 — ✅ implemented & tested 2026-10-12 (session 2); real-device validation pending (K14, K15)
 
