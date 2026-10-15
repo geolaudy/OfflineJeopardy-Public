@@ -148,3 +148,23 @@ describe('Create a board with AI (spec §19)', () => {
     expect((await api(s, 'POST', '/api/ai/generate-board', { topic: 'Space' }, p.token)).status).toBe(401);
   });
 });
+
+describe('AI clue helper in the editor (spec §19)', () => {
+  it('writes a clue for an answer, tidies wording, and refuses a clue that gives the answer away', async () => {
+    let next = '{"clue": "This planet is famous for its Great Red Spot.", "answer": "Jupiter"}';
+    const fake = await fakeOllama(() => ({ content: next }));
+    const { s, host } = await setup(fake.url);
+    const w = await api(s, 'POST', '/api/ai/clue', { mode: 'write', category: 'Planets', value: 400, answer: 'jupiter' }, host);
+    expect(w.data).toEqual({ question: 'This planet is famous for its Great Red Spot.', answer: 'Jupiter' });
+    expect(fake.seen.at(-1)!.body.messages[1].content).toMatch(/correct response is: "jupiter"/);
+    next = '{"clue": "This planet has a big red storm.", "answer": "Jupiter"}';
+    const t = await api(s, 'POST', '/api/ai/clue', { mode: 'tidy', category: 'Planets', value: 400, question: 'planet with big red storm thing', answer: 'Jupiter' }, host);
+    expect(t.data.question).toBe('This planet has a big red storm.');
+    next = '{"clue": "Jupiter is the largest planet.", "answer": "Jupiter"}';
+    const bad = await api(s, 'POST', '/api/ai/clue', { mode: 'write', category: 'Planets', value: 400, answer: 'Jupiter' }, host);
+    expect(bad.status).toBe(502);
+    expect(JSON.stringify(bad.data)).toMatch(/put the answer into the clue/);
+    expect((await api(s, 'POST', '/api/ai/clue', { mode: 'write', answer: '' }, host)).status).toBe(400);
+    expect((await api(s, 'POST', '/api/ai/clue', { mode: 'tidy', question: '' }, host)).status).toBe(400);
+  });
+});

@@ -283,6 +283,20 @@ export async function startServer(opts: ServerOptions) {
     audit(db, 'host', 'ai.generate-board', { id: board.id, topic: body.topic, filled: r.filled, total: r.total });
     return { id: board.id, filled: r.filled, total: r.total };
   });
+  // Spec §19: write or tidy one clue in the editor (a suggestion; the host decides).
+  app.post('/api/ai/clue', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const body = parse(
+      z.object({ mode: z.enum(['write', 'tidy']), category: z.string().max(120).default(''), value: z.number().int().min(0).max(1_000_000).default(0), question: z.string().max(2000).default(''), answer: z.string().max(1000).default('') }),
+      req.body,
+      reply,
+    );
+    if (!body) return;
+    if (body.mode === 'write' && !body.answer.trim()) return bad(reply, 'Type the answer first');
+    if (body.mode === 'tidy' && !body.question.trim()) return bad(reply, 'Type the clue first');
+    const r = await ai.suggestClue(body);
+    return r.ok ? { question: r.question, answer: r.answer } : bad(reply, r.error, 502);
+  });
   app.post('/api/ai/test', async (req, reply) => {
     if (!requireHost(req, reply)) return;
     return ai.test();

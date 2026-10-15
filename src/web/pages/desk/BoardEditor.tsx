@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { hostApi } from '../../lib/api';
-import { attempt } from '../../lib/hooks';
+import { attempt, useFetch } from '../../lib/hooks';
+import type { AiStatus } from '../../../shared/ai';
 import { ActionButton, Button, Field, Modal, cx, inputCls, toast } from '../../components/ui';
 import { blankBoard, blankCategory, blankClue, blankFinal, blankRound, boardStats, clueComplete, hasClueMedia, uid, validateBoard } from '../../../shared/boardUtils';
 import { boardContentSchema } from '../../../shared/boardIO';
 import type { BoardContent, Category, Clue, ClueLayout, ClueUnlock, MediaRef, Round } from '../../../shared/game';
-import { Eye, Star, ArrowLeft, Image, Music, Film, OctagonAlert, TriangleAlert, ChevronLeft, ChevronRight, X, Download } from 'lucide-react';
+import { Eye, Star, ArrowLeft, Image, Music, Film, OctagonAlert, TriangleAlert, ChevronLeft, ChevronRight, X, Download, Sparkles } from 'lucide-react';
 import { acceptFor, formatList, MEDIA_FORMATS, type MediaKind } from '../../../shared/mediaTypes';
 
 // ---------- types & helpers ----------
@@ -715,7 +716,7 @@ export default function BoardEditor() {
           </Field>
           {round.categories[0]?.clues[0] ? (
             <div className="mt-3">
-              <ClueFields clue={round.categories[0].clues[0]} final onChange={(p) => updateClue(ri, 0, 0, p)} />
+              <ClueFields clue={round.categories[0].clues[0]} final category={round.categories[0].name} onChange={(p) => updateClue(ri, 0, 0, p)} />
             </div>
           ) : null}
         </div>
@@ -851,7 +852,7 @@ export default function BoardEditor() {
             <p className="mb-3 text-sm font-semibold text-slate-600">
               {content.rounds[editing.ri].name} · {content.rounds[editing.ri].categories[editing.ci].name || `Category ${editing.ci + 1}`} · row {editing.qi + 1}
             </p>
-            <ClueFields clue={editingClue} onChange={(p) => updateClue(editing.ri, editing.ci, editing.qi, p)} />
+            <ClueFields clue={editingClue} category={content.rounds[editing.ri].categories[editing.ci].name} onChange={(p) => updateClue(editing.ri, editing.ci, editing.qi, p)} />
             <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
               <Button variant="secondary" size="sm" disabled={editing.qi === 0} onClick={() => moveClue(editing.ri, editing.ci, editing.qi, -1)}>
                 ▲ Move up
@@ -955,7 +956,57 @@ function IconBtn({ label, onClick, disabled, children }: { label: string; onClic
   );
 }
 
-function ClueFields({ clue, onChange, final }: { clue: Clue; onChange: (p: Partial<Clue>) => void; final?: boolean }) {
+/** Spec §19 helper: AI writes a clue for the answer, or tidies the wording. Shown only when AI is set up. */
+function AiClueHelper({ clue, category, onChange }: { clue: Clue; category: string; onChange: (p: Partial<Clue>) => void }) {
+  const st = useFetch(() => hostApi<AiStatus>('GET', '/api/ai').catch(() => null), []);
+  const [busy, setBusy] = useState<'write' | 'tidy' | null>(null);
+  const [hint, setHint] = useState<{ question: string; answer: string } | null>(null);
+  useEffect(() => setHint(null), [clue.id]);
+  const ready = !!st.data && (!st.data.keyRequired || st.data.keySaved);
+  if (!ready) return null;
+  const ask = async (mode: 'write' | 'tidy') => {
+    setBusy(mode);
+    const r = await attempt(() => hostApi<{ question: string; answer: string }>('POST', '/api/ai/clue', { mode, category, value: clue.value, question: clue.question, answer: clue.answer }));
+    setBusy(null);
+    if (r) setHint(r);
+  };
+  return (
+    <div className="space-y-2" data-testid="ai-clue-helper">
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" variant="ghost" disabled={!clue.answer.trim() || !!busy} busy={busy === 'write'} onClick={() => void ask('write')} data-testid="ai-write-clue">
+          <Sparkles size={14} aria-hidden /> Write a clue for this answer
+        </Button>
+        <Button size="sm" variant="ghost" disabled={!clue.question.trim() || !!busy} busy={busy === 'tidy'} onClick={() => void ask('tidy')} data-testid="ai-tidy-clue">
+          <Sparkles size={14} aria-hidden /> Tidy the wording
+        </Button>
+      </div>
+      {hint && (
+        <div className="space-y-2 rounded-xl border border-violet-200 bg-violet-50 p-3 text-sm" data-testid="ai-clue-suggestion">
+          <p className="text-xs font-bold tracking-wide text-violet-800 uppercase">AI suggestion — check it</p>
+          <p className="font-semibold text-slate-900">{hint.question}</p>
+          <p className="text-slate-700">Answer: {hint.answer}</p>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              onClick={() => {
+                onChange({ question: hint.question, answer: hint.answer, notes: clue.notes?.trim() ? clue.notes : 'AI-generated — check before playing' });
+                setHint(null);
+              }}
+              data-testid="ai-clue-use"
+            >
+              Use it
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setHint(null)}>
+              Dismiss
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ClueFields({ clue, onChange, final, category = '' }: { clue: Clue; onChange: (p: Partial<Clue>) => void; final?: boolean; category?: string }) {
   const media = clue.media ?? [];
   const answerMedia = clue.answerMedia ?? [];
   const hasMedia = media.length > 0 || answerMedia.length > 0;
@@ -994,6 +1045,7 @@ function ClueFields({ clue, onChange, final }: { clue: Clue; onChange: (p: Parti
         <Field label="Question (shown on the board)" hint={media.length ? 'Optional when the clue is a picture, sound or video.' : undefined}>
           <textarea className={inputCls} rows={3} maxLength={2000} value={clue.question} onChange={(e) => onChange({ question: e.target.value })} />
         </Field>
+        <AiClueHelper clue={clue} category={category} onChange={onChange} />
         <MediaList
           label="Clue media"
           hint="Captions appear under the picture on the TV (for example a hint)."

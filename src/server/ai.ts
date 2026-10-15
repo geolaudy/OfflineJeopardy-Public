@@ -397,6 +397,58 @@ export class AiService {
     return { ok: true, ...buildGeneratedBoard(parsed.data, req) };
   }
 
+  /**
+   * Spec §19 helpers in the clue editor: write a clue for a given answer, or tidy an existing clue's
+   * wording (grammar, clarity, game-show style) keeping its answer. A suggestion only — the host
+   * accepts or ignores it.
+   */
+  async suggestClue(req: { mode: 'write' | 'tidy'; category: string; value: number; question: string; answer: string }): Promise<{ ok: true; question: string; answer: string } | { ok: false; error: string }> {
+    const cfg = this.config();
+    if (!this.configured()) return { ok: false, error: 'Set up AI first (Settings → AI answers).' };
+    const timeoutMs = Math.min(90, Math.max(20, cfg.timeoutSeconds * 3)) * 1000;
+    const system = 'You help write accurate trivia for a friendly offline quiz party game. Reply only with the JSON object asked for.';
+    const ctx = `Category: ${req.category || '(none)'}. Value: ${req.value} (higher = harder).`;
+    const prompt =
+      req.mode === 'write'
+        ? `${ctx}\nWrite one game-show style clue (a short factual statement, at most 25 words) whose correct response is: "${req.answer}". Do not include the answer or an obvious form of it in the clue. Only use facts you are sure are true.\nReply with JSON only: {"clue": "...", "answer": "..."} (answer: the response as given, tidied if needed).`
+        : `${ctx}\nImprove the wording of this clue: fix grammar and spelling, make it clear and in game-show style (a short factual statement, at most 25 words), keep the meaning and the facts. Correct response: "${req.answer || '(not given)'}" — it must not appear in the clue.\nClue: "${req.question}"\nReply with JSON only: {"clue": "...", "answer": "..."} (answer: the response, tidied if needed).`;
+    this.stats.requests++;
+    let raw: string;
+    try {
+      if (cfg.provider === 'openai') raw = await this.compatChat(cfg, system, prompt, timeoutMs, true, 400);
+      else {
+        const res = await withTimeout(
+          this.sdk(timeoutMs).beta.messages.create(
+            {
+              model: cfg.model,
+              max_tokens: 2048,
+              ...this.request(cfg.model),
+              system,
+              output_config: { effort: 'low', format: { type: 'json_schema', schema: { type: 'object', properties: { clue: { type: 'string' }, answer: { type: 'string' } }, required: ['clue', 'answer'], additionalProperties: false } } },
+              messages: [{ role: 'user', content: prompt }],
+            },
+            { timeout: timeoutMs },
+          ),
+          timeoutMs + 500,
+        );
+        if (res.stop_reason === 'refusal') return { ok: false, error: this.fail(new Error('The AI declined — try different wording.')) };
+        const block = res.content.find((b) => b.type === 'text');
+        raw = block && block.type === 'text' ? block.text : '';
+      }
+    } catch (e) {
+      return { ok: false, error: this.fail(e) };
+    }
+    const v = parseJsonObject(raw) as { clue?: unknown; answer?: unknown } | null;
+    const question = typeof v?.clue === 'string' ? v.clue.replace(/\s+/g, ' ').trim() : '';
+    const answer = typeof v?.answer === 'string' && v.answer.trim() ? v.answer.replace(/\s+/g, ' ').trim() : req.answer;
+    if (question.length < 3 || question.length > 400) return { ok: false, error: this.fail(new Error('The AI reply was not a usable clue — try again.')) };
+    // A clue that gives its own answer away is no clue.
+    const a = norm(answer);
+    if (a.length > 2 && norm(question).includes(a)) return { ok: false, error: 'The AI put the answer into the clue — try again or write it yourself.' };
+    this.stats.lastError = null;
+    return { ok: true, question, answer: answer.slice(0, 120) };
+  }
+
   /** Checks shared by every provider: tidy the text, refuse empty/long replies and right "wrong" answers. */
   private accept(req: { correct: boolean; ctx: ClueContext }, raw: string, cacheKey: string): { text: string } | { text: null; reason: string } {
     const text = raw.replace(/\s+/g, ' ').replace(/^["“']+|["”']+$/g, '').trim();

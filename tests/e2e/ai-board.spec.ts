@@ -31,8 +31,13 @@ test('create a board with AI from the library (local AI server)', async () => {
   // A local AI server.
   const board = { categories: [{ name: 'Planets', clues: [{ clue: 'The red planet', answer: 'Mars' }, { clue: 'The largest planet', answer: 'Jupiter' }, { clue: 'The planet with the most famous rings', answer: 'Saturn' }] }, { name: 'Stars', clues: [{ clue: 'Our nearest star', answer: 'The Sun' }] }, { name: 'Space travel', clues: [] }], final: { category: 'Firsts', clue: 'First person on the Moon', answer: 'Neil Armstrong' } };
   const srv = http.createServer((req, res) => {
-    req.resume();
-    req.on('end', () => res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(board) } }] })));
+    let raw = '';
+    req.on('data', (c) => (raw += c));
+    req.on('end', () => {
+      // The clue helper asks for one clue; everything else is the board draft.
+      const one = raw.includes('Write one game-show style clue') ? { clue: 'This star is about 4.2 light-years away.', answer: 'Proxima Centauri' } : board;
+      res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(one) } }] }));
+    });
   });
   await new Promise<void>((r) => srv.listen(0, '127.0.0.1', r));
   const url = `http://127.0.0.1:${(srv.address() as AddressInfo).port}/v1`;
@@ -50,6 +55,13 @@ test('create a board with AI from the library (local AI server)', async () => {
     await expect(pc.getByRole('button', { name: /^Edit Planets 400/ })).toContainText('The largest planet');
     await expect(pc.getByRole('button', { name: /^Edit Stars 400/ })).toHaveAccessibleName(/unfinished/); // left for the host
     await pc.screenshot({ path: 'test-results/screens/editor-ai-board.png' });
+    // Fill a gap with the clue helper: type the answer, let the AI write the clue, accept it.
+    await pc.getByRole('button', { name: /^Edit Stars 400/ }).click();
+    await pc.getByLabel('Answer (host only until revealed)').fill('Proxima Centauri');
+    await pc.getByTestId('ai-write-clue').click();
+    await expect(pc.getByTestId('ai-clue-suggestion')).toContainText('4.2 light-years');
+    await pc.getByTestId('ai-clue-use').click();
+    await expect(pc.getByLabel('Question (shown on the board)')).toHaveValue('This star is about 4.2 light-years away.');
     await api.delete(`/api/boards/${pc.url().split('/').pop()}`, { headers: H }); // keep the library as other tests expect it
   } finally {
     await api.put('/api/ai', { headers: H, data: { config: before } });
