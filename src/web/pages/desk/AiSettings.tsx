@@ -5,16 +5,16 @@ import { Bot, CircleAlert, CircleCheck, KeyRound, PlugZap, Trash2 } from 'lucide
 import { hostApi } from '../../lib/api';
 import { attempt, useFetch } from '../../lib/hooks';
 import { Button, Field, cx, inputCls, toast } from '../../components/ui';
-import { AI_PROVIDERS, DEFAULT_AI_MODEL, DEFAULT_LOCAL_MODEL, DEFAULT_LOCAL_URL, type AiConfig, type AiStatus } from '../../../shared/ai';
+import { AI_PROVIDERS, DEFAULT_AI_MODEL, DEFAULT_GEMINI_MODEL, DEFAULT_LOCAL_MODEL, DEFAULT_LOCAL_URL, type AiConfig, type AiModelOption, type AiStatus, type AiTestResult } from '../../../shared/ai';
 
 export function AiSettings() {
   const st = useFetch(() => hostApi<AiStatus>('GET', '/api/ai'), []);
   const [draft, setDraft] = useState<AiConfig | null>(null);
   const [key, setKey] = useState('');
-  const [models, setModels] = useState<string[] | null>(null);
+  const [models, setModels] = useState<AiModelOption[] | null>(null);
   const [url, setUrl] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
-  const [test, setTest] = useState<{ ok: boolean; latencyMs?: number; error?: string } | null>(null);
+  const [test, setTest] = useState<AiTestResult | null>(null);
   useEffect(() => {
     if (st.data && !draft) setDraft(st.data.config);
   }, [st.data, draft]);
@@ -29,32 +29,40 @@ export function AiSettings() {
     return r;
   };
   const loadModels = async () => {
-    const r = await attempt(() => hostApi<{ models: string[] }>('GET', '/api/ai/models'));
-    if (r) setModels(draft.provider === 'anthropic' ? r.models.filter((m) => m.startsWith('claude')) : r.models);
+    const r = await attempt(() => hostApi<{ models: string[]; options?: AiModelOption[] }>('GET', '/api/ai/models'));
+    if (!r) return;
+    const list = r.options ?? r.models.map((id) => ({ id, label: id }));
+    setModels(draft.provider === 'anthropic' ? list.filter((m) => m.id.startsWith('claude')) : list);
   };
   const local = draft.provider === 'openai';
+  const gemini = draft.provider === 'gemini';
   const canCall = !s.keyRequired || s.keySaved;
   const pickProvider = (provider: AiConfig['provider']) => {
     setModels(null);
     setTest(null);
-    // Each kind of provider has its own model names.
-    const model = provider === 'openai' ? (draft.model.startsWith('claude') ? DEFAULT_LOCAL_MODEL : draft.model) : draft.model.startsWith('claude') ? draft.model : DEFAULT_AI_MODEL;
+    // Each kind of provider has its own model names (and its own saved key, on the server).
+    const cloud = !draft.model || /^(claude|gemini)/i.test(draft.model);
+    const model =
+      provider === 'openai' ? (cloud ? DEFAULT_LOCAL_MODEL : draft.model) : provider === 'gemini' ? (draft.model.startsWith('gemini') ? draft.model : DEFAULT_GEMINI_MODEL) : draft.model.startsWith('claude') ? draft.model : DEFAULT_AI_MODEL;
     void save({ provider, model });
   };
   const runTest = async () => {
     setTesting(true);
     setTest(null);
-    const r = await attempt(() => hostApi<{ ok: boolean; latencyMs?: number; error?: string }>('POST', '/api/ai/test'));
+    const r = await attempt(() => hostApi<AiTestResult>('POST', '/api/ai/test'));
     setTesting(false);
     if (r) setTest(r);
+    // The server picked a model (Gemini without one chosen): show it.
+    if (r?.model) setDraft({ ...draft, model: r.model });
     void st.reload();
   };
-  const modelChoices = [...new Set([draft.model, local ? DEFAULT_LOCAL_MODEL : DEFAULT_AI_MODEL, ...(models ?? [])])];
+  const labels = new Map((models ?? []).map((m) => [m.id, m.label]));
+  const modelChoices = [...new Set([draft.model, gemini ? '' : local ? DEFAULT_LOCAL_MODEL : DEFAULT_AI_MODEL, ...(models ?? []).map((m) => m.id)])].filter((m) => m || gemini);
 
   return (
     <div className="space-y-4" data-testid="ai-settings">
       <p className="text-sm text-slate-600">
-        Computer opponents normally answer offline. Optionally, bots set to <b>AI answers</b> can use an AI model for more natural answers — you still judge every answer. Use <b>Anthropic</b> (needs internet and an API key from your own account, and <b>may cost money</b>) or a <b>local AI</b> such as Ollama or LM Studio running on this computer or your network — that works without internet and costs nothing. The clue, category and expected answer are sent to the model; nothing about players is sent. If the AI is unavailable, the game carries on with offline answers.
+        Computer opponents normally answer offline. Optionally, bots set to <b>AI answers</b> can use an AI model for more natural answers — you still judge every answer. Use <b>Anthropic</b> or <b>Google Gemini</b> (need internet and an API key from your own account, and <b>may cost money</b>) or a <b>local AI</b> such as Ollama or LM Studio running on this computer or your network — that works without internet and costs nothing. The clue, category and expected answer are sent to the model; nothing about players is sent. If the AI is unavailable, the game carries on with offline answers.
       </p>
 
       <label className="flex min-h-11 items-center gap-3">
@@ -67,10 +75,15 @@ export function AiSettings() {
 
       <div className={cx('flex items-center gap-2 rounded-xl p-3 text-sm font-semibold', s.ready ? 'bg-green-50 text-green-900' : 'bg-slate-100 text-slate-700')} data-testid="ai-status">
         {s.ready ? <CircleCheck size={18} aria-hidden /> : <Bot size={18} aria-hidden />}
-        {s.ready ? 'AI answers are on' : s.keyRequired && !s.keySaved ? 'No API key saved — bots answer offline' : 'AI answers are off — bots answer offline'}
+        {s.ready ? 'AI answers are on' : s.keyRequired && !s.keySaved ? 'No API key saved — bots answer offline' : s.modelMissing ? 'No model chosen yet — press Load or Test connection' : 'AI answers are off — bots answer offline'}
         {s.requests > 0 && <span className="ml-auto font-normal text-slate-600">{s.requests} requests · {s.failures} failed{s.gameRequests ? ` · ${s.gameRequests} this game` : ''}</span>}
       </div>
-      {s.lastError && (
+      {s.cooldown && (
+        <p className="flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900" data-testid="ai-cooldown">
+          <CircleAlert size={18} className="mt-0.5 shrink-0" aria-hidden /> {s.cooldown.message}
+        </p>
+      )}
+      {s.lastError && !s.cooldown && (
         <p className="flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900" data-testid="ai-last-error">
           <CircleAlert size={18} className="mt-0.5 shrink-0" aria-hidden /> Last problem: {s.lastError}
         </p>
@@ -86,15 +99,15 @@ export function AiSettings() {
             ))}
           </select>
         </Field>
-        <Field label="Model" hint={models ? `${models.length} models available` : local ? 'Type the model name (e.g. llama3.2) or load the list from the server' : 'Load the list after saving a key'}>
+        <Field label="Model" hint={models ? `${models.length} models available` : local ? 'Type the model name (e.g. llama3.2) or load the list from the server' : gemini ? 'Save a key, then load Google’s list and choose a model' : 'Load the list after saving a key'}>
           <div className="flex gap-2">
             {local && !models ? (
               <input className={inputCls} defaultValue={draft.model} key={draft.model} onBlur={(e) => e.target.value.trim() && e.target.value.trim() !== draft.model && void save({ model: e.target.value.trim() })} aria-label="AI model" data-testid="ai-model-input" />
             ) : (
               <select className={inputCls} value={draft.model} onChange={(e) => void save({ model: e.target.value })} aria-label="AI model">
                 {modelChoices.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
+                  <option key={m || 'none'} value={m} disabled={!m}>
+                    {m ? (labels.get(m) ?? m) : 'Choose after loading the list'}
                   </option>
                 ))}
               </select>
@@ -105,6 +118,15 @@ export function AiSettings() {
           </div>
         </Field>
       </div>
+      {gemini && (
+        <div className="space-y-1 rounded-xl bg-slate-50 p-3 text-sm text-slate-700" data-testid="ai-gemini-help">
+          <p>
+            <b>Get a key:</b> sign in at Google AI Studio — <span className="font-mono">aistudio.google.com/apikey</span> — create an API key and paste it below.
+          </p>
+          <p>Google offers a free tier for some models, with limits per minute and per day. When a limit is reached, bots answer offline until it resets.</p>
+          <p>On the free tier, Google may use what is sent (clues and answers — nothing about players) to improve its products. Use beyond the free tier, or with billing turned on, may cost money.</p>
+        </div>
+      )}
       {local && (
         <Field label="AI server address" hint={`Ollama on this computer: ${DEFAULT_LOCAL_URL}. LM Studio: http://localhost:1234/v1. Another computer on your network: use its address.`}>
           <input
@@ -131,7 +153,7 @@ export function AiSettings() {
             type="password"
             autoComplete="off"
             spellCheck={false}
-            placeholder={s.keySaved ? '•••••••• (saved)' : local ? 'Only if your server asks for one' : 'sk-ant-…'}
+            placeholder={s.keySaved ? '•••••••• (saved)' : local ? 'Only if your server asks for one' : gemini ? 'Paste your Gemini API key' : 'sk-ant-…'}
             value={key}
             onChange={(e) => setKey(e.target.value)}
             aria-label="API key"
@@ -165,6 +187,7 @@ export function AiSettings() {
         {test && (
           <span className={cx('text-sm font-semibold', test.ok ? 'text-green-700' : 'text-red-700')} data-testid="ai-test-result">
             {test.ok ? `Connected (${((test.latencyMs ?? 0) / 1000).toFixed(1)} s)` : (test.error ?? 'Not connected')}
+            {test.note && <span className="block font-normal text-slate-600">{test.note}</span>}
           </span>
         )}
       </div>

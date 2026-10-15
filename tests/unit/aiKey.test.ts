@@ -11,7 +11,7 @@ describe('AI key storage (R3-14)', () => {
     const codec = { encrypt: (s: string) => Buffer.from(Buffer.from(s.split('').reverse().join(''), 'utf8').map((b) => b ^ 0x5a)), decrypt: (b: Buffer) => Buffer.from(b.map((x) => x ^ 0x5a)).toString('utf8').split('').reverse().join('') };
     const ai = new AiService(openDatabase(':memory:'), dir, codec);
     ai.setKey('sk-ant-very-secret-key');
-    const file = path.join(dir, 'secrets', 'ai-key.bin');
+    const file = path.join(dir, 'secrets', 'ai-key-anthropic.bin');
     expect(fs.readFileSync(file).includes('sk-ant-very-secret-key')).toBe(false);
     expect(ai.status(null)).toMatchObject({ keySaved: true, keyProtected: true });
     ai.setKey(null);

@@ -1,20 +1,27 @@
-// Optional AI-powered answers for computer opponents (R3-14). Everything happens on the trusted
-// game server: player phones, the TV and even the host's browser never see the API key, and the
-// game never waits on the network for long — any failure falls back to offline answers.
+// Optional AI-powered answers for computer opponents (R3-14) and AI helpers in the editor (spec
+// §19). Everything happens on the trusted game server: player phones, the TV and even the host's
+// browser never see an API key, and the game never waits on the network for long — any failure
+// falls back to offline answers.
 //
-// Key storage: a separate file in the data folder (never the database, so it is not in backups,
-// exports or game history). In the Windows app it is encrypted with Electron safeStorage (DPAPI,
-// tied to the Windows user account); development servers without Electron store it unencrypted.
+// Providers (Anthropic, Google Gemini, local / OpenAI-compatible) live in ./aiProviders and only
+// know how to talk to their API (R5-11). All game logic — prompts, guards, per-game limits, the
+// cache, rate-limit cooldowns and fallbacks — is here and shared by every provider.
+//
+// Key storage: one file per provider in the data folder (never the database, so keys are not in
+// backups, exports or game history; switching provider never reuses another provider's key). In
+// the Windows app it is encrypted with Electron safeStorage (DPAPI, tied to the Windows user
+// account); development servers without Electron store it unencrypted.
 import fs from 'node:fs';
 import path from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 import type { DB } from './db/db.js';
 import { getSetting, setSetting } from './db/db.js';
-import { aiConfigSchema, DEFAULT_AI_CONFIG, keyRequired, type AiConfig, type AiStatus } from '../shared/ai.js';
+import { AI_PROVIDER_IDS, AI_PROVIDERS, aiConfigSchema, DEFAULT_AI_CONFIG, keyRequired, type AiConfig, type AiModelOption, type AiProvider, type AiStatus, type AiTestResult } from '../shared/ai.js';
 import type { BotLevel, BoardContent, Category } from '../shared/game.js';
 import { blankClue, uid } from '../shared/boardUtils.js';
 import { z } from 'zod';
 import type { ClueContext } from './botAnswers.js';
+import { AiNoModel, AiRefusal, createProviders, type AiProviderImpl, type ChatKind, type ChatRequest } from './aiProviders/index.js';
 
 /** Electron's safeStorage, injected by the desktop app. */
 export interface SecretCodec {
@@ -29,8 +36,17 @@ const LEVEL_PERSONA: Record<BotLevel, string> = {
   expert: 'a champion-level quiz player',
 };
 
-// Server-side refusal fallback ('default' routing) is offered for these models on the Claude API.
-const FALLBACK_MODELS = new Set(['claude-opus-5-5', 'claude-opus-5', 'claude-fable-5-1', 'claude-sonnet-5-5']);
+/** Pause after "too many requests" when the provider does not say how long (and the bounds). */
+const DEFAULT_COOLDOWN_MS = 60_000;
+const MIN_COOLDOWN_MS = 5_000;
+const MAX_COOLDOWN_MS = 25 * 3600_000;
+
+const REFUSAL: Record<ChatKind, string> = {
+  test: 'The AI declined the test request.',
+  answer: 'The AI declined to answer.',
+  board: 'The AI declined to write this board — try another topic.',
+  clue: 'The AI declined — try different wording.',
+};
 
 const norm = (t: string) =>
   t
@@ -41,61 +57,59 @@ const norm = (t: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-/** An HTTP error from an OpenAI-compatible server (local Ollama / LM Studio or a cloud service). */
-class CompatError extends Error {
-  constructor(
-    readonly status: number,
-    readonly detail: string,
-  ) {
-    super(`HTTP ${status}`);
-  }
-}
-
 /** Reads {"answer": "..."} even when a local model wraps it in prose or a code fence. */
 function parseAnswerJson(raw: string): string | null {
-  const tryParse = (t: string) => {
-    try {
-      const v = (JSON.parse(t) as { answer?: unknown }).answer;
-      return typeof v === 'string' ? v : null;
-    } catch {
-      return null;
-    }
-  };
-  return tryParse(raw) ?? (() => {
-    const m = /\{[\s\S]*\}/.exec(raw);
-    return m ? tryParse(m[0]) : null;
-  })();
+  const v = parseJsonObject(raw) as { answer?: unknown } | null;
+  return typeof v?.answer === 'string' ? v.answer : null;
 }
 
-/** Our own deadline on top of the SDK's, so nothing can keep a bot waiting. */
-function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const t = setTimeout(() => reject(new Anthropic.APIConnectionTimeoutError()), ms);
-    p.then(
-      (v) => (clearTimeout(t), resolve(v)),
-      (e) => (clearTimeout(t), reject(e)),
-    );
-  });
+const clock = (t: number) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+/** The model "Test connection" picks when none is chosen: the first with "flash" in its name, else the first. */
+export function pickDefaultModel(models: AiModelOption[]): string | null {
+  return (models.find((m) => /flash/i.test(m.id)) ?? models[0])?.id ?? null;
 }
+
+const ANSWER_SCHEMA = { type: 'object', properties: { answer: { type: 'string' } }, required: ['answer'], additionalProperties: false } as const;
+const CLUE_SCHEMA = { type: 'object', properties: { clue: { type: 'string' }, answer: { type: 'string' } }, required: ['clue', 'answer'], additionalProperties: false } as const;
 
 export class AiService {
-  private keyFile: string;
-  private client: Anthropic | null = null;
-  private clientKey: string | null = null;
+  private secretsDir: string;
   private stats = { requests: 0, failures: 0, lastLatencyMs: null as number | null, lastError: null as string | null, lastErrorAt: null as number | null };
   private perGame = new Map<string, number>();
   private cache = new Map<string, string>();
-  /** Replaced in tests. */
+  /** Provider paused after a rate-limit / quota error: no requests until `until`. */
+  private cooldowns = new Map<AiProvider, { until: number; label: string }>();
+  /** Replaced in tests (Anthropic SDK client). */
   makeClient: (key: string, timeoutMs: number) => Anthropic = (apiKey, timeout) => new Anthropic({ apiKey, timeout, maxRetries: 0 });
-  /** Replaced in tests (OpenAI-compatible provider). */
+  /** Replaced in tests (Gemini and OpenAI-compatible providers use plain fetch). */
   fetchImpl: typeof fetch = (input, init) => fetch(input, init);
+  readonly providers: Record<AiProvider, AiProviderImpl>;
 
   constructor(
     private db: DB,
     dataDir: string,
     private codec: SecretCodec | null,
   ) {
-    this.keyFile = path.join(dataDir, 'secrets', codec ? 'ai-key.bin' : 'ai-key.txt');
+    this.secretsDir = path.join(dataDir, 'secrets');
+    this.providers = createProviders(() => ({ fetch: this.fetchImpl, makeAnthropic: this.makeClient }));
+    this.migrateLegacyKey();
+  }
+
+  private keyFile(p: AiProvider) {
+    return path.join(this.secretsDir, `ai-key-${p}.${this.codec ? 'bin' : 'txt'}`);
+  }
+
+  /** Before R5-11 there was one key file: it belongs to the provider that was configured then. */
+  private migrateLegacyKey() {
+    const legacy = path.join(this.secretsDir, this.codec ? 'ai-key.bin' : 'ai-key.txt');
+    try {
+      if (!fs.existsSync(legacy)) return;
+      const target = this.keyFile(this.config().provider);
+      if (!fs.existsSync(target)) fs.renameSync(legacy, target);
+    } catch {
+      /* keep the old file; the host can paste the key again */
+    }
   }
 
   config(): AiConfig {
@@ -107,9 +121,9 @@ export class AiService {
     setSetting(this.db, 'aiConfig', c);
   }
 
-  private readKey(): string | null {
+  private readKey(p: AiProvider = this.config().provider): string | null {
     try {
-      const buf = fs.readFileSync(this.keyFile);
+      const buf = fs.readFileSync(this.keyFile(p));
       const key = this.codec ? this.codec.decrypt(buf) : buf.toString('utf8');
       return key.trim() || null;
     } catch {
@@ -117,171 +131,161 @@ export class AiService {
     }
   }
 
-  setKey(key: string | null) {
-    this.client = null;
-    this.clientKey = null;
+  /** Saves (or removes) the key of one provider — by default the configured one. */
+  setKey(key: string | null, provider: AiProvider = this.config().provider) {
+    const file = this.keyFile(provider);
+    // A new key may come with a new quota: let the host try again straight away.
+    this.cooldowns.delete(provider);
     if (!key) {
-      fs.rmSync(this.keyFile, { force: true });
+      fs.rmSync(file, { force: true });
       return;
     }
-    fs.mkdirSync(path.dirname(this.keyFile), { recursive: true });
-    fs.writeFileSync(this.keyFile, this.codec ? this.codec.encrypt(key.trim()) : key.trim(), { mode: 0o600 });
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, this.codec ? this.codec.encrypt(key.trim()) : key.trim(), { mode: 0o600 });
+  }
+
+  private modelMissing(cfg: AiConfig) {
+    return !cfg.model.trim();
+  }
+
+  /** Active pause of a provider after "too many requests" (expired pauses are dropped). */
+  private cooldown(p: AiProvider) {
+    const c = this.cooldowns.get(p);
+    if (c && c.until <= Date.now()) {
+      this.cooldowns.delete(p);
+      return null;
+    }
+    return c ?? null;
   }
 
   status(gameId: string | null): AiStatus {
     const config = this.config();
-    const keySaved = this.readKey() != null;
+    const keySaved = this.readKey(config.provider) != null;
     const needsKey = keyRequired(config.provider);
-    return { config, keySaved, keyProtected: !!this.codec, keyRequired: needsKey, ready: config.enabled && (keySaved || !needsKey), ...this.stats, gameRequests: gameId ? (this.perGame.get(gameId) ?? 0) : 0 };
+    const modelMissing = this.modelMissing(config);
+    const cd = this.cooldown(config.provider);
+    return {
+      config,
+      keySaved,
+      keyProtected: !!this.codec,
+      keyRequired: needsKey,
+      ready: config.enabled && (keySaved || !needsKey) && !modelMissing,
+      ...this.stats,
+      gameRequests: gameId ? (this.perGame.get(gameId) ?? 0) : 0,
+      cooldown: cd ? { until: cd.until, message: `${cd.label} — offline answers until ${clock(cd.until)}` } : null,
+      modelMissing,
+    };
   }
 
-  /** AI answers are possible right now (enabled + key when the provider needs one). */
+  /** AI answers are possible right now (enabled + key when the provider needs one + a model). */
   usable() {
     const cfg = this.config();
-    return cfg.enabled && (!keyRequired(cfg.provider) || this.readKey() != null);
+    return cfg.enabled && (!keyRequired(cfg.provider) || this.readKey() != null) && !this.modelMissing(cfg);
   }
 
-  /**
-   * One chat request to an OpenAI-compatible server (/chat/completions). Works with a local Ollama
-   * or LM Studio on the game computer or the LAN — no internet needed — or a cloud service with a key.
-   */
-  private async compatChat(cfg: AiConfig, system: string, user: string, timeoutMs: number, json: boolean, maxTokens = 200): Promise<string> {
-    const key = this.readKey();
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), timeoutMs);
-    try {
-      const res = await this.fetchImpl(`${cfg.baseUrl.replace(/\/+$/, '')}/chat/completions`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', ...(key ? { authorization: `Bearer ${key}` } : {}) },
-        body: JSON.stringify({
-          model: cfg.model,
-          messages: [
-            { role: 'system', content: system },
-            { role: 'user', content: user },
-          ],
-          temperature: 0.7,
-          max_tokens: maxTokens,
-          stream: false,
-          ...(json ? { response_format: { type: 'json_object' } } : {}),
-        }),
-        signal: ctrl.signal,
-      });
-      if (!res.ok) throw new CompatError(res.status, (await res.text().catch(() => '')).slice(0, 200));
-      const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-      return body.choices?.[0]?.message?.content ?? '';
-    } finally {
-      clearTimeout(t);
-    }
-  }
-
-  private sdk(timeoutMs: number): Anthropic {
-    const key = this.readKey();
-    if (!key) throw new Error('No API key saved');
-    if (!this.client || this.clientKey !== key) {
-      this.client = this.makeClient(key, timeoutMs);
-      this.clientKey = key;
-    }
-    return this.client;
-  }
-
-  /** A provider error as plain words for the host — never containing the key. */
-  private describe(e: unknown): string {
-    const key = this.readKey();
+  /** A provider error as plain words for the host — never containing any saved key. */
+  private describe(e: unknown, kind: ChatKind = 'answer'): string {
+    const cfg = this.config();
     let msg: string;
-    const where = this.config().baseUrl;
-    if (e instanceof CompatError) {
-      msg =
-        e.status === 401 || e.status === 403
-          ? 'The AI server did not accept the API key.'
-          : e.status === 404
-            ? /model/i.test(e.detail)
-              ? `That model is not available on the AI server (for Ollama: "ollama pull ${this.config().model}").`
-              : 'The AI server address looks wrong (expected something like http://localhost:11434/v1).'
-            : `The AI server returned an error (${e.status}).`;
-    } else if (e instanceof Error && (e.name === 'AbortError' || e.name === 'TimeoutError')) msg = 'The AI took too long to answer.';
-    else if (e instanceof TypeError && /fetch/i.test(e.message)) msg = `Could not reach the AI server at ${where} — is it running?`;
-    else if (e instanceof Anthropic.AuthenticationError) msg = 'The API key was not accepted.';
-    else if (e instanceof Anthropic.PermissionDeniedError) msg = 'This API key may not use that model.';
-    else if (e instanceof Anthropic.NotFoundError) msg = 'That model was not found.';
-    else if (e instanceof Anthropic.RateLimitError) msg = 'The provider is rate-limiting requests (or the account is out of credit).';
-    else if (e instanceof Anthropic.APIConnectionTimeoutError) msg = 'The AI took too long to answer.';
-    else if (e instanceof Anthropic.APIConnectionError) msg = 'Could not reach the AI provider (no internet connection?).';
-    else if (e instanceof Anthropic.APIError) msg = `The AI provider returned an error (${e.status ?? 'unknown'}).`;
-    else msg = e instanceof Error ? e.message : String(e);
-    return key ? msg.split(key).join('***') : msg;
+    if (e instanceof AiRefusal) msg = REFUSAL[kind];
+    else msg = this.providers[cfg.provider].describeError(e, cfg) ?? (e instanceof Error ? e.message : String(e));
+    for (const p of AI_PROVIDER_IDS) {
+      const key = this.readKey(p);
+      if (key) msg = msg.split(key).join('***');
+    }
+    return msg;
   }
 
-  private fail(e: unknown) {
+  private fail(e: unknown, kind: ChatKind = 'answer') {
     this.stats.failures++;
-    this.stats.lastError = this.describe(e);
+    this.stats.lastError = this.describe(e, kind);
     this.stats.lastErrorAt = Date.now();
+    // "Too many requests" / quota used up: pause this provider, bots answer offline meanwhile.
+    const provider = this.config().provider;
+    const rl = this.providers[provider].rateLimit(e);
+    if (rl) {
+      const wait = Math.min(MAX_COOLDOWN_MS, Math.max(MIN_COOLDOWN_MS, rl.retryAfterMs ?? DEFAULT_COOLDOWN_MS));
+      const until = Date.now() + wait;
+      this.cooldowns.set(provider, { until, label: rl.label });
+      this.stats.lastError = `${rl.label} (paused until ${clock(until)})`;
+    }
     return this.stats.lastError;
   }
 
-  private request(model: string) {
-    const fb = FALLBACK_MODELS.has(model);
-    return { betas: fb ? ['server-side-fallback-2026-07-01'] : [], fallbacks: fb ? ('default' as const) : undefined };
+  /** Plain-language reason when the provider is paused (null = go ahead). */
+  private paused(provider: AiProvider): string | null {
+    const cd = this.cooldown(provider);
+    return cd ? `${cd.label} (paused until ${clock(cd.until)})` : null;
   }
 
-  /** "Test connection": one tiny request with the saved key and model. */
-  async test(): Promise<{ ok: boolean; latencyMs?: number; error?: string }> {
-    const cfg = this.config();
+  private chat(cfg: AiConfig, req: ChatRequest) {
+    return this.providers[cfg.provider].chat(cfg, this.readKey(cfg.provider), req);
+  }
+
+  /**
+   * "Test connection": one tiny request with the saved key and model. It is the host's way to
+   * check again, so it also runs during a rate-limit pause (and ends the pause when it works).
+   * Gemini has no default model: without one, the first Flash model from Google's list is chosen.
+   */
+  async test(): Promise<AiTestResult> {
+    let cfg = this.config();
     const started = Date.now();
-    if (cfg.provider === 'openai') {
-      try {
-        const reply = await this.compatChat(cfg, 'You are a connection test.', 'Reply with the single word: ready', Math.max(cfg.timeoutSeconds, 15) * 1000, false);
-        this.stats.lastLatencyMs = Date.now() - started;
-        this.stats.lastError = null;
-        return { ok: reply.trim().length > 0, latencyMs: this.stats.lastLatencyMs };
-      } catch (e) {
-        return { ok: false, error: this.fail(e) };
-      }
-    }
+    const out: AiTestResult = { ok: false };
     try {
-      const client = this.sdk(cfg.timeoutSeconds * 1000);
-      const extra = this.request(cfg.model);
-      const res = await withTimeout(client.beta.messages.create(
-        { model: cfg.model, max_tokens: 512, ...extra, output_config: { effort: 'low' }, messages: [{ role: 'user', content: 'Reply with the single word: ready' }] },
-        { timeout: Math.max(cfg.timeoutSeconds, 15) * 1000 },
-      ), Math.max(cfg.timeoutSeconds, 15) * 1000 + 500);
+      if (this.modelMissing(cfg)) {
+        const picked = pickDefaultModel(await this.providers[cfg.provider].models(cfg, this.readKey(cfg.provider)));
+        if (!picked) return { ok: false, error: this.fail(new Error(`No ${AI_PROVIDERS[cfg.provider]} models are available for this key.`), 'test') };
+        cfg = { ...cfg, model: picked };
+        this.setConfig(cfg);
+        out.model = picked;
+        out.note = `No model was chosen, so ${picked} was selected.`;
+      }
+      const reply = await this.chat(cfg, { kind: 'test', system: 'You are a connection test.', prompt: 'Reply with the single word: ready', timeoutMs: Math.max(cfg.timeoutSeconds, 15) * 1000 });
       this.stats.lastLatencyMs = Date.now() - started;
       this.stats.lastError = null;
-      return { ok: res.stop_reason !== 'refusal', latencyMs: this.stats.lastLatencyMs };
+      this.cooldowns.delete(cfg.provider);
+      return { ...out, ok: reply.trim().length > 0, latencyMs: this.stats.lastLatencyMs };
     } catch (e) {
-      return { ok: false, error: this.fail(e) };
+      return { ...out, ok: false, error: this.fail(e, 'test') };
     }
   }
 
-  /** Models this key can use (ids only). */
-  async models(): Promise<string[]> {
+  /** Models this key can use (ids plus a readable label). */
+  async models(): Promise<AiModelOption[]> {
     const cfg = this.config();
-    if (cfg.provider === 'openai') {
-      const key = this.readKey();
-      const res = await this.fetchImpl(`${cfg.baseUrl.replace(/\/+$/, '')}/models`, { headers: key ? { authorization: `Bearer ${key}` } : {}, signal: AbortSignal.timeout(cfg.timeoutSeconds * 1000) });
-      if (!res.ok) throw new CompatError(res.status, '');
-      const body = (await res.json()) as { data?: { id?: string }[] };
-      return (body.data ?? []).map((m) => m.id).filter((id): id is string => !!id);
+    return this.providers[cfg.provider].models(cfg, this.readKey(cfg.provider));
+  }
+
+  /** The model list for the host, or a plain-language reason (never containing a key). */
+  async modelList(): Promise<{ ok: true; models: AiModelOption[] } | { ok: false; error: string }> {
+    const cfg = this.config();
+    if (keyRequired(cfg.provider) && !this.readKey(cfg.provider)) return { ok: false, error: 'Save an API key first' };
+    try {
+      return { ok: true, models: await this.models() };
+    } catch (e) {
+      const why = this.describe(e);
+      return { ok: false, error: why === 'No API key saved' ? 'Save an API key first' : `Could not load the model list: ${why}` };
     }
-    const client = this.sdk(this.config().timeoutSeconds * 1000);
-    const out: string[] = [];
-    for await (const m of client.models.list({ limit: 100 })) out.push(m.id);
-    return out;
   }
 
   /**
    * One answer for a computer opponent. Resolves to null (never throws) when the AI is off, the
-   * per-game limit is reached, the request fails or times out, or the reply is unusable — the
-   * caller then uses its fallback. `budgetMs` caps the wait (e.g. the answer timer).
+   * per-game limit is reached, the provider is paused, the request fails or times out, or the
+   * reply is unusable — the caller then uses its fallback. `budgetMs` caps the wait (e.g. the answer timer).
    */
   async answer(req: { gameId: string; level: BotLevel; ctx: ClueContext; correct: boolean; avoid: Set<string>; final: boolean; budgetMs?: number }): Promise<{ text: string } | { text: null; reason: string }> {
     const cfg = this.config();
     if (!cfg.enabled) return { text: null, reason: 'AI answers are turned off' };
     if (keyRequired(cfg.provider) && !this.readKey()) return { text: null, reason: 'No API key saved' };
+    if (this.modelMissing(cfg)) return { text: null, reason: new AiNoModel(AI_PROVIDERS[cfg.provider]).message.replace(/\.$/, '') };
     const used = this.perGame.get(req.gameId) ?? 0;
     if (cfg.maxPerGame > 0 && used >= cfg.maxPerGame) return { text: null, reason: `AI limit of ${cfg.maxPerGame} answers for this game reached` };
     const cacheKey = `${cfg.provider}|${cfg.model}|${req.level}|${req.correct}|${req.ctx.question}|${req.ctx.answer}`;
     const cached = this.cache.get(cacheKey);
     if (cached && !req.avoid.has(cached)) return { text: cached };
+    // Rate-limited: answer offline at once, without touching the network.
+    const paused = this.paused(cfg.provider);
+    if (paused) return { text: null, reason: paused };
 
     const timeoutMs = Math.max(1500, Math.min(cfg.timeoutSeconds * 1000, req.budgetMs ?? Infinity));
     const instruction = req.correct
@@ -294,44 +298,12 @@ export class AiService {
     if (this.perGame.size > 50) this.perGame.delete(this.perGame.keys().next().value!);
     this.stats.requests++;
     const system = 'You play a contestant in a friendly, offline trivia party game. Reply only with the JSON object asked for.';
-    if (cfg.provider === 'openai') {
-      try {
-        const raw = await this.compatChat(cfg, system, `${prompt}\nReply with JSON only, exactly like {"answer": "..."}.`, timeoutMs, true);
-        this.stats.lastLatencyMs = Date.now() - started;
-        const parsed = parseAnswerJson(raw);
-        if (parsed == null) return { text: null, reason: this.fail(new Error('The AI reply could not be read.')) };
-        return this.accept(req, parsed, cacheKey);
-      } catch (e) {
-        return { text: null, reason: this.fail(e) };
-      }
-    }
     try {
-      const client = this.sdk(timeoutMs);
-      const res = await withTimeout(client.beta.messages.create(
-        {
-          model: cfg.model,
-          max_tokens: 1024,
-          ...this.request(cfg.model),
-          system,
-          output_config: {
-            effort: 'low',
-            format: { type: 'json_schema', schema: { type: 'object', properties: { answer: { type: 'string' } }, required: ['answer'], additionalProperties: false } },
-          },
-          messages: [{ role: 'user', content: prompt }],
-        },
-        { timeout: timeoutMs },
-      ), timeoutMs + 250);
+      const raw = await this.chat(cfg, { kind: 'answer', system, prompt, jsonHint: 'Reply with JSON only, exactly like {"answer": "..."}.', schema: ANSWER_SCHEMA, timeoutMs });
       this.stats.lastLatencyMs = Date.now() - started;
-      if (res.stop_reason === 'refusal') return { text: null, reason: this.fail(new Error('The AI declined to answer.')) };
-      const block = res.content.find((b) => b.type === 'text');
-      const raw = block && block.type === 'text' ? block.text : '';
-      let text = '';
-      try {
-        text = String((JSON.parse(raw) as { answer?: unknown }).answer ?? '');
-      } catch {
-        return { text: null, reason: this.fail(new Error('The AI reply could not be read.')) };
-      }
-      return this.accept(req, text, cacheKey);
+      const parsed = parseAnswerJson(raw);
+      if (parsed == null) return { text: null, reason: this.fail(new Error('The AI reply could not be read.')) };
+      return this.accept(req, parsed, cacheKey);
     } catch (e) {
       return { text: null, reason: this.fail(e) };
     }
@@ -343,14 +315,23 @@ export class AiService {
     return !keyRequired(cfg.provider) || this.readKey() != null;
   }
 
+  /** Why content creation cannot run right now (null = it can). */
+  private blocked(cfg: AiConfig, setup: string): string | null {
+    if (!this.configured()) return setup;
+    if (this.modelMissing(cfg)) return new AiNoModel(AI_PROVIDERS[cfg.provider]).message;
+    const paused = this.paused(cfg.provider);
+    return paused ? `${paused} — try again later.` : null;
+  }
+
   /**
    * Spec §19 (optional offline AI): a whole board from a topic. Works with a local model (no internet,
-   * no cost) or Anthropic. The result is a draft for the host to check — every clue is marked as
+   * no cost) or a cloud provider. The result is a draft for the host to check — every clue is marked as
    * AI-generated, and anything missing or duplicated is left blank to fill in by hand.
    */
   async generateBoard(req: { topic: string; categories: number; rows: number; difficulty: 'easy' | 'medium' | 'hard'; final: boolean }): Promise<{ ok: true; content: BoardContent; filled: number; total: number } | { ok: false; error: string }> {
     const cfg = this.config();
-    if (!this.configured()) return { ok: false, error: 'Set up AI first (Settings → AI answers): choose a local AI server or save an API key.' };
+    const blocked = this.blocked(cfg, 'Set up AI first (Settings → AI answers): choose a local AI server or save an API key.');
+    if (blocked) return { ok: false, error: blocked };
     const timeoutMs = Math.min(180, Math.max(90, cfg.timeoutSeconds * 6)) * 1000;
     const system = 'You write accurate trivia for a friendly offline quiz party game. Reply only with the JSON object asked for.';
     const prompt = [
@@ -367,32 +348,13 @@ export class AiService {
     this.stats.requests++;
     const started = Date.now();
     try {
-      if (cfg.provider === 'openai') raw = await this.compatChat(cfg, system, prompt, timeoutMs, true, 6000);
-      else {
-        const res = await withTimeout(
-          this.sdk(timeoutMs).beta.messages.create(
-            {
-              model: cfg.model,
-              max_tokens: 16000,
-              ...this.request(cfg.model),
-              system,
-              output_config: { effort: 'low', format: { type: 'json_schema', schema: GENERATED_JSON_SCHEMA } },
-              messages: [{ role: 'user', content: prompt }],
-            },
-            { timeout: timeoutMs },
-          ),
-          timeoutMs + 500,
-        );
-        if (res.stop_reason === 'refusal') return { ok: false, error: this.fail(new Error('The AI declined to write this board — try another topic.')) };
-        const block = res.content.find((b) => b.type === 'text');
-        raw = block && block.type === 'text' ? block.text : '';
-      }
+      raw = await this.chat(cfg, { kind: 'board', system, prompt, schema: GENERATED_JSON_SCHEMA, timeoutMs });
     } catch (e) {
-      return { ok: false, error: this.fail(e) };
+      return { ok: false, error: this.fail(e, 'board') };
     }
     this.stats.lastLatencyMs = Date.now() - started;
     const parsed = generatedBoardSchema.safeParse(parseJsonObject(raw));
-    if (!parsed.success) return { ok: false, error: this.fail(new Error('The AI reply was not a usable board — try again, or try a larger model.')) };
+    if (!parsed.success) return { ok: false, error: this.fail(new Error('The AI reply was not a usable board — try again, or try a larger model.'), 'board') };
     this.stats.lastError = null;
     return { ok: true, ...buildGeneratedBoard(parsed.data, req) };
   }
@@ -404,7 +366,8 @@ export class AiService {
    */
   async suggestClue(req: { mode: 'write' | 'tidy'; category: string; value: number; question: string; answer: string }): Promise<{ ok: true; question: string; answer: string } | { ok: false; error: string }> {
     const cfg = this.config();
-    if (!this.configured()) return { ok: false, error: 'Set up AI first (Settings → AI answers).' };
+    const blocked = this.blocked(cfg, 'Set up AI first (Settings → AI answers).');
+    if (blocked) return { ok: false, error: blocked };
     const timeoutMs = Math.min(90, Math.max(20, cfg.timeoutSeconds * 3)) * 1000;
     const system = 'You help write accurate trivia for a friendly offline quiz party game. Reply only with the JSON object asked for.';
     const ctx = `Category: ${req.category || '(none)'}. Value: ${req.value} (higher = harder).`;
@@ -415,33 +378,14 @@ export class AiService {
     this.stats.requests++;
     let raw: string;
     try {
-      if (cfg.provider === 'openai') raw = await this.compatChat(cfg, system, prompt, timeoutMs, true, 400);
-      else {
-        const res = await withTimeout(
-          this.sdk(timeoutMs).beta.messages.create(
-            {
-              model: cfg.model,
-              max_tokens: 2048,
-              ...this.request(cfg.model),
-              system,
-              output_config: { effort: 'low', format: { type: 'json_schema', schema: { type: 'object', properties: { clue: { type: 'string' }, answer: { type: 'string' } }, required: ['clue', 'answer'], additionalProperties: false } } },
-              messages: [{ role: 'user', content: prompt }],
-            },
-            { timeout: timeoutMs },
-          ),
-          timeoutMs + 500,
-        );
-        if (res.stop_reason === 'refusal') return { ok: false, error: this.fail(new Error('The AI declined — try different wording.')) };
-        const block = res.content.find((b) => b.type === 'text');
-        raw = block && block.type === 'text' ? block.text : '';
-      }
+      raw = await this.chat(cfg, { kind: 'clue', system, prompt, schema: CLUE_SCHEMA, timeoutMs });
     } catch (e) {
-      return { ok: false, error: this.fail(e) };
+      return { ok: false, error: this.fail(e, 'clue') };
     }
     const v = parseJsonObject(raw) as { clue?: unknown; answer?: unknown } | null;
     const question = typeof v?.clue === 'string' ? v.clue.replace(/\s+/g, ' ').trim() : '';
     const answer = typeof v?.answer === 'string' && v.answer.trim() ? v.answer.replace(/\s+/g, ' ').trim() : req.answer;
-    if (question.length < 3 || question.length > 400) return { ok: false, error: this.fail(new Error('The AI reply was not a usable clue — try again.')) };
+    if (question.length < 3 || question.length > 400) return { ok: false, error: this.fail(new Error('The AI reply was not a usable clue — try again.'), 'clue') };
     // A clue that gives its own answer away is no clue.
     const a = norm(answer);
     if (a.length > 2 && norm(question).includes(a)) return { ok: false, error: 'The AI put the answer into the clue — try again or write it yourself.' };

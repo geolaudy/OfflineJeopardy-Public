@@ -96,7 +96,7 @@ describe('AI answers for computer opponents (R3-14)', () => {
     const backup = Buffer.from(await (await fetch(`${s.url}/api/admin/backup`, { headers: { authorization: `Bearer ${host}` } })).arrayBuffer());
     expect(backup.includes(KEY)).toBe(false);
     for (const c of [h, tv]) expect(JSON.stringify(c.messages)).not.toContain(KEY);
-    expect(fs.existsSync(path.join(s.dataDir, 'secrets', 'ai-key.txt'))).toBe(true);
+    expect(fs.existsSync(path.join(s.dataDir, 'secrets', 'ai-key-anthropic.txt'))).toBe(true);
     // Removing the key works and turns AI answers off.
     expect((await api(s, 'PUT', '/api/ai', { clearKey: true }, host)).data).toMatchObject({ keySaved: false, ready: false });
   });
