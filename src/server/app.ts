@@ -303,11 +303,9 @@ export async function startServer(opts: ServerOptions) {
   });
   app.get('/api/ai/models', async (req, reply) => {
     if (!requireHost(req, reply)) return;
-    try {
-      return { models: await ai.models() };
-    } catch (e) {
-      return bad(reply, e instanceof Error && /No API key/.test(e.message) ? 'Save an API key first' : 'Could not load the model list', 502);
-    }
+    // `models`: ids (as before); `options`: ids with readable names (e.g. Gemini's display names).
+    const r = await ai.modelList();
+    return r.ok ? { models: r.models.map((m) => m.id), options: r.models } : bad(reply, r.error, 502);
   });
 
   // ---------- lobby session ----------
