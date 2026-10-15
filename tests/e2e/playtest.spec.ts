@@ -5,7 +5,7 @@
 // game in the same lobby → a Final nobody qualifies for. Screenshots go to test-results/screens.
 import { test, expect, chromium, webkit, devices, request, type Browser, type Page } from '@playwright/test';
 
-const BASE = 'http://127.0.0.1:3210';
+const BASE = `http://127.0.0.1:${process.env.E2E_PORT ?? 3210}`;
 const shot = (p: Page, name: string) => p.screenshot({ path: `test-results/screens/playtest-${name}.png` });
 let wk: Browser;
 let cr: Browser;

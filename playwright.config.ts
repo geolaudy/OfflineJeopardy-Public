@@ -1,6 +1,7 @@
 import { defineConfig } from '@playwright/test';
 
-export const E2E_PORT = 3210;
+// Override with E2E_PORT to run several checkouts (git worktrees) side by side.
+export const E2E_PORT = Number(process.env.E2E_PORT ?? 3210);
 
 export default defineConfig({
   testDir: 'tests/e2e',
@@ -11,7 +12,7 @@ export default defineConfig({
   reporter: [['list']],
   use: { baseURL: `http://127.0.0.1:${E2E_PORT}`, trace: 'retain-on-failure' },
   webServer: {
-    command: `npx tsx src/server/cli.ts --data=test-results/e2e-data --port=${E2E_PORT} --fresh`,
+    command: `npx tsx src/server/cli.ts --data=test-results/e2e-data-${E2E_PORT} --port=${E2E_PORT} --fresh`,
     url: `http://127.0.0.1:${E2E_PORT}/api/info`,
     reuseExistingServer: false,
     timeout: 60_000,

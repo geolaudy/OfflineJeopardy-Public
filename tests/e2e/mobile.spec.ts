@@ -4,7 +4,7 @@
 import { test, expect, webkit, devices, type Browser, type Page } from '@playwright/test';
 import fs from 'node:fs';
 
-const BASE = 'http://127.0.0.1:3210';
+const BASE = `http://127.0.0.1:${process.env.E2E_PORT ?? 3210}`;
 const SHOTS = 'test-results/screens';
 let wk: Browser;
 

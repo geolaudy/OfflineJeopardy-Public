@@ -1,7 +1,7 @@
 // Room codes (P17): host requires the code, TV shows it, phone must type it to join.
 import { test, expect, chromium, webkit, devices, request, type Browser } from '@playwright/test';
 
-const BASE = 'http://127.0.0.1:3210';
+const BASE = `http://127.0.0.1:${process.env.E2E_PORT ?? 3210}`;
 let cr: Browser;
 let wk: Browser;
 test.beforeAll(async () => {

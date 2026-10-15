@@ -1,7 +1,7 @@
 // Minimal host WebSocket client for E2E setup (engine actions without clicking through the UI).
 import WebSocket from 'ws';
 
-const BASE = 'http://127.0.0.1:3210';
+const BASE = `http://127.0.0.1:${process.env.E2E_PORT ?? 3210}`;
 
 /** Minimal host WebSocket client: sends engine actions and waits for each result. */
 export async function hostSocket(token: string) {

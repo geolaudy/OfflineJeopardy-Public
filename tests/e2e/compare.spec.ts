@@ -1,7 +1,7 @@
 // E2E (T10): head to head from a phone ("Compare with me") and from the host's Players page.
 import { test, expect, chromium, webkit, devices, request, type Browser } from '@playwright/test';
 
-const BASE = 'http://127.0.0.1:3210';
+const BASE = `http://127.0.0.1:${process.env.E2E_PORT ?? 3210}`;
 let wk: Browser;
 let cr: Browser;
 test.beforeAll(async () => {

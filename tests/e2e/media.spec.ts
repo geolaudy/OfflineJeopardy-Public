@@ -4,7 +4,7 @@ import { test, expect, chromium, request, type Browser } from '@playwright/test'
 import sharp from 'sharp';
 import { SAMPLE_BOARD } from '../../src/shared/sampleBoards';
 
-const BASE = 'http://127.0.0.1:3210';
+const BASE = `http://127.0.0.1:${process.env.E2E_PORT ?? 3210}`;
 let cr: Browser;
 test.beforeAll(async () => {
   // The Electron TV window allows autoplay; mirror that for the test TV.

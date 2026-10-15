@@ -1,7 +1,7 @@
 // Theme editor (O5): live preview, save & use on TV (TV updates without reload), export/import.
 import { test, expect, chromium, request, type Browser } from '@playwright/test';
 
-const BASE = 'http://127.0.0.1:3210';
+const BASE = `http://127.0.0.1:${process.env.E2E_PORT ?? 3210}`;
 let cr: Browser;
 test.beforeAll(async () => {
   cr = await chromium.launch();

@@ -4,7 +4,7 @@ import { test, expect, chromium, request, type Browser, type Page } from '@playw
 import sharp from 'sharp';
 import fs from 'node:fs';
 
-const BASE = 'http://127.0.0.1:3210';
+const BASE = `http://127.0.0.1:${process.env.E2E_PORT ?? 3210}`;
 let cr: Browser;
 test.beforeAll(async () => {
   cr = await chromium.launch();

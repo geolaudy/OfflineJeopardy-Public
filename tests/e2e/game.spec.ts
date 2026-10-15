@@ -2,7 +2,7 @@
 // (iPhone on WebKit, Android on Chromium), all against the real local server.
 import { test, expect, chromium, webkit, devices, type Browser, type Page, request } from '@playwright/test';
 
-const BASE = 'http://127.0.0.1:3210';
+const BASE = `http://127.0.0.1:${process.env.E2E_PORT ?? 3210}`;
 let wk: Browser;
 let cr: Browser;
 
