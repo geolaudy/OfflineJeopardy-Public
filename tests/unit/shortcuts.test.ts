@@ -22,6 +22,9 @@ describe('host keyboard shortcuts (H15)', () => {
     let s = createGame({ id: 'g', title: 'T', boardId: null, board: SAMPLE_BOARD, mode: 'solo', rules: DEFAULT_RULES, now: 0 });
     s = run(s, { type: 'addPlayer', profileId: 'a' }, { type: 'startGame' });
     expect(shortcutAction('n', false, host(s))).toEqual({ type: 'introNext' });
+    expect(shortcutAction('ArrowLeft', false, host(s))).toBeNull(); // already on the round title
+    s = run(s, { type: 'introNext' });
+    expect(shortcutAction('p', false, host(s))).toEqual({ type: 'introPrev' });
     s = run(s, { type: 'introSkip' }, { type: 'selectClue', clueId: 'hist_1' });
     expect(shortcutAction(' ', false, host(s))).toEqual({ type: 'unlockBuzzers' });
     expect(shortcutAction('c', false, host(s))).toBeNull(); // nobody buzzed

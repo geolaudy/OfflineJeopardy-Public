@@ -171,6 +171,8 @@ test('full game: iPad host pairing, phone profiles + buzzing, private answers, l
   // Nobody else answers: Reveal Answer → Return to Board (no generic Skip in the main controls).
   await expect(ipad.getByTestId('back-to-board')).toHaveCount(0);
   await expect(tv.getByTestId('clue-answer')).toHaveCount(0);
+  // R5-14: while the buzz timer runs, Reveal Answer lives in "More".
+  await ipad.getByTestId('clue-more').click();
   await ipad.getByTestId('reveal-answer').click();
   await expect(tv.getByTestId('clue-answer')).toBeVisible();
   await ipad.getByTestId('back-to-board').click();

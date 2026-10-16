@@ -83,6 +83,7 @@ test('media-first clue with caption, answer image reveal, host-controlled audio 
   await tv.waitForTimeout(1200); // let the zoom and content fade finish
   await tv.screenshot({ path: 'test-results/screens/tv-media-clue.png' });
   // Reveal: the uncovered image replaces the covered one; the answer replaces the hint.
+  if (!(await pc.getByTestId('reveal-answer').isVisible())) await pc.getByTestId('clue-more').click(); // R5-14: in More while the buzz timer runs
   await pc.getByTestId('reveal-answer').click();
   await expect(tv.getByTestId('answer-side').getByTestId('clue-image')).toHaveAttribute('src', uncovered.url);
   await expect(tv.getByTestId('answer-side').getByTestId('clue-caption')).toHaveText('Uncovered!');
@@ -107,6 +108,7 @@ test('media-first clue with caption, answer image reveal, host-controlled audio 
   await pc.getByTestId('media-play').click(); // resume
   await expect(tv.getByText('Buzzers open')).toBeVisible({ timeout: 6000 }); // opened when the sound ended
   await expect(pc.getByText('Finished.')).toBeVisible();
+  if (!(await pc.getByTestId('reveal-answer').isVisible())) await pc.getByTestId('clue-more').click(); // R5-14: in More while the buzz timer runs
   await pc.getByTestId('reveal-answer').click();
   await pc.getByTestId('back-to-board').click();
   await expect(tv.locator('audio')).toHaveCount(0); // nothing left playing after the clue closes

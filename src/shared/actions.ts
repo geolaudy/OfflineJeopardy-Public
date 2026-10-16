@@ -100,6 +100,10 @@ export const hostActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('startIntro'), auto: z.boolean().optional() }),
   z.object({ type: z.literal('introNext') }),
   z.object({ type: z.literal('introSkip') }),
+  // R5-12: one step back, straight to a category (step -1 = round title card), stop auto-advance.
+  z.object({ type: z.literal('introPrev') }),
+  z.object({ type: z.literal('introGoto'), step: z.number().int().min(-1).max(99) }),
+  z.object({ type: z.literal('introStopAuto') }),
   z.object({ type: z.literal('restoreClue'), clueId: id }),
   z.object({
     type: z.literal('adjustScore'),

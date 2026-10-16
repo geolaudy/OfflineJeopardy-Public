@@ -13,6 +13,7 @@ export const HOST_SHORTCUTS: [string, string][] = [
   ['R', 'Reveal answer'],
   ['Enter', 'Return to board'],
   ['N', 'Next category (introduction)'],
+  ['P / ←', 'Previous category (introduction)'],
   ['Ctrl+Z', 'Undo'],
 ];
 
@@ -22,6 +23,7 @@ export function shortcutAction(key: string, ctrl: boolean, g: GameView): HostAct
   if (ctrl && k === 'z') return g.undoLabel ? { type: 'undo' } : null;
   if (ctrl) return null;
   if (g.phase === 'board' && g.intro && (k === 'n' || k === 'ArrowRight')) return { type: 'introNext' };
+  if (g.phase === 'board' && g.intro && (k === 'p' || k === 'ArrowLeft')) return g.intro.step >= 0 ? { type: 'introPrev' } : null;
   const clue = g.clue;
   if (g.phase !== 'clue' || !clue) return null;
   const judgeable = !clue.resolved && (clue.isDailyWager ? clue.stage === 'question' : !!g.buzzer.winner);

@@ -1,6 +1,9 @@
 // Category introduction at the start of a round. The host (or server auto-advance) drives
 // `g.intro.step`; the TV only renders the current step: -1 = round title card, 0..n-1 = category.
-import { useEffect, useState } from 'react';
+// Each change is ONE swipe whose direction comes from the previous and the new step (R5-12):
+// forward = enter from the right, exit to the left; back = enter from the left, exit to the right.
+// A TV that (re)connects mid-introduction shows the current step without a swipe.
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { cueDuration, playCue } from '../../lib/sound';
 import { serverNow } from '../../lib/socket';
@@ -27,15 +30,26 @@ export function Intro({ g }: { g: GameView }) {
     if (fresh) playCue('boardIntro');
   }, [fresh]);
   const fill = fx.boardIntro && fresh && !reduced;
+  const dir = useSwipeDirection(`${intro.roundIndex}:${step}`, step);
+  // The first step this screen shows: the title card (scale/fill as before) or, after a reconnect
+  // mid-introduction, the current category without a swipe.
+  const first = useRef(true);
+  const isFirst = first.current;
+  useEffect(() => {
+    first.current = false;
+  }, []);
+  const enter = reduced ? { opacity: 0 } : isFirst ? (step < 0 ? (fill ? { opacity: 1 } : { opacity: 0, scale: 0.9 }) : { opacity: 0 }) : { x: dir > 0 ? '100%' : '-100%' };
   return (
-    <motion.div className="bt-intro" exit={{ opacity: 0 }} transition={{ duration: T.fade }} data-testid="intro">
-      <AnimatePresence initial={true}>
+    <motion.div className="bt-intro" exit={{ opacity: 0 }} transition={{ duration: T.fade }} data-testid="intro" data-step={step} data-dir={dir > 0 ? 'forward' : 'back'}>
+      <AnimatePresence initial={true} custom={dir}>
         <motion.div
           key={`${intro.roundIndex}:${step}`}
           className="absolute inset-0"
-          initial={reduced ? { opacity: 0 } : step < 0 ? (fill ? { opacity: 1 } : { opacity: 0, scale: 0.9 }) : { x: '100%' }}
+          custom={dir}
+          variants={{ exit: (d: number) => (reduced ? { opacity: 0 } : { x: d > 0 ? '-100%' : '100%' }) }}
+          initial={enter}
           animate={{ x: 0, opacity: 1, scale: 1 }}
-          exit={reduced ? { opacity: 0 } : { x: '-100%' }}
+          exit="exit"
           transition={{ duration: T.slide, ease: EASE_OUT_ARR }}
         >
           {cat ? (
@@ -74,4 +88,16 @@ export function Intro({ g }: { g: GameView }) {
       </div>
     </motion.div>
   );
+}
+
+/** +1 when the step moved forward, -1 when it moved back; kept for the step it was computed for,
+ *  so the exiting card leaves in the same direction the new one arrives from. */
+function useSwipeDirection(key: string, step: number) {
+  const [track, setTrack] = useState({ key, step, dir: 1 });
+  if (track.key !== key) {
+    const dir = step >= track.step ? 1 : -1;
+    setTrack({ key, step, dir });
+    return dir;
+  }
+  return track.dir;
 }
