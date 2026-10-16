@@ -19,8 +19,19 @@
   --bt-clue-weight: 600;
   --bt-strip-c: rgba(255, 255, 255, 0.95);
   --bt-strip-glow: rgba(255, 255, 255, 0.45);
+  /* R5-8: one typography system for in-game text. Clue / answer text uses --b-clue-font;
+     categories and dollar amounts the display fonts below; contestant names one style; small
+     interface labels ("Wager", "Buzzed by", "Category 1 of 6") one label style. */
+  --bt-name-font: var(--b-cat-font, var(--b-font));
+  --bt-money-font: var(--b-value-font, var(--b-font));
+  --bt-label-font: var(--b-cat-font, var(--b-font));
+  /* R5-7: score gains / losses (pop colour and the "+$400" / "-$400" label). */
+  --bt-gain: #5cf28a;
+  --bt-loss: #ff6b5e;
 }
 .board-theme[data-theme="modern"] {
+  --bt-gain: #15803d;
+  --bt-loss: #dc2626;
   --bt-text-shadow: none;
   --bt-value-shadow: none;
   --bt-clue-shadow: none;
@@ -321,7 +332,7 @@
   to { transform: scale(1); opacity: 1; }
 }
 .bt-dw-cat {
-  font-family: var(--b-font);
+  font-family: var(--b-cat-font, var(--b-font));
   font-weight: var(--bt-heavy);
   font-size: min(6vh, 4vw);
   text-transform: uppercase;
@@ -329,8 +340,12 @@
   text-shadow: var(--bt-text-shadow);
 }
 .bt-dw-who {
-  font-size: 2.8vh;
-  opacity: 0.9;
+  font-family: var(--bt-label-font);
+  font-weight: var(--bt-heavy);
+  font-size: 3vh;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.92;
 }
 
 /* Stage switch inside the same panel (Daily Wager: wager → question) */
@@ -362,9 +377,10 @@
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.45);
   color: #fff;
+  font-family: var(--bt-label-font);
+  font-weight: var(--bt-heavy);
   font-size: 2vh;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.08em;
 }
 .bt-buzz-dot {
   width: 1.1vh;
@@ -392,20 +408,53 @@
   translate: -50% 0;
 }
 .bt-winner-name {
-  font-family: var(--b-font);
+  font-family: var(--bt-name-font);
   font-weight: var(--bt-heavy);
-  font-size: 3.4vh;
-  line-height: 1;
+  font-size: 3.6vh;
+  line-height: 1.05;
   letter-spacing: 0.03em;
   text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-shadow: var(--bt-text-shadow);
 }
 .bt-winner-sub {
-  margin-top: 0.3vh;
+  margin-top: 0.5vh;
+  font-family: var(--bt-label-font);
+  font-weight: var(--bt-heavy);
   font-size: 1.9vh;
-  opacity: 0.85;
+  line-height: 1.1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bt-winner-sub-label {
+  opacity: 0.75;
+}
+.bt-winner-sub-who {
+  font-family: var(--bt-name-font);
+  letter-spacing: 0.05em;
+}
+/* R5-5.10: a team buzz-in: the team name large on the team colour, "Buzzed by ..." small below. */
+.bt-winner.is-team {
+  gap: 1.6vh;
+  max-width: 70%;
+  padding: 1.1vh 3.2vh 1.3vh 1.4vh;
+  border-radius: 0 0 2vh 2vh;
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--pc) 72%, #000), color-mix(in srgb, var(--pc) 48%, #000));
+  border-bottom: 0.7vh solid var(--pc, #fff);
+  box-shadow: 0 0.8vh 2.4vh rgba(0, 0, 0, 0.45);
+}
+.bt-winner.is-team .bt-winner-name {
+  font-size: 6vh;
+  letter-spacing: 0.04em;
+  text-shadow: 0.35vh 0.35vh 0 rgba(0, 0, 0, 0.55);
+}
+.bt-winner.is-team .bt-winner-sub {
+  font-size: 2.1vh;
 }
 
 /* Timer */
@@ -422,9 +471,10 @@
 .bt-timer-label {
   min-width: 12vh;
   text-align: right;
+  font-family: var(--bt-label-font);
+  font-weight: var(--bt-heavy);
   font-size: 2.1vh;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   opacity: 0.85;
 }
@@ -506,7 +556,7 @@
   justify-content: center;
   gap: 0.8vh;
   padding: 0.8vh 1vh 0.2vh;
-  font-family: var(--b-font);
+  font-family: var(--bt-name-font);
   font-weight: var(--bt-heavy);
   font-size: 2.8vh;
   line-height: 1.1;
@@ -516,18 +566,24 @@
 }
 .bt-podium-members {
   padding: 0 1vh;
-  font-size: 1.5vh;
+  font-family: var(--bt-name-font);
+  font-weight: var(--bt-heavy);
+  font-size: 1.6vh;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   opacity: 0.8;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .bt-podium-score {
+  position: relative;
+  container-type: inline-size;
   margin: 0.5vh 0.8vh 0.8vh;
   padding: 0.3vh 0;
   border-radius: calc(var(--b-radius) * 0.6);
   background: var(--bt-podium-score);
-  font-family: var(--b-value-font, var(--b-font));
+  font-family: var(--bt-money-font);
   font-weight: var(--bt-heavy);
   font-size: 4.6vh;
   line-height: 1.1;
@@ -537,24 +593,81 @@
 .bt-podium-score.is-neg {
   color: #ff7a6b;
 }
-.bt-podium-score > span {
+.bt-score-wrap {
+  position: relative;
   display: inline-block;
 }
-.bt-flash-up > span {
-  animation: bt-flash-up var(--bt-flash, 0.9s) ease-out;
+.bt-score-num {
+  display: inline-block;
 }
-.bt-flash-down > span {
-  animation: bt-flash-down var(--bt-flash, 0.9s) ease-out;
+/* R5-7: short pop: eases up to a slight scale in the gain / loss colour, then settles back. */
+.bt-flash-up .bt-score-num {
+  animation: bt-flash-up var(--bt-flash, 0.5s) cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.bt-flash-down .bt-score-num {
+  animation: bt-flash-down var(--bt-flash, 0.5s) cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 @keyframes bt-flash-up {
-  0% { transform: scale(1.22); color: #6dff8f; }
-  60% { color: #6dff8f; }
+  0% { transform: scale(1); }
+  32% { transform: scale(1.12); color: var(--bt-gain); }
+  62% { color: var(--bt-gain); }
   100% { transform: scale(1); }
 }
 @keyframes bt-flash-down {
-  0% { transform: scale(1.22); color: #ff6b5e; }
-  60% { color: #ff6b5e; }
+  0% { transform: scale(1); }
+  32% { transform: scale(1.12); color: var(--bt-loss); }
+  62% { color: var(--bt-loss); }
   100% { transform: scale(1); }
+}
+/* "+$400" / "-$400" beside the changed amount: same money font, a little smaller. */
+.bt-delta {
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  margin-left: 0.4em;
+  translate: 0 -50%;
+  font-family: var(--bt-money-font);
+  font-weight: var(--bt-heavy);
+  font-size: 0.66em;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-shadow: var(--bt-text-shadow);
+  pointer-events: none;
+  animation: bt-delta var(--bt-delta, 1.6s) ease-out both;
+}
+.bt-delta-sign {
+  display: inline-block;
+  margin-right: 0.05em;
+  font-size: 1.32em;
+  line-height: 0;
+  vertical-align: -0.06em;
+}
+.bt-delta.is-up {
+  color: var(--bt-gain);
+}
+.bt-delta.is-down {
+  color: var(--bt-loss);
+}
+@keyframes bt-delta {
+  0% { opacity: 0; transform: translateX(-0.35em); }
+  14% { opacity: 1; transform: none; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+/* Narrow podiums (many contestants, 4:3): the label floats above the score instead. */
+@container (max-width: 30vh) {
+  .bt-podium-score .bt-delta {
+    top: auto;
+    bottom: 100%;
+    left: 50%;
+    margin: 0 0 0.2em;
+    padding: 0.08em 0.4em;
+    translate: -50% 0;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.7);
+  }
 }
 .bt-control {
   color: var(--b-accent);
@@ -567,9 +680,10 @@
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.55);
   color: #ffb36b;
+  font-family: var(--bt-label-font);
+  font-weight: var(--bt-heavy);
   font-size: 1.4vh;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
@@ -598,14 +712,15 @@
   border-radius: var(--b-radius);
 }
 .bt-intro-kicker {
+  font-family: var(--bt-label-font);
+  font-weight: var(--bt-heavy);
   font-size: 2.4vh;
-  font-weight: 600;
   letter-spacing: 0.3em;
   text-transform: uppercase;
   opacity: 0.8;
 }
 .bt-intro-cat {
-  font-family: var(--b-font);
+  font-family: var(--b-cat-font, var(--b-font));
   font-weight: var(--bt-heavy);
   text-transform: uppercase;
   text-align: center;
@@ -656,6 +771,14 @@
 }
 
 /* ---------- Final, results ---------- */
+/* The Final's screens are layers so they can swipe like the category introduction (R5-6). */
+.bt-final-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  overflow: hidden;
+  background: var(--bt-grid-bg);
+}
 .bt-final {
   position: absolute;
   inset: 0;
@@ -687,6 +810,11 @@
   background: rgba(0, 0, 0, 0.35);
   font-size: 2.4vh;
   font-weight: 600;
+}
+.bt-chip.bt-name {
+  font-weight: var(--bt-heavy);
+  letter-spacing: 0.05em;
+  line-height: 1.1;
 }
 .bt-chip.is-done {
   background: rgba(0, 0, 0, 0.55);
@@ -764,15 +892,40 @@
   font-size: 4vh;
 }
 .bt-final-wager b {
-  font-family: var(--b-font);
+  font-family: var(--bt-money-font);
+  font-weight: var(--bt-heavy);
+  font-size: 1.15em;
   color: var(--b-accent);
   text-shadow: var(--bt-text-shadow);
 }
+.bt-final-label {
+  font-family: var(--bt-label-font);
+  font-weight: var(--bt-heavy);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.88;
+}
+.bt-final-pre {
+  margin-top: 1vh;
+  font-size: 2.6vh;
+}
+.bt-final-pre b {
+  margin-left: 0.4em;
+  font-family: var(--bt-money-font);
+  font-weight: var(--bt-heavy);
+  font-size: 1.25em;
+  letter-spacing: 0.01em;
+}
 .bt-final-verdict {
+  position: relative;
   padding: 0.6vh 2.4vh;
   border-radius: 999px;
-  font-family: var(--b-font);
+  font-family: var(--bt-money-font);
+  font-weight: var(--bt-heavy);
   font-size: 4.4vh;
+}
+.bt-final-verdict .bt-delta {
+  margin-left: 0.9em;
 }
 .bt-final-verdict.is-right {
   background: rgba(10, 120, 50, 0.85);
@@ -805,37 +958,206 @@
 .board-theme:not([data-theme="classic"]) .bt-dw-title {
   text-shadow: var(--bt-text-shadow);
 }
-.bt-result-row {
-  display: flex;
-  align-items: center;
-  gap: 1.5vw;
-  padding: 1vh 2vw;
-  border-radius: var(--b-radius);
-  background: rgba(0, 0, 0, 0.35);
-  border-left: 0.6vh solid var(--pc, #64748b);
+/* ---------- Results podium (R5-10) ---------- */
+.bt-results-headline {
+  font-size: min(9.5vh, 6.4vw);
 }
-.bt-result-row.is-winner {
-  background: rgba(0, 0, 0, 0.55);
-  box-shadow: inset 0 0 0 0.35vh var(--b-accent);
+.bt-pod {
+  display: flex;
+  min-height: 0;
+  max-width: 92vw;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.6vw;
+}
+.bt-pod-col {
+  display: flex;
+  width: var(--pod-w, 20vw);
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 1vh;
+}
+.bt-pod-col.is-group-start {
+  margin-left: 1.4vw;
+}
+.bt-pod-col:first-child {
+  margin-left: 0;
+}
+.bt-pod-who {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8vh;
+}
+.bt-pod-ring {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 0.5vh;
+  background: var(--pc, #64748b);
+  box-shadow: 0 0.6vh 1.8vh rgba(0, 0, 0, 0.45);
+}
+.bt-pod-col[data-place="1"] .bt-pod-ring {
+  background: var(--b-accent);
+  box-shadow: 0 0 0 0.45vh var(--pc, #64748b), 0 0 3vh color-mix(in srgb, var(--b-accent) 55%, transparent);
+}
+.bt-pod-name {
+  max-width: 100%;
+  color: var(--b-fg);
+  text-shadow: var(--bt-text-shadow);
+}
+.bt-pod-members {
+  max-width: 100%;
+  overflow: hidden;
+  font-family: var(--bt-name-font);
+  font-weight: var(--bt-heavy);
+  font-size: 1.8vh;
+  letter-spacing: 0.05em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+  opacity: 0.8;
+}
+.bt-pod-score {
+  font-size: min(4.4vh, calc(var(--pod-w, 20vw) * 0.2));
+  line-height: 1;
+  text-shadow: var(--bt-text-shadow);
+}
+.bt-pod-col[data-place="1"] .bt-pod-score {
+  font-size: min(5.4vh, calc(var(--pod-w, 20vw) * 0.24));
+  color: var(--b-accent);
+}
+.bt-pod-score.is-neg,
+.bt-pod-col[data-place="1"] .bt-pod-score.is-neg {
+  color: #ff7a6b;
+}
+.bt-pod-well {
+  width: 100%;
+  height: var(--pod-h, 20vh);
+  overflow: hidden;
+}
+.bt-pod-step {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 1.2vh;
+  border-top: 0.9vh solid var(--medal, #ffcc00);
+  border-radius: 0.8vh 0.8vh 0 0;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.16), rgba(0, 0, 0, 0.32)), var(--pc, #64748b);
+  box-shadow: inset 0 0 0 0.25vh rgba(255, 255, 255, 0.12), 0 -0.4vh 2vh rgba(0, 0, 0, 0.35);
+  color: #fff;
+}
+.bt-pod-col[data-place="1"] { --medal: #ffcc00; }
+.bt-pod-col[data-place="2"] { --medal: #dfe4ec; }
+.bt-pod-col[data-place="3"] { --medal: #d98b4a; }
+.bt-pod-place {
+  display: flex;
+  align-items: flex-start;
+  font-family: var(--bt-money-font);
+  font-weight: var(--bt-heavy);
+  line-height: 1;
+  text-shadow: 0.4vh 0.4vh 0 rgba(0, 0, 0, 0.6);
+}
+.bt-pod-num {
+  font-size: min(calc(var(--pod-h, 20vh) * 0.48), calc(var(--pod-w, 20vw) * 0.5));
+}
+.bt-pod-ord {
+  margin-top: 0.3em;
+  font-size: min(calc(var(--pod-h, 20vh) * 0.16), calc(var(--pod-w, 20vw) * 0.16));
+  text-transform: uppercase;
+}
+.bt-pod-tie {
+  margin-top: 0.4vh;
+  padding: 0.2vh 1vh;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.45);
+  font-size: 1.8vh;
+}
+.bt-pod-rest {
+  display: flex;
+  max-width: 92vw;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1vh 1.2vw;
+}
+.bt-pod-rest-item {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 1vh;
+  padding: 0.7vh 1.6vh 0.7vh 1vh;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.38);
+  border-left: 0.6vh solid var(--pc, #64748b);
+  font-size: 2.6vh;
+}
+.bt-pod-rest-item .bt-label {
+  font-size: 0.85em;
+  opacity: 0.85;
+}
+.bt-pod-rest-item .bt-name {
+  max-width: 22vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bt-pod-rest-item .bt-money {
+  font-size: 1.1em;
 }
 .bt-display {
   font-family: var(--b-font);
   font-weight: var(--bt-heavy);
   letter-spacing: 0.03em;
 }
+/* R5-8 roles: contestant / team names, dollar amounts, small interface labels. */
+.bt-name {
+  font-family: var(--bt-name-font);
+  font-weight: var(--bt-heavy);
+  letter-spacing: 0.03em;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+.bt-money {
+  font-family: var(--bt-money-font);
+  font-weight: var(--bt-heavy);
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.bt-label {
+  font-family: var(--bt-label-font);
+  font-weight: var(--bt-heavy);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
 
+@keyframes bt-delta-fade {
+  0% { opacity: 0; }
+  12% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
+}
 @media (prefers-reduced-motion: reduce) {
   .bt-fill,
   .is-in .bt-dw-title,
-  .bt-flash-up > span,
-  .bt-flash-down > span {
+  .bt-flash-up .bt-score-num,
+  .bt-flash-down .bt-score-num {
     animation: none;
+  }
+  .bt-delta {
+    animation-name: bt-delta-fade;
   }
 }
 .reduce-motion .is-in .bt-dw-title,
-.reduce-motion .bt-flash-up > span,
-.reduce-motion .bt-flash-down > span {
+.reduce-motion .bt-flash-up .bt-score-num,
+.reduce-motion .bt-flash-down .bt-score-num {
   animation: none;
+}
+.reduce-motion .bt-delta {
+  animation-name: bt-delta-fade;
 }
 
 /* ---------- Board intro: checker reveal (R2-23) ---------- */
@@ -931,8 +1253,9 @@
   margin-top: 0.4vh;
   max-width: 60vw;
   overflow: hidden;
+  font-family: var(--b-clue-font);
   font-size: 2.8vh;
-  font-weight: 700;
+  font-weight: var(--bt-clue-weight);
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
