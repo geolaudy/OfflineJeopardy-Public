@@ -2,22 +2,24 @@
 
 Read this first in a new session, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 4".
 
-## Current state (updated 2026-10-14, session 6)
+## Current state (updated 2026-10-15, session 7)
 
-- Branch: `main`, pushed to `origin/main`.
-- Releases: v0.6.0 … **v0.9.0** published (each with installer + portable + SHA256SUMS, verified via the API).
-- `package.json` version: **0.9.0**. Tests at the last full run: Vitest 166/166, Playwright 32/32 (after v0.9.0: AI clue helper in the editor, editor drag-and-drop test — on main, not yet in a release).
-- Local artifacts (include the owner's sounds — personal use only, do not upload): `release/OfflineJeopardy-Setup-0.9.0.exe`, `release/OfflineJeopardy-Portable-0.9.0.exe`, `release/win-unpacked/` (verify-dist 15/15).
-- Round-4 requirements: USER_FEEDBACK.md "Round 4" (R4-1 … R4-20), IMPLEMENTATION_PLAN milestone 18.
+- Branch: `main`, pushed to `origin/main`. Release **v0.10.0** tagged (GitHub Actions builds the public release; see PROGRESS.md for the verified release record).
+- `package.json` version: **0.10.0**. Tests at the last full run: **Vitest 226/226, Playwright 38/38**.
+- Local artifacts (include the owner's sounds — personal use only, do not upload): `release/OfflineJeopardy-Setup-0.10.0.exe`, `release/OfflineJeopardy-Portable-0.10.0.exe`, `release/win-unpacked/` (verify-dist **17/17**, incl. "serves the Jeopardy!/Buzzinga sounds — 9 cues").
+- Round-5 requirements: USER_FEEDBACK.md "Round 5" (R5-2 … R5-20), IMPLEMENTATION_PLAN milestone 19, FEATURE_MATRIX "User feedback round 5", decisions D55–D63.
 
-## Round 4 status
+## Round 5 status (all milestones done and tested)
 
 | Milestone | Items | Status |
 |---|---|---|
-| A — gameplay | R4-2 Final Jeopardy!, R4-4 clue controls, R4-10 media-only clues, R4-16 intro gating, R4-7 wording, R4-20 return to lobby | Done, tested |
-| B — host/lobby UI | R4-5, R4-8, R4-9, R4-12, R4-14, R4-15 | Done (visual items judged from screenshots) |
-| C — profiles/pre-lobby | R4-13 profile picture + colours, R4-11 pre-lobby TV | Done, tested |
-| D — audio/visual | R4-1 sound pack, R4-3 think music, R4-6 bottom glow, R4-17 fonts, R4-18 background, R4-19 board fill sync | Done; audio not verified by ear (K23) |
+| A — critical bugs | R5-15 undo timer, R5-18 wager permissions, R5-16 picture, R5-19 Final answer submit/change, R5-20 Daily Double! on phones, R5-9 sound folders | Done, tested (U + I + E) |
+| B — home + lobby | R5-2 home screens/recent games, R5-4 no setup screen, R5-3 active lobby/rules/QR/board chooser/compact teams | Done, tested |
+| C — teams | R5-5 slots, Unassigned, self-selection, drag + tap, capacity, empty teams, warning, mode memory, identity, saved-team linking | Done, tested |
+| D — phones | R5-17 lobby view, I'm New first, nicknames, others' stats | Done, tested |
+| E — host gameplay (agent) | R5-12 intro controls + live preview, R5-13 board replica, R5-14 clue view | Done, tested (emulation) |
+| F — presentation (agent) | R5-6 swipes, R5-7 score deltas, R5-8 typography, R5-10 podium + fanfare, R5-5.10 team buzz-in | Done, tested (R5-8 visual only) |
+| G — AI (agent) | R5-11 Gemini + provider registry | Done, tested with a fake Gemini API only (K31) |
 
 ## Owner's assets (important)
 
@@ -44,7 +46,6 @@ Unchanged from session 5: `npm run dist` + `npm run dist:verify`; release = bump
 
 ## Next recommended tasks
 
-1. Owner: listen to the Jeopardy!/Buzzinga pack on the real TV (board fill sync, think music), check QR scanning distance with the smaller code, try Final Jeopardy! on real phones, try a real Ollama/LM Studio (K30).
-2. Further AI helpers from spec §19 (duplicate detection across boards, difficulty adjustment). Remaining P3 spec items: workspaces (O6), plugin system (O13).
-2. Optional: per-cue volume; rename old boards' "Final Wager" round to "Final Jeopardy!" automatically.
-3. Earlier open items: AI answers with a real key (K26), Joy-Con vibration on hardware (K25).
+1. Owner on real devices: try Gemini with a real key (K31); team lobby drag-and-drop and the new clue screen on the real iPad (K32, K34); scan the smaller join QR from the sofa (K33); listen to the victory fanfare and the Final swipes on the TV.
+2. If the owner wants the recordings in the GitHub download: not possible without redistribution rights — keep the "Sounds folder next to the exe" route (K28).
+3. Earlier open items: Joy-Con vibration on hardware (K25), local AI with a real Ollama (K30), workspaces (O6), plugin system (O13).

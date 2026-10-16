@@ -74,6 +74,8 @@ function smoke(label, file) {
   } catch {
     /* no report */
   }
+  // R5-9: a personal build must serve its bundled sounds from the packaged location.
+  if (packFiles.length && r) check(`${label} serves the Jeopardy!/Buzzinga sounds`, r.soundCues > 0 && r.soundServed === true, `${r.soundCues} cues mapped`);
   check(`${label} starts and its server works (smoke test)`, run.status === 0 && r?.ok === true, r ? JSON.stringify({ version: r.serverVersion, boards: r.sampleBoards, image: r.imagePipeline, web: r.boardPage, error: r.error?.split('\n')[0] }) : `exit ${run.status}${run.error ? ` ${run.error.message}` : ''}`);
   fs.rmSync(report, { force: true });
 }

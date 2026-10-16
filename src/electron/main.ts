@@ -210,7 +210,7 @@ async function smokeTest(reportFile: string) {
     const webDir = path.join(app.getAppPath(), 'dist', 'web');
     report.webIndex = fs.existsSync(path.join(webDir, 'index.html'));
     report.userGuide = fs.existsSync(path.join(process.resourcesPath, 'USER_GUIDE.md')) || !app.isPackaged;
-    const s = await startServer({ dataDir, port: 0, host: '127.0.0.1', webDir });
+    const s = await startServer({ dataDir, port: 0, host: '127.0.0.1', webDir, soundPackDirs: soundPackDirs(dataDir) });
     try {
       const info = (await (await fetch(`${s.url}/api/info`)).json()) as { version?: string };
       report.serverVersion = info.version ?? null;
@@ -225,6 +225,11 @@ async function smokeTest(reportFile: string) {
       fd.append('file', new Blob([png], { type: 'image/png' }), 'dot.png');
       const media = await fetch(`${s.url}/api/media?kind=image`, { method: 'POST', headers: { authorization: `Bearer ${token}` }, body: fd });
       report.imagePipeline = media.ok;
+      // R5-9: the sound cues this build serves (personal builds carry the owner's files), and one of them really plays.
+      const files = ((await (await fetch(`${s.url}/api/settings/public`)).json()) as { packFiles?: Record<string, string> }).packFiles ?? {};
+      report.soundCues = Object.keys(files).length;
+      const first = Object.values(files)[0];
+      report.soundServed = first ? (await fetch(`${s.url}${first}`)).ok : null;
     } finally {
       await s.close();
     }
