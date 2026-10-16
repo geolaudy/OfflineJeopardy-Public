@@ -4,6 +4,7 @@
 // and an answer that was typed but never sent → one-at-a-time reveal → Return to Lobby → a second
 // game in the same lobby → a Final nobody qualifies for. Screenshots go to test-results/screens.
 import { test, expect, chromium, webkit, devices, request, type Browser, type Page } from '@playwright/test';
+import { createLobby } from './lobbyFlow';
 
 const BASE = `http://127.0.0.1:${process.env.E2E_PORT ?? 3210}`;
 const shot = (p: Page, name: string) => p.screenshot({ path: `test-results/screens/playtest-${name}.png` });
@@ -42,18 +43,15 @@ test('play-test: a full evening on an iPad in portrait, a 4:3 TV and three phone
   const tv = await (await cr.newContext({ viewport: { width: 1024, height: 768 } })).newPage();
   await tv.goto(`${BASE}/board`);
   await api.post('/api/lobby', { headers: H, data: { name: 'Play-test night' } });
-  await expect(tv.getByTestId('tv-prelobby')).toBeVisible();
   await expect(tv.getByText('Scan to join')).toHaveCount(0);
 
   const ipad = await (await wk.newContext({ ...devices['iPad Pro 11'] })).newPage(); // portrait
   ipad.on('dialog', (d) => void d.accept());
   await ipad.goto(`${BASE}/host`);
-  await ipad.getByRole('button', { name: /Starter Trivia Night/ }).first().click();
-  await expect(tv.getByTestId('tv-prelobby-board')).toHaveText('Starter Trivia Night');
-  await tv.waitForTimeout(700);
-  await shot(tv, 'tv43-prelobby');
-  await ipad.getByTestId('open-lobby').click();
+  await createLobby(ipad);
   await expect(tv.getByText('Scan to join')).toBeVisible();
+  await tv.waitForTimeout(700);
+  await shot(tv, 'tv43-lobby');
 
   // Phones join; Ivy and Jon both prefer red — the second to arrive is asked to choose.
   const [pi, pj, pk] = [await phone(ivy.token, devices['iPhone 13'], wk), await phone(jon.token, devices['Pixel 7'], cr), await phone(kai.token, devices['iPhone SE'], wk)];

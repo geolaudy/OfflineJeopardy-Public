@@ -1,5 +1,6 @@
 // E2E (O8): create a tournament, play a game in it, see the standings on the host and the TV.
 import { test, expect, chromium, request, type Browser } from '@playwright/test';
+import { createLobby } from './lobbyFlow';
 
 const BASE = `http://127.0.0.1:${process.env.E2E_PORT ?? 3210}`;
 let cr: Browser;
@@ -34,10 +35,10 @@ test('tournament: create, choose it for a game, standings after the game on host
 
   // Set up a game that belongs to it.
   await pc.getByTestId('hostnav-home').click();
-  await pc.getByRole('button', { name: /^Starter Trivia Night/ }).first().click();
+  await createLobby(pc);
+  await pc.getByTestId('lobby-more').locator('summary').click();
   await pc.getByTestId('tournament-select').selectOption({ label: 'Autumn Cup — game 1' });
-  await expect(pc.getByTestId('setup-summary')).toContainText('Autumn Cup (game 1)');
-  await pc.getByTestId('open-lobby').click();
+  await expect(pc.getByTestId('tournament-select')).toHaveValue(/.+/);
   await pc.getByRole('button', { name: '+ Add player' }).click();
   await pc.getByRole('dialog').getByRole('button', { name: /Tori Tourney/ }).click();
   await pc.getByRole('dialog').getByRole('button', { name: 'Close' }).click();

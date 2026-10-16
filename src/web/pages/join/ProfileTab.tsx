@@ -85,9 +85,6 @@ export default function ProfileTab({ me, setMe, signOut, view = 'profile' }: { m
         <Field label="Name">
           <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} maxLength={30} aria-label="Name" />
         </Field>
-        <Field label="Nickname (shown on the scoreboard)" hint="Optional">
-          <input className={inputCls} value={nickname} onChange={(e) => setNickname(e.target.value)} maxLength={30} aria-label="Nickname" />
-        </Field>
         <Field label="Preferred Color" group hint="Used in a game whenever nobody else has it; otherwise you pick another one there.">
           <ColorPicker value={color} onChange={setColor} />
         </Field>

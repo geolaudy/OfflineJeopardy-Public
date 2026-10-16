@@ -4,7 +4,7 @@
 import { useRef, type CSSProperties } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Crown, Flame, Medal, Wifi, ScanLine, UserRound } from 'lucide-react';
-import { cx } from '../../components/ui';
+import { Avatar, cx } from '../../components/ui';
 import { avatarEmoji } from '../../lib/avatars';
 import { countLabel, modeLabel, summaryText, type LobbyModel, type LobbyPerson, type LobbyTeam } from './lobbyModel';
 import { DeviceTag, Fade, SharedAvatar, fitCards, useBoxSize } from './presentKit';
@@ -23,6 +23,7 @@ function useKnownKeys(keys: string[]) {
 }
 
 export function LobbyFull({ m, morphIn }: { m: LobbyModel; morphIn: boolean }) {
+  const ctx = useBoard();
   const known = useKnownKeys([...m.people.map((p) => p.key), ...(m.teams ?? []).map((t) => t.key)]);
   const rosterRef = useRef<HTMLDivElement>(null);
   const box = useBoxSize(rosterRef);
@@ -56,7 +57,7 @@ export function LobbyFull({ m, morphIn }: { m: LobbyModel; morphIn: boolean }) {
               <p>Scan the code to create or pick your profile. You can join as soon as the host opens the game.</p>
             </Fade>
           ) : m.teams ? (
-            box.w > 0 && <Teams teams={m.teams} known={known} morphIn={morphIn} box={box} />
+            box.w > 0 && <Teams teams={m.teams} known={known} morphIn={morphIn} box={box} maxPerTeam={m.maxPerTeam} />
           ) : m.people.length ? (
             box.w > 0 && <People people={m.people} known={known} morphIn={morphIn} box={box} />
           ) : (
@@ -82,10 +83,18 @@ export function LobbyFull({ m, morphIn }: { m: LobbyModel; morphIn: boolean }) {
           </Fade>
         )}
 
-        {m.waiting.length > 0 && (
-          <Fade className="tvp-waiting">
-            <span className="tvp-waiting-label">Waiting for a team</span>
-            {m.waiting.join(', ')}
+        {m.mode === 'team' && m.waitingPeople.length > 0 && (
+          <Fade className="tvp-waiting" testId="tv-unassigned">
+            <span className="tvp-waiting-label">Not on a team yet</span>
+            <span className="tvp-waiting-people">
+              {m.waitingPeople.map((p, i) => (
+                <span key={`${p.name}:${i}`} className="tvp-waiting-person">
+                  <Avatar profile={{ name: p.name, color: p.color, avatar: p.avatar, pictureUrl: p.pictureUrl }} size={vhPx(ctx, 3.4)} />
+                  {p.name}
+                  {p.realName && <span className="tvp-real">({p.realName})</span>}
+                </span>
+              ))}
+            </span>
           </Fade>
         )}
       </div>
@@ -94,16 +103,41 @@ export function LobbyFull({ m, morphIn }: { m: LobbyModel; morphIn: boolean }) {
         <p className="tvp-howto-title">How to join</p>
         <ol>
           <li>
-            <Wifi aria-hidden /> Connect your phone to the same Wi-Fi as this computer.
+            <Wifi aria-hidden /> Same Wi-Fi as this computer.
           </li>
           <li>
-            <ScanLine aria-hidden /> Point the camera at the code, or type the address.
+            <ScanLine aria-hidden /> Scan the code.
           </li>
           <li>
-            <UserRound aria-hidden /> Pick your profile, enter your PIN{m.preparing ? '' : ' and tap Join'}.
+            <UserRound aria-hidden /> Pick your profile{m.preparing ? '' : ' and join'}.
           </li>
         </ol>
       </Fade>
+
+      {!m.preparing && (
+        <div className="tvp-side" data-testid="tv-lobby-side">
+          {m.board && (
+            <Fade className="tvp-side-card" testId="tv-lobby-board">
+              <p className="tvp-side-kicker">Board</p>
+              <p className="tvp-side-board">{m.board.title}</p>
+              <p className="tvp-side-meta">
+                {m.board.rounds} {m.board.rounds === 1 ? 'round' : 'rounds'} · {m.board.clues} clues{m.board.final ? ' · Final Jeopardy!' : ''}
+              </p>
+            </Fade>
+          )}
+          <Fade className="tvp-side-card tvp-side-rules" testId="tv-lobby-rules">
+            <p className="tvp-side-kicker">Rules</p>
+            <dl>
+              {m.rules.map((r) => (
+                <div key={r.label}>
+                  <dt>{r.label}</dt>
+                  <dd>{r.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </Fade>
+        </div>
+      )}
     </div>
   );
 }
@@ -149,6 +183,7 @@ function PersonCard({ p, av, isNew, animateAvatar }: { p: LobbyPerson; av: numbe
       <Fade className="tvp-person-text">
         <span className="tvp-person-name">
           <span className="tvp-person-name-text">{p.name}</span>
+          {p.realName && <span className="tvp-real">({p.realName})</span>}
         </span>
         {p.level ? (
           <span className="tvp-person-stats">
@@ -195,7 +230,7 @@ function Summary({ p }: { p: LobbyPerson }) {
   );
 }
 
-function Teams({ teams, known, morphIn, box }: { teams: LobbyTeam[]; known: Set<string>; morphIn: boolean; box: { w: number; h: number } }) {
+function Teams({ teams, known, morphIn, box, maxPerTeam }: { teams: LobbyTeam[]; known: Set<string>; morphIn: boolean; box: { w: number; h: number }; maxPerTeam: number }) {
   const ctx = useBoard();
   if (!teams.length)
     return (
@@ -234,6 +269,9 @@ function Teams({ teams, known, morphIn, box }: { teams: LobbyTeam[]; known: Set<
                 {t.crown && <Crown className="tvp-mark is-crown tvp-team-crown" aria-label="Won the last game" />}
                 {t.name}
               </span>
+              <span className="tvp-team-cap" data-testid="tv-team-capacity">
+                {maxPerTeam ? `${t.members.length} / ${maxPerTeam}` : `${t.members.length} ${t.members.length === 1 ? 'player' : 'players'}`}
+              </span>
               {t.record && t.record.games > 0 && (
                 <span className="tvp-team-record">
                   {t.record.wins} {t.record.wins === 1 ? 'win' : 'wins'} · {t.record.games} {t.record.games === 1 ? 'game' : 'games'}
@@ -254,6 +292,7 @@ function Teams({ teams, known, morphIn, box }: { teams: LobbyTeam[]; known: Set<
                     <Fade className="tvp-team-member">
                       <span className="min-w-0 truncate">
                         {p.name}
+                        {p.realName && <span className="tvp-real"> ({p.realName})</span>}
                         {p.summary && !p.summary.private && p.summary.games > 0 && (
                           <span className="tvp-member-stats">
                             {' '}

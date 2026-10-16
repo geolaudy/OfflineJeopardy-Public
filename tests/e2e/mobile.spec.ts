@@ -1,7 +1,7 @@
 // Mobile & tablet layout regression tests (USER_FEEDBACK.md FB-1.1 … FB-1.3, AF1, AF3).
 // Playwright emulates viewport sizes and the WebKit engine, not real Safari chrome (toolbars,
 // notches): real-device checks are still required before claiming iPhone/iPad compatibility.
-import { test, expect, webkit, devices, type Browser, type Page } from '@playwright/test';
+import { test, expect, webkit, devices, request, type Browser, type Page } from '@playwright/test';
 import fs from 'node:fs';
 
 const BASE = `http://127.0.0.1:${process.env.E2E_PORT ?? 3210}`;
@@ -80,19 +80,20 @@ test('phone portal fits the visible screen on common iPhones (portrait + landsca
 
 for (const name of ['iPad Pro 11', 'iPad Pro 11 landscape', 'iPad Mini'] as const) {
   test(`host controller on ${name}: header visible, drawer menu, dialogs keep focus during live updates`, async () => {
+    // Start from the host home: no game left over from an earlier spec.
+    const api = await request.newContext({ baseURL: BASE });
+    const { token } = await (await api.post('/api/host/local-login')).json();
+    await api.post('/api/games/close', { headers: { authorization: `Bearer ${token}` } });
+    await api.dispose();
     const ctx = await wk.newContext({ ...devices[name] });
     const ipad = await ctx.newPage();
     await ipad.goto(`${BASE}/host`);
-    // The picker (or setup) loads with a fully visible header.
-    const create = ipad.getByRole('button', { name: 'Open lobby' });
-    await expect(create.or(ipad.getByTestId('start-game')).or(ipad.getByTestId('nav-back')).first()).toBeVisible();
-    // A finished game may still be loaded (results screen): the back arrow returns to the game list.
-    if (!(await create.isVisible()) && !(await ipad.getByTestId('start-game').isVisible())) await ipad.getByTestId('nav-back').click();
-    await expect(create.or(ipad.getByTestId('start-game'))).toBeVisible();
+    // Home (or the lobby) loads with a fully visible header.
+    const create = ipad.getByTestId('create-lobby');
+    await expect(create.or(ipad.getByTestId('start-game')).first()).toBeVisible();
     if (await create.isVisible()) await create.click();
     await expect(ipad.getByTestId('start-game')).toBeVisible();
     await expectInViewport(ipad, ipad.getByTestId('nav-menu'), `${name}: host menu button`);
-    await expectInViewport(ipad, ipad.getByTestId('nav-back'), `${name}: host back arrow`);
     await ipad.screenshot({ path: `${SHOTS}/host-${name.replace(/\s+/g, '-')}-setup.png` });
 
     await ipad.getByTestId('nav-menu').click();
@@ -121,9 +122,11 @@ for (const name of ['iPad Pro 11', 'iPad Pro 11 landscape', 'iPad Mini'] as cons
     await dialog.getByRole('button', { name: 'Save rules' }).click();
     await expect(dialog).toHaveCount(0);
 
-    // Leave the game list clean for the next test.
-    await ipad.getByTestId('nav-back').click();
-    await expect(ipad.getByRole('button', { name: 'Open lobby' })).toBeVisible();
+    // Leave no lobby behind for the next test.
+    ipad.on('dialog', (d) => void d.accept());
+    await ipad.getByTestId('nav-menu').click();
+    await ipad.getByTestId('close-lobby').click();
+    await expect(ipad.getByTestId('create-lobby')).toBeVisible();
     await phone.context().close();
     await ctx.close();
   });

@@ -67,7 +67,7 @@ test('balanced teams: four players without a team become two teams of two', asyn
   await pc.screenshot({ path: 'test-results/screens/balance-teams.png' });
   await card.getByTestId('balance-create').click();
   await expect(pc.getByTestId('team-card')).toHaveCount(2);
-  for (const t of await pc.getByTestId('team-card').allTextContents()) expect(t).toContain('2 players');
+  for (const t of await pc.getByTestId('team-card').allTextContents()) expect(t).toContain('2 Players');
   await expect(pc.getByTestId('balance-teams')).toHaveCount(0); // everyone has a team now
 
   host.close();

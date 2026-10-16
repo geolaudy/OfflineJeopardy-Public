@@ -1,6 +1,6 @@
 // Compact lobby panel (R2-9): shown beside any presented page so joining stays possible. The join
 // QR card above it is the same element as on the full lobby (owned by Presenter).
-import { useRef } from 'react';
+import { useRef, type CSSProperties } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { cx } from '../../components/ui';
 import { modeLabel, type LobbyModel } from './lobbyModel';
@@ -37,7 +37,28 @@ export function CompactLobby({ m }: { m: LobbyModel }) {
           </Fade>
         )}
 
-        {!m.preparing && (
+        {/* R5-3.4: teams in a team game — name, colour, players (of the limit) and buzzer readiness. */}
+        {!m.preparing && m.teams && (
+          <Fade className="tvp-cteams" testId="tv-compact-teams">
+            {m.teams.slice(0, 6).map((t) => {
+              const ready = t.shared ? t.shared.ready : t.members.length > 0 && t.members.every((p) => p.ready);
+              return (
+                <div key={t.key} className="tvp-cteam" style={{ '--pc': t.color } as CSSProperties} data-testid="tv-compact-team">
+                  <span className="tvp-cteam-dot" aria-hidden />
+                  <span className="tvp-cteam-name">{t.name}</span>
+                  <span className="tvp-cteam-n">
+                    {t.members.length}
+                    {m.maxPerTeam ? `/${m.maxPerTeam}` : ''}
+                  </span>
+                  <i className={cx('tvp-dot', ready && 'is-ready')} aria-label={ready ? 'Buzzers ready' : 'Buzzers not ready'} />
+                </div>
+              );
+            })}
+            {m.teams.length > 6 && <div className="tvp-cteam-more">+{m.teams.length - 6} more teams</div>}
+            {m.waitingPeople.length > 0 && <div className="tvp-cteam-more">{m.waitingPeople.length} not on a team</div>}
+          </Fade>
+        )}
+        {!m.preparing && !m.teams && (
           <div className="tvp-strip">
             <AnimatePresence propagate>
               {shown.map((p) => (

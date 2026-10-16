@@ -141,16 +141,17 @@ function SignIn({ onSignedIn }: { onSignedIn: (m: Me) => void }) {
             <input className="mb-3 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base" placeholder="Find your name" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find your name" />
           )}
           <div className="grid grid-cols-3 gap-3">
+            {/* R5-17.2: "I'm New" always comes first. */}
+            <button onClick={() => setCreating(true)} className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-blue-300 bg-blue-50 p-3 text-blue-800" data-testid="new-profile">
+              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-3xl">+</span>
+              <span className="text-sm font-semibold">I'm New</span>
+            </button>
             {list.map((p) => (
               <button key={p.id} onClick={() => setPicked(p)} className="flex flex-col items-center gap-2 rounded-2xl bg-white p-3 shadow-sm active:bg-slate-100" data-testid="profile-tile">
                 <Avatar profile={p} size={56} />
                 <span className="w-full truncate text-center text-sm font-semibold">{profileName(p)}</span>
               </button>
             ))}
-            <button onClick={() => setCreating(true)} className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 p-3 text-slate-600" data-testid="new-profile">
-              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-3xl">+</span>
-              <span className="text-sm font-semibold">I'm new</span>
-            </button>
           </div>
           {profiles.error && <p className="mt-4 text-center text-red-700">{profiles.error}</p>}
         </div>
@@ -189,7 +190,7 @@ function SignIn({ onSignedIn }: { onSignedIn: (m: Me) => void }) {
                 fd.append('file', picture, picture.name || 'photo.jpg');
                 profile = await meApi<Me>('POST', '/api/me/picture', undefined, fd).catch((e) => (toast(`Profile created, but the picture could not be saved: ${(e as Error).message}`, 'error'), r.profile));
               }
-              onSignedIn(profile);
+                      onSignedIn(profile);
             } catch (e) {
               toast((e as Error).message, 'error');
             } finally {

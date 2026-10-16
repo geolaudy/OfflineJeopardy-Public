@@ -9,7 +9,7 @@ import { CLUE_LOCKOUT, timerRemaining } from '../shared/game.js';
 import { applyAction, createGame, type EngineResult } from './engine/engine.js';
 import { resolveInput } from './engine/buzzer.js';
 import { getSetting, setSetting } from './db/db.js';
-import { loadGame, newId, newRoomCode, persistGame, profilesByIds, recordParticipants, snapshotClues } from './repos.js';
+import { listTeams, loadGame, newId, newRoomCode, persistGame, profilesByIds, recordParticipants, saveTeam, snapshotClues } from './repos.js';
 import type { ProfilePublic } from '../shared/views.js';
 import { BotDriver } from './bots.js';
 
@@ -115,6 +115,22 @@ export class GameManager {
     return s;
   }
 
+  /**
+   * Team statistics belong to saved teams (stable ids). Lobby team slots and teams made on the
+   * phones (R5-5) are linked to a saved team when the game starts: the saved team with the same
+   * name and the same members, otherwise a new one. Members renamed or recoloured since keep it.
+   */
+  private linkSavedTeams(s: GameState) {
+    if (s.mode !== 'team' || s.practice) return;
+    const saved = listTeams(this.db, true);
+    const same = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x));
+    for (const c of s.competitors) {
+      if (c.kind !== 'team' || c.teamId || !c.memberIds.length) continue;
+      const match = saved.find((t) => t.name.toLowerCase() === c.name.toLowerCase() && same(t.memberIds, c.memberIds));
+      c.teamId = match?.id ?? saveTeam(this.db, { name: c.name, color: c.color, avatar: c.avatar ?? 'shield', buzzerMode: c.buzzerMode, memberIds: c.memberIds }).id;
+    }
+  }
+
   /** A profile's preferred colour (the lobby colour is assigned from it, R4-13). */
   private preferredColor(profileId: string): string | null {
     const r = this.db.prepare('SELECT color FROM profiles WHERE id = ?').get(profileId) as { color: string } | undefined;
@@ -153,6 +169,7 @@ export class GameManager {
       // Rejected buzz with no state change: nothing to persist or broadcast.
       return res;
     }
+    if (action.type === 'startGame') this.linkSavedTeams(res.state);
     persistGame(this.db, res.state, res.touchedEvents);
     this.current = res.state;
     if (action.type === 'startGame' || action.type === 'endGame' || (action.type === 'undo' && s.phase === 'ended')) {

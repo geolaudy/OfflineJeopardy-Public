@@ -5,11 +5,17 @@ import type { GameView } from '../../../shared/views';
 import type { PersonSummary, PublicLobby, PublicRoster } from '../../../shared/presentation';
 import { profileName } from '../../lib/view';
 import { BOT_LEVELS } from '../../../shared/game';
+import { lobbyRules } from '../../../shared/rulesSummary';
+
+/** The profile name when a different nickname is shown. */
+const realOf = (p: { name: string; nickname: string } | undefined) => (p && p.nickname?.trim() && p.nickname.trim().toLowerCase() !== p.name.toLowerCase() ? p.name : undefined);
 
 export interface LobbyPerson {
   /** Stable React / shared-layout key (derived from team and name; never shown). */
   key: string;
   name: string;
+  /** Profile name shown after a lobby nickname, in parentheses (R5-17.6). */
+  realName?: string;
   color: string;
   avatar: string;
   pictureUrl: string | null;
@@ -58,6 +64,14 @@ export interface LobbyModel {
   hostConnected: boolean;
   /** Which markers appear (for the legend). */
   markers: { crown: boolean; leader: boolean };
+  /** Rules panel (R5-3.1): the same short list as the host's lobby, updated live. */
+  rules: { label: string; value: string }[];
+  /** The selected board (title and size only). */
+  board: { title: string; description: string; rounds: number; clues: number; final: boolean } | null;
+  /** Team games: most players per team (0 = no limit). */
+  maxPerTeam: number;
+  /** Team games: players not on a team yet, with pictures. */
+  waitingPeople: { name: string; realName?: string; color: string; avatar: string; pictureUrl: string | null }[];
 }
 
 const sharedRow = (r: { name: string; team: string | null }) => !!r.team && r.name === `${r.team} (team)`;
@@ -93,6 +107,10 @@ export function buildLobbyModel(g: GameView | null, lobby: PublicLobby | null, r
       practice: false,
       hostConnected,
       markers: { crown: false, leader: false },
+      rules: [],
+      board: null,
+      maxPerTeam: 0,
+      waitingPeople: [],
     };
   }
   const key = keyer();
@@ -107,6 +125,10 @@ export function buildLobbyModel(g: GameView | null, lobby: PublicLobby | null, r
     max: roster?.max ?? g.rules.maxPlayers,
     practice: roster?.practice ?? g.practice,
     hostConnected,
+    rules: lobbyRules(g.rules, { mode, teams: g.competitors.filter((c) => c.kind === 'team').length }),
+    board: roster?.board ?? null,
+    maxPerTeam: g.rules.maxPerTeam,
+    waitingPeople: roster?.waitingPeople ?? g.unassigned.filter((u) => !u.pending).map((u) => ({ name: profileName(g.profiles[u.profileId]), realName: realOf(g.profiles[u.profileId]), color: g.profiles[u.profileId]?.color ?? '#64748b', avatar: g.profiles[u.profileId]?.avatar ?? 'fox', pictureUrl: g.profiles[u.profileId]?.pictureUrl ?? null })),
   };
 
   // Team names / colours / members from the game projection (public); device readiness from the roster.
@@ -118,6 +140,7 @@ export function buildLobbyModel(g: GameView | null, lobby: PublicLobby | null, r
     const personFrom = (r: (typeof rows)[number]): LobbyPerson => ({
       key: key(r.team, r.name),
       name: r.name,
+      realName: r.realName,
       color: r.color,
       avatar: r.avatar,
       pictureUrl: r.pictureUrl,
@@ -144,6 +167,7 @@ export function buildLobbyModel(g: GameView | null, lobby: PublicLobby | null, r
               return {
                 key: key(c.name, name),
                 name,
+                realName: realOf(p),
                 color: p?.color ?? c.color,
                 avatar: p?.avatar ?? 'fox',
                 pictureUrl: p?.pictureUrl ?? null,

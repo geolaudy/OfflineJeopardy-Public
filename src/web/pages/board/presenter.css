@@ -30,7 +30,10 @@
   /* Join card height = width x k (fixed proportions; its content is laid out in cqw). */
   --qr-k: 1.18;
   --stage-h: calc(100vh - var(--top) - var(--pad-b));
-  --qr-full: min(calc(var(--stage-h) * 0.6 / var(--qr-k)), 23vw);
+  /* R5-3.2: the join QR at about 60 % of its former size; the freed space holds the board and rules. */
+  --qr-full: min(calc(var(--stage-h) * 0.36 / var(--qr-k)), 13.8vw);
+  /* Right-hand column of the full lobby: join steps + QR on top, board + rules below. */
+  --side: max(29vw, calc(var(--qr-full) * 2.2));
   --panel: min(max(19vw, 28vh), 25vw);
   position: relative;
   flex: 1;
@@ -129,9 +132,10 @@
   height: 100%;
   flex-direction: column;
   align-items: center;
-  padding: 4cqw 4cqw 3cqw;
+  /* Tight frame (R5-3.2); with the code's own 1-module margin this keeps a ~2-module quiet zone. */
+  padding: 3.2cqw 3.2cqw 2.6cqw;
   overflow: hidden;
-  border-radius: 7cqw;
+  border-radius: 6cqw;
   background: #ffffff;
   color: #0f172a;
   box-shadow:
@@ -344,7 +348,7 @@
 }
 .tvp-full-main {
   position: absolute;
-  inset: 0 calc(var(--qr-full) + var(--gap)) 0 0;
+  inset: 0 calc(var(--side) + var(--gap)) 0 0;
   display: flex;
   flex-direction: column;
   gap: 3.2vh;
@@ -469,12 +473,12 @@
 }
 .tvp-howto {
   position: absolute;
-  right: 0;
-  bottom: 0;
-  width: var(--qr-full);
-  max-height: calc(var(--stage-h) - var(--qr-full) * var(--qr-k) - 2vh);
+  top: 0;
+  right: calc(var(--qr-full) + 1.6vw);
+  width: calc(var(--side) - var(--qr-full) - 1.6vw);
+  max-height: calc(var(--qr-full) * var(--qr-k));
   overflow: hidden;
-  font-size: min(1.95vh, 1.15vw);
+  font-size: min(2.1vh, 1.2vw);
   line-height: 1.35;
 }
 .tvp-howto-title {
@@ -500,6 +504,96 @@
   height: 1.25em;
   flex: none;
   margin-top: 0.05em;
+}
+
+/* Board + rules under the join card (R5-3.1/3.3). */
+.tvp-side {
+  position: absolute;
+  top: calc(var(--qr-full) * var(--qr-k) + 3vh);
+  right: 0;
+  bottom: 0;
+  display: flex;
+  width: var(--side);
+  min-height: 0;
+  flex-direction: column;
+  gap: 1.6vh;
+}
+.tvp-side-card {
+  min-height: 0;
+  padding: 1.8vh 1.4vw;
+  border-radius: 1.8vh;
+  background: var(--tvp-surface);
+  box-shadow: var(--tvp-shadow);
+}
+.tvp-side-kicker {
+  font-family: var(--b-font);
+  font-weight: var(--bt-heavy);
+  font-size: 1.8vh;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--b-accent);
+}
+.tvp-side-board {
+  margin-top: 0.4vh;
+  overflow: hidden;
+  font-family: var(--b-font);
+  font-weight: var(--bt-heavy);
+  font-size: 3.2vh;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+.tvp-side-meta {
+  margin-top: 0.4vh;
+  font-size: 1.9vh;
+  opacity: 0.8;
+}
+.tvp-side-rules {
+  flex: 1;
+  overflow: hidden;
+}
+.tvp-side-rules dl {
+  display: grid;
+  margin-top: 0.8vh;
+  gap: 0.7vh;
+  font-size: min(2vh, 1.15vw);
+  line-height: 1.25;
+}
+.tvp-side-rules dl > div {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr);
+  gap: 1vw;
+}
+.tvp-side-rules dt {
+  opacity: 0.75;
+}
+.tvp-side-rules dd {
+  font-weight: 700;
+}
+.tvp-real {
+  margin-left: 0.4em;
+  font-weight: 400;
+  opacity: 0.55;
+}
+.tvp-team-cap {
+  margin-left: auto;
+  font-size: 0.7em;
+  font-weight: 600;
+  opacity: 0.8;
+  white-space: nowrap;
+}
+.tvp-waiting-people {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.8vh 1.2vw;
+  vertical-align: middle;
+}
+.tvp-waiting-person {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6vw;
+  font-weight: 600;
 }
 
 /* ---------- Compact panel ---------- */
@@ -1534,3 +1628,45 @@
   color: var(--b-accent);
   opacity: 1;
 }
+
+/* Compact lobby: teams (R5-3.4) */
+.tvp-cteams {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7vh;
+}
+.tvp-cteam {
+  display: flex;
+  align-items: center;
+  gap: 0.7vw;
+  padding: 0.6vh 0.8vw;
+  border-radius: 1vh;
+  background: color-mix(in srgb, var(--pc) 22%, transparent);
+  box-shadow: inset 0.45vh 0 0 var(--pc);
+  font-size: 1.9vh;
+}
+.tvp-cteam-dot {
+  width: 1.3vh;
+  height: 1.3vh;
+  flex: none;
+  border-radius: 50%;
+  background: var(--pc);
+}
+.tvp-cteam-name {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tvp-cteam-n {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  opacity: 0.85;
+}
+.tvp-cteam-more {
+  font-size: 1.7vh;
+  opacity: 0.75;
+}
+

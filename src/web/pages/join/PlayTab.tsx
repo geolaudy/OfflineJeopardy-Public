@@ -6,6 +6,8 @@ import { competitorName, findCompetitor, profileName, useTimerSeconds } from '..
 import { CLUE_LOCKOUT, LOBBY_COLORS } from '../../../shared/game';
 import { unlockAudio } from '../../lib/sound';
 import type { Me } from './JoinPage';
+import { PlayerLobby } from './PlayerLobby';
+
 
 const REASONS: Record<string, string> = {
   'no-clue': 'Waiting for the next clue…',
@@ -41,6 +43,14 @@ export default function PlayTab({ me }: { me: Me }) {
     const r = g.results?.find((x) => x.competitorId === mine?.id);
     return <Idle text={r ? (r.isWinner ? `You won with ${fmtScore(r.score)}!` : `Game over — you finished #${r.placement} with ${fmtScore(r.score)}.`) : 'This game has ended.'} />;
   }
+  // R5-17: before the game starts the phone shows the lobby, not the buzzer.
+  if (g.phase === 'lobby')
+    return (
+      <>
+        <ColorChoice />
+        <PlayerLobby me={me} join={<JoinForm needsCode={g.rules.requireRoomCode} />} />
+      </>
+    );
   if (!ctx?.competitorId) {
     const pending = ctx?.pending || g.unassigned.some((u) => u.profileId === me.id);
     return (
@@ -98,7 +108,11 @@ export default function PlayTab({ me }: { me: Me }) {
         <Avatar profile={myComp.kind === 'team' ? { name: myComp.name, color: myComp.color, avatar: myComp.avatar ?? 'shield', pictureUrl: null } : { ...me, color: ctx.color?.current ?? me.color }} size={40} />
         <div className="min-w-0 flex-1">
           <div className="truncate font-bold">{myComp.kind === 'team' ? myComp.name : 'Your score'}</div>
-          {myComp.kind === 'team' && <div className="truncate text-xs text-slate-500">{myComp.memberIds.map((m) => profileName(g.profiles[m])).join(', ')}</div>}
+          {myComp.kind === 'team' && (
+            <div className="truncate text-xs text-slate-500" data-testid="my-teammates">
+              {myComp.memberIds.filter((m) => m !== me.id).length ? `With ${myComp.memberIds.filter((m) => m !== me.id).map((m) => profileName(g.profiles[m])).join(', ')}` : 'Just you'}
+            </div>
+          )}
         </div>
         <div className="text-right">
           <div className={cx('text-2xl font-black tabular-nums', myComp.score < 0 && 'text-red-700')} data-testid="my-score">

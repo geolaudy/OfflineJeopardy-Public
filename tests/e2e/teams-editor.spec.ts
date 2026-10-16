@@ -2,6 +2,7 @@
 // individual-buzzer team and one shared-buzzer team (keyboard key on the TV window),
 // host attribution, and the complete Final Jeopardy! flow with phone wager/answer (R4-2).
 import { test, expect, chromium, webkit, devices, request, type Browser } from '@playwright/test';
+import { createLobby } from './lobbyFlow';
 
 const BASE = `http://127.0.0.1:${process.env.E2E_PORT ?? 3210}`;
 let wk: Browser;
@@ -60,16 +61,18 @@ test('import + edit a board, then a mixed-mode team game through the Final', asy
   // ---- iPad host: create team game from the edited board ----
   const ipad = await (await wk.newContext({ ...devices['iPad Pro 11 landscape'] })).newPage();
   await ipad.goto(`${BASE}/host`);
-  await ipad.getByRole('button', { name: /Team Test Board/ }).click();
-  await ipad.getByRole('button', { name: 'Teams', exact: true }).click();
-  await ipad.getByRole('button', { name: 'Open lobby' }).click();
+  ipad.on('dialog', (d) => void d.accept());
+  await createLobby(ipad, { board: 'Team Test Board', mode: 'team' });
+  // R5-5.1: the lobby starts with two empty team slots; the host renames them.
+  await expect(ipad.getByTestId('team-card')).toHaveCount(2);
 
+  let slot = 0;
   const makeTeam = async (name: string, shared: boolean, members: string[]) => {
-    await ipad.getByRole('button', { name: '+ New team' }).click();
+    await ipad.getByTestId('team-card').nth(slot++).getByRole('button', { name: 'Edit' }).click();
     await ipad.getByLabel('Team name').fill(name);
-    if (shared) await ipad.getByRole('button', { name: 'One shared buzzer' }).click();
+    if (shared) await ipad.getByRole('dialog').getByRole('button', { name: 'One shared buzzer' }).click();
     await ipad.getByRole('button', { name: 'Save team' }).click();
-    const card = ipad.getByTestId('team-card').filter({ hasText: name }).locator('..');
+    const card = ipad.getByTestId('team-card').filter({ hasText: name });
     for (const m of members) {
       await card.getByRole('button', { name: '+ Add player' }).click();
       await ipad.getByRole('dialog').getByRole('button', { name: m }).click();
@@ -83,7 +86,7 @@ test('import + edit a board, then a mixed-mode team game through the Final', asy
   await expect(ipad.getByRole('radiogroup', { name: 'Wizards buzzer mode' }).getByRole('radio', { checked: true })).toContainText('Each player buzzes');
 
   // Assign the "P" key on the TV computer as the Dragons' shared buzzer
-  await ipad.getByRole('tab', { name: '2. Buzzers' }).click();
+  await ipad.getByRole('tab', { name: 'Buzzers' }).click();
   await ipad.getByTestId('assignment-row').filter({ hasText: 'Dragons — shared team buzzer' }).getByRole('button', { name: /controller/ }).click();
   await expect(ipad.getByText('to press a button')).toBeVisible();
   await tv.keyboard.press('KeyP');
@@ -127,7 +130,7 @@ test('import + edit a board, then a mixed-mode team game through the Final', asy
 
   // ---- Final Jeopardy!: only Dragons (positive score) play; they submit on their phone ----
   await ipad.getByTestId('game-options').click();
-  ipad.once('dialog', (d) => d.accept());
+
   await ipad.getByTestId('option-start-final').click();
   await expect(tv.getByText('Capitals')).toBeVisible();
   await expect(tv.getByText('Final Jeopardy!')).toBeVisible();

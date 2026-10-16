@@ -333,7 +333,7 @@ export async function startServer(opts: ServerOptions) {
   });
   /** A new game in its lobby phase with sensible defaults: the last game's board/mode/rules. */
   function createLobbyGame(): { id: string } | { error: string } {
-    const last = db.prepare(`SELECT state_json AS s FROM games WHERE status <> 'abandoned' ORDER BY updated_at DESC LIMIT 1`).get() as { s: string } | undefined;
+    const last = db.prepare(`SELECT state_json AS s FROM games ORDER BY updated_at DESC LIMIT 1`).get() as { s: string } | undefined;
     let prev: { boardId?: string | null; mode?: 'solo' | 'team'; rules?: GameRules } = {};
     try {
       if (last) prev = JSON.parse(last.s);

@@ -25,7 +25,14 @@ test('start screen → create lobby → one-step iPad pairing → present on TV 
   await ctx.delete('/api/lobby', { headers: auth }); // start from the start screen
   await ctx.post('/api/games/close', { headers: auth });
 
-  // Game computer: start screen
+  // TV home screen before any lobby (R5-2): welcome, waiting for the host, no join QR, no categories.
+  const tv = await (await cr.newContext({ viewport: { width: 1920, height: 1080 } })).newPage();
+  await tv.goto(`${BASE}/board`);
+  await expect(tv.getByTestId('tv-home-status')).toContainText('Waiting for the host to open a lobby');
+  await expect(tv.getByText('Scan to join')).toHaveCount(0);
+  await tv.screenshot({ path: 'test-results/screens/tv-home.png' });
+
+  // Game computer: start screen; Create lobby opens the lobby with a game straight away (R5-4).
   const pc = await (await cr.newContext({ viewport: { width: 1366, height: 800 } })).newPage();
   pc.on('dialog', (d) => void d.accept());
   await pc.goto(`${BASE}/desk`);
@@ -41,24 +48,27 @@ test('start screen → create lobby → one-step iPad pairing → present on TV 
   expect((await ctx.get('/api/qr?target=hostPair')).status()).toBe(401);
   await pc.screenshot({ path: 'test-results/screens/start-lobby-open.png' });
 
-  // TV
-  const tv = await (await cr.newContext({ viewport: { width: 1920, height: 1080 } })).newPage();
-  await tv.goto(`${BASE}/board`);
-  // R4-11: before Open Lobby the TV previews the setup — boards and settings — and shows no join QR.
-  await expect(tv.getByTestId('tv-prelobby')).toBeVisible();
-  await expect(tv.getByTestId('tv-prelobby-settings')).toBeVisible();
-  await expect(tv.getByText('Scan to join')).toHaveCount(0);
-  await expect(tv.getByTestId('tv-prelobby')).not.toContainText(code); // the host code never appears on the TV
+  // TV: the active lobby with the (smaller) join QR, the selected board and the rules (R5-3).
+  await expect(tv.getByText('Scan to join')).toBeVisible();
+  await expect(tv.getByTestId('tv-lobby-board')).toBeVisible();
+  await expect(tv.getByTestId('tv-lobby-rules')).toContainText('Time to buzz in');
+  await expect(tv.getByTestId('tv-lobby-rules')).toContainText('Think time');
+  await expect(tv.getByTestId('tv-lobby-full')).not.toContainText(code); // the host code never appears on the TV
+  const qr = await tv.getByTestId('tv-join-card').boundingBox();
+  expect(qr!.width).toBeLessThan(1920 * 0.15); // about 60 % of the old 23vw card
+  await tv.screenshot({ path: 'test-results/screens/tv-lobby.png' });
 
   // iPad: treat it as a separate device and open the link from the QR code.
   await ctx.put('/api/settings', { headers: auth, data: { trustLocalhost: false } });
   try {
     const ipad = await (await wk.newContext({ ...devices['iPad Pro 11 landscape'] })).newPage();
+    ipad.on('dialog', (d) => void d.accept());
     await ipad.goto(`${BASE}/host#pair=${code}`);
-    await expect(ipad.getByRole('heading', { name: 'Set up a game' })).toBeVisible();
+    await expect(ipad.getByTestId('lobby-manage')).toBeVisible(); // no separate setup screen
     expect(ipad.url()).not.toContain('pair='); // the code does not linger in the address bar
     await expect(pc.getByTestId('host-status')).toHaveText(/Host connected/);
     await expect(ipad.getByTestId('lobby-status')).toContainText('Lobby');
+    await expect(ipad.getByTestId('lobby-rules')).toContainText('Early buzz');
 
     // Host navigation is presented on the TV while "Present on TV" is on.
     await expect(ipad.getByTestId('present-toggle')).toHaveAttribute('aria-checked', 'true');
@@ -82,41 +92,47 @@ test('start screen → create lobby → one-step iPad pairing → present on TV 
     await ipad.getByTestId('present-toggle').click();
     await ipad.getByTestId('hostnav-home').click();
     await expect(ipad.getByTestId('present-toggle')).toContainText('TV: Lobby');
-    await expect(tv.getByTestId('tv-prelobby')).toBeVisible();
-    await expect(tv.getByText('Scan to join')).toHaveCount(0);
+    await expect(tv.getByTestId('tv-lobby-full')).toBeVisible();
 
-    // Set up and open the lobby, then change mode and board before starting (R2-6).
-    ipad.on('dialog', (d) => void d.accept());
-    await ipad.getByRole('button', { name: /Starter Trivia Night/ }).first().click();
-    await expect(ipad.getByTestId('setup-summary')).toContainText('Starter Trivia Night');
-    // The TV follows the board the host is looking at, with its categories.
-    await expect(tv.getByTestId('tv-prelobby-board')).toHaveText('Starter Trivia Night');
-    await expect(tv.locator('[data-testid=tv-prelobby-board-card][data-selected=true]')).toContainText('Starter Trivia Night');
-    await expect(tv.getByTestId('tv-prelobby-categories')).toContainText('History');
-    await tv.screenshot({ path: 'test-results/screens/tv-prelobby.png' });
-    await ipad.getByTestId('open-lobby').click();
-    await expect(ipad.getByTestId('lobby-controls')).toBeVisible();
-    await expect(tv.getByText('Scan to join')).toBeVisible();
-    await tv.screenshot({ path: 'test-results/screens/tv-lobby.png' });
-    await expect(ipad.getByRole('tab', { name: '1. Players' })).toBeVisible();
+    // Mode and limits (R5-4.2): the limit controls follow Play As.
+    await expect(ipad.getByTestId('max-players')).toBeVisible();
     await ipad.getByTestId('mode-team').click();
-    await expect(ipad.getByRole('tab', { name: '1. Teams' })).toBeVisible();
+    await expect(ipad.getByRole('tab', { name: 'Teams' })).toBeVisible();
     await expect(ipad.getByTestId('mode-team')).toHaveAttribute('aria-pressed', 'true');
-    const boardSelect = ipad.getByLabel('Board', { exact: true });
-    const options = await boardSelect.locator('option').allTextContents();
-    const other = options.find((o) => !o.includes('Starter Trivia Night'));
-    if (other) {
-      await boardSelect.selectOption({ label: other });
-      await expect(ipad.getByTestId('phase')).toBeVisible();
-      await expect(ipad.getByRole('heading', { level: 1 })).toContainText(other);
+    await expect(ipad.getByTestId('team-count-value')).toHaveText('2'); // empty lobby: two team slots
+    await expect(ipad.getByTestId('max-players')).toHaveCount(0);
+    await ipad.getByTestId('team-count-up').click();
+    await expect(ipad.getByTestId('team-card')).toHaveCount(3);
+    await ipad.getByTestId('max-per-team-up').click();
+    await ipad.getByTestId('max-per-team-up').click();
+    await expect(ipad.getByTestId('team-capacity').first()).toHaveText('0 / 2 Players');
+    await expect(tv.getByTestId('tv-team-capacity').first()).toHaveText('0 / 2');
+
+    // Board choice (R5-3.3): the TV shows the boards while the host chooses, then only the chosen one.
+    await ipad.getByTestId('change-board').click();
+    await expect(tv.locator('[data-testid=tv-present-page][data-page=boards]')).toBeVisible();
+    await expect(tv.getByTestId('tv-lobby-compact')).toBeVisible();
+    const options = ipad.getByTestId('board-option');
+    const n = await options.count();
+    if (n > 1) {
+      const other = ((await options.nth(1).textContent()) ?? '').replace(/\d+ rounds.*$/, '').trim();
+      await options.nth(1).click();
+      await ipad.getByTestId('use-board').click();
+      await expect(ipad.getByTestId('lobby-board')).toContainText(other);
+      await expect(tv.getByTestId('tv-lobby-board')).toContainText(other);
+    } else {
+      await ipad.getByRole('button', { name: 'Cancel' }).click();
     }
+    await expect(tv.getByTestId('tv-lobby-full')).toBeVisible();
     await ipad.screenshot({ path: 'test-results/screens/host-lobby-controls.png' });
+    await tv.screenshot({ path: 'test-results/screens/tv-lobby-teams.png' });
 
     // Close the lobby from the start screen: the pairing code stops working.
     await pc.getByTestId('start-close-lobby').click();
     await expect(pc.getByTestId('create-lobby')).toBeVisible();
     await expect(ipad.getByTestId('lobby-status')).toHaveText('No lobby open');
-    await expect(tv.getByText(/create a lobby on the game computer/)).toBeVisible();
+    await expect(ipad.getByTestId('host-home')).toBeVisible();
+    await expect(tv.getByTestId('tv-home')).toBeVisible();
     const login = await ctx.post('/api/host/login', { data: { code } });
     expect(login.status()).toBe(409);
   } finally {

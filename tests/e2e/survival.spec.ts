@@ -1,6 +1,7 @@
 // E2E (O8 survival UI): lives shown as hearts on the TV podiums and the host's score bar; a wrong
 // answer costs a life everywhere; running out greys the player out.
 import { test, expect, chromium, request, type Browser } from '@playwright/test';
+import { createLobby } from './lobbyFlow';
 
 const BASE = `http://127.0.0.1:${process.env.E2E_PORT ?? 3210}`;
 let cr: Browser;
@@ -27,10 +28,8 @@ test('survival: hearts on TV and host, a wrong answer costs a life, out of lives
   const pc = await (await cr.newContext({ viewport: { width: 1366, height: 900 } })).newPage();
   pc.on('dialog', (d) => void d.accept());
   await pc.goto(`${BASE}/host`);
-  await pc.getByRole('button', { name: /Starter Trivia Night/ }).first().click();
-  await pc.getByLabel('Rules preset').selectOption({ label: 'Survival' });
-  await expect(pc.getByTestId('setup-summary')).toContainText('3 lives each');
-  await pc.getByTestId('open-lobby').click();
+  await createLobby(pc, { preset: 'Survival' });
+  await expect(pc.getByTestId('lobby-rules')).toContainText('3 lives');
   for (const name of ['Lou Lives', 'Max Hearts']) {
     await pc.getByRole('button', { name: '+ Add player' }).click();
     await pc.getByRole('dialog').getByRole('button', { name: new RegExp(name) }).click();

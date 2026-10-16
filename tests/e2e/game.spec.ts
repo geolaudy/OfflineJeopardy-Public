@@ -1,6 +1,7 @@
 // End-to-end: TV board (Chromium 1080p), iPad host (WebKit = Safari engine), phones
 // (iPhone on WebKit, Android on Chromium), all against the real local server.
 import { test, expect, chromium, webkit, devices, type Browser, type Page, request } from '@playwright/test';
+import { createLobby } from './lobbyFlow';
 
 const BASE = `http://127.0.0.1:${process.env.E2E_PORT ?? 3210}`;
 let wk: Browser;
@@ -60,7 +61,8 @@ test('full game: iPad host pairing, phone profiles + buzzing, private answers, l
   // TV board
   const tv = await (await cr.newContext({ viewport: { width: 1920, height: 1080 } })).newPage();
   await tv.goto(`${BASE}/board`);
-  await expect(tv.getByText('Waiting for the host')).toBeVisible();
+  await expect(tv.getByTestId('tv-presenter')).toBeVisible(); // a lobby without a game yet
+  await expect(tv.getByText('Scan to join')).toHaveCount(0);
 
   // iPad host (Safari engine, landscape)
   const ipad = await (await wk.newContext({ ...devices['iPad Pro 11 landscape'] })).newPage();
@@ -69,7 +71,7 @@ test('full game: iPad host pairing, phone profiles + buzzing, private answers, l
   for (const d of '000000' === code ? '111111' : '000000') await ipad.getByRole('button', { name: d, exact: true }).click();
   await expect(ipad.getByRole('alert')).toContainText('Incorrect host code');
   for (const d of code) await ipad.getByRole('button', { name: d, exact: true }).click();
-  await expect(ipad.getByRole('heading', { name: 'Set up a game' })).toBeVisible();
+  await expect(ipad.getByTestId('create-lobby')).toBeVisible();
 
   // Phones: iPhone (WebKit) and Android (Chromium)
   const iphone = await (await wk.newContext({ ...devices['iPhone 13'] })).newPage();
@@ -78,8 +80,7 @@ test('full game: iPad host pairing, phone profiles + buzzing, private answers, l
   await createProfileOnPhone(android, 'Sam', '9876');
 
   // Host creates a solo game from the starter board
-  await ipad.getByRole('button', { name: /Starter Trivia Night/ }).first().click();
-  await ipad.getByRole('button', { name: 'Open lobby' }).click();
+  await createLobby(ipad);
   await expect(ipad.getByTestId('start-game')).toBeVisible();
   await expect(tv.getByText('Scan to join')).toBeVisible();
 

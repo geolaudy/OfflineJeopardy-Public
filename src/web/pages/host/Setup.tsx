@@ -461,7 +461,7 @@ function SoloSetup({ g }: { g: GameView }) {
               <li key={c.id} className="flex items-center gap-3 rounded-xl bg-slate-50 p-2" data-testid={c.bot ? 'setup-bot' : 'setup-player'}>
                 <Avatar profile={competitorAvatar(c, g)} size={40} />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-semibold">{name}</span>
+                  {c.bot || !c.profileId ? <span className="block truncate font-semibold">{name}</span> : <PersonName p={g.profiles[c.profileId]} className="flex font-semibold" realClassName="text-sm" />}
                   {c.bot && (
                     <span className="mt-0.5 flex flex-wrap items-center gap-2">
                       <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700" data-testid="bot-level-badge">
