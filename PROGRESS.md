@@ -1,5 +1,14 @@
 # Progress
 
+## Session 7 — 2026-10-15 (user feedback round 5, reviewing v0.9.0)
+
+- Requirements recorded as R5-2 … R5-20 (USER_FEEDBACK.md "Round 5"), plan in IMPLEMENTATION_PLAN milestone 19, statuses in FEATURE_MATRIX "User feedback round 5", decisions D55–D63.
+- **Milestone A (critical bugs, commit dce261f):** Final Jeopardy! wagers only once the host opens wagering (server-enforced, raw socket messages refused); Daily Double! wager from the picking player's phone, host locks it; Final answers submitted vs. being changed (green/gray TV border, read-only answer + Change Answer on the phone, drafts count only if nothing was submitted); Undo back into Final answering restarts the think time (player inputs are no longer undo steps); choosing a default picture keeps the upload (migration v6 `profiles.picture_off`); sound pack folders found automatically + Add a folder; victory fanfare.
+- **Milestones B/C/D (lead):** TV + host home screens with recent games and a game recap; Create Lobby straight into lobby management (no setup screen; last game's board/mode/rules reused); TV lobby with board card, live rules panel and a ~60 % QR; board chooser shown on the TV; compact lobby with teams; team slots / Unassigned / phone self-selection / drag-and-drop + tap Move / capacity / empty slots / warning / mode-switch memory / team identity by members / saved-team linking; phone lobby view, I'm New first, lobby nicknames shown as Nickname (Real name).
+- **Milestones E, F, G (agents in git worktrees, merged):** host category controls (Previous, jump, Stop Auto, live TV preview), iPad board replica, three-region clue view with More menu and private answer lightbox (E); Final swipes, score deltas, typography roles, team buzz-in banner, podium (F); Gemini provider + provider registry, per-provider keys, rate-limit cooldown (G).
+- Process: Playwright port configurable (`E2E_PORT`) so worktrees run their suites in parallel; `.claude/worktrees/` git-ignored.
+- Tests at the end of the session: see "Current state" in SESSION_HANDOFF.md.
+
 ## Session 6 — 2026-10-14 (user feedback round 4, reviewing v0.7.0)
 
 - **Play-testing after v0.8.0 (user request: find edge cases):**

@@ -154,9 +154,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <Ctx.Provider value={ctx}>
-      <div className="app-screen flex flex-col bg-slate-100 md:flex-row">
+      <div className="app-screen flex flex-col bg-slate-100 lg:flex-row">
         {/* Narrow screens: top bar + drawer. */}
-        <header className={cx('safe-top safe-x flex min-h-14 shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-2 md:hidden', homeBar && 'hidden')}>
+        <header className={cx('safe-top safe-x flex min-h-14 shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-2 lg:hidden', homeBar && 'hidden')}>
           <button onClick={() => setMenu(true)} className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-slate-100" aria-label="Open navigation" data-testid="app-nav-toggle">
             <Menu size={22} aria-hidden />
           </button>
@@ -167,7 +167,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             </button>
           )}
         </header>
-        <nav className="safe-top hidden w-60 shrink-0 flex-col gap-3 border-r border-slate-200 bg-white p-3 md:flex" aria-label="Host navigation" style={{ paddingLeft: 'max(0.75rem, env(safe-area-inset-left))' }}>
+        <nav className="safe-top hidden w-60 shrink-0 flex-col gap-3 border-r border-slate-200 bg-white p-3 lg:flex" aria-label="Host navigation" style={{ paddingLeft: 'max(0.75rem, env(safe-area-inset-left))' }}>
           <div className="px-2">
             <div className="text-lg font-black">OfflineJeopardy</div>
             <div className="truncate text-xs text-slate-500" data-testid="lobby-status">

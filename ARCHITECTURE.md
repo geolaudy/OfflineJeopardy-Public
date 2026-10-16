@@ -63,6 +63,11 @@
 | `src/web/pages/host` | Host app for the iPad **and** the game computer: `AppShell` (Home, Boards, Players, Teams, Buzzers, History, Settings, Help; Present-on-TV switch; Back to start on the game computer), `HostPage` (pairing gate incl. one-step `#pair=` link, routes), Home = set up (GamePicker) → lobby (Setup + LobbyControls) → live → results. The library/editor/players/teams/… pages under `pages/desk` are reused as host pages. |
 | `src/web/pages/join` | Phone player portal. Routes: `/join` (buzzer), `/join/profile`, `/join/stats`, `/join/history[/:gameId]`, `/join/leaderboard`, `/join/players[/:id]`, `/join/settings`; drawer + back arrow. |
 | `src/web/pages/desk` | `DeskPage` = the game computer's **start screen** (`/desk`: Create lobby, Resume, Boards, Settings, Help; after creating: host pairing QR + code, host status, TV window). Old `/desk/*` addresses redirect to `/host/*`. The other files are the shared management pages used by the host app. |
+| `src/web/pages/board/TvHome.tsx`, `home.css` | TV home screen when no lobby is open (R5-2): welcome, recent games, game recap (`PresentationState.home` / `game`, built by `LobbyManager` from `stats.recentGames` / `gameSummary`). |
+| `src/web/pages/host/HostLanding.tsx`, `Setup.tsx` | Host home (Create Lobby → `POST /api/lobby {game:true}`, recent games, resume) and lobby management (board chooser, Play As + limits, rules summary, team board with drag-and-drop / Move sheet). |
+| `src/web/pages/host/HostClue.tsx`, `TvMirror.tsx`, `host-tv.css` | iPad clue view (answer banner, clue card, footer flow, More) and the live TV preview (Preview page in an iframe). |
+| `src/web/pages/join/PlayerLobby.tsx`, `components/PersonName.tsx` | Phone lobby before the game (teams, nickname, buzzer status); "Nickname (Real name)" display. |
+| `src/server/aiProviders/` | AI provider registry (anthropic, openaiCompat, gemini) used by `AiService`. |
 | `src/web/lib/inputBridge.ts` | Joy-Con (WebHID) / gamepad / keyboard reader → server. |
 | `src/electron/` | Electron main + preload. |
 | `tests/unit`, `tests/integration`, `tests/e2e` | Vitest unit, Vitest+real server integration, Playwright E2E. |
@@ -107,6 +112,9 @@ A buzz is *early* when the question is showing, answering has not ended, the com
 
 ### Final Jeopardy! (round 4)
 `FinalState` carries `order` (ascending pre-Final score, ties in competitor order), `preScores`, `cursor` and `step` (contestant → wager → answer). Players submit through the hub (`finalWager`/`finalAnswer`); `finalReveal` advances the step; `judgeFinal` is accepted only for the current contestant at the answer step. `finalEntryReveal()` decides what every projection may show — the host included. When answers close (host or think-timer expiry) each written answer is recorded as a `submission` event (result `final`) for history.
+
+### Team lobby and nicknames (round 5)
+Team games start with `defaultTeamCount(players)` empty team slots (`teamSlot`); players wait in `unassigned` and move with `joinTeam` (players, within `rules.maxPerTeam`) or `assignMember` (host, optional `index`); `setTeamCount` adds/removes slots (players of removed slots go back to Unassigned). `setMode` keeps the team setup in `teamDraft(Bindings)` while in individual mode. `startGame` blocks over-full teams, drops empty slots (kept in `lobbyTeams`, restored by `GameManager.rematch`) and leaves unassigned players out; `GameManager.linkSavedTeams` gives every playing team a saved team id. `nicknames` (per lobby) are projected into `profiles[].nickname`.
 
 ### Lobby colours (round 4)
 `playerColors` / `colorPrompts` in the game state; `syncPlayerColors` runs after every engine action with `ctx.colorOf` (the profile's preferred colour from the DB). Projections substitute the lobby colour into `profiles`; phones get `PlayerContext.color` and answer with `pickColor`.

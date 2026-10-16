@@ -29,12 +29,24 @@ Final,Capitals,0,Capital of Hungary.,Budapest,,
 `;
 
 test('import + edit a board, then a mixed-mode team game through the Final', async () => {
+  test.setTimeout(180_000); // may wait out the profile-creation rate limit
   const api = await request.newContext({ baseURL: BASE });
   const host = (await (await api.post('/api/host/local-login')).json()).token as string;
   const H = { authorization: `Bearer ${host}` };
   await api.post('/api/games/close', { headers: H }); // start without a loaded game
-  const mk = async (name: string) => (await (await api.post('/api/profiles', { data: { name, color: '#1d4ed8', avatar: 'owl', pin: '2468' } })).json()) as { token: string; profile: { id: string } };
-  const [alex, jordan, taylor, sam] = await Promise.all(['TAlex', 'TJordan', 'TTaylor', 'TSam'].map(mk));
+  // Profile creation is rate-limited per address (20 a minute); the full suite creates many.
+  const mk = async (name: string) => {
+    for (let i = 0; i < 40; i++) {
+      const r = await api.post('/api/profiles', { data: { name, color: '#1d4ed8', avatar: 'owl', pin: '2468' } });
+      if (r.status() !== 429) return (await r.json()) as { token: string; profile: { id: string } };
+      await new Promise((res) => setTimeout(res, 2000));
+    }
+    throw new Error('profile creation stayed rate-limited');
+  };
+  const alex = await mk('TAlex');
+  const jordan = await mk('TJordan');
+  const taylor = await mk('TTaylor');
+  const sam = await mk('TSam');
 
   // ---- Desktop: import CSV through the library, edit a clue in the editor ----
   const desk = await (await cr.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
@@ -169,7 +181,7 @@ test('import + edit a board, then a mixed-mode team game through the Final', asy
 
   // ---- Scores & statistics: team points once, contributions separate ----
   const teamsList = await (await api.get('/api/teams', { headers: H })).json();
-  const dragonsId = teamsList.find((t: { name: string }) => t.name === 'Dragons').id;
+  const dragonsId = teamsList.find((t: { name: string; memberIds: string[] }) => t.name === 'Dragons' && t.memberIds.includes(taylor.profile.id)).id;
   const ts = (await (await api.get(`/api/stats/teams/${dragonsId}`, { headers: H })).json()).stats;
   expect(ts.games).toMatchObject({ played: 1, wins: 1, highestScore: 350 }); // 200 + 150
   const st = async (id: string) => (await (await api.get(`/api/stats/profiles/${id}`, { headers: H })).json()).stats.team;

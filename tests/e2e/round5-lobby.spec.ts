@@ -72,11 +72,16 @@ test('team lobby: phones pick teams, rename them and set nicknames; host drags p
   // Host: drag Cat from Unassigned into the second team (touch-free pointer drag).
   const handle = ipad.getByTestId('unassigned-group').getByTestId('drag-handle').first();
   const target = ipad.getByTestId('team-card').nth(1);
+  await handle.scrollIntoViewIfNeeded();
   const from = (await handle.boundingBox())!;
-  const to = (await target.boundingBox())!;
   await ipad.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
   await ipad.mouse.down();
-  await ipad.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 8 });
+  // Hold near the bottom edge: the lobby scrolls until the second team is on screen (auto-scroll).
+  const vp = ipad.viewportSize()!;
+  await ipad.mouse.move(from.x + 40, vp.height - 20, { steps: 6 });
+  await expect(target).toBeInViewport({ timeout: 8000 });
+  const to = (await target.boundingBox())!;
+  await ipad.mouse.move(to.x + to.width / 2, Math.min(to.y + to.height / 2, vp.height - 100), { steps: 6 });
   await ipad.mouse.up();
   await expect(target.getByTestId('team-player')).toHaveCount(1);
   await expect(ipad.getByTestId('unassigned-group').getByTestId('team-player')).toHaveCount(0);

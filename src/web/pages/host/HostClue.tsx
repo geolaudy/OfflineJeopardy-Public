@@ -242,7 +242,13 @@ function ClueFooter({ g, run, responder, who, setWho }: { g: GameView; run: Run;
 /** Who is answering: team (or player) prominent, the member who buzzed secondary. */
 function Answering({ g, c, who, setWho }: { g: GameView; c: CompetitorView; who: string | null; setWho: (v: string | null) => void }) {
   const winner = g.buzzer.winner;
-  const member = c.kind === 'team' ? (who ? profileName(g.profiles[who]) : 'who answered?') : null;
+  // R5-17.7: the host always sees the real profile name next to a lobby nickname.
+  const withReal = (pid: string) => {
+    const p = g.profiles[pid];
+    return p?.nickname?.trim() && p.nickname.trim().toLowerCase() !== p.name.toLowerCase() ? `${p.nickname.trim()} (${p.name})` : profileName(p);
+  };
+  const member = c.kind === 'team' ? (who ? withReal(who) : 'who answered?') : null;
+  const soloReal = c.kind === 'player' && c.profileId && g.profiles[c.profileId]?.nickname?.trim() ? g.profiles[c.profileId].name : null;
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
       <div className="flex min-w-0 items-center gap-3">
@@ -252,6 +258,11 @@ function Answering({ g, c, who, setWho }: { g: GameView; c: CompetitorView; who:
             <span className="truncate text-2xl font-black" data-testid="host-winner">
               {competitorName(c, g)}
             </span>
+            {soloReal && (
+              <span className="truncate text-lg font-semibold text-slate-500" data-testid="host-winner-real">
+                ({soloReal})
+              </span>
+            )}
             {member && (
               <span className={cx('truncate text-lg font-semibold', who ? 'text-slate-700' : 'text-slate-400')} data-testid="host-winner-member">
                 — {member}
@@ -259,7 +270,7 @@ function Answering({ g, c, who, setWho }: { g: GameView; c: CompetitorView; who:
             )}
           </div>
           <div className="truncate text-sm text-slate-500">
-            {c.bot ? `Computer · ${BOT_LEVELS[c.bot].label}` : g.clue?.isDailyWager ? 'Daily Double!' : winner?.profileId && c.kind === 'team' ? `${profileName(g.profiles[winner.profileId])} buzzed` : 'Buzzed in first'}
+            {c.bot ? `Computer · ${BOT_LEVELS[c.bot].label}` : g.clue?.isDailyWager ? 'Daily Double!' : winner?.profileId && c.kind === 'team' ? `${withReal(winner.profileId)} buzzed` : 'Buzzed in first'}
             {winner?.reactionMs != null ? ` · ${(winner.reactionMs / 1000).toFixed(2)}s${c.bot ? '' : ` · ${winner.sourceKind}`}` : ''}
           </div>
         </div>

@@ -172,6 +172,8 @@ test('team buzz-in: team name large, "Buzzed by" the nickname; shared buzzer sho
   const jo = await mk('Jo Present', '#9333ea', 'bear');
   await h.act({ type: 'addTeam', name: 'Dragons', color: '#b91c1c', avatar: 'dragon', buzzerMode: 'individual', memberIds: [alex.profile.id, sam.profile.id] });
   await h.act({ type: 'addTeam', name: 'Wizards', color: '#1d4ed8', avatar: 'shield', buzzerMode: 'shared', memberIds: [tay.profile.id, jo.profile.id] });
+  // R5-17: the nickname is chosen for this lobby (not the profile's own nickname).
+  await h.act({ type: 'setNickname', profileId: alex.profile.id, nickname: 'Ace' });
   const g0 = await h.until((g) => g.competitors.length === 2);
   const wizards = g0.competitors.find((c: { name: string }) => c.name === 'Wizards').id as string;
 

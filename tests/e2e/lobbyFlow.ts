@@ -20,4 +20,10 @@ export async function createLobby(page: Page, opts: { board?: string; mode?: 'so
     await expect(page.getByTestId(`mode-${mode}`)).toHaveAttribute('aria-pressed', 'true');
   }
   await page.getByLabel('Rules preset').selectOption({ label: opts.preset ?? 'Classic' });
+  // Rules carry over from the last game; a room code left on by another spec would block joining.
+  const code = page.getByTestId('require-room-code');
+  if (await code.isChecked()) {
+    await code.click();
+    await expect(code).not.toBeChecked();
+  }
 }

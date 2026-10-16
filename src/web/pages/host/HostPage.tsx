@@ -216,7 +216,7 @@ function HostHome() {
       <header className={cx('shrink-0 border-b border-slate-200 bg-white', ready && !game && !lobby?.open && 'hidden')}>
         <div className="safe-top flex min-h-14 items-center gap-2 px-2 py-1.5">
           {(game || lobby?.open) && (
-            <button onClick={present.openNav} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-700 hover:bg-slate-100 md:hidden" aria-label="Open navigation" data-testid="app-nav-toggle">
+            <button onClick={present.openNav} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-700 hover:bg-slate-100 lg:hidden" aria-label="Open navigation" data-testid="app-nav-toggle">
               <MenuIcon size={22} aria-hidden />
             </button>
           )}
@@ -232,7 +232,7 @@ function HostHome() {
             <div className="text-sm text-slate-600">{game ? <span data-testid="phase">{phaseLabel(game)}</span> : status === 'open' ? 'Ready' : 'Connecting…'}</div>
           </div>
           {lobby?.open && !present.playing && (
-            <button onClick={() => present.setEnabled(!present.enabled)} className={cx('flex h-11 w-11 shrink-0 items-center justify-center rounded-full md:hidden', present.enabled ? 'bg-blue-700 text-white' : 'text-slate-600')} aria-label={present.enabled ? 'Present on TV: on' : 'Present on TV: off'}>
+            <button onClick={() => present.setEnabled(!present.enabled)} className={cx('flex h-11 w-11 shrink-0 items-center justify-center rounded-full lg:hidden', present.enabled ? 'bg-blue-700 text-white' : 'text-slate-600')} aria-label={present.enabled ? 'Present on TV: on' : 'Present on TV: off'}>
               {present.enabled ? <Monitor size={20} aria-hidden /> : <MonitorOff size={20} aria-hidden />}
             </button>
           )}

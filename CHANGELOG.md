@@ -4,6 +4,37 @@ All notable changes to OfflineJeopardy. Versions follow [semantic versioning](ht
 GitHub Releases (with the Windows installer and portable exe) are published for major milestones;
 their notes come from the matching section below (`scripts/release-notes.mjs`).
 
+## [0.10.0] — 2026-10-15
+
+### New Features
+- **Home screens**: before a lobby is open the TV shows a welcome screen with your last three games (board, date, winner, winning score, players). On the iPad, tap a recent game to show its final standings on the TV.
+- **Create Lobby goes straight to the lobby** — no separate "Set up a game" screen. The board, Individuals/Teams, player and team limits, rules and timers are all chosen in the lobby, with a rules summary right there. A new lobby starts with your last game's board and rules.
+- **New TV lobby**: the chosen board and a live rules panel (early-buzz lockout, buzz and answer time, Daily Double! and Final Jeopardy! rules, think time). The join QR code is smaller with a tighter frame. While you pick a board, the TV shows the choices.
+- **Team management**: team games start with empty teams (about two players per team); players pick, switch or leave a team on their phones and can rename and recolour their own team. On the iPad, drag players between teams (or tap a player and choose "Move to…"). Each team shows "2 / 3 Players"; a team over the limit has to be fixed before starting, empty teams sit the game out, and players without a team get a warning. Switching to Individuals and back keeps the teams.
+- **Player lobby on phones**: "I'm New" comes first; after joining, phones show the lobby (players, teams, board, rules, your buzzer) — the buzzer appears only when the game starts. Tap another player to see their statistics. Pick a **nickname for this game**; it shows as *Nickname (Real name)* in the lobby and only the nickname when you buzz in.
+- **Daily Double! wagers on the phone**: the player (or team) who picked it enters the wager; the host sees it and shows the clue.
+- **Final Jeopardy! on the phone**: after Submit your answer is shown with a **Change Answer** button; the TV shows a green border for submitted answers and gray for not (yet). Swipes (with the swipe sound) into the reveal and between contestants.
+- **iPad hosting**: a live preview of the TV during the category introduction, Previous Category, tap any category to jump to it, Stop Auto. The board on the iPad looks like the TV board ("Alex is choosing a clue"). The clue screen has the answer in a red banner (picture answers open privately), a large clue and a compact footer: Unlock Buzzers → Correct / Incorrect → Reveal Answer → Return to Board, with rarely used controls under More.
+- **Score changes** show "+$400" in green or "−$400" in red beside the score, with a quicker pop. **Winner podium**: 1st in the middle, 2nd left, 3rd right, the rest listed below, with a new victory fanfare.
+- **Google Gemini** for AI answers (alongside Anthropic and local AI): enter your key, load the models your key can use, test the connection. Free-tier limits are respected — when Google says "slow down", bots answer offline until the limit resets.
+- **Jeopardy!/Buzzinga sounds without picking files**: put your sounds folder (named `Sounds` or `new_sfx`) next to OfflineJeopardy.exe, or use Settings → Sounds → **Add a folder** once — the files are kept when you update.
+
+### Improvements
+- Team buzz-ins show the team name big on the TV with "Buzzed by …" underneath; the host still sees exactly who buzzed (and their real name).
+- Game-show fonts are used consistently for names, money amounts and labels on the TV.
+- On an iPad in portrait the navigation sidebar is folded away to give the game more room.
+- Teams made in the lobby are saved automatically when the game starts, so team statistics build up.
+
+### Bug Fixes
+- Undo back into Final Jeopardy! answering now restarts the think time (and the answers already given are kept).
+- Players could enter Final Jeopardy! wagers before the host opened wagering — now refused, also for direct network messages.
+- Choosing "Choose Default Picture" no longer deletes an uploaded profile picture; you can switch back to it, and nothing changes until you press Save.
+
+### Known Issues
+- Google Gemini has been tested with a simulated Gemini service only, not yet with a real key.
+- The public download still cannot include the Jeopardy!/Buzzinga recordings (we don't have the rights to share them) — add your own folder once as described above.
+- The new iPad layouts and drag-and-drop were tested in iPad emulation; please report anything odd on a real iPad.
+
 ## [0.9.0] — 2026-10-14
 
 ### New Features

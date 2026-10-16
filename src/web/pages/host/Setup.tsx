@@ -1,7 +1,7 @@
 // Lobby management on the host controller (R5-4): the former setup screen's settings (board, Play
 // As + limits, rules) next to players / teams (R5-5: Unassigned group, drag-and-drop, capacity)
 // and buzzers. The game starts from here.
-import { useEffect, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { Link } from 'react-router-dom';
 import type { GameView } from '../../../shared/views';
 import { act } from '../../lib/socket';
@@ -578,22 +578,49 @@ function useTeamDrag(onDrop: (profileId: string, t: DropTarget) => void) {
     const i = Number(chip.dataset.memberIndex);
     return { key, competitorId, index: y > r.top + r.height / 2 ? i + 1 : i };
   };
+  // The live drag lives in a ref so fast moves/releases are never lost between renders.
+  const live = useRef<typeof drag>(null);
+  const update = (d: typeof drag) => {
+    live.current = d;
+    setDrag(d);
+  };
+  // Near the top or bottom edge the page scrolls, so a team below the fold can be reached.
+  const scroller = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!drag) return;
+    const t = setInterval(() => {
+      const d = live.current;
+      const el = scroller.current;
+      if (!d || !el) return;
+      const r = el.getBoundingClientRect();
+      const edge = 80;
+      const dy = d.y < r.top + edge ? -14 : d.y > r.bottom - edge ? 14 : 0;
+      if (!dy) return;
+      el.scrollTop += dy;
+      update({ ...d, over: targetAt(d.x, d.y)?.key ?? null });
+    }, 30);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!drag]);
   const start = (profileId: string, label: string) => (e: ReactPointerEvent) => {
     e.preventDefault();
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
-    setDrag({ profileId, label, x: e.clientX, y: e.clientY, over: null });
+    scroller.current = (e.currentTarget as HTMLElement).closest<HTMLElement>('.scroll-area');
+    update({ profileId, label, x: e.clientX, y: e.clientY, over: null });
   };
   const move = (e: ReactPointerEvent) => {
-    if (!drag) return;
-    setDrag({ ...drag, x: e.clientX, y: e.clientY, over: targetAt(e.clientX, e.clientY)?.key ?? null });
+    const d = live.current;
+    if (!d) return;
+    update({ ...d, x: e.clientX, y: e.clientY, over: targetAt(e.clientX, e.clientY)?.key ?? null });
   };
   const end = (e: ReactPointerEvent) => {
-    if (!drag) return;
+    const d = live.current;
+    if (!d) return;
     const t = targetAt(e.clientX, e.clientY);
-    setDrag(null);
-    if (t) onDrop(drag.profileId, t);
+    update(null);
+    if (t) onDrop(d.profileId, t);
   };
-  const handle = (profileId: string, label: string) => ({ onPointerDown: start(profileId, label), onPointerMove: move, onPointerUp: end, onPointerCancel: () => setDrag(null) });
+  const handle = (profileId: string, label: string) => ({ onPointerDown: start(profileId, label), onPointerMove: move, onPointerUp: end, onPointerCancel: () => update(null) });
   const ghost = drag ? (
     <div className="pointer-events-none fixed z-50 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-700 px-4 py-2 font-semibold text-white shadow-xl" style={{ left: drag.x, top: drag.y }} aria-hidden>
       {drag.label}
