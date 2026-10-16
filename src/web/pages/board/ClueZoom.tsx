@@ -124,12 +124,20 @@ function DailyWagerCard({ g }: { g: GameView }) {
     <div className="bt-stage flex min-h-0 flex-1 flex-col items-center justify-center gap-[3.5vh] px-[6vw] pb-[8vh] text-center">
       <p className="bt-dw-title">DAILY DOUBLE!</p>
       <p className="bt-dw-cat">{clue.categoryName}</p>
-      {controller && <p className="bt-dw-who">{competitorName(controller, g)} is wagering…</p>}
+      {controller && (
+        <p className="bt-dw-who">
+          <span className="bt-name">{competitorName(controller, g)}</span> is wagering…
+        </p>
+      )}
     </div>
   );
 }
 
-/** Compact banner on the top edge naming who buzzed in first. */
+/**
+ * Banner on the top edge naming who buzzed in first. Team games (R5-5.10): the team name large on
+ * the team colour with "Buzzed by {nickname}" small underneath — just the team name when a shared
+ * buzzer cannot tell who pressed it. Solo games: the player's name.
+ */
 function BuzzWinner({ g }: { g: GameView }) {
   const ctx = useBoard();
   const sub = g.clue?.submission ?? null;
@@ -138,23 +146,31 @@ function BuzzWinner({ g }: { g: GameView }) {
   const c = findCompetitor(g, w?.competitorId);
   const player = w?.profileId ? g.profiles[w.profileId] : null;
   const answer = sub && sub.competitorId === w?.competitorId ? sub.answer : null;
+  const team = c?.kind === 'team';
   return (
     <AnimatePresence>
       {w && c && (
         <motion.div
           key={`${w.competitorId}:${w.at}`}
-          className="bt-winner"
-          style={{ '--pc': c.kind === 'team' ? c.color : (player?.color ?? competitorColor(c, g)) } as CSSProperties}
+          className={cx('bt-winner', team && 'is-team')}
+          style={{ '--pc': team ? competitorColor(c, g) : (player?.color ?? competitorColor(c, g)) } as CSSProperties}
           initial={{ y: '-100%', opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: T.fade, ease: EASE_OUT_ARR }}
           data-testid="buzz-winner"
+          data-kind={team ? 'team' : 'player'}
         >
-          <Avatar profile={player ?? competitorAvatar(c, g)} size={vhPx(ctx, 4.8)} />
+          <Avatar profile={team ? competitorAvatar(c, g) : (player ?? competitorAvatar(c, g))} size={vhPx(ctx, team ? 7.2 : 4.8)} />
           <div className="min-w-0 text-left">
-            <div className="bt-winner-name">{c.kind === 'team' || !player ? competitorName(c, g) : profileName(player)}</div>
-            {c.kind === 'team' && player && <div className="bt-winner-sub">{profileName(player)}</div>}
+            <div className="bt-winner-name" data-testid="buzz-winner-name">
+              {team || !player ? competitorName(c, g) : profileName(player)}
+            </div>
+            {team && player && (
+              <div className="bt-winner-sub" data-testid="buzz-winner-sub">
+                <span className="bt-winner-sub-label">Buzzed by</span> <span className="bt-winner-sub-who">{profileName(player)}</span>
+              </div>
+            )}
             {answer && (
               <motion.div className="bt-winner-answer" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: T.fade }} data-testid="tv-bot-answer">
                 “{answer}”

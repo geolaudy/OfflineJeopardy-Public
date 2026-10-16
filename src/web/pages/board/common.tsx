@@ -58,6 +58,27 @@ export function money(prefix: string, v: number) {
   return `${sign}${prefix}${s}`;
 }
 
+/** A score change as shown on the TV (R5-7): "+$400" / "−$400" (U+2212), theme prefix like the
+ *  board values. */
+export function deltaText(prefix: string, delta: number) {
+  return `${delta > 0 ? '+' : '−'}${prefix}${Math.abs(delta).toLocaleString()}`;
+}
+
+/**
+ * The last change of a displayed score (R5-7), or null. The first value seen (mount, a TV that
+ * loads mid-game) is never a change; the same value arriving again (duplicate state, reconnect)
+ * is not either. `n` increases with every change so one-shot animations can restart.
+ */
+export function useScoreChange(score: number) {
+  const [last, setLast] = useState(score);
+  const [change, setChange] = useState<{ delta: number; n: number } | null>(null);
+  if (score !== last) {
+    setLast(score);
+    setChange({ delta: score - last, n: (change?.n ?? 0) + 1 });
+  }
+  return change;
+}
+
 export function useViewportHeight() {
   const [h, setH] = useState(() => (typeof window === 'undefined' ? 1080 : window.innerHeight));
   useEffect(() => {

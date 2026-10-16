@@ -1,11 +1,10 @@
 // Public game board for the TV / projector. Receives only the public projection.
 import { Maximize } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { AnimatePresence, MotionConfig, motion } from 'motion/react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, MotionConfig } from 'motion/react';
 import { connect, useLive, reconnectNow } from '../../lib/socket';
 import { api, ensureLocalHost, tokens } from '../../lib/api';
-import { Avatar, QrImage, cx, fmtScore } from '../../components/ui';
-import { competitorAvatar, competitorColor, competitorName, findCompetitor } from '../../lib/view';
+import { QrImage, cx } from '../../components/ui';
 import { configureSound, playCue, sfx, stopCue, unlockAudio } from '../../lib/sound';
 import { DEFAULT_TV_FX, normalizeTvFx, type PackFiles, type TvFx } from '../../../shared/tvFx';
 import { timerRemaining } from '../../../shared/game';
@@ -15,7 +14,6 @@ import { useTimerSeconds } from '../../lib/view';
 import { FxCtx } from './fx';
 import { reannounce, startInputBridge } from '../../lib/inputBridge';
 import type { GameView } from '../../../shared/views';
-import { avatarEmoji } from '../../lib/avatars';
 import { isDesktopApp } from '../../lib/desktop';
 import { BoardCtx, presentationFor, themeRoot, useBoard, usePrefersReducedMotion, useViewportHeight } from './common';
 import type { CustomTheme } from '../../../shared/themes';
@@ -27,6 +25,7 @@ import { Scoreboard } from './Scoreboard';
 import { Presenter } from './Presenter';
 import { TvHome } from './TvHome';
 import { EASE_OUT_ARR, T } from './timing';
+import { PodiumResults } from './Podium';
 import './fonts.css';
 import './board.css';
 
@@ -310,49 +309,9 @@ export function ThemeLogo({ className }: { className?: string }) {
   return logo ? <img src={logo} alt="" aria-hidden className={cx('w-auto max-w-[40vw] object-contain', className)} data-testid="theme-logo" /> : null;
 }
 
+/** End of game: the podium (R5-10). */
 function Results({ g }: { g: GameView }) {
-  const ctx = useBoard();
-  const results = g.results ?? [];
-  const winners = results.filter((r) => r.isWinner).map((r) => findCompetitor(g, r.competitorId));
-  const big = Math.round(ctx.vh * 0.13);
-  return (
-    <div className="bt-results">
-      <ThemeLogo className="max-h-[9vh]" />
-      <p className="bt-kicker">{g.title}</p>
-      <motion.h1
-        initial={{ scale: 0.7, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: T.zoom, ease: EASE_OUT_ARR }}
-        className="bt-headline"
-        data-testid="winner"
-      >
-        {winners.length > 1 ? "It's a tie!" : `${competitorName(winners[0], g)} wins!`}
-      </motion.h1>
-      <div className="flex items-center gap-[2vw]">
-        {winners.map((w) => w && <Avatar key={w.id} profile={competitorAvatar(w, g)} size={big} />)}
-      </div>
-      <div className="flex w-full max-w-[64vw] flex-col gap-[1vh]">
-        {results.map((r, i) => {
-          const c = findCompetitor(g, r.competitorId);
-          return (
-            <motion.div
-              key={r.competitorId}
-              initial={{ opacity: 0, y: '2vh' }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: T.fade, delay: T.zoom + i * 0.08 }}
-              className={cx('bt-result-row', r.isWinner && 'is-winner')}
-              style={{ '--pc': competitorColor(c, g) } as CSSProperties}
-            >
-              <span className="bt-display w-[4vw] text-[3.6vh] text-[var(--b-accent)]">#{r.placement}</span>
-              <span className="text-[3vh]">{c?.kind === 'team' ? avatarEmoji(c.avatar) : ''}</span>
-              <span className="bt-display flex-1 truncate text-left text-[3.4vh] uppercase">{competitorName(c, g)}</span>
-              <span className={cx('bt-display text-[4vh] tabular-nums', r.score < 0 && 'text-[#ff7a6b]')}>{fmtScore(r.score)}</span>
-            </motion.div>
-          );
-        })}
-      </div>
-    </div>
-  );
+  return <PodiumResults g={g} logo={<ThemeLogo className="max-h-[8vh]" />} />;
 }
 
 /** "Last seconds" cue: one soft tick per second for the final five seconds of a running timer. */

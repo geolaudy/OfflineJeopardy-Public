@@ -1,10 +1,11 @@
 // Podium-style score strip along the bottom of the TV. No layout animations (they measure on every
-// render); score changes get a brief one-shot highlight instead.
-import { useState, type CSSProperties } from 'react';
+// render); score changes get a brief one-shot pop and a "+$400" / "−$400" label instead (R5-7).
+import type { CSSProperties } from 'react';
 import type { CompetitorView, GameView } from '../../../shared/views';
 import { Avatar, Lives, cx, fmtScore } from '../../components/ui';
 import { competitorAvatar, competitorColor, competitorName, profileName } from '../../lib/view';
-import { useBoard, vhPx } from './common';
+import { useBoard, useScoreChange, vhPx } from './common';
+import { ScoreDelta } from './ScoreDelta';
 import { T } from './timing';
 
 export function Scoreboard({ g }: { g: GameView }) {
@@ -47,20 +48,20 @@ function Podium({ c, g, winner, control, early }: { c: CompetitorView; g: GameVi
 }
 
 function Score({ score }: { score: number }) {
-  const [last, setLast] = useState(score);
-  const [flash, setFlash] = useState<{ dir: 'up' | 'down'; n: number } | null>(null);
-  if (score !== last) {
-    setLast(score);
-    setFlash({ dir: score > last ? 'up' : 'down', n: (flash?.n ?? 0) + 1 });
-  }
+  const change = useScoreChange(score);
   return (
     <div
-      className={cx('bt-podium-score', score < 0 && 'is-neg', flash && `bt-flash-${flash.dir}`)}
+      className={cx('bt-podium-score', score < 0 && 'is-neg', change && (change.delta > 0 ? 'bt-flash-up' : 'bt-flash-down'))}
       style={{ '--bt-flash': `${T.scoreFlash}s` } as CSSProperties}
       data-testid="score"
     >
-      {/* Re-keyed on change so the one-shot highlight restarts. */}
-      <span key={flash?.n ?? 0}>{fmtScore(score)}</span>
+      <span className="bt-score-wrap">
+        {/* Re-keyed on change so the one-shot pop restarts. */}
+        <span key={change?.n ?? 0} className="bt-score-num">
+          {fmtScore(score)}
+        </span>
+        <ScoreDelta change={change} />
+      </span>
     </div>
   );
 }

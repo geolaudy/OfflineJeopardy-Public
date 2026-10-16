@@ -16,8 +16,15 @@ export const T = {
   /** Board fill-in after the introduction: per-tile fade and the total stagger window. */
   fillTile: 0.28,
   fillSpread: 0.85,
-  /** Score change highlight. */
-  scoreFlash: 0.9,
+  /** Score change pop: slight scale-up + gain/loss colour, smooth return (R5-7). */
+  scoreFlash: 0.5,
+  /** "+$400" / "−$400" next to a changed score: fade in, hold, fade away (R5-7). */
+  scoreDelta: 1.6,
+  /** Results podium (R5-10): each step rising, the gap between steps (3rd → 2nd → 1st), then
+   *  names / scores fading in. */
+  podiumRise: 0.6,
+  podiumStagger: 0.32,
+  podiumReveal: 0.45,
   /** Lobby: full screen ↔ compact side panel (shared QR card and avatars). */
   morph: 0.7,
   /** Lobby text/details fading in after (or out before) the morph. */
