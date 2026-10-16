@@ -803,6 +803,28 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       s.intro = null;
       return;
     }
+    case 'introPrev':
+    case 'introGoto': {
+      // R5-12: the host jumps back one step or straight to a category. A manual jump takes the
+      // introduction over from auto mode, so no scheduled advance follows it.
+      if (!s.intro) return { ignored: true };
+      const count = s.board.rounds[s.intro.roundIndex]?.categories.length ?? 0;
+      const step = a.type === 'introPrev' ? s.intro.step - 1 : a.step;
+      if (step < -1 || step >= count) {
+        if (a.type === 'introPrev') return { ignored: true };
+        fail('There is no such category in this round');
+      }
+      s.intro.auto = false;
+      if (step === s.intro.step) return;
+      s.intro.step = step;
+      s.intro.at = now;
+      return;
+    }
+    case 'introStopAuto': {
+      if (!s.intro) return { ignored: true };
+      s.intro.auto = false;
+      return;
+    }
     case 'setControl': {
       s.controlCompetitorId = competitorOf(s, a.competitorId).id;
       return;

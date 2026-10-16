@@ -1,0 +1,53 @@
+/* The TV board grid on the host's iPad (R5-13). board.css sizes the TV with viewport units; the
+   replica is a 16:9 box of any size, so the spacing and shadows are re-expressed in container
+   units of that box (and, for clue values, of each tile). Colours and fonts come from the theme. */
+.host-tv.board-theme[data-theme] {
+  container-type: size;
+  --bt-gap: 0.55cqw;
+  --bt-pad: 0.8cqw;
+  --bt-cat-sep: 0px;
+  --bt-text-shadow: 0 0.25cqh 0.6cqh rgba(0, 0, 0, 0.45);
+  --bt-value-shadow: 0 1.6cqh 4cqh rgba(0, 0, 0, 0.45);
+}
+.host-tv.board-theme[data-theme="modern"],
+.host-tv.board-theme[data-theme="contrast"] {
+  --bt-text-shadow: none;
+  --bt-value-shadow: none;
+}
+.host-tv.board-theme[data-theme="classic"] {
+  --bt-gap: 0.6cqh;
+  --bt-pad: 0.6cqh;
+  --bt-cat-sep: 0.9cqh;
+  --bt-text-shadow: 0.35cqh 0.35cqh 0 #000, 0 0 1cqh rgba(0, 0, 0, 0.35);
+  --bt-value-shadow: 3.2cqh 3.2cqh 0 #000, 1.4cqh 1.4cqh 5cqh rgba(0, 0, 0, 0.6);
+}
+.host-tv .bt-cat {
+  padding: 1cqh 0.7cqw;
+}
+.host-tv .host-tile {
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.host-tv .host-tile:disabled {
+  cursor: default;
+}
+.host-tv .host-tile.bt-tile:active {
+  filter: brightness(1.35);
+}
+.host-tv .host-tile:focus-visible {
+  outline: 3px solid var(--b-accent);
+  outline-offset: -3px;
+}
+.host-tv .host-dd-mark {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 2px;
+  color: #fff;
+}

@@ -42,6 +42,7 @@ test('survival: hearts on TV and host, a wrong answer costs a life, out of lives
   await expect(podium('Lou Lives').getByTestId('lives')).toHaveAttribute('data-lives', '3');
   await pc.getByRole('button', { name: 'History for 200' }).click();
   await pc.getByTestId('unlock').click();
+  await pc.getByTestId('clue-more').click(); // R5-14: buzzing for a player is in More
   await pc.getByRole('button', { name: 'Buzz for Lou Lives' }).click();
   await pc.getByTestId('incorrect').click();
   await expect(podium('Lou Lives').getByTestId('lives')).toHaveAttribute('data-lives', '2');

@@ -29,7 +29,7 @@ import { PodiumResults } from './Podium';
 import './fonts.css';
 import './board.css';
 
-interface PublicSettings {
+export interface PublicSettings {
   theme: string;
   custom: CustomTheme | null;
   sound: boolean;
@@ -44,7 +44,7 @@ interface PublicSettings {
 const USER_FONT_FAMILY = { clue: 'OJ User Clue', category: 'OJ User Category', value: 'OJ User Value' } as const;
 
 /** @font-face rules for the owner's font files; nothing is declared (or requested) when there are none. */
-function UserFonts({ fonts }: { fonts?: PublicSettings['fonts'] }) {
+export function UserFonts({ fonts }: { fonts?: PublicSettings['fonts'] }) {
   const css = Object.entries(fonts ?? {})
     .map(([k, url]) => `@font-face{font-family:'${USER_FONT_FAMILY[k as keyof typeof USER_FONT_FAMILY]}';src:url('${url}');font-display:swap;}`)
     .join('');
@@ -263,7 +263,8 @@ function useSounds(g: GameView | null, lobby: PublicLobby | null) {
     if (!g || g.id !== p?.id || g.phase !== 'final') stopCue('finalThink', 400);
     if (!g || !p || p.id !== g.id) return;
     // Categories / new round. The board fill sound starts with its animation (Intro.tsx, R4-19).
-    if (g.intro && p.intro && g.intro.roundIndex === p.intro.roundIndex && g.intro.step > p.intro.step && g.intro.step >= 0) playCue('categoryIntro');
+    // One swipe sound per step change, forwards or backwards (R5-12: Previous / jump to a category).
+    if (g.intro && p.intro && g.intro.roundIndex === p.intro.roundIndex && g.intro.step !== p.intro.step) playCue('categoryIntro');
     if (p.phase === 'lobby') {
       if (g.phase === 'board' && !g.intro) playCue('boardIntro'); // board appears without an intro
     } else if (p.roundIndex !== g.roundIndex) playCue('roundEnd');

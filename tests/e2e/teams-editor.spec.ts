@@ -124,6 +124,7 @@ test('import + edit a board, then a mixed-mode team game through the Final', asy
   await expect(ipad.getByTestId('host-winner')).toHaveText('Wizards');
   await expect(ipad.getByRole('radio', { name: 'TAlex' })).toBeChecked(); // identified buzzer
   await ipad.getByTestId('incorrect').click();
+  await ipad.getByTestId('clue-more').click(); // R5-14: the buzz timer still runs → Reveal Answer is in More
   await ipad.getByTestId('reveal-answer').click();
   await ipad.getByTestId('back-to-board').click();
   await expect(tv.getByTestId('scoreboard')).toContainText('−400');

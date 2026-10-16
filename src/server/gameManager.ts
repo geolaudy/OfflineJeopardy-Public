@@ -13,11 +13,19 @@ import { listTeams, loadGame, newId, newRoomCode, persistGame, profilesByIds, re
 import type { ProfilePublic } from '../shared/views.js';
 import { BotDriver } from './bots.js';
 
+/** Identity of the current introduction step (game, round, step, start time, auto mode). */
+function introKey(s: GameState | null) {
+  const i = s?.intro;
+  return i && s ? `${s.id}:${i.roundIndex}:${i.step}:${i.at ?? ''}:${i.auto ? 'auto' : 'manual'}` : '';
+}
+
 export class GameManager {
   current: GameState | null = null;
   private timerHandle: NodeJS.Timeout | null = null;
   private lockoutHandle: NodeJS.Timeout | null = null;
   private introHandle: NodeJS.Timeout | null = null;
+  /** The introduction state the pending automatic step belongs to. */
+  private introKey = '';
   private mediaHandle: NodeJS.Timeout | null = null;
   /** Delay between automatic category-introduction steps. */
   introStepMs = 3500;
@@ -183,7 +191,9 @@ export class GameManager {
     }
     this.scheduleTimer();
     if (action.type === 'buzz' || action.type === 'unlockBuzzers' || action.type === 'undo') this.scheduleLockoutRefresh();
-    if (action.type === 'startIntro' || action.type === 'introNext' || action.type === 'introSkip' || action.type === 'undo') this.scheduleIntro();
+    // Any change to the introduction (a manual step, a jump, Stop Auto, undo, a new round…)
+    // replaces the pending automatic step; unrelated actions leave its pacing alone.
+    if (introKey(res.state) !== this.introKey) this.scheduleIntro();
     this.bots.sync(this.current);
     this.scheduleMediaEnd();
     this.onChange();
@@ -220,14 +230,18 @@ export class GameManager {
     }, Math.max(0, left) + 20);
   }
 
-  /** Server-paced automatic category introduction (host chose "Auto"). */
+  /** Server-paced automatic category introduction (host chose "Auto"). The pending step is tied
+   *  to the introduction state it was scheduled for: if anything changed it since (Previous, a
+   *  category jump, Stop Auto, another round), it never fires. */
   private scheduleIntro() {
     if (this.introHandle) clearTimeout(this.introHandle);
     this.introHandle = null;
+    const key = introKey(this.current);
+    this.introKey = key;
     if (!this.current?.intro?.auto) return;
     this.introHandle = setTimeout(() => {
       this.introHandle = null;
-      if (this.current?.intro?.auto) this.dispatch({ type: 'introNext' }, 'intro');
+      if (this.current?.intro?.auto && introKey(this.current) === key) this.dispatch({ type: 'introNext' }, 'intro');
     }, this.introStepMs);
   }
 

@@ -1,8 +1,11 @@
 // Live theme preview: the real TV components rendered with demo data, no game connection.
 // The theme editor embeds this page in an iframe and sends the draft theme with postMessage,
 // so the preview always matches what the TV will show.
+// With ?live=1 the host controller embeds it instead (R5-12 / R5-14) and sends a game view: the
+// current category introduction (with the TV's swipes) or a revealed answer, exactly as the TV
+// formats it. Nothing here connects to the server or plays sound.
 import { useEffect, useMemo, useState } from 'react';
-import { MotionConfig } from 'motion/react';
+import { AnimatePresence, MotionConfig } from 'motion/react';
 import type { GameView } from '../../../shared/views';
 import { DEFAULT_RULES } from '../../../shared/game';
 import { SAMPLE_BOARD } from '../../../shared/sampleBoards';
@@ -12,7 +15,11 @@ import { Grid } from './Grid';
 import { Scoreboard } from './Scoreboard';
 import { CluePanel } from './ClueZoom';
 import { Intro } from './Intro';
-import { ThemeLogo } from './BoardPage';
+import { ThemeLogo, UserFonts, type PublicSettings } from './BoardPage';
+import { FxCtx } from './fx';
+import { DEFAULT_TV_FX, normalizeTvFx } from '../../../shared/tvFx';
+import { configureSound } from '../../lib/sound';
+import { useLive } from '../../lib/socket';
 import './fonts.css';
 import './board.css';
 
@@ -70,7 +77,62 @@ function demoGame(view: PreviewView): GameView {
   };
 }
 
+/** Sent by the host controller (pages/host/TvPreview.tsx) to /board/preview?live=1. */
+export interface LivePreviewMessage {
+  type: 'oj-live-preview';
+  look: Pick<PublicSettings, 'theme' | 'custom' | 'tvFx' | 'fonts' | 'reducedMotion'>;
+  /** The host's server clock offset, so "fresh" intro steps are judged like on the TV. */
+  offset: number;
+  game: GameView;
+  scoreboard: boolean;
+}
+
 export default function BoardPreview() {
+  const live = useMemo(() => new URLSearchParams(location.search).get('live') === '1', []);
+  return live ? <LivePreview /> : <ThemePreview />;
+}
+
+function LivePreview() {
+  const [msg, setMsg] = useState<LivePreviewMessage | null>(null);
+  const vh = useViewportHeight();
+  useEffect(() => {
+    configureSound({ enabled: false }); // the TV plays the sounds, never the host's preview
+    const onMsg = (e: MessageEvent) => {
+      if (e.origin !== location.origin || (e.data as LivePreviewMessage)?.type !== 'oj-live-preview') return;
+      const m = e.data as LivePreviewMessage;
+      useLive.setState({ offset: m.offset });
+      setMsg(m);
+    };
+    window.addEventListener('message', onMsg);
+    window.parent?.postMessage({ type: 'oj-preview-ready' }, location.origin);
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+  const look = msg?.look;
+  const reduced = !!look?.reducedMotion;
+  const ctx = useMemo(() => presentationFor(look?.theme ?? 'classic', look?.custom ?? null, reduced, vh), [look?.theme, look?.custom, reduced, vh]);
+  const fx = useMemo(() => (look?.tvFx ? normalizeTvFx(look.tvFx) : DEFAULT_TV_FX), [look?.tvFx]);
+  if (!msg) return <div className="h-screen w-screen bg-black" />;
+  const g = msg.game;
+  const root = themeRoot(look?.theme ?? 'classic', look?.custom ?? null);
+  return (
+    <BoardCtx.Provider value={ctx}>
+      <FxCtx.Provider value={fx}>
+        <UserFonts fonts={look?.fonts} />
+        <MotionConfig reducedMotion={reduced ? 'always' : 'never'}>
+          <div className="board-theme relative flex h-screen w-screen flex-col overflow-hidden select-none" data-theme={root.dataTheme} style={root.style} data-testid="live-preview-root">
+            <div className="relative min-h-0 flex-1">
+              <AnimatePresence>{g.phase === 'board' && g.intro && <Intro key="intro" g={g} />}</AnimatePresence>
+              {g.phase === 'clue' && g.clue && <CluePanel key={g.clue.clueId} g={g} closing={false} zoomIn={false} onClosed={() => {}} />}
+            </div>
+            {msg.scoreboard && <Scoreboard g={g} />}
+          </div>
+        </MotionConfig>
+      </FxCtx.Provider>
+    </BoardCtx.Provider>
+  );
+}
+
+function ThemePreview() {
   const [msg, setMsg] = useState<PreviewMessage>({ type: 'oj-theme-preview', theme: 'classic', custom: null, view: 'board' });
   const vh = useViewportHeight();
   useEffect(() => {
