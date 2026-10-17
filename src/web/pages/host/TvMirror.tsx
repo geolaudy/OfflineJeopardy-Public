@@ -12,7 +12,7 @@ import type { PublicSettings } from '../board/BoardPage';
 import { api } from '../../lib/api';
 import { useLive } from '../../lib/socket';
 import { cx } from '../../components/ui';
-import { FitText, money, presentationFor, themeRoot } from '../board/common';
+import { CATEGORY_TEXT_SHARE, FitText, money, presentationFor, themeRoot } from '../board/common';
 import '../board/fonts.css';
 import '../board/board.css';
 import './host-tv.css';
@@ -141,7 +141,7 @@ export function HostBoardGrid({ g, onTile }: { g: GameView; onTile: (clueId: str
       <div className="bt-grid" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gridTemplateRows: `1.3fr repeat(${rows}, minmax(0, 1fr))` }}>
         {round.categories.map((c) => (
           <div key={c.id} className="bt-cell bt-cat" data-testid="host-category">
-            <FitText text={c.name} max={4.4 * scale.category} min={1.2 * scale.category} className="bt-cat-text" />
+            <FitText text={c.name} max={4.4 * scale.category} maxBox={CATEGORY_TEXT_SHARE * scale.category} min={1.2 * scale.category} className="bt-cat-text" />
           </div>
         ))}
         {Array.from({ length: rows }).map((_, r) =>

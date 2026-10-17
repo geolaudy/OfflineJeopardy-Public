@@ -293,13 +293,15 @@ function IntroStage({ g, run }: { g: GameView; run: Run }) {
           </li>
         ))}
       </ol>
-      <FitBox align="start" testId="intro-preview-box">{(size) => <TvPreview game={g} scoreboard title="TV preview" size={size} testId="intro-preview" />}</FitBox>
-      <div className="grid shrink-0 grid-cols-2 gap-2 @3xl:grid-cols-[2fr_1.5fr_1fr_1fr]">
-        <ActionButton size="xl" className="px-3 text-lg @3xl:text-xl" onAction={() => run({ type: 'introNext' })} data-testid="intro-next">
-          {nextLabel} <ChevronRight size={22} aria-hidden />
-        </ActionButton>
+      {/* R6-2.1: the presentation only — the scores are in the iPad's own bar below. */}
+      <FitBox align="start" testId="intro-preview-box">{(size) => <TvPreview game={g} scoreboard={false} title="TV preview" size={size} testId="intro-preview" />}</FitBox>
+      {/* R6-2.3: Previous Category | Next Category. */}
+      <div className="grid shrink-0 grid-cols-2 gap-2 @3xl:grid-cols-[1.5fr_2fr_1fr_1fr]">
         <ActionButton size="xl" variant="secondary" className="px-3 text-lg @3xl:text-xl" disabled={intro.step < 0} onAction={() => run({ type: 'introPrev' })} data-testid="intro-prev">
           <ChevronLeft size={22} aria-hidden /> Previous Category
+        </ActionButton>
+        <ActionButton size="xl" className="px-3 text-lg @3xl:text-xl" onAction={() => run({ type: 'introNext' })} data-testid="intro-next">
+          {nextLabel} <ChevronRight size={22} aria-hidden />
         </ActionButton>
         {!intro.auto ? (
           <Button size="xl" variant="secondary" className="px-3 text-lg @3xl:text-xl" onClick={() => run({ type: 'startIntro', auto: true })} title="Play the introduction automatically" data-testid="intro-auto">

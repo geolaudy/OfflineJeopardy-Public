@@ -102,13 +102,20 @@ export function usePrefersReducedMotion() {
   return reduce;
 }
 
+/** R6-2.4: a category name may be at most this share of its cell's text box height (one line) —
+ *  the proportion the iPad replica already had; long names still shrink to fit. */
+export const CATEGORY_TEXT_SHARE = 0.42;
+
 /**
  * Text that shrinks (between `min` and `max`, in vh) until it fits its box — long category names
  * and clues stay readable at any aspect ratio. Measures only when the text or box size changes.
+ * `maxBox` (R6-2.4) replaces `max` with a share of the box's own height, so the text has the same
+ * proportions in a box of any size (the TV board and its iPad replica).
  */
 export function FitText({
   text,
   max,
+  maxBox,
   min,
   className,
   boxClassName,
@@ -117,6 +124,7 @@ export function FitText({
 }: {
   text: string;
   max: number;
+  maxBox?: number;
   min: number;
   className?: string;
   boxClassName?: string;
@@ -132,8 +140,8 @@ export function FitText({
     const fit = () => {
       const vh = window.innerHeight / 100;
       const fits = () => el.scrollWidth <= box.clientWidth + 1 && el.offsetHeight <= box.clientHeight + 1;
-      let lo = min * vh;
-      let hi = max * vh;
+      let hi = maxBox ? box.clientHeight * maxBox : max * vh;
+      let lo = Math.min(min * vh, hi);
       el.style.fontSize = `${hi}px`;
       if (fits() || box.clientHeight === 0) return;
       for (let i = 0; i < 9; i++) {
@@ -156,7 +164,7 @@ export function FitText({
     });
     ro.observe(box);
     return () => ro.disconnect();
-  }, [text, max, min]);
+  }, [text, max, maxBox, min]);
   return (
     <div ref={boxRef} className={cx('bt-fit-box', boxClassName)} style={boxStyle}>
       <div ref={ref} className={cx('bt-fit', className)} style={{ fontSize: `${max}vh` }} data-testid={testId}>
