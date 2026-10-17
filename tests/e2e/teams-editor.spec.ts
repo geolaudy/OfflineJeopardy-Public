@@ -139,7 +139,7 @@ test('import + edit a board, then a mixed-mode team game through the Final', asy
   await ipad.getByTestId('clue-more').click(); // R5-14: the buzz timer still runs → Reveal Answer is in More
   await ipad.getByTestId('reveal-answer').click();
   await ipad.getByTestId('back-to-board').click();
-  await expect(tv.getByTestId('scoreboard')).toContainText('−400');
+  await expect(tv.getByTestId('scoreboard')).toContainText('−$400');
 
   // ---- Final Jeopardy!: only Dragons (positive score) play; they submit on their phone ----
   await ipad.getByTestId('game-options').click();

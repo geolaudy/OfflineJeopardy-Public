@@ -108,3 +108,14 @@ Sources (fetched 2026-10-15 as Markdown from ai.google.dev): API reference `api/
 - Keys: created in Google AI Studio (`aistudio.google.com/apikey`).
 - SDK decision: plain `fetch` (no `@google/genai` dependency) — the two REST calls are small, the request/response shapes above are stable, and plain fetch lets tests inject a fake and assert the key is only in the header.
 - Not verified against the real service (no Gemini key available during development): exact current model names, whether `thinkingLevel: LOW` is accepted by every listed model, and the exact 429 body for daily-quota exhaustion.
+
+## Buzzer latency fairness (R6-16…R6-21, 2026-10-17)
+
+Full write-up: [`docs/BUZZER_FAIRNESS_RESEARCH.md`](docs/BUZZER_FAIRNESS_RESEARCH.md). Sources, confirmed findings, unknowns, comparison of approaches A–E and the recommended design are all there.
+
+- **Commercial apps:** BuzzIn.live lists "Latency correction" and shows "+0.18s" gaps; Buzzinga says it "does its best to handle … latency". **Neither documents how it works.** Nothing about their internals is assumed.
+- **Open-source apps:** Multibuzzer and Protobowl decide by server arrival. Protobowl syncs clocks for display only. Friendly-Feud subtracts the full mean RTT, uncapped. BuzzCast only displays ping.
+- **Recommendation (approach E):** server-initiated sync probes, with server-measured RTT and min-half-width offset selection. Phones send `pointerdown` `Event.timeStamp`. Compensation is clamped to `[0, min(50 ms, rttMedian + 2·jitter + 25 ms)]`. An adaptive arbitration window of at most 60 ms ends early once no eligible device could still be earlier. Early buzzes are judged by corrected press time, penalised only when confident (fixes K16). "N ms before you" is shown only when the gap exceeds the combined uncertainty and 25 ms.
+- **Joy-Con and keyboard bridge:** no network compensation. Only the TV-renderer dispatch delay is compensated (via `timeStamp`, cap 30 ms). Bluetooth and 60 Hz report latency are treated as uncertainty.
+- **Needs a DECISIONS entry superseding D15.** Client timestamps become bounded hints, and the server stays authoritative.
+- **Not fetched:** the Valve wiki returned HTTP 403, so only its search summary was used; there was no workaround attempt. Unverified: per-platform semantics of touch and WebHID `timeStamp`, and inter-model touch-pipeline bias (needs a slow-motion video check).

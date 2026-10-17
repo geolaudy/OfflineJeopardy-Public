@@ -1,6 +1,7 @@
 // Server-side role projections. Secrets (answers, notes, hidden wagers, Daily Wager
 // locations) are removed here, before data ever leaves the server.
-import { finalEntryReveal, findClue, livesOf, scoresOf, type GameState, type Id } from '../../shared/game.js';
+import { finalEntryReveal, findClue, livesOf, scoresOf, type BuzzAttempt, type GameState, type Id } from '../../shared/game.js';
+import { gapIsConfident } from '../../shared/buzzTiming.js';
 import type { GameView, PlayerContext, ProfilePublic, ViewRole } from '../../shared/views.js';
 import { buzzBlockReason, competitorForProfile, lockoutUntil, roundMaxValue } from './engine.js';
 
@@ -95,7 +96,8 @@ export function projectState(s: GameState, role: ViewRole, rawProfiles: Record<I
     };
   }
 
-  const { lockouts: _l, ...buzzer } = s.buzzer;
+  const { lockouts: _l, pending: _p, attempts: _a, ...rest } = s.buzzer;
+  const buzzer: GameView['buzzer'] = host ? { ...rest, timing: timingRows(s.buzzer.attempts ?? []) } : rest;
   const view: GameView = {
     role,
     id: s.id,
@@ -146,6 +148,35 @@ export function projectState(s: GameState, role: ViewRole, rawProfiles: Record<I
   return view;
 }
 
+/** R6-23: the presses of the current opening in press order, with each one's gap to the winner. */
+function timingRows(attempts: BuzzAttempt[]) {
+  const w = attempts.find((x) => x.result === 'won');
+  if (!w) return [];
+  return [...attempts]
+    .sort((a, b) => (a === w ? -1 : b === w ? 1 : a.pressAt - b.pressAt))
+    .map((x) => {
+      const gapMs = x === w ? 0 : Math.max(0, Math.round(x.pressAt - w.pressAt));
+      return { competitorId: x.competitorId, profileId: x.profileId, sourceKind: x.sourceKind, result: x.result, gapMs, confident: x === w || gapIsConfident(gapMs, w, x) };
+    });
+}
+
+/** R6-23: this phone's own press compared with the winner (or, for the winner, the runner-up).
+ *  Only for a player who pressed during the current opening. */
+function buzzTimingFor(s: GameState, profileId: Id): PlayerContext['buzzTiming'] {
+  const attempts = s.buzzer.attempts ?? [];
+  const mine = attempts.find((x) => x.controllerId === `phone:${profileId}`) ?? attempts.find((x) => x.profileId === profileId);
+  const w = attempts.find((x) => x.result === 'won');
+  if (!mine || !w) return null;
+  if (mine.result === 'won') {
+    const rival = attempts.filter((x) => x.result === 'late' && x.competitorId !== mine.competitorId).sort((a, b) => a.pressAt - b.pressAt)[0];
+    if (!rival) return { result: 'won', otherCompetitorId: null, otherProfileId: null, gapMs: null, confident: false, teammateWon: false };
+    const gapMs = Math.max(0, Math.round(rival.pressAt - mine.pressAt));
+    return { result: 'won', otherCompetitorId: rival.competitorId, otherProfileId: rival.profileId, gapMs, confident: gapIsConfident(gapMs, mine, rival), teammateWon: false };
+  }
+  const gapMs = Math.max(0, Math.round(mine.pressAt - w.pressAt));
+  return { result: 'late', otherCompetitorId: w.competitorId, otherProfileId: w.profileId, gapMs, confident: gapIsConfident(gapMs, w, mine), teammateWon: w.competitorId === mine.competitorId };
+}
+
 export function playerContext(s: GameState, profileId: Id, now: number): PlayerContext {
   const c = competitorForProfile(s, profileId);
   const u = s.unassigned.find((x) => x.profileId === profileId);
@@ -177,6 +208,7 @@ export function playerContext(s: GameState, profileId: Id, now: number): PlayerC
       const e = s.final!.entries.find((x) => x.competitorId === c.id);
       return e ? { wager: e.wager, answer: e.answer, submitted: !!e.submitted && !!e.answer, draft: e.draft ?? null } : null;
     })() : null,
+    buzzTiming: s.phase === 'clue' ? buzzTimingFor(s, profileId) : null,
     dailyWager: c && s.phase === 'clue' && s.clue?.isDailyWager && s.clue.stage === 'wager' && s.clue.wagerBy === c.id ? (() => {
       const p = s.clue!.pendingWager;
       return { min: s.rules.dailyWagerMin, max: Math.max(scoresOf(s.events)[c.id] ?? 0, roundMaxValue(s)), pending: p?.amount ?? null, pendingBy: p?.profileId ?? null, mine: !p || !p.profileId || p.profileId === profileId };

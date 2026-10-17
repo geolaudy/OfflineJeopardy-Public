@@ -4,7 +4,7 @@
 import type { DB } from './db/db.js';
 import { audit } from './db/db.js';
 import type { EngineAction } from '../shared/actions.js';
-import type { BoardContent, GameRules, GameState, InputKind } from '../shared/game.js';
+import type { BoardContent, BuzzWinner, GameRules, GameState, InputKind } from '../shared/game.js';
 import { CLUE_LOCKOUT, timerRemaining } from '../shared/game.js';
 import { applyAction, createGame, type EngineResult } from './engine/engine.js';
 import { resolveInput } from './engine/buzzer.js';
@@ -12,6 +12,15 @@ import { getSetting, setSetting } from './db/db.js';
 import { listTeams, loadGame, newId, newRoomCode, persistGame, profilesByIds, recordParticipants, saveTeam, snapshotClues } from './repos.js';
 import type { ProfilePublic } from '../shared/views.js';
 import { BotDriver } from './bots.js';
+import { BUZZ_WINDOW_MAX_MS, type BuzzFairness } from '../shared/buzzTiming.js';
+import { buzzBlockReason } from './engine/engine.js';
+
+/** A connected buzzer device and how much its presses may be corrected right now (R6-22). */
+export interface BuzzDevice {
+  controllerId: string;
+  profileId?: string | null;
+  capMs: number;
+}
 
 /** Identity of the current introduction step (game, round, step, start time, auto mode). */
 function introKey(s: GameState | null) {
@@ -27,6 +36,11 @@ export class GameManager {
   /** The introduction state the pending automatic step belongs to. */
   private introKey = '';
   private mediaHandle: NodeJS.Timeout | null = null;
+  private resolveHandle: NodeJS.Timeout | null = null;
+  /** R6-22: connected buzzer devices with their correction caps (from the hub). */
+  buzzDevices: (mode: BuzzFairness) => BuzzDevice[] = () => [];
+  /** Someone won the buzz (any device, after the arbitration window): e.g. Joy-Con rumble. */
+  onBuzzWinner: (w: BuzzWinner) => void = () => {};
   /** Delay between automatic category-introduction steps. */
   introStepMs = 3500;
   onChange: () => void = () => {};
@@ -58,6 +72,7 @@ export class GameManager {
     }
     if (s.buzzer.status === 'open') s.buzzer.status = 'locked';
     s.buzzer.lockouts = {};
+    s.buzzer.pending = null; // presses that were still being arbitrated are not replayed
     this.current = s;
     persistGame(this.db, s, []);
     this.bots.sync(s);
@@ -190,6 +205,9 @@ export class GameManager {
       persistGame(this.db, res.state, []);
     }
     this.scheduleTimer();
+    this.scheduleBuzzResolve();
+    const w = res.state.buzzer.winner;
+    if (w && (w.at !== s.buzzer.winner?.at || w.controllerId !== s.buzzer.winner?.controllerId)) this.onBuzzWinner(w);
     if (action.type === 'buzz' || action.type === 'unlockBuzzers' || action.type === 'undo') this.scheduleLockoutRefresh();
     // Any change to the introduction (a manual step, a jump, Stop Auto, undo, a new round…)
     // replaces the pending automatic step; unrelated actions leave its pacing alone.
@@ -245,15 +263,53 @@ export class GameManager {
     }, this.introStepMs);
   }
 
-  /** Single entry point for every buzz from every device type. */
-  buzz(input: { controllerId: string; kind: InputKind; profileId?: string | null }) {
+  /**
+   * Single entry point for every buzz from every device type. R6-22: `timing` is the bounded
+   * correction the hub computed from the device's own press timestamp (none = arrival order).
+   * The decision waits only as long as another connected, eligible device could still have
+   * pressed earlier (its correction cap), at most BUZZ_WINDOW_MAX_MS.
+   */
+  buzz(input: { controllerId: string; kind: InputKind; profileId?: string | null; timing?: { compMs: number; uncertaintyMs: number } }) {
     const s = this.current;
     if (!s) return { ok: false as const, info: 'no-game' };
     const r = resolveInput(s, { controllerId: input.controllerId, profileId: input.profileId });
     if (!r.ok) return { ok: false as const, info: r.reason };
-    const res = this.dispatch({ type: 'buzz', competitorId: r.competitorId, profileId: r.profileId, controllerId: input.controllerId, sourceKind: input.kind }, 'buzzer');
+    const now = this.clock();
+    const pressAt = now - Math.max(0, input.timing?.compMs ?? 0);
+    const wait = this.otherDevicesCap(s, r.competitorId, input.controllerId, now);
+    const holdUntil = wait > 0 ? Math.min(now + BUZZ_WINDOW_MAX_MS, pressAt + wait + 2) : now;
+    const res = this.dispatch(
+      { type: 'buzz', competitorId: r.competitorId, profileId: r.profileId, controllerId: input.controllerId, sourceKind: input.kind, pressAt, uncertaintyMs: input.timing?.uncertaintyMs, holdUntil },
+      'buzzer',
+    );
     if (!res.ok) return { ok: false as const, info: res.error };
     return { ok: res.info === 'won', info: res.info };
+  }
+
+  /** Largest correction cap among connected devices of *other* competitors who may still buzz. */
+  private otherDevicesCap(s: GameState, competitorId: string, controllerId: string, now: number): number {
+    if (s.rules.buzzFairness === 'off') return 0;
+    let max = 0;
+    for (const d of this.buzzDevices(s.rules.buzzFairness ?? 'standard')) {
+      if (d.capMs <= max || d.controllerId === controllerId) continue;
+      const r = resolveInput(s, { controllerId: d.controllerId, profileId: d.profileId });
+      if (!r.ok || r.competitorId === competitorId) continue;
+      const why = buzzBlockReason(s, r.competitorId, r.profileId, now);
+      if (why === null || why === 'taken') max = d.capMs;
+    }
+    return max;
+  }
+
+  /** R6-22: announce the buzz winner when the arbitration window closes. */
+  private scheduleBuzzResolve() {
+    if (this.resolveHandle) clearTimeout(this.resolveHandle);
+    this.resolveHandle = null;
+    const p = this.current?.buzzer.pending;
+    if (!p) return;
+    this.resolveHandle = setTimeout(() => {
+      this.resolveHandle = null;
+      if (this.current?.buzzer.pending) this.dispatch({ type: 'buzzResolve' }, 'buzzer');
+    }, Math.max(0, p.deadline - this.clock()) + 1);
   }
 
   private scheduleTimer() {
@@ -270,8 +326,8 @@ export class GameManager {
 
   dispose() {
     this.bots.stop();
-    for (const h of [this.timerHandle, this.lockoutHandle, this.introHandle, this.mediaHandle]) if (h) clearTimeout(h);
-    this.timerHandle = this.lockoutHandle = this.introHandle = this.mediaHandle = null;
+    for (const h of [this.timerHandle, this.lockoutHandle, this.introHandle, this.mediaHandle, this.resolveHandle]) if (h) clearTimeout(h);
+    this.timerHandle = this.lockoutHandle = this.introHandle = this.mediaHandle = this.resolveHandle = null;
     this.onChange = () => {};
   }
 }

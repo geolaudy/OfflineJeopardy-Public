@@ -14,6 +14,18 @@ import type { LobbyManager } from './lobby.js';
 import { BuzzCheck } from './buzzCheck.js';
 import { rttQuality, type BuzzCheckExpected, type ConnectionRow } from '../shared/buzzCheck.js';
 import type { InputKind } from '../shared/game.js';
+import { performance } from 'node:perf_hooks';
+import { ClockSync } from './clockSync.js';
+import { correctPress, deviceCapMs } from './buzzTiming.js';
+import type { BuzzDevice } from './gameManager.js';
+import type { BuzzFairness } from '../shared/buzzTiming.js';
+
+/** R6-22 clock probes: a burst on connect / new clue, then every 500 ms while a clue is up
+ *  (also keeps phone Wi-Fi out of power save), every 3 s otherwise. */
+const PROBE_BURST = 5;
+const PROBE_BURST_MS = 100;
+const PROBE_CLUE_MS = 500;
+const PROBE_IDLE_MS = 3000;
 
 interface Client {
   ws: WebSocket;
@@ -27,6 +39,10 @@ interface Client {
   msgWindow: number;
   joinFails: number[]; // timestamps of wrong room codes (rate limiting)
   rtt: number | null; // last round trip the client reported
+  /** R6-22: server-measured clock offset / round trip (phones and controller bridges). */
+  sync: ClockSync;
+  nextProbe: number;
+  burst: number;
 }
 
 export class Hub {
@@ -36,6 +52,8 @@ export class Hub {
 
   lobby: LobbyManager | null = null;
   readonly check = new BuzzCheck();
+  private probeTimer: NodeJS.Timeout | null = null;
+  private lastClueKey = '';
 
   constructor(
     private db: DB,
@@ -45,7 +63,15 @@ export class Hub {
     games.onChange = () => {
       this.scheduleBroadcast();
       this.lobby?.refreshSoon();
+      // A new clue: fresh clock samples from every buzzer device right away.
+      const clue = games.current?.clue;
+      const key = clue ? `${games.current!.id}:${clue.clueId}` : '';
+      if (key && key !== this.lastClueKey) for (const c of this.clients) c.burst = PROBE_BURST;
+      this.lastClueKey = key;
     };
+    games.buzzDevices = (mode) => this.buzzDevices(mode);
+    this.probeTimer = setInterval(() => this.probe(), PROBE_BURST_MS);
+    this.probeTimer.unref?.();
     controllers.onChange = () => this.sendControllers();
     controllers.onInput = (controllerId, button, at) => this.toHosts({ t: 'controllerInput', controllerId, button, at });
     this.check.onChange = () => this.sendBuzzCheck();
@@ -58,13 +84,53 @@ export class Hub {
     return p ? p.nickname || p.display_name : 'Player';
   }
 
-  /** Phones connected right now with their last reported delay. */
+  // ---------- fair buzzer timing (R6-22) ----------
+
+  /** Phones and controller bridges are probed; TVs and host tablets are not. */
+  private probed(c: Client) {
+    return (c.role === 'player' && !!c.profileId) || (c.trusted && c.deviceIds.size > 0);
+  }
+
+  private probe() {
+    if (this.closed) return;
+    const mono = performance.now();
+    const clueUp = this.games.current?.phase === 'clue';
+    for (const c of this.clients) {
+      if (!this.probed(c) || c.ws.readyState !== 1 || mono < c.nextProbe) continue;
+      this.send(c, { t: 'sync', n: c.sync.probe(mono) });
+      if (c.burst > 0) c.burst--;
+      c.nextProbe = mono + (c.burst > 0 ? PROBE_BURST_MS : clueUp ? PROBE_CLUE_MS : PROBE_IDLE_MS) - 5;
+    }
+  }
+
+  private fairness(): BuzzFairness {
+    return this.games.current?.rules.buzzFairness ?? 'standard';
+  }
+
+  /** Every connected buzzer device with how far its presses may be corrected right now. */
+  buzzDevices(mode: BuzzFairness): BuzzDevice[] {
+    const mono = performance.now();
+    const out: BuzzDevice[] = [];
+    for (const c of this.clients) {
+      if (!this.probed(c)) continue;
+      const est = c.sync.estimate(mono);
+      if (c.role === 'player' && c.profileId) out.push({ controllerId: `phone:${c.profileId}`, profileId: c.profileId, capMs: deviceCapMs('phone', est, mode) });
+      for (const id of c.deviceIds) {
+        const kind = this.controllers.list().find((d) => d.id === id)?.kind ?? 'keyboard';
+        out.push({ controllerId: id, capMs: deviceCapMs(kind, est, mode) });
+      }
+    }
+    return out;
+  }
+
+  /** Phones connected right now with their delay (measured by the server when available). */
   connections(): ConnectionRow[] {
     const best = new Map<string, number | null>();
     for (const c of this.clients) {
       if (c.role !== 'player' || !c.profileId) continue;
       const prev = best.get(c.profileId);
-      best.set(c.profileId, prev == null ? c.rtt : c.rtt == null ? prev : Math.min(prev, c.rtt));
+      const rtt = c.sync.rtt ?? c.rtt;
+      best.set(c.profileId, prev == null ? rtt : rtt == null ? prev : Math.min(prev, rtt));
     }
     return [...best].map(([id, rtt]) => ({ name: this.profileName(id), rttMs: rtt, quality: rttQuality(rtt) })).sort((a, b) => a.name.localeCompare(b.name));
   }
@@ -107,7 +173,7 @@ export class Hub {
   }
 
   attach(ws: WebSocket) {
-    const c: Client = { ws, role: null, profileId: null, trusted: false, deviceIds: new Set(), lastBuzz: 0, msgCount: 0, msgWindow: Date.now(), joinFails: [], rtt: null };
+    const c: Client = { ws, role: null, profileId: null, trusted: false, deviceIds: new Set(), lastBuzz: 0, msgCount: 0, msgWindow: Date.now(), joinFails: [], rtt: null, sync: new ClockSync(), nextProbe: 0, burst: PROBE_BURST };
     this.clients.add(c);
     ws.on('message', (raw) => this.onMessage(c, raw.toString()));
     ws.on('close', () => {
@@ -200,6 +266,8 @@ export class Hub {
   }
 
   private onMessage(c: Client, raw: string) {
+    // Arrival time first, before any parsing (R6-22: the press is measured from here).
+    const mono = performance.now();
     // basic flood protection
     const now = Date.now();
     if (now - c.msgWindow > 1000) {
@@ -231,6 +299,10 @@ export class Hub {
     if (m.t === 'ping') {
       if (m.rtt != null) c.rtt = m.rtt;
       return this.send(c, { t: 'pong', c: m.c, s: Date.now() });
+    }
+    if (m.t === 'syncR') {
+      c.sync.reply(m.n, m.c, m.e, mono);
+      return;
     }
 
     if (m.t === 'hello') {
@@ -280,8 +352,9 @@ export class Hub {
         if (now - c.lastBuzz < 150) return; // debounce rapid taps
         c.lastBuzz = now;
         // During a buzzer check the press is recorded for the check only.
-        if (this.check.press({ key: `phone:${c.profileId}`, name: this.profileName(c.profileId), kind: 'phone', label: 'Phone', rttMs: c.rtt })) return this.send(c, { t: 'buzzResult', ok: true, info: 'check' });
-        const r = this.games.buzz({ controllerId: `phone:${c.profileId}`, kind: 'phone', profileId: c.profileId });
+        if (this.check.press({ key: `phone:${c.profileId}`, name: this.profileName(c.profileId), kind: 'phone', label: 'Phone', rttMs: c.sync.rtt ?? c.rtt })) return this.send(c, { t: 'buzzResult', ok: true, info: 'check' });
+        const timing = correctPress('phone', { arrival: mono, clientAt: m.p, clientEpoch: m.e }, c.sync.estimate(mono), this.fairness());
+        const r = this.games.buzz({ controllerId: `phone:${c.profileId}`, kind: 'phone', profileId: c.profileId, timing });
         return this.send(c, { t: 'buzzResult', ok: r.ok, info: r.info });
       }
       case 'join': {
@@ -335,7 +408,11 @@ export class Hub {
         if (!c.trusted) return;
         const ev = m.ev;
         if (ev.type !== 'disconnected') c.deviceIds.add(ev.controllerId);
-        this.controllers.handle(ev);
+        // R6-22: a Joy-Con/keyboard press is corrected only for the TV window's own delay (its
+        // event timestamp vs. arrival, at most 30 ms) — never by phone network rules.
+        const at = ev.type === 'button' ? ev.at : undefined;
+        const e = ev.type === 'button' ? ev.e : undefined;
+        this.controllers.handle(ev, now, (kind) => correctPress(kind, { arrival: mono, clientAt: at, clientEpoch: e }, c.sync.estimate(mono), this.fairness()));
         return;
       }
       case 'controllerFx': {
@@ -394,6 +471,7 @@ export class Hub {
   closeAll() {
     this.closed = true;
     this.check.dispose();
+    if (this.probeTimer) clearInterval(this.probeTimer);
     for (const c of this.clients) c.ws.close(1001, 'server-shutdown');
   }
 }

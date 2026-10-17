@@ -1,7 +1,7 @@
 // Input bridge for trusted local windows (the Electron app on the game PC).
 // Reads Nintendo Joy-Cons via WebHID, other controllers via the Gamepad API and
 // keyboard keys, and forwards raw button edges to the server's unified buzzer engine.
-import { onControllerFx, send } from './socket';
+import { onControllerFx, pressStamp, send } from './socket';
 import { encodeRumble, RUMBLE_OFF, RUMBLE_PATTERNS, type RumbleFx } from '../../shared/joyconRumble';
 import type { ControllerEvent } from '../../shared/protocol';
 
@@ -38,6 +38,12 @@ function emit(ev: ControllerEvent) {
   send({ t: 'controller', ev });
 }
 
+/** R6-22: when this window saw a press (performance.now() base) + the sync epoch. */
+function stamp(eventTime?: number): { at: number; e: number } {
+  const s = pressStamp(eventTime);
+  return { at: s.p, e: s.e };
+}
+
 // ---------------- Joy-Con (WebHID) ----------------
 
 interface JoyConHandle {
@@ -48,7 +54,7 @@ interface JoyConHandle {
   pressed: Set<string>;
   packet: number;
   rumbling?: boolean;
-  onReport: (e: { reportId: number; data: DataView }) => void;
+  onReport: (e: { reportId: number; data: DataView; timeStamp?: number }) => void;
 }
 
 const joycons = new Map<HIDDeviceLike, JoyConHandle>();
@@ -147,7 +153,8 @@ async function attachJoyCon(device: HIDDeviceLike) {
   h.onReport = (e) => {
     const now = decodeButtons(h, e);
     if (!now) return;
-    for (const b of now) if (!h.pressed.has(b)) emit({ type: 'button', controllerId: h.id, kind: 'joycon', label: h.label, side: h.side, button: b, pressed: true });
+    // R6-22: the report's own timestamp, so a busy TV window does not delay the press.
+    for (const b of now) if (!h.pressed.has(b)) emit({ type: 'button', controllerId: h.id, kind: 'joycon', label: h.label, side: h.side, button: b, pressed: true, ...stamp(e.timeStamp) });
     for (const b of h.pressed) if (!now.has(b)) emit({ type: 'button', controllerId: h.id, button: b, pressed: false });
     h.pressed = now;
   };
@@ -223,7 +230,7 @@ function pollPads() {
     const cur = gp.buttons.map((b) => b.pressed);
     if (!prev) emit({ type: 'connected', controllerId: id, kind: 'gamepad', label: gp.id.slice(0, 40) || `Controller ${gp.index + 1}` });
     cur.forEach((p, i) => {
-      if (p !== (prev?.[i] ?? false)) emit({ type: 'button', controllerId: id, kind: 'gamepad', button: `B${i}`, pressed: p });
+      if (p !== (prev?.[i] ?? false)) emit({ type: 'button', controllerId: id, kind: 'gamepad', button: `B${i}`, pressed: p, ...(p ? stamp(gp.timestamp) : {}) });
     });
     padState.set(id, cur);
   }
@@ -245,7 +252,7 @@ function isTyping(e: KeyboardEvent) {
 function onKey(e: KeyboardEvent) {
   if (!keyboardOn || e.repeat || RESERVED.has(e.code) || isTyping(e) || e.ctrlKey || e.metaKey) return;
   const pressed = e.type === 'keydown';
-  emit({ type: 'button', controllerId: `kb:${e.code}`, kind: 'keyboard', label: `Key ${e.key.length === 1 ? e.key.toUpperCase() : e.code}`, button: e.code, pressed });
+  emit({ type: 'button', controllerId: `kb:${e.code}`, kind: 'keyboard', label: `Key ${e.key.length === 1 ? e.key.toUpperCase() : e.code}`, button: e.code, pressed, ...(pressed ? stamp(e.timeStamp) : {}) });
 }
 
 // ---------------- lifecycle ----------------

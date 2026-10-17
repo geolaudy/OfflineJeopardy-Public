@@ -273,6 +273,7 @@ function Answering({ g, c, who, setWho }: { g: GameView; c: CompetitorView; who:
             {c.bot ? `Computer · ${BOT_LEVELS[c.bot].label}` : g.clue?.isDailyWager ? 'Daily Double!' : winner?.profileId && c.kind === 'team' ? `${withReal(winner.profileId)} buzzed` : 'Buzzed in first'}
             {winner?.reactionMs != null ? ` · ${(winner.reactionMs / 1000).toFixed(2)}s${c.bot ? '' : ` · ${winner.sourceKind}`}` : ''}
           </div>
+          <BuzzGaps g={g} />
         </div>
         <TimerChip g={g} />
       </div>
@@ -632,6 +633,21 @@ function ManualDailyWager({ g, run }: { g: GameView; run: Run }) {
       <ActionButton size="lg" className="w-full" disabled={!valid || !c} onAction={() => run({ type: 'setDailyWager', competitorId: c!.id, amount: n })}>
         Lock wager & show clue
       </ActionButton>
+    </div>
+  );
+}
+
+/** R6-23: who else pressed and how far behind (≈ = within the timing uncertainty). */
+function BuzzGaps({ g }: { g: GameView }) {
+  const rows = (g.buzzer.timing ?? []).filter((t) => t.result === 'late');
+  if (!rows.length) return null;
+  return (
+    <div className="truncate text-sm text-slate-500" data-testid="host-buzz-gaps">
+      Then:{' '}
+      {rows
+        .slice(0, 4)
+        .map((t) => `${t.profileId && findCompetitor(g, t.competitorId)?.kind === 'team' ? profileName(g.profiles[t.profileId]) : competitorName(findCompetitor(g, t.competitorId), g)} ${t.confident ? '+' : '≈+'}${t.gapMs} ms`)
+        .join(' · ')}
     </div>
   );
 }

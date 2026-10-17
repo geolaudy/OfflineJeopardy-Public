@@ -42,11 +42,19 @@ export class TestClient {
   private waiters: { pred: (m: ServerMessage) => boolean; resolve: (m: ServerMessage) => void }[] = [];
   private nextId = 1;
   closed: { code: number } | null = null;
+  /** Answer clock probes (fair buzzer timing) with a clock this far from the server's. */
+  syncReplies = false;
+  clockOffset = 0;
 
   constructor(url: string) {
     this.ws = new WebSocket(url.replace('http', 'ws') + '/ws');
     this.ws.on('message', (raw) => {
       const m = JSON.parse(raw.toString()) as ServerMessage;
+      // R6-22: answer the server's clock probes like a browser (opt-in; most tests stay unsynced).
+      if (m.t === 'sync') {
+        if (this.syncReplies) this.ws.send(JSON.stringify({ t: 'syncR', n: m.n, c: performance.now() + this.clockOffset, e: 0 }));
+        return;
+      }
       this.messages.push(m);
       if (m.t === 'state') {
         this.state = m.game;

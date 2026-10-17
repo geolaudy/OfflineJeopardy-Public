@@ -17,9 +17,21 @@ import type {
   Phase,
   TimerState,
   UnassignedParticipant,
+  InputKind,
 } from './game.js';
 
 export type ViewRole = 'host' | 'public' | 'player';
+
+/** One press of the current buzzer opening, for the host (R6-23). */
+export interface BuzzTimingRow {
+  competitorId: Id;
+  profileId: Id | null;
+  sourceKind: InputKind;
+  result: 'won' | 'late';
+  /** Milliseconds after the winner's press (0 for the winner). */
+  gapMs: number;
+  confident: boolean;
+}
 
 export interface ProfilePublic {
   id: Id;
@@ -120,7 +132,12 @@ export interface GameView {
   bindings: ControllerBinding[];
   controlCompetitorId: Id | null;
   clue: ClueView | null;
-  buzzer: Omit<BuzzerState, 'lockouts' | 'attemptedProfiles'> & { attemptedProfiles: Id[] };
+  buzzer: Omit<BuzzerState, 'lockouts' | 'attemptedProfiles' | 'pending' | 'attempts'> & {
+    attemptedProfiles: Id[];
+    /** Host only (R6-23): the presses of this opening in press order, with the gap to the winner
+     *  and whether that gap is larger than the timing uncertainty. */
+    timing?: BuzzTimingRow[];
+  };
   final: FinalView | null;
   timer: TimerState | null;
   intro: IntroState | null;
@@ -156,6 +173,10 @@ export interface PlayerContext {
   color?: { current: string; choose: boolean; taken: string[] } | null;
   /** This player's (team's) own Final Jeopardy! wager and answer (private to them). */
   final?: { wager: number | null; answer: string | null; submitted: boolean; draft: string | null } | null;
+  /** R6-23: how this player's press of the current opening compared with the others (only when
+   *  they pressed). `gapMs` is to the winner when they lost, to the runner-up when they won;
+   *  `confident` = larger than the timing uncertainty (show the number), else "very close". */
+  buzzTiming?: { result: 'won' | 'late'; otherCompetitorId: Id | null; otherProfileId: Id | null; gapMs: number | null; confident: boolean; teammateWon: boolean } | null;
   /** Daily Double! wager stage for this player's competitor (R5-20). */
   dailyWager?: { min: number; max: number; pending: number | null; pendingBy: Id | null; mine: boolean } | null;
 }

@@ -105,12 +105,10 @@ export async function startServer(opts: ServerOptions) {
   const controllers = new ControllerRegistry(db, {
     onPress: (p) => {
       if (hub.checkControllerPress(p.controllerId, p.kind, p.label)) return; // buzzer check: never reaches the game
-      const r = games.buzz({ controllerId: p.controllerId, kind: p.kind });
-      // Joy-Con feedback (Z12): a firm pulse for the first buzz, two taps when too early.
-      if (p.kind === 'joycon' && getSetting(db, 'joyconRumble', true)) {
-        if (r.ok) hub.controllerFx(p.controllerId, 'buzzWin');
-        else if (r.info === 'early') hub.controllerFx(p.controllerId, 'early');
-      }
+      const r = games.buzz({ controllerId: p.controllerId, kind: p.kind, timing: p.timing });
+      // Joy-Con feedback (Z12): two taps when too early; the win pulse follows the decision
+      // (games.onBuzzWinner), which may come a few ms later after the arbitration window.
+      if (p.kind === 'joycon' && r.info === 'early' && getSetting(db, 'joyconRumble', true)) hub.controllerFx(p.controllerId, 'early');
     },
     onAssign: (p) => {
       const res = games.dispatch({ type: 'bindController', controllerId: p.controllerId, kind: p.kind as 'joycon' | 'keyboard' | 'gamepad', label: p.label, target: p.target });
@@ -119,6 +117,9 @@ export async function startServer(opts: ServerOptions) {
     debounceMs: () => games.current?.rules.buzzDebounceMs ?? 120,
   });
   const hub = new Hub(db, games, controllers);
+  games.onBuzzWinner = (w) => {
+    if (w.sourceKind === 'joycon' && getSetting(db, 'joyconRumble', true)) hub.controllerFx(w.controllerId, 'buzzWin');
+  };
   const lobby = new LobbyManager(db, () => games.current, controllers, () => hub.onlineProfiles());
   // Optional AI answers for computer opponents (R3-14): only bots set to "AI" use it, and every
   // failure falls back to the offline answer generator (or a pass), so the game never waits.

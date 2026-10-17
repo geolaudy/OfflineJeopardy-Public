@@ -22,6 +22,9 @@ export const ControllerEventSchema = z.discriminatedUnion('type', [
     side: z.enum(['L', 'R']).nullable().optional(),
     button: z.string().min(1).max(30),
     pressed: z.boolean(),
+    // R6-22: when the window saw the press (its performance.now() base) and its sync epoch.
+    at: z.number().optional(),
+    e: z.number().int().optional(),
   }),
 ]);
 export type ControllerEvent = z.infer<typeof ControllerEventSchema>;
@@ -34,7 +37,11 @@ const target = z.discriminatedUnion('kind', [
 export const ClientMessageSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('hello'), role: z.enum(['host', 'public', 'player']), token: z.string().max(200).optional(), observer: z.boolean().optional() }),
   z.object({ t: z.literal('host'), id: z.number().optional(), action: z.unknown() }),
-  z.object({ t: z.literal('buzz') }),
+  // R6-22: p = the press as the phone saw it (pointerdown Event.timeStamp, performance.now()
+  // base), e = the phone's sync epoch. Both optional: without them the press counts on arrival.
+  z.object({ t: z.literal('buzz'), p: z.number().optional(), e: z.number().int().optional() }),
+  // R6-22: answer to the server's clock probe {t:'sync', n}: c = performance.now() on receipt.
+  z.object({ t: z.literal('syncR'), n: z.number().int(), c: z.number(), e: z.number().int() }),
   z.object({ t: z.literal('join'), code: z.string().max(12).optional() }),
   z.object({ t: z.literal('finalWager'), amount: z.number().int() }),
   // submit=false: autosaved draft or "Change answer" (the player is shown as not ready, R5-19).
@@ -87,6 +94,8 @@ export type ServerMessage =
   /** To the window reading this controller: play feedback (lights / vibration). */
   | { t: 'controllerFx'; controllerId: string; fx: 'identify' | 'test' | 'buzzWin' | 'early' }
   | { t: 'buzzResult'; ok: boolean; info?: string }
+  /** R6-22: clock probe; answer at once with {t:'syncR', n, c: performance.now(), e: epoch}. */
+  | { t: 'sync'; n: number }
   | { t: 'profilesChanged' }
   | { t: 'presentation'; lobby: PublicLobby | null; p: PresentationState }
   | { t: 'pong'; c: number; s: number }

@@ -67,6 +67,23 @@ const pending = new Map<number, (r: { ok: boolean; error?: string; info?: string
 let pingTimer: ReturnType<typeof setInterval> | null = null;
 let stopped = false;
 
+// R6-22 fair buzzing: the server measures this device's clock against its own with small probes;
+// we answer each at once with performance.now(). The epoch changes whenever this page may have
+// been suspended (hidden → visible), so the server never mixes clock samples across a pause.
+let syncEpoch = 0;
+if (typeof document !== 'undefined')
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') syncEpoch++;
+  });
+
+/** Press timestamp for a buzz (same clock as the sync replies). `eventTime` = Event.timeStamp. */
+export function pressStamp(eventTime?: number): { p: number; e: number } {
+  const now = performance.now();
+  // Old engines may give a timeStamp on another clock: fall back to "now" if it looks wrong.
+  const p = eventTime != null && Number.isFinite(eventTime) && Math.abs(now - eventTime) < 1000 ? eventTime : now;
+  return { p, e: syncEpoch };
+}
+
 export function connect(role: Role, getToken: () => string | null | undefined, opts: { observer?: boolean } = {}) {
   currentRole = role;
   observer = !!opts.observer;
@@ -99,7 +116,15 @@ function open() {
     if (pingTimer) clearInterval(pingTimer);
     pingTimer = setInterval(ping, 10_000);
   };
-  sock.onmessage = (e) => handle(JSON.parse(e.data) as ServerMessage);
+  sock.onmessage = (e) => {
+    const c = performance.now(); // first thing: the probe reply must be as close to receipt as possible
+    const m = JSON.parse(e.data) as ServerMessage;
+    if (m.t === 'sync') {
+      sock.send(JSON.stringify({ t: 'syncR', n: m.n, c, e: syncEpoch }));
+      return;
+    }
+    handle(m);
+  };
   sock.onclose = (e) => {
     if (pingTimer) clearInterval(pingTimer);
     for (const [, cb] of pending) cb({ ok: false, error: 'Connection lost' });

@@ -3,6 +3,8 @@
 // (input devices) are separate. Points belong to *competitors* — a competitor is
 // either a solo player or a team. Individual contributions are statistics only.
 
+import type { BuzzFairness } from './buzzTiming.js';
+
 export type Id = string;
 
 // ---------- Boards ----------
@@ -113,6 +115,8 @@ export interface GameRules {
   maxPlayers: number;
   /** Team games: most players per team (0 = no limit). Over-full teams block the start (R5-5). */
   maxPerTeam: number;
+  /** R6-22: how phone/controller network delay is corrected when deciding who buzzed first. */
+  buzzFairness: BuzzFairness;
   timers: TimerRules;
 }
 
@@ -134,6 +138,7 @@ export const DEFAULT_RULES: GameRules = {
   autoUnlock: 'off',
   maxPlayers: 0,
   maxPerTeam: 0,
+  buzzFairness: 'standard',
   timers: { autoStart: true, buzzSeconds: 10, answerSeconds: 8, wagerSeconds: 30, finalSeconds: 30 },
 };
 
@@ -287,6 +292,26 @@ export interface BuzzWinner {
   sourceKind: InputKind;
   at: number;
   reactionMs: number | null;
+  /** R6-22: corrected press time (server clock) and its ± uncertainty in ms. */
+  pressAt?: number;
+  uncertaintyMs?: number;
+}
+
+/** One valid press while the buzzers are open (R6-22). `at` = arrival, `pressAt` = when it was
+ *  pressed as far as the server can tell (arrival minus the bounded network correction). */
+export interface BuzzPress {
+  competitorId: Id;
+  profileId: Id | null;
+  controllerId: Id;
+  sourceKind: InputKind;
+  at: number;
+  pressAt: number;
+  uncertaintyMs: number;
+}
+
+/** A press of the current buzzer opening and how it ended (R6-23: "how close was it"). */
+export interface BuzzAttempt extends BuzzPress {
+  result: 'won' | 'late';
 }
 
 export interface EarlyBuzz {
@@ -317,6 +342,11 @@ export interface BuzzerState {
   lockouts: Record<string, number>; // lockoutKey -> until (early-buzz penalty)
   /** Early buzzes during this clue (most recent last). */
   early: EarlyBuzz[];
+  /** R6-22: presses waiting for the short arbitration window to close; the earliest corrected
+   *  press wins at `deadline` (or as soon as every eligible competitor has pressed). */
+  pending?: { firstAt: number; deadline: number; candidates: BuzzPress[] } | null;
+  /** R6-23: every valid press of the current opening (cleared when the buzzers open again). */
+  attempts?: BuzzAttempt[];
 }
 
 export interface ActiveClue {

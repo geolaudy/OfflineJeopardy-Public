@@ -40,6 +40,7 @@ export const rulesSchema = z.object({
   maxPlayers: z.number().int().min(0).max(200).optional(),
   maxPerTeam: z.number().int().min(0).max(50).optional(),
   categoryIntro: z.boolean().optional(),
+  buzzFairness: z.enum(['off', 'standard', 'generous']).optional(),
   timers: timerRules,
 });
 
@@ -173,7 +174,14 @@ export type SystemAction =
       profileId: string | null;
       controllerId: string;
       sourceKind: 'joycon' | 'phone' | 'keyboard' | 'gamepad' | 'host' | 'bot';
+      /** R6-22 (all optional = plain arrival order): corrected press time (server clock), its ±
+       *  uncertainty, and how long to wait for competing presses (arbitration window end). */
+      pressAt?: number;
+      uncertaintyMs?: number;
+      holdUntil?: number;
     }
+  /** R6-22: the arbitration window ended — announce the earliest press. */
+  | { type: 'buzzResolve' }
   | { type: 'timerExpire' }
   /** A player picks (or leaves, competitorId null) a team on their phone in the lobby (R5-5.3). */
   | { type: 'joinTeam'; profileId: string; competitorId: string | null }

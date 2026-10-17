@@ -5,6 +5,7 @@ import { RULE_PRESETS, rulesFromPreset, type GameRules } from '../../../shared/g
 import { Button, Field, Modal, inputCls } from '../../components/ui';
 import { EarlyBuzzFields } from './EarlyBuzzRule';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { BUZZ_FAIRNESS_OPTIONS, type BuzzFairness } from '../../../shared/buzzTiming';
 
 function Toggle({ label, hint, checked, onChange }: { label: string; hint?: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -103,6 +104,16 @@ export default function RulesEditor({
               onChange={(v) => setR({ ...r, teamRetry: v ? 'otherMembers' : 'none' })}
             />
             <Toggle label="Everyone plays Final Jeopardy! (even with zero or negative scores)" checked={r.finalAllowNonPositive} onChange={(v) => setR({ ...r, finalAllowNonPositive: v })} />
+            {/* R6-22: how network delay is handled when deciding who buzzed first. */}
+            <Field label="Who buzzed first" hint={BUZZ_FAIRNESS_OPTIONS[r.buzzFairness ?? 'standard'].description}>
+              <select className={inputCls} value={r.buzzFairness ?? 'standard'} onChange={(e) => setR({ ...r, buzzFairness: e.target.value as BuzzFairness })} data-testid="rule-buzz-fairness">
+                {(Object.keys(BUZZ_FAIRNESS_OPTIONS) as BuzzFairness[]).map((k) => (
+                  <option key={k} value={k}>
+                    {BUZZ_FAIRNESS_OPTIONS[k].label}
+                  </option>
+                ))}
+              </select>
+            </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Button debounce" hint="ms (Joy-Con / keyboard)">
                 <input className={inputCls} inputMode="numeric" value={r.buzzDebounceMs} onChange={(e) => setR({ ...r, buzzDebounceMs: Math.min(2000, Number(e.target.value.replace(/\D/g, '') || 0)) })} />

@@ -4,6 +4,7 @@ import type { EngineAction } from '../../shared/actions.js';
 import {
   type ActiveClue,
   type BuzzerState,
+  type BuzzPress,
   type Competitor,
   type GameplayEvent,
   type GameResult,
@@ -28,6 +29,7 @@ import {
   TEAM_SLOT_NAMES,
   defaultTeamCount,
 } from '../../shared/game.js';
+import { BUZZ_WINDOW_MAX_MS } from '../../shared/buzzTiming.js';
 export { TEAM_COLORS };
 
 export interface EngineCtx {
@@ -84,6 +86,8 @@ export function emptyBuzzer(): BuzzerState {
     attemptedProfiles: [],
     lockouts: {},
     early: [],
+    pending: null,
+    attempts: [],
   };
 }
 
@@ -334,6 +338,9 @@ export function applyAction(prev: GameState, action: EngineAction, ctx: EngineCt
   const s: GameState = structuredClone(prev);
   const tx: Tx = { s, ctx, touched: new Map() };
   try {
+    // R6-22: presses waiting in the arbitration window were made before anything that happens
+    // now — settle them first, so every other action (and its undo snapshot) sees the winner.
+    if (s.buzzer.pending && action.type !== 'buzz' && action.type !== 'buzzResolve') resolvePendingBuzz(tx);
     const playerInput = PLAYER_INPUTS.has(action.type) && !!ctx.actor && ctx.actor !== 'host';
     if (UNDOABLE.has(action.type) && !playerInput) snapshot(s, undoLabel(action.type));
     const res = reduce(tx, action);
@@ -953,6 +960,12 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
     }
     case 'buzz':
       return handleBuzz(tx, a);
+    case 'buzzResolve': {
+      const p = s.buzzer.pending;
+      if (!p || now < p.deadline - 1) return { ignored: true };
+      resolvePendingBuzz(tx);
+      return;
+    }
     case 'judge': {
       const clue = activeClue(s);
       if (clue.resolved) fail('This clue is already resolved');
@@ -1012,6 +1025,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
           if (s.rules.autoReopenAfterIncorrect && someoneLeft) {
             s.buzzer.status = 'open';
             s.buzzer.openedAt = now;
+            s.buzzer.attempts = [];
             maybeAutoTimer(s, 'buzz', now);
           } else {
             s.buzzer.status = 'locked';
@@ -1473,6 +1487,8 @@ function openBuzzers(s: GameState, now: number) {
   s.buzzer.openedAt = now;
   s.buzzer.winner = null;
   s.buzzer.queue = [];
+  s.buzzer.pending = null;
+  s.buzzer.attempts = [];
   maybeAutoTimer(s, 'buzz', now);
 }
 
@@ -1490,9 +1506,10 @@ function finishAnswering(s: GameState, clue: ActiveClue) {
   if (s.timer && (s.timer.kind === 'buzz' || (s.timer.kind === 'answer' && !s.buzzer.winner))) s.timer = null;
 }
 
-/** Applies the current early-buzz rule. Detection is purely server-side: a buzz that arrives while
- *  the question is showing but buzzers are not open for this answering opportunity. */
-function handleEarlyBuzz(tx: Tx, c: Competitor, a: Extract<EngineAction, { type: 'buzz' }>, clue: ActiveClue): ReduceExtra {
+/** Applies the current early-buzz rule. Detection is server-side: a buzz that arrives while the
+ *  question is showing but buzzers are not open for this answering opportunity — or (R6-22) one
+ *  that arrives after the unlock but was, beyond its timing uncertainty, pressed before it. */
+function handleEarlyBuzz(tx: Tx, c: Competitor, a: Extract<EngineAction, { type: 'buzz' }>, clue: ActiveClue, corrected = false): ReduceExtra {
   const { s, ctx } = tx;
   const now = ctx.now;
   const r = s.rules;
@@ -1521,11 +1538,58 @@ function handleEarlyBuzz(tx: Tx, c: Competitor, a: Extract<EngineAction, { type:
     // Points belong to the competitor (team); the person's contribution is only charged when known.
     scoreDelta: points ? -points : 0,
     contributionDelta: points && a.profileId ? -points : 0,
-    note: r.earlyBuzzPenalty,
+    note: corrected ? `${r.earlyBuzzPenalty} (pressed before the unlock)` : r.earlyBuzzPenalty,
   });
   return { ignored: true, info: 'early' };
 }
 
+const pressKey = (p: { competitorId: Id; profileId: Id | null; controllerId: Id }) => `${p.competitorId}:${p.profileId ?? ''}:${p.controllerId}`;
+
+/** The press that wins: the earliest corrected press; presses within 1 ms count as a tie and the
+ *  earlier arrival wins (then the earlier one in the list). */
+function earliestPress<T extends BuzzPress>(list: T[]): T {
+  const min = Math.min(...list.map((x) => x.pressAt));
+  return list.filter((x) => x.pressAt - min <= 1).reduce((a, b) => (b.at < a.at ? b : a));
+}
+
+/** Every competitor who could still buzz has a press in the window: nothing can beat the leader. */
+function everyonePressed(s: GameState, candidates: BuzzPress[]): boolean {
+  const pressed = new Set(candidates.map((x) => x.competitorId));
+  return s.competitors.every((x) => pressed.has(x.id) || buzzBlockReasonIgnoringStatus(s, x) !== null);
+}
+
+/** R6-22: close the arbitration window — the earliest press wins, the others are queued in
+ *  press order, every press is kept for the "how close was it" result on the phones. */
+function resolvePendingBuzz(tx: Tx) {
+  const { s, ctx } = tx;
+  const p = s.buzzer.pending;
+  s.buzzer.pending = null;
+  if (!p || !p.candidates.length || !s.clue) return;
+  const clue = s.clue;
+  const w = earliestPress(p.candidates);
+  const openedAt = s.buzzer.openedAt;
+  const reactionMs = openedAt != null ? Math.max(0, w.pressAt - openedAt) : null;
+  s.buzzer.status = 'buzzed';
+  s.buzzer.winner = { competitorId: w.competitorId, profileId: w.profileId, controllerId: w.controllerId, sourceKind: w.sourceKind, at: ctx.now, reactionMs, pressAt: w.pressAt, uncertaintyMs: w.uncertaintyMs };
+  maybeAutoTimer(s, 'answer', ctx.now);
+  emit(tx, { type: 'buzz', result: 'won', clueId: clue.clueId, roundIndex: clue.roundIndex, competitorId: w.competitorId, profileId: w.profileId, controllerId: w.controllerId, sourceKind: w.sourceKind, reactionMs });
+  const attempts = (s.buzzer.attempts ??= []);
+  attempts.push({ ...w, result: 'won' });
+  for (const x of p.candidates.filter((y) => y !== w).sort((a, b) => a.pressAt - b.pressAt || a.at - b.at)) {
+    attempts.push({ ...x, result: 'late' });
+    if (x.competitorId === w.competitorId) continue; // a teammate: the team is already in
+    if (s.buzzer.queue.some((q) => q.competitorId === x.competitorId)) continue;
+    s.buzzer.queue.push({ competitorId: x.competitorId, profileId: x.profileId, at: x.at });
+    emit(tx, { type: 'buzz', result: 'late', clueId: clue.clueId, roundIndex: clue.roundIndex, competitorId: x.competitorId, profileId: x.profileId, controllerId: x.controllerId, sourceKind: x.sourceKind, reactionMs: openedAt != null ? Math.max(0, x.pressAt - openedAt) : null });
+  }
+}
+
+/**
+ * Every buzz from every device. R6-22: a press carries its corrected press time (`pressAt`, never
+ * later than its arrival) and may hold the decision until `holdUntil` (at most
+ * BUZZ_WINDOW_MAX_MS after the first press arrived) so a slower connection that pressed first
+ * still wins. Without those fields this is plain arrival order (host buzz, bots, tests).
+ */
 function handleBuzz(tx: Tx, a: Extract<EngineAction, { type: 'buzz' }>): ReduceExtra {
   const { s, ctx } = tx;
   const now = ctx.now;
@@ -1534,7 +1598,25 @@ function handleBuzz(tx: Tx, a: Extract<EngineAction, { type: 'buzz' }>): ReduceE
   const reason = buzzBlockReason(s, c.id, a.profileId, now);
   const clue = s.clue;
   if (reason === 'locked' && clue) return handleEarlyBuzz(tx, c, a, clue);
+  const press: BuzzPress = {
+    competitorId: c.id,
+    profileId: a.profileId,
+    controllerId: a.controllerId,
+    sourceKind: a.sourceKind,
+    at: now,
+    pressAt: Math.min(now, Number.isFinite(a.pressAt) ? a.pressAt! : now),
+    uncertaintyMs: Math.max(0, a.uncertaintyMs ?? 0),
+  };
+  const openedAt = s.buzzer.openedAt;
+  if (!reason && clue && openedAt != null && press.pressAt < openedAt) {
+    // Arrived after the unlock but timed before it: early only when that is certain (K16);
+    // otherwise it counts as pressed at the unlock (no head start for anticipation).
+    if (press.pressAt + press.uncertaintyMs + 2 < openedAt) return handleEarlyBuzz(tx, c, a, clue, true);
+    press.pressAt = openedAt;
+  }
   if (reason === 'taken' && clue && s.buzzer.winner && s.buzzer.winner.competitorId !== c.id) {
+    const attempts = (s.buzzer.attempts ??= []);
+    if (!attempts.some((x) => pressKey(x) === pressKey(press))) attempts.push({ ...press, pressAt: Math.max(press.pressAt, openedAt ?? press.pressAt), result: 'late' });
     if (!s.buzzer.queue.some((q) => q.competitorId === c.id) && !s.buzzer.attemptedCompetitors.includes(c.id)) {
       s.buzzer.queue.push({ competitorId: c.id, profileId: a.profileId, at: now });
       emit(tx, {
@@ -1546,33 +1628,26 @@ function handleBuzz(tx: Tx, a: Extract<EngineAction, { type: 'buzz' }>): ReduceE
         profileId: a.profileId,
         controllerId: a.controllerId,
         sourceKind: a.sourceKind,
-        reactionMs: s.buzzer.openedAt != null ? now - s.buzzer.openedAt : null,
+        reactionMs: openedAt != null ? Math.max(0, press.pressAt - openedAt) : null,
       });
     }
     return { ignored: true, info: 'taken' };
   }
   if (reason) return { ignored: true, info: reason };
-  const reactionMs = s.buzzer.openedAt != null ? now - s.buzzer.openedAt : null;
-  s.buzzer.status = 'buzzed';
-  s.buzzer.winner = {
-    competitorId: c.id,
-    profileId: a.profileId,
-    controllerId: a.controllerId,
-    sourceKind: a.sourceKind,
-    at: now,
-    reactionMs,
-  };
-  maybeAutoTimer(s, 'answer', now);
-  emit(tx, {
-    type: 'buzz',
-    result: 'won',
-    clueId: clue!.clueId,
-    roundIndex: clue!.roundIndex,
-    competitorId: c.id,
-    profileId: a.profileId,
-    controllerId: a.controllerId,
-    sourceKind: a.sourceKind,
-    reactionMs,
-  });
-  return { info: 'won' };
+  const pending = s.buzzer.pending;
+  if (pending) {
+    if (pending.candidates.some((x) => pressKey(x) === pressKey(press))) return { ignored: true, info: 'pending' };
+    pending.candidates.push(press);
+    // A new leader: wait as long as its own press allows others to still beat it.
+    if (earliestPress(pending.candidates) === press) pending.deadline = Math.max(pending.firstAt, Math.min(a.holdUntil ?? now, pending.firstAt + BUZZ_WINDOW_MAX_MS));
+  } else {
+    const hold = Math.min(a.holdUntil ?? now, now + BUZZ_WINDOW_MAX_MS);
+    s.buzzer.pending = { firstAt: now, deadline: Math.max(now, hold), candidates: [press] };
+  }
+  const p = s.buzzer.pending!;
+  if (now >= p.deadline || everyonePressed(s, p.candidates)) {
+    resolvePendingBuzz(tx);
+    return { info: s.buzzer.winner && pressKey(s.buzzer.winner) === pressKey(press) ? 'won' : 'taken' };
+  }
+  return { info: 'pending' };
 }

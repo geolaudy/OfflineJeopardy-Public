@@ -1,6 +1,7 @@
 // Plain-language summary of a game's settings — the host's setup summary and the TV's public
 // rules page use the same wording.
 import { EARLY_BUZZ_OPTIONS, RULE_PRESETS, type GameRules } from './game.js';
+import { BUZZ_FAIRNESS_OPTIONS } from './buzzTiming.js';
 
 export interface SummaryContext {
   mode: 'solo' | 'team';
@@ -69,6 +70,7 @@ export function publicSettings(r: GameRules, ctx: PublicSettingsContext): { titl
     { label: 'Buzzers open', value: AUTO_UNLOCK[r.autoUnlock], hint: r.autoUnlock === 'off' ? 'Wait until the host has read the clue.' : undefined },
     { label: 'Buzzing too early', value: EARLY_BUZZ_OPTIONS[r.earlyBuzzPenalty].label + (r.earlyBuzzPenalty === 'points' ? ` (−${r.earlyBuzzPoints})` : ''), hint: EARLY_BUZZ_OPTIONS[r.earlyBuzzPenalty].description },
     { label: 'After a wrong answer', value: r.autoReopenAfterIncorrect ? 'Buzzers reopen for the others' : 'The host reopens the buzzers' },
+    { label: 'Who buzzed first', value: BUZZ_FAIRNESS_OPTIONS[r.buzzFairness ?? 'standard'].label, hint: BUZZ_FAIRNESS_OPTIONS[r.buzzFairness ?? 'standard'].description },
   ];
   const timers = [
     { label: 'Time to buzz in', value: secs(r.timers.buzzSeconds) },

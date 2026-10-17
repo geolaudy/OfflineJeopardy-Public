@@ -1,11 +1,12 @@
 // Phone buzzer + current game participation.
 import { useEffect, useRef, useState } from 'react';
-import { send, useLive } from '../../lib/socket';
+import { pressStamp, send, useLive } from '../../lib/socket';
 import { Avatar, Button, Lives, cx, fmtScore, inputCls } from '../../components/ui';
 import { competitorName, findCompetitor, profileName, useTimerSeconds } from '../../lib/view';
 import { CLUE_LOCKOUT, LOBBY_COLORS } from '../../../shared/game';
 import { unlockAudio } from '../../lib/sound';
 import type { Me } from './JoinPage';
+import type { GameView, PlayerContext } from '../../../shared/views';
 import { PlayerLobby } from './PlayerLobby';
 
 
@@ -72,7 +73,8 @@ export default function PlayTab({ me }: { me: Me }) {
   const iWon = winner && (winner.profileId === me.id || (myComp.kind === 'team' && winner.competitorId === myComp.id));
   // R6-14: pointerdown (no click delay), instant local press feedback that never claims the win,
   // and one message per press — a second press within 300 ms (finger bounce) is not sent.
-  const buzz = () => {
+  const buzz = (ev: { timeStamp: number }) => {
+    const stamp = pressStamp(ev.timeStamp); // R6-22: when the finger touched, not when this ran
     const now = performance.now();
     if (now - lastSent.current < 300) return;
     lastSent.current = now;
@@ -80,7 +82,7 @@ export default function PlayTab({ me }: { me: Me }) {
     setPressed(true);
     setTimeout(() => setPressed(false), 180);
     navigator.vibrate?.(30);
-    send({ t: 'buzz' });
+    send({ t: 'buzz', ...stamp });
   };
 
   const earlyFlash = !!lastBuzz && lastBuzz.info === 'early' && Date.now() - lastBuzz.at < 2000;
@@ -155,6 +157,7 @@ export default function PlayTab({ me }: { me: Me }) {
           <p className="text-center text-lg font-semibold" role="status" data-testid="buzz-status">
             {sub}
           </p>
+          <BuzzTimingLine g={g} timing={ctx.buzzTiming ?? null} />
           <TimerLine />
         </>
       )}
@@ -204,6 +207,30 @@ function ColorChoice() {
         Keep the colour I was given
       </button>
     </div>
+  );
+}
+
+/** R6-23: how close it was — from the server's decision, only to players who pressed. A number is
+ *  shown only when the gap is larger than the timing uncertainty; otherwise "Very close". */
+export function buzzTimingText(g: GameView, t: NonNullable<PlayerContext['buzzTiming']>): string | null {
+  const other = t.otherProfileId && g.profiles[t.otherProfileId] && findCompetitor(g, t.otherCompetitorId)?.kind === 'player' ? profileName(g.profiles[t.otherProfileId]) : competitorName(findCompetitor(g, t.otherCompetitorId), g);
+  const gap = t.gapMs == null ? null : Math.max(10, Math.round(t.gapMs / 10) * 10);
+  if (t.result === 'won') {
+    if (!t.otherCompetitorId || gap == null) return 'You buzzed in first!';
+    return t.confident ? `You buzzed in first! ${other} was ${gap < 1000 ? `${gap} ms` : `${(gap / 1000).toFixed(2)} seconds`} behind.` : 'You buzzed in first — very close!';
+  }
+  if (t.teammateWon) return null; // the status line already says who buzzed for the team
+  if (!t.confident || gap == null) return `Very close buzz! ${other} won.`;
+  return gap < 1000 ? `${other} buzzed ${gap} ms before you!` : `You were ${(gap / 1000).toFixed(2)} seconds behind!`;
+}
+
+function BuzzTimingLine({ g, timing }: { g: GameView; timing: PlayerContext['buzzTiming'] | null }) {
+  const text = timing ? buzzTimingText(g, timing) : null;
+  if (!text) return null;
+  return (
+    <p className={cx('rounded-xl px-3 py-2 text-center font-bold', timing!.result === 'won' ? 'bg-green-50 text-green-900' : 'bg-slate-100 text-slate-800')} data-testid="buzz-timing" data-confident={timing!.confident ? 'true' : 'false'}>
+      {text}
+    </p>
   );
 }
 

@@ -6,8 +6,11 @@ import type { BindingTarget, InputKind } from '../shared/game.js';
 import { isBuzzButton, type ControllerEvent, type ControllerInfo } from '../shared/protocol.js';
 import { InputFilter } from './engine/buzzer.js';
 
+/** R6-22: bounded timing correction of a press, computed by the hub from the device clock. */
+export type PressCorrection = { compMs: number; uncertaintyMs: number };
+
 export interface ControllerHandlers {
-  onPress: (p: { controllerId: string; kind: InputKind; label: string; button: string; at: number }) => void;
+  onPress: (p: { controllerId: string; kind: InputKind; label: string; button: string; at: number; timing?: PressCorrection }) => void;
   onAssign: (p: { controllerId: string; kind: InputKind; label: string; target: BindingTarget }) => void;
   /** Current game's debounce rule (ms). */
   debounceMs?: () => number;
@@ -53,7 +56,7 @@ export class ControllerRegistry {
     return d;
   }
 
-  handle(ev: ControllerEvent, at = Date.now()) {
+  handle(ev: ControllerEvent, at = Date.now(), timing?: (kind: InputKind) => PressCorrection | undefined) {
     if (ev.type === 'connected') {
       this.upsert(ev.controllerId, ev.kind, ev.label, ev.side ?? null);
       this.filter.reset(ev.controllerId);
@@ -90,7 +93,7 @@ export class ControllerRegistry {
       return;
     }
     if (!buzzButton) return;
-    this.handlers.onPress({ controllerId: d.id, kind: d.kind, label: d.label, button: ev.button, at });
+    this.handlers.onPress({ controllerId: d.id, kind: d.kind, label: d.label, button: ev.button, at, timing: timing?.(d.kind) });
   }
 
   configure(id: string, patch: { label?: string; buzzButtons?: string }) {
