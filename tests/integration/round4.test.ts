@@ -90,7 +90,8 @@ describe('Final Jeopardy! (R4-2)', () => {
     h.close();
     const h2 = await client(s, 'host', host);
     await h2.waitState((g) => g?.final?.stage === 'clue');
-    await h2.act({ type: 'finalNext' }); // close answers → reveal
+    await h2.act({ type: 'finalNext' }); // close answers
+    await h2.act({ type: 'finalNext' }); // begin the reveal (R6-6)
     const reveal = async (pid: string, correct: boolean) => {
       await h2.act({ type: 'finalReveal' }); // wager
       await h2.act({ type: 'finalReveal' }); // answer

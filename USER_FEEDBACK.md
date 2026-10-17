@@ -218,3 +218,34 @@ Statuses: FEATURE_MATRIX.md → "User feedback round 5".
 | R5-18 | **Wager permissions**: no wager input or acceptance before the host opens wagering (Final and Daily Double!), also for direct WebSocket messages; closed after | A |
 | R5-19 | **Final answer on phones**: after Submit show the answer read-only + **Change Answer** (editing = not ready on the TV); locked when answering ends; last submitted answer kept | A |
 | R5-20 | **Daily Double! wager from the phone** of the picking player/team (validated, host sees it and reveals the clue; no change after lock; team conflicts prevented; host entry only as recovery) | A |
+
+# User Feedback — Round 6 (received 2026-10-17, session 8, reviewing v0.10.0)
+
+Rollback point: tag **v0.10.0** (Vitest 226/226, Playwright 38/38). Must keep working: Joy-Con
+Bluetooth, phone buzzers, iPad hosting, profiles + statistics, team play, persistent lobbies,
+board editing, media clues, sound packs, history, sync, offline play. IDs follow the sections of
+the request. Statuses: FEATURE_MATRIX.md → "User feedback round 6".
+
+| ID | Requirement (summary) | Milestone |
+|---|---|---|
+| R6-2.1 | iPad board preview: no player cards inside it (the bottom score bar stays); preview larger, TV aspect kept | D |
+| R6-2.2 | iPad mustard highlight of the picking player fully visible (no clipping by padding/overflow), all iPad sizes/orientations | A |
+| R6-2.3 | Category navigation order **Previous Category \| Next Category** | D |
+| R6-2.4 | TV category text proportionally as large in its box as on the iPad (proportions, not pixels; long names still fit) | D |
+| R6-3 | One highlight system: buzz-in highlight replaces the picker ring (no double outline); picker ring back after the clue; players and teams | A |
+| R6-4 | No board-scatter sound when Final Jeopardy! begins (fix the cause; think music unchanged) | A |
+| R6-5 | Score change: the score box temporarily shows **+$600** green / **−$600** red in the money font, centred, then the new total; no side bubbles anywhere (clues, Daily Double!, Final); same box size; rapid changes never overlap or show stale totals; authoritative score updates immediately | B |
+| R6-6 | Final think timer at zero: timer leaves the TV, answers close, waiting-for-host state; host button **Begin Answer Reveals** → swipe + sound → contestants lowest → highest pre-Final score, each: contestant → wager → swipe to answer → judge → next | A |
+| R6-7 | TV lobby player cards ~60 % of their size (picture, padding, stats, controller), text still readable; responsive grid | C |
+| R6-8 | Minimized lobby = one cohesive panel (QR + status + info + count), top-right corner, main content reclaims the width | C |
+| R6-9 | TV menu pages: primary content inside one consistent content panel; Boards 3 per row, Buzzers 2–3 columns, Players/Teams/Leaderboards responsive | C |
+| R6-10 | Active lobby header: eyebrow **Board**, board name as title, metadata row (rounds • clues • Final Jeopardy!); separate board card removed | C |
+| R6-11 | One right-hand panel: Game Rules summary + Join the Game (QR, short instructions, address) | C |
+| R6-12 | In-game timer: no label beside it; at zero it disappears (all clue timers + Final); no auto-advance past host decisions | A |
+| R6-13 | Player names never clip descenders (g j p q y) on lobby/player cards | A |
+| R6-14 | Phone buzzer: full-section rounded rectangle; red = locked, yellow = unlocked, green = server-confirmed win; text labels; pointerdown, instant local press feedback, no repeats, no scroll/selection | B |
+| R6-15 | Choppy TV category presentation: profile, find the real bottleneck, fix (60 fps goal), one directional swipe for jumps, no overlaps/stale timers, audio in sync, Stop Auto respected; record before/after measurements | E |
+| R6-16…21 | Research buzzer fairness (BuzzIn.live, Buzzinga, other apps, multiplayer timing techniques), compare approaches A–E, write `docs/BUZZER_FAIRNESS_RESEARCH.md` | F |
+| R6-22 | Implement fair server-authoritative timing: latency/jitter measurement, bounded compensation with validated timestamps, short arbitration window, Joy-Con path not compensated blindly, offline | F |
+| R6-23 | Phones show how close it was (only to players who buzzed): "You buzzed in first!", "Alex buzzed 42 ms before you!", or "Very close buzz! Alex won." when uncertain; early-buzz info; colours kept | F |
+| R6-24 | Simulations: 2/5/10 phones, latency, jitter, reordering, duplicates, early buzzes, forged timestamps, inflated latency, disconnects, Joy-Con vs phone; compare with arrival order (accuracy, bias, added delay, false early penalties) | F |

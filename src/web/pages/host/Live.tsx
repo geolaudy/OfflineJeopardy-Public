@@ -5,7 +5,7 @@ import { useState } from 'react';
 import type { CompetitorView, GameView } from '../../../shared/views';
 import type { HostAction } from '../../../shared/actions';
 import { ActionButton, Avatar, Button, Field, Lives, Modal, inputCls, cx, fmtScore } from '../../components/ui';
-import { competitorAvatar, competitorName, findCompetitor } from '../../lib/view';
+import { competitorAvatar, competitorHighlight, competitorName, findCompetitor } from '../../lib/view';
 import ControllersPanel, { AssignListener } from '../../components/ControllersPanel';
 import FinalControl from './FinalControl';
 import { HOST_SHORTCUTS, useHostShortcuts } from './shortcuts';
@@ -34,14 +34,23 @@ export default function Live({ g, run }: { g: GameView; run: Run }) {
         )}
       </div>
       <footer className="shrink-0 border-t border-slate-200 bg-white px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-        <div className="flex items-stretch gap-2 overflow-x-auto">
-          {g.competitors.map((c) => (
+        {/* The scroller clips everything outside its padding box: the padding leaves room for the
+            highlight ring (R6-2.2), which is never shrunk to fit. */}
+        <div className="-m-1 flex items-stretch gap-2 overflow-x-auto p-1">
+          {g.competitors.map((c) => {
+            const hl = competitorHighlight(g, c.id);
+            return (
             <button
               key={c.id}
               onClick={() => setAdjust(c)}
-              className={cx('flex min-w-36 items-center gap-2 rounded-xl border-2 px-3 py-2 text-left', g.controlCompetitorId === c.id ? 'border-amber-400 ring-2 ring-amber-300' : 'border-slate-200', c.lives === 0 && 'opacity-50')}
+              className={cx(
+                'flex min-w-36 shrink-0 items-center gap-2 rounded-xl border-2 px-3 py-2 text-left',
+                hl === 'buzz' ? 'border-amber-400 bg-amber-50 ring-4 ring-amber-300' : hl === 'pick' ? 'border-amber-400 ring-2 ring-amber-300' : 'border-slate-200',
+                c.lives === 0 && 'opacity-50',
+              )}
               aria-label={`Adjust score for ${competitorName(c, g)}`}
               data-testid="host-score"
+              data-highlight={hl ?? undefined}
             >
               <Avatar profile={competitorAvatar(c, g)} size={32} />
               <div className="min-w-0">
@@ -50,7 +59,8 @@ export default function Live({ g, run }: { g: GameView; run: Run }) {
                 {c.lives !== undefined && (c.lives > 0 ? <Lives lives={c.lives} max={g.rules.survivalLives} size={13} /> : <span className="text-xs font-bold text-slate-500 uppercase">Out</span>)}
               </div>
             </button>
-          ))}
+            );
+          })}
           <div className="flex-1" />
           <ActionButton variant="secondary" size="lg" disabled={!g.undoLabel} onAction={() => run({ type: 'undo' })} className="shrink-0" data-testid="undo">
             <Undo2 size={18} aria-hidden /> Undo{g.undoLabel ? <span className="hidden text-sm font-normal text-slate-500 xl:inline">({g.undoLabel})</span> : null}

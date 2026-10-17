@@ -314,7 +314,7 @@ function FinalForm({ me }: { me: Me }) {
           <TimerLine />
         </>
       )}
-      {(f.stage === 'reveal' || f.stage === 'done') && (
+      {(f.stage === 'closed' || f.stage === 'reveal' || f.stage === 'done') && (
         <div className="space-y-2 text-center">
           {mine?.answer && (
             <p className="text-slate-600" data-testid="phone-final-locked">
@@ -322,7 +322,7 @@ function FinalForm({ me }: { me: Me }) {
             </p>
           )}
           <p className="text-lg">
-            Watch the TV for the reveal! {entry.judged ? (entry.correct ? '✅' : '❌') : ''}
+            {f.stage === 'closed' ? 'Time’s up! The reveal starts soon — watch the TV.' : 'Watch the TV for the reveal!'} {entry.judged ? (entry.correct ? '✅' : '❌') : ''}
           </p>
         </div>
       )}

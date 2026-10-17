@@ -12,8 +12,8 @@ import { AnswerBanner } from './AnswerBanner';
 
 type Run = (a: HostAction) => Promise<{ ok: boolean }>;
 
-const STAGES = ['category', 'wagers', 'clue', 'reveal', 'done'] as const;
-const STAGE_LABEL: Record<(typeof STAGES)[number], string> = { category: 'Category', wagers: 'Wagers', clue: 'Answers', reveal: 'Reveal', done: 'Done' };
+const STAGES = ['category', 'wagers', 'clue', 'closed', 'reveal', 'done'] as const;
+const STAGE_LABEL: Record<(typeof STAGES)[number], string> = { category: 'Category', wagers: 'Wagers', clue: 'Answers', closed: 'Closed', reveal: 'Reveal', done: 'Done' };
 
 export default function FinalControl({ g, run }: { g: GameView; run: Run }) {
   const f = g.final!;
@@ -37,7 +37,7 @@ export default function FinalControl({ g, run }: { g: GameView; run: Run }) {
         {f.entries.length === 0 && <p className="mt-2 font-semibold text-amber-700">Nobody has a positive score, so nobody plays Final Jeopardy! — show the winner to end the game.</p>}
       </div>
 
-      {(f.stage === 'category' || f.stage === 'wagers' || f.stage === 'clue') && <SubmissionStatus g={g} />}
+      {(f.stage === 'category' || f.stage === 'wagers' || f.stage === 'clue' || f.stage === 'closed') && <SubmissionStatus g={g} />}
       {f.stage === 'reveal' && <RevealCard g={g} run={run} />}
 
       <div className="flex flex-wrap gap-2">
@@ -70,7 +70,12 @@ export default function FinalControl({ g, run }: { g: GameView; run: Run }) {
             onAction={() => (missingAnswers && !confirm(`${missingAnswers} answer(s) missing. Close the answers now?`) ? undefined : run({ type: 'finalNext' }))}
             data-testid="final-next"
           >
-            {g.timer?.running ? 'Close answers early' : 'Close answers & start the reveal'}
+            {g.timer?.running ? 'Close answers early' : 'Close answers'}
+          </ActionButton>
+        )}
+        {f.entries.length > 0 && f.stage === 'closed' && (
+          <ActionButton size="xl" className="flex-1" onAction={() => run({ type: 'finalNext' })} data-testid="final-begin-reveal">
+            Begin Answer Reveals <ChevronRight size={20} aria-hidden />
           </ActionButton>
         )}
         {f.stage === 'done' && (
@@ -87,7 +92,7 @@ export default function FinalControl({ g, run }: { g: GameView; run: Run }) {
 /** Who has submitted — never what (R4-2). */
 function SubmissionStatus({ g }: { g: GameView }) {
   const f = g.final!;
-  const kind = f.stage === 'clue' ? 'answer' : 'wager';
+  const kind = f.stage === 'clue' || f.stage === 'closed' ? 'answer' : 'wager';
   return (
     <div className="rounded-2xl bg-white p-4 shadow-sm">
       <p className="mb-2 text-sm text-slate-600">
@@ -95,7 +100,9 @@ function SubmissionStatus({ g }: { g: GameView }) {
           ? 'Players wager on their own phones (teams: any member) once you open wagering. Wagers stay hidden — from you too — until the reveal.'
           : f.stage === 'wagers'
             ? 'Waiting for wagers. Only whether each player has wagered is shown.'
-            : 'Players are writing their answers. Answers stay hidden until the reveal.'}
+            : f.stage === 'closed'
+              ? 'Answers are closed. Nothing is shown until you begin the reveal (lowest score first).'
+              : 'Players are writing their answers. Answers stay hidden until the reveal.'}
       </p>
       <ul className="grid gap-2 sm:grid-cols-2">
         {f.entries.map((e) => {
@@ -108,7 +115,7 @@ function SubmissionStatus({ g }: { g: GameView }) {
               <span className="min-w-0 flex-1 truncate font-semibold">{competitorName(c, g)}</span>
               {!online && <span className="text-xs font-semibold text-amber-700">phone offline</span>}
               <span className={cx('rounded-full px-2.5 py-1 text-sm font-bold', done ? 'bg-green-100 text-green-800' : 'bg-slate-200 text-slate-600')}>
-                {f.stage === 'category' ? 'Wagering not open' : done ? (kind === 'wager' ? 'Wagered ✓' : 'Answered ✓') : kind === 'answer' && e.hasAnswer ? 'Changing answer…' : 'Waiting…'}
+                {f.stage === 'category' ? 'Wagering not open' : done ? (kind === 'wager' ? 'Wagered ✓' : 'Answered ✓') : f.stage === 'closed' ? 'No answer' : kind === 'answer' && e.hasAnswer ? 'Changing answer…' : 'Waiting…'}
               </span>
             </li>
           );

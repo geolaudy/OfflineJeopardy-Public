@@ -468,15 +468,10 @@
   gap: 1.6vh;
   translate: -50% 0;
 }
-.bt-timer-label {
-  min-width: 12vh;
-  text-align: right;
-  font-family: var(--bt-label-font);
-  font-weight: var(--bt-heavy);
-  font-size: 2.1vh;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  opacity: 0.85;
+/* No label (R6-12): an empty box as wide as the seconds keeps the bar centred. */
+.bt-timer::before {
+  content: '';
+  min-width: 7vh;
 }
 .bt-timer-track {
   position: relative;
@@ -505,10 +500,6 @@
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
-.bt-timer.is-expired .bt-timer-secs {
-  color: #ff6b5e;
-}
-
 /* ---------- Scoreboard (podiums) ---------- */
 .bt-scores {
   display: flex;
@@ -538,16 +529,17 @@
 .board-theme:not([data-theme="classic"]) .bt-podium {
   border-radius: 1.2vh;
 }
-.bt-podium.is-winner {
-  box-shadow: inset 0 0 0 0.4vh var(--b-accent);
-}
-/* R4-14: whose turn it is to pick the next clue — the round-title mustard, no animation loop. */
+/* One mustard highlight per box (R6-3). Picking the next clue (R4-14): the round-title mustard
+   ring with a soft glow, no animation loop. Buzzed in: the same ring, a stronger glow and a warm
+   tint — it replaces the picker ring (never stacked on it). */
 .bt-podium.is-control {
   outline-color: var(--b-accent);
   box-shadow: 0 0 1.6vh 0.2vh color-mix(in srgb, var(--b-accent) 45%, transparent);
 }
-.bt-podium.is-control.is-winner {
-  box-shadow: inset 0 0 0 0.4vh var(--b-accent), 0 0 1.6vh 0.2vh color-mix(in srgb, var(--b-accent) 45%, transparent);
+.bt-podium.is-winner {
+  outline-color: var(--b-accent);
+  background: color-mix(in srgb, var(--b-accent) 16%, var(--bt-podium));
+  box-shadow: 0 0 2.6vh 0.5vh color-mix(in srgb, var(--b-accent) 65%, transparent);
 }
 .bt-podium-name {
   display: flex;

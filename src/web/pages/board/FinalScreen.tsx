@@ -55,8 +55,8 @@ function FinalContent({ g }: { g: GameView }) {
         className="bt-intro-cat"
         boxClassName={early ? 'min-h-0 flex-1' : revealing ? 'h-[6vh] shrink-0' : 'h-[9vh] shrink-0'}
       />
-      {(f.stage === 'wagers' || f.stage === 'clue') && <SubmissionChips g={g} kind={f.stage === 'wagers' ? 'wager' : 'answer'} />}
-      {f.stage === 'clue' && f.question && (
+      {(f.stage === 'wagers' || f.stage === 'clue' || f.stage === 'closed') && <SubmissionChips g={g} kind={f.stage === 'wagers' ? 'wager' : 'answer'} />}
+      {(f.stage === 'clue' || f.stage === 'closed') && f.question && (
         <motion.div className="flex min-h-0 w-full flex-1 flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: T.reveal }}>
           <FitText text={f.question} max={7} min={2.2} className="bt-question" boxClassName="min-h-0 flex-1" />
         </motion.div>

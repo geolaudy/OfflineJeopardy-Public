@@ -161,7 +161,8 @@ test('import + edit a board, then a mixed-mode team game through the Final', asy
   await taylorPhone.getByRole('button', { name: 'Submit answer' }).click();
   await expect(ipad.getByTestId('final-status')).toContainText('Answered ✓');
   await expect(ipad.getByTestId('final-control')).not.toContainText('Buda and Pest'); // the host sees only the correct answer
-  await ipad.getByTestId('final-next').click(); // close answers → reveal
+  await ipad.getByTestId('final-next').click(); // close answers
+  await ipad.getByTestId('final-begin-reveal').click(); // R6-6
   await expect(tv.getByTestId('tv-final-name')).toHaveText('Dragons');
   await expect(tv.getByTestId('tv-final-wager')).toHaveCount(0);
   await ipad.getByTestId('final-reveal-next').click(); // wager

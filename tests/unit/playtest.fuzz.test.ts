@@ -174,6 +174,7 @@ function play(seed: number, steps: number) {
       if (f.stage === 'category') a = { type: 'finalNext' };
       else if (f.stage === 'wagers') a = e && chance(0.7) ? { type: 'setFinalWager', competitorId: e.competitorId, amount: Math.floor(r() * 2500) } : { type: 'finalNext' };
       else if (f.stage === 'clue') a = e && chance(0.7) ? { type: 'setFinalAnswer', competitorId: e.competitorId, answer: pick(['Budapest', 'Vienna', '', 'Paris']) } : { type: 'finalNext' };
+      else if (f.stage === 'closed') a = chance(0.15) ? { type: 'undo' } : { type: 'finalNext' };
       else if (f.stage === 'reveal') {
         const cur = f.order[f.cursor];
         const ce = f.entries.find((x) => x.competitorId === cur);

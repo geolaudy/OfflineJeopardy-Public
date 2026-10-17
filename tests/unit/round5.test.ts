@@ -103,7 +103,7 @@ describe('Undo back into Final Jeopardy! answering restarts the think time (R5-1
     s = finalAnswer(s, 'alex', 'Vienna');
     clock += full + 10;
     s = act(s, { type: 'timerExpire' }, 'timer');
-    expect(s.final?.stage).toBe('reveal');
+    expect(s.final?.stage).toBe('closed');
     // Player inputs are not undo steps: Undo goes straight back to the answering stage.
     expect(s.undoStack.at(-1)?.label).toBe('Final answers closed');
     for (let round = 0; round < 3; round++) {
@@ -114,7 +114,7 @@ describe('Undo back into Final Jeopardy! answering restarts the think time (R5-1
       // Re-enter the answer phase end again (time runs out once more).
       clock += full + 10;
       s = act(s, { type: 'timerExpire' }, 'timer');
-      expect(s.final?.stage).toBe('reveal');
+      expect(s.final?.stage).toBe('closed');
     }
   });
 
@@ -123,7 +123,7 @@ describe('Undo back into Final Jeopardy! answering restarts the think time (R5-1
     clock += 12_000;
     s = finalAnswer(s, 'jordan', 'Budapest');
     s = run(s, { type: 'finalNext' });
-    expect(s.final?.stage).toBe('reveal');
+    expect(s.final?.stage).toBe('closed');
     s = run(s, { type: 'undo' });
     expect(s.final?.stage).toBe('clue');
     expect(s.timer).toMatchObject({ kind: 'final', running: true, remainingMs: s.timer!.durationMs, startedAt: clock });

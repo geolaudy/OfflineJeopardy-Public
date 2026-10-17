@@ -83,3 +83,14 @@ Rollback point: tag v0.9.0. See USER_FEEDBACK.md "Round 5"; statuses in FEATURE_
 - **G — AI providers:** R5-11 Gemini + provider registry.
 - Dependencies: C builds on the B lobby screen; D's team picker uses C's engine actions; E/F are independent of B–D. Release v0.10.0 when A–G are done and tested.
 
+
+## Milestone 20 — User feedback round 6 (started 2026-10-17, session 8)
+
+Rollback point: tag v0.10.0. See USER_FEEDBACK.md "Round 6"; statuses in FEATURE_MATRIX.md.
+- **A — Gameplay bugs and timers:** R6-4 Final scatter sound, R6-6 Final timer expiry + Begin Answer Reveals, R6-12 timer label/hide at zero, R6-3 single highlight, R6-2.2 iPad highlight clipping, R6-13 descenders.
+- **B — Scores and phone buzzer:** R6-5 in-box score deltas (no bubbles), R6-14 full-section buzzer with red/yellow/green states.
+- **C — TV layout:** R6-7 compact lobby cards, R6-8 minimized lobby panel top-right, R6-9 content panels + grids, R6-10 board header, R6-11 rules + join panel.
+- **D — iPad host:** R6-2.1 board preview without player cards, R6-2.3 Previous | Next, R6-2.4 category text proportions.
+- **E — Category presentation performance:** R6-15 (profile first, fix the bottleneck, before/after numbers).
+- **F — Buzzer fairness:** R6-16…24 research document first (research agent), then implementation + simulations.
+- Release v0.11.0 when A–F are done and tested.

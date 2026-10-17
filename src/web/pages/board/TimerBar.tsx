@@ -1,9 +1,10 @@
 // Countdown bar. The bar itself is driven by one Web Animation (transform: scaleX) per timer
 // state change, so React only re-renders when the displayed whole second changes.
+// R6-12: no label (the countdown speaks for itself) and nothing at zero — an expired timer leaves
+// the TV instead of standing at 0; what happens next is the server's (or the host's) decision.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { timerRemaining, type TimerState } from '../../../shared/game';
 import { serverNow } from '../../lib/socket';
-import { TIMER_LABELS } from '../../lib/view';
 import { cx } from '../../components/ui';
 
 function readout(t: TimerState) {
@@ -12,7 +13,7 @@ function readout(t: TimerState) {
 }
 
 export function TimerBar({ timer }: { timer: TimerState | null }) {
-  if (!timer) return null;
+  if (!timer || timer.expired) return null;
   return <Countdown timer={timer} />;
 }
 
@@ -50,17 +51,14 @@ function Countdown({ timer }: { timer: TimerState }) {
     return () => a.cancel();
   }, [timer.startedAt, timer.running, timer.remainingMs, timer.durationMs, timer.expired]);
 
+  // Reached zero locally: gone at once, before the server's expiry arrives.
+  if (view.secs <= 0) return null;
   return (
-    <div
-      className={cx('bt-timer', view.low && 'is-low', timer.expired && 'is-expired')}
-      role="timer"
-      aria-label={timer.expired ? 'Time is up' : `${view.secs} seconds left`}
-    >
-      <span className="bt-timer-label">{TIMER_LABELS[timer.kind]}</span>
+    <div className={cx('bt-timer', view.low && 'is-low')} role="timer" aria-label={`${view.secs} seconds left`} data-testid="tv-timer" data-kind={timer.kind}>
       <div className="bt-timer-track">
         <div ref={barRef} className="bt-timer-fill" />
       </div>
-      <span className="bt-timer-secs">{timer.expired ? 'Time!' : view.secs}</span>
+      <span className="bt-timer-secs">{view.secs}</span>
     </div>
   );
 }

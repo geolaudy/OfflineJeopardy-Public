@@ -37,6 +37,17 @@ export function findCompetitor(g: GameView, id: string | null | undefined) {
   return g.competitors.find((c) => c.id === id);
 }
 
+/**
+ * The one mustard highlight a score box gets (R6-3): the contestant who buzzed in wins over the
+ * one picking clues, and while someone is buzzed in nobody else is highlighted. The picker's ring
+ * comes back when the buzz is over (judged, timed out, clue closed).
+ */
+export function competitorHighlight(g: Pick<GameView, 'phase' | 'buzzer' | 'controlCompetitorId'>, id: string): 'buzz' | 'pick' | null {
+  const buzzed = g.phase === 'clue' ? g.buzzer.winner?.competitorId : undefined;
+  if (buzzed) return buzzed === id ? 'buzz' : null;
+  return g.controlCompetitorId === id && (g.phase === 'board' || g.phase === 'clue') ? 'pick' : null;
+}
+
 /** Re-render periodically and return remaining milliseconds of a server timer. */
 export function useTimer(t: TimerState | null) {
   const [, setTick] = useState(0);

@@ -414,7 +414,8 @@ export interface FinalEntry {
 }
 
 export interface FinalState {
-  stage: 'category' | 'wagers' | 'clue' | 'reveal' | 'done';
+  /** `closed`: answers are locked and the timer is gone; the host begins the reveal (R6-6). */
+  stage: 'category' | 'wagers' | 'clue' | 'closed' | 'reveal' | 'done';
   roundIndex: number;
   entries: FinalEntry[];
   /** Reveal order (R4-2): lowest → highest score before the Final; equal scores keep the game's

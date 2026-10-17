@@ -140,7 +140,12 @@ test('play-test: a full evening on an iPad in portrait, a 4:3 TV and three phone
   // Jon's phone shows the read-only answer with Change answer.
   await expect(pj.getByTestId('phone-final-answer-done')).toContainText('Buda');
   await shot(ipad, 'ipad-portrait-final-answers');
-  await ipad.getByTestId('final-next').click(); // close answers → reveal
+  await ipad.getByTestId('final-next').click(); // close answers
+  // R6-6: nothing is revealed until the host begins the reveal; the timer has left the TV.
+  await expect(pj.getByTestId('phone-final-locked')).toContainText('Buda');
+  await expect(tv.getByTestId('tv-timer')).toHaveCount(0);
+  await expect(tv.getByTestId('tv-final-name')).toHaveCount(0);
+  await ipad.getByTestId('final-begin-reveal').click();
   // Lowest score first: Jon (200 or 300) before Kai.
   await expect(tv.getByTestId('tv-final-name')).toHaveText('Jon Play');
   await ipad.getByTestId('final-reveal-next').click();

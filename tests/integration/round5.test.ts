@@ -74,7 +74,7 @@ describe('wagering permissions (R5-18) and Final answers (R5-19, R5-15)', () => 
     ps.send({ t: 'finalAnswer', answer: 'Graz', submit: true });
     await h.waitState((g) => g!.final!.entries.every((e) => e.submitted));
 
-    await h.act({ type: 'finalNext' }); // close answers → reveal
+    await h.act({ type: 'finalNext' }); // close answers (the reveal waits for the host, R6-6)
     r = result(pa);
     pa.send({ t: 'finalAnswer', answer: 'too late', submit: true });
     expect(await r).toMatchObject({ ok: false });

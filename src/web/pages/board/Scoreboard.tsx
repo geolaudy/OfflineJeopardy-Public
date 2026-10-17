@@ -3,7 +3,7 @@
 import type { CSSProperties } from 'react';
 import type { CompetitorView, GameView } from '../../../shared/views';
 import { Avatar, Lives, cx, fmtScore } from '../../components/ui';
-import { competitorAvatar, competitorColor, competitorName, profileName } from '../../lib/view';
+import { competitorAvatar, competitorColor, competitorHighlight, competitorName, profileName } from '../../lib/view';
 import { useBoard, useScoreChange, vhPx } from './common';
 import { ScoreDelta } from './ScoreDelta';
 import { T } from './timing';
@@ -13,23 +13,23 @@ export function Scoreboard({ g }: { g: GameView }) {
   return (
     <div className="bt-scores" data-testid="scoreboard">
       {g.competitors.map((c) => (
-        <Podium
-          key={c.id}
-          c={c}
-          g={g}
-          winner={g.buzzer.winner?.competitorId === c.id}
-          control={g.controlCompetitorId === c.id && (g.phase === 'board' || g.phase === 'clue')}
-          early={early.has(c.id)}
-        />
+        <Podium key={c.id} c={c} g={g} highlight={competitorHighlight(g, c.id)} early={early.has(c.id)} />
       ))}
     </div>
   );
 }
 
-function Podium({ c, g, winner, control, early }: { c: CompetitorView; g: GameView; winner: boolean; control: boolean; early: boolean }) {
+function Podium({ c, g, highlight, early }: { c: CompetitorView; g: GameView; highlight: 'buzz' | 'pick' | null; early: boolean }) {
   const ctx = useBoard();
+  const control = highlight === 'pick';
   return (
-    <div className={cx('bt-podium', winner && 'is-winner', control && 'is-control', c.lives === 0 && 'is-out')} style={{ '--pc': competitorColor(c, g) } as CSSProperties} data-testid="podium" data-control={control || undefined}>
+    <div
+      className={cx('bt-podium', highlight === 'buzz' && 'is-winner', control && 'is-control', c.lives === 0 && 'is-out')}
+      style={{ '--pc': competitorColor(c, g) } as CSSProperties}
+      data-testid="podium"
+      data-control={control || undefined}
+      data-highlight={highlight ?? undefined}
+    >
       <div className="bt-podium-name">
         <Avatar profile={competitorAvatar(c, g)} size={vhPx(ctx, 3.2)} />
         <span className="truncate">{competitorName(c, g)}</span>

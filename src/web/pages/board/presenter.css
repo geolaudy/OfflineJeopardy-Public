@@ -1670,3 +1670,23 @@
   opacity: 0.75;
 }
 
+
+/* R6-13: one-line names clip at their box (overflow: hidden for the ellipsis), which cut off the
+   descenders of g j p q y at tight line heights. A bottom padding gives the glyphs room to paint
+   and the matching negative margin keeps every layout exactly where it was. */
+.tvp-person-name,
+.tvp-team-name,
+.tvp-team-member > .truncate,
+.tvp-side-board,
+.tvp-lb-name,
+.tvp-pcard-name,
+.tvp-tcard-name,
+.tvp-title,
+.tvp-list-main,
+.tvp-facts-v,
+.tvp-waiting-person,
+.bt-name,
+.bt-podium-name > .truncate {
+  padding-bottom: 0.16em;
+  margin-bottom: -0.16em;
+}

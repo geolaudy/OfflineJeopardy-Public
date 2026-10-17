@@ -1136,8 +1136,9 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       t.startedAt = null;
       t.running = false;
       t.expired = true;
-      // Final: answers close when the think time ends; the reveal starts (R4-2).
-      if (t.kind === 'final' && s.phase === 'final' && s.final?.stage === 'clue') startFinalReveal(tx);
+      // Final: answers close when the think time ends and the timer leaves the screens; nothing
+      // is revealed until the host begins the reveal (R6-6).
+      if (t.kind === 'final' && s.phase === 'final' && s.final?.stage === 'clue') closeFinalAnswers(tx);
       if (t.kind === 'buzz' && s.buzzer.status === 'open') {
         s.buzzer.status = 'locked';
         // Time ran out with nobody buzzing: the answering period is over.
@@ -1188,7 +1189,12 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
         f.stage = 'clue';
         maybeAutoTimer(s, 'final', now);
       } else if (f.stage === 'clue') {
-        startFinalReveal(tx);
+        closeFinalAnswers(tx);
+      } else if (f.stage === 'closed') {
+        // "Begin Answer Reveals" (R6-6): lowest pre-Final score first.
+        f.stage = 'reveal';
+        f.cursor = 0;
+        f.step = 'contestant';
       } else if (f.stage === 'reveal') {
         if (f.entries.some((e) => !e.judged)) fail('Judge every Final Jeopardy! answer first');
         f.stage = 'done';
@@ -1354,8 +1360,8 @@ function activeClue(s: GameState): ActiveClue {
 }
 
 /** Answers close: each written answer is recorded for the game history (kept private until its
- *  reveal step by the projection), then the reveal starts with the lowest score. */
-function startFinalReveal(tx: Tx) {
+ *  reveal step by the projection). The timer goes away; the host begins the reveal (R6-6). */
+function closeFinalAnswers(tx: Tx) {
   const s = tx.s;
   const f = s.final!;
   const clue = s.board.rounds[f.roundIndex]?.categories[0]?.clues[0];
@@ -1368,7 +1374,7 @@ function startFinalReveal(tx: Tx) {
     const c = s.competitors.find((x) => x.id === e.competitorId);
     emit(tx, { type: 'submission', result: 'final', clueId: clue?.id, roundIndex: f.roundIndex, competitorId: e.competitorId, sourceKind: c?.bot ? 'bot' : 'phone', note: e.answer });
   }
-  f.stage = 'reveal';
+  f.stage = 'closed';
   f.cursor = 0;
   f.step = 'contestant';
   s.timer = null;

@@ -91,7 +91,8 @@ describe('soak play-test', () => {
       await h.act({ type: 'finalNext' });
       for (const e of f.entries) phones[phones.findIndex((p) => p.me?.competitorId === e.competitorId)].send({ t: 'finalAnswer', answer: 'Budapest' });
       await h.waitState((x) => x!.final!.entries.every((e) => e.hasAnswer));
-      await h.act({ type: 'finalNext' });
+      await h.act({ type: 'finalNext' }); // close answers
+      await h.act({ type: 'finalNext' }); // begin the reveal (R6-6)
       for (let n = 0; n < f.entries.length; n++) {
         if (process.env.SOAK_DBG) console.log('DBG', game, n, JSON.stringify(h.state!.final && { st: h.state!.final.stage, o: h.state!.final.order, c: h.state!.final.cursor, step: h.state!.final.step, e: h.state!.final.entries.length }), h.closed, h.messages.slice(-3).map((m) => m.t + ((m as any).ok === false ? ':' + (m as any).error : '')));
         await h.act({ type: 'finalReveal' });

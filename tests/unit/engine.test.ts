@@ -207,6 +207,12 @@ describe('wagers', () => {
     expect(projectState(s, 'host', {}).final?.entries.map((e) => [e.hasAnswer, e.answer])).toEqual([[true, null], [true, null]]);
     expect(playerContext(s, 'alex', clock).final).toMatchObject({ wager: 1000, answer: 'Vienna', submitted: true }); // own submission only
     s = run(s, { type: 'finalNext' });
+    // R6-6: answers closed, timer gone, nothing revealed until the host begins the reveal.
+    expect(s.final).toMatchObject({ stage: 'closed' });
+    expect(s.timer).toBeNull();
+    expect(tryRun(s, { type: 'finalReveal' }).ok).toBe(false);
+    expect(projectState(s, 'public', {}).final?.entries.every((e) => e.answer === null && e.wager === null)).toBe(true);
+    s = run(s, { type: 'finalNext' });
     expect(s.final).toMatchObject({ stage: 'reveal', cursor: 0, step: 'contestant' });
     // Written answers are recorded for history, but stay out of the host's event list until revealed.
     expect(s.events.filter((e) => e.type === 'submission').map((e) => e.note).sort()).toEqual(['Budapest', 'Vienna']);
@@ -250,8 +256,12 @@ describe('wagers', () => {
     s = run(s, { type: 'setFinalAnswer', competitorId: c, answer: 'x' });
     clock += 31_000;
     s = run(s, { type: 'timerExpire' });
-    expect(s.final).toMatchObject({ stage: 'reveal', cursor: 0, step: 'contestant' });
+    // R6-6: the timer leaves the screens and the game waits for the host's Begin Answer Reveals.
+    expect(s.final).toMatchObject({ stage: 'closed' });
+    expect(s.timer).toBeNull();
     expect(tryRun(s, { type: 'setFinalAnswer', competitorId: a, answer: 'late' }).ok).toBe(false);
+    s = run(s, { type: 'finalNext' });
+    expect(s.final).toMatchObject({ stage: 'reveal', cursor: 0, step: 'contestant' });
     for (const id of [a, b, c]) s = run(s, { type: 'finalReveal' }, { type: 'finalReveal' }, { type: 'judgeFinal', competitorId: id, correct: id === c }, { type: 'finalReveal' });
     expect(s.final?.stage).toBe('done');
     expect(scoresOf(s.events)[c]).toBe(800);

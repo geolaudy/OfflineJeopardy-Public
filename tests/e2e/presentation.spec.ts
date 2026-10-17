@@ -94,7 +94,10 @@ test('score labels, the Final swipe and the podium with places 4+', async () => 
   const final = tv.getByTestId('tv-final');
   await expect(tv.getByTestId('tv-final-status')).toBeVisible();
   await expect(final).toHaveAttribute('data-swipe-seq', '0');
-  await h.act({ type: 'finalNext' }); // reveal: lowest score first (Cat)
+  await h.act({ type: 'finalNext' }); // answers closed (R6-6): the same screen, no swipe
+  await expect(final).toHaveAttribute('data-screen', 'pre');
+  await expect(final).toHaveAttribute('data-swipe-seq', '0');
+  await h.act({ type: 'finalNext' }); // Begin Answer Reveals: lowest score first (Cat)
   await expect(final).toHaveAttribute('data-screen', 'reveal:0');
   await expect(final).toHaveAttribute('data-swipe-seq', '1');
   await expect(final).toHaveAttribute('data-swipe-kind', 'swipe');

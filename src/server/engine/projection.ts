@@ -71,7 +71,7 @@ export function projectState(s: GameState, role: ViewRole, rawProfiles: Record<I
     final = {
       stage: st,
       category: fc?.name ?? '',
-      question: host || st === 'clue' || st === 'reveal' || st === 'done' ? (fq?.question ?? '') : null,
+      question: host || st === 'clue' || st === 'closed' || st === 'reveal' || st === 'done' ? (fq?.question ?? '') : null,
       answer: host || st === 'done' ? (fq?.answer ?? '') : null,
       order: s.final.order,
       preScores: s.final.preScores,

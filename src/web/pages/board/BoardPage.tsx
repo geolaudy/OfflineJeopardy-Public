@@ -5,7 +5,7 @@ import { AnimatePresence, MotionConfig } from 'motion/react';
 import { connect, useLive, reconnectNow } from '../../lib/socket';
 import { api, ensureLocalHost, tokens } from '../../lib/api';
 import { QrImage, cx } from '../../components/ui';
-import { configureSound, playCue, sfx, stopCue, unlockAudio } from '../../lib/sound';
+import { configureSound, playCue, stopCue, unlockAudio } from '../../lib/sound';
 import { DEFAULT_TV_FX, normalizeTvFx, type PackFiles, type TvFx } from '../../../shared/tvFx';
 import { timerRemaining } from '../../../shared/game';
 import { serverNow } from '../../lib/socket';
@@ -20,6 +20,7 @@ import type { CustomTheme } from '../../../shared/themes';
 import { Grid } from './Grid';
 import { CluePanel } from './ClueZoom';
 import { Intro } from './Intro';
+import { transitionCues } from './soundCues';
 import { FinalScreen } from './FinalScreen';
 import { Scoreboard } from './Scoreboard';
 import { Presenter } from './Presenter';
@@ -262,19 +263,7 @@ function useSounds(g: GameView | null, lobby: PublicLobby | null) {
     // Leaving the Final (undo, game closed, another game) never leaves the think music running.
     if (!g || g.id !== p?.id || g.phase !== 'final') stopCue('finalThink', 400);
     if (!g || !p || p.id !== g.id) return;
-    // Categories / new round. The board fill sound starts with its animation (Intro.tsx, R4-19).
-    // One swipe sound per step change, forwards or backwards (R5-12: Previous / jump to a category).
-    if (g.intro && p.intro && g.intro.roundIndex === p.intro.roundIndex && g.intro.step !== p.intro.step) playCue('categoryIntro');
-    if (p.phase === 'lobby') {
-      if (g.phase === 'board' && !g.intro) playCue('boardIntro'); // board appears without an intro
-    } else if (p.roundIndex !== g.roundIndex) playCue('roundEnd');
-    if (g.phase === 'final' && p.phase !== 'final') playCue('final');
-    if (g.clue && g.clue.clueId !== p.clue?.clueId && !g.clue.isDailyWager) playCue('clueSelect');
-    if (g.buzzer.status === 'open' && p.buzzer.status !== 'open' && g.phase === 'clue') playCue('unlock');
-    if (g.buzzer.winner && g.buzzer.winner.at !== p.buzzer.winner?.at) sfx.buzz();
-    if (g.clue?.isDailyWager && g.clue.clueId !== p.clue?.clueId) sfx.dailyWager();
-    // The think music ends on its own; no "time's up" on top of it.
-    if (g.timer?.expired && !p.timer?.expired && g.timer.kind !== 'final') sfx.timeUp();
+    for (const cue of transitionCues(p, g)) playCue(cue);
     // Final Jeopardy! think music (R4-3): starts when the clue is shown for writing, fades out when
     // answers close. Pausing fades it; resuming continues where the timer is.
     const writing = (v: GameView) => v.phase === 'final' && v.final?.stage === 'clue' && !v.paused;
@@ -283,14 +272,6 @@ function useSounds(g: GameView | null, lobby: PublicLobby | null) {
       const elapsed = t?.kind === 'final' ? (t.durationMs - timerRemaining(t, serverNow())) / 1000 : 0;
       playCue('finalThink', { offsetSec: p.paused ? elapsed : 0 });
     } else if (!writing(g) && writing(p)) stopCue('finalThink', g.paused ? 300 : 800);
-    if (g.phase === 'ended' && p.phase !== 'ended') sfx.win();
-    const before = new Map(p.competitors.map((c) => [c.id, c.score]));
-    let delta = 0;
-    for (const c of g.competitors) delta += c.score - (before.get(c.id) ?? c.score);
-    if (g.phase !== 'ended') {
-      if (delta > 0) sfx.correct();
-      else if (delta < 0) sfx.incorrect();
-    }
   }, [g]);
 }
 
