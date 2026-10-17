@@ -1,5 +1,15 @@
 # Progress
 
+## Session 8 — 2026-10-17 (user feedback round 6, reviewing v0.10.0)
+
+- Requirements recorded as R6-2 … R6-24 (USER_FEEDBACK.md "Round 6"), plan in IMPLEMENTATION_PLAN milestone 20, statuses in FEATURE_MATRIX "User feedback round 6", decisions D64–D67, known issues K35–K37 (K16 resolved).
+- **Milestone A (1815a1e):** Final Jeopardy! closes into a waiting stage when the think time ends (timer removed, nothing revealed) and the host taps **Begin Answer Reveals**; TV timers without label and gone at zero; one highlight per score box (buzz-in replaces the picker ring); iPad ring no longer clipped; the "board scatter" sound under the Final was the new-round cue firing because the Final changes the round index (cues extracted to soundCues.ts); descender room for names.
+- **Milestone B (6f60b53):** the TV score box shows +$600 / −$600 and then the new total (no side labels / pills, $ prefix on TV scores); full-section phone buzzer (red / yellow / green with labels, pointerdown, repeat guard).
+- **Milestone E (28df4bc):** category presentation profiled with `scripts/perf-intro.mjs`: no long tasks or heavy script — every swipe frame re-rasterised the whole 1080p card (≈52 paints, ≈3 s raster per swipe). Swipe layers now composited (will-change + WAAPI transforms): software raster 43 → 59 fps, dropped frames 19 → 1; 4× CPU 41.8 → 58.9 fps. docs/PERFORMANCE.md.
+- **Milestone F (0b89ec6):** research (research agent) → docs/BUZZER_FAIRNESS_RESEARCH.md; implemented approach E: server-measured clock sync, bounded compensation, ≤ 60 ms adaptive window, corrected early rule, phone timing messages, host gap list, rule "Who buzzed first". Simulation found that the recommended 20 ms sync threshold left slow phones uncorrected (worse than arrival order) → 60 ms. Simulated correct winner on callable gaps 83–89 % → 96–98 %, median added wait ≈ 27 ms, no false early penalties.
+- **Milestone D (5c8a361):** iPad intro preview without the score strip, Previous | Next, TV category text with the iPad's proportions (FitText `maxBox`).
+- **Milestone C:** TV lobby / menu layout — built by the frontend agent in a worktree (see below once merged).
+
 ## Session 7 — 2026-10-15 (user feedback round 5, reviewing v0.9.0)
 
 - Requirements recorded as R5-2 … R5-20 (USER_FEEDBACK.md "Round 5"), plan in IMPLEMENTATION_PLAN milestone 19, statuses in FEATURE_MATRIX "User feedback round 5", decisions D55–D63.

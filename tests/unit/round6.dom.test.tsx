@@ -203,3 +203,23 @@ describe('Score changes inside the score box (R6-5)', () => {
     }
   });
 });
+
+describe('phone timing messages (R6-23)', async () => {
+  const { buzzTimingText, buzzerLook } = await import('../../src/web/pages/join/PlayTab');
+  const g = game({ phase: 'clue' } as Partial<GameView>);
+  const t = (over: object) => ({ result: 'late' as const, otherCompetitorId: 'a', otherProfileId: 'p-a', gapMs: 42, confident: true, teammateWon: false, ...over });
+  it('numbers only when confident, rounded to 10 ms; seconds beyond one second', () => {
+    expect(buzzTimingText(g, t({}))).toBe('Ann buzzed 40 ms before you!');
+    expect(buzzTimingText(g, t({ gapMs: 1234 }))).toBe('You were 1.23 seconds behind!');
+    expect(buzzTimingText(g, t({ confident: false, gapMs: 12 }))).toBe('Very close buzz! Ann won.');
+    expect(buzzTimingText(g, t({ result: 'won', otherCompetitorId: 'b', otherProfileId: 'p-b', gapMs: 80 }))).toBe('You buzzed in first! Bob was 80 ms behind.');
+    expect(buzzTimingText(g, t({ result: 'won', otherCompetitorId: null, otherProfileId: null, gapMs: null, confident: false }))).toBe('You buzzed in first!');
+    expect(buzzTimingText(g, t({ teammateWon: true }))).toBeNull();
+  });
+  it('buzzer colours: red locked, yellow open, green won — always with words', () => {
+    expect(buzzerLook({ canBuzz: false, canPress: true, buzzReason: 'locked' }, false, false)).toMatchObject({ color: 'red', label: 'LOCKED' });
+    expect(buzzerLook({ canBuzz: true }, false, false)).toMatchObject({ color: 'yellow', label: 'BUZZ!' });
+    expect(buzzerLook({ canBuzz: false, buzzReason: 'taken' }, true, false)).toMatchObject({ color: 'green', label: "YOU'RE IN!" });
+    expect(buzzerLook({ canBuzz: false, buzzReason: 'locked-out' }, false, false)).toMatchObject({ color: 'red', label: 'TOO EARLY' });
+  });
+});
