@@ -1,5 +1,5 @@
 // Small building blocks shared by the TV lobby (full / compact) and the presented pages.
-import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { motion } from 'motion/react';
 import { Avatar, cx } from '../../components/ui';
 import { useBoard } from './common';
@@ -87,6 +87,30 @@ export function DeviceTag({ device, ready, className }: { device: string; ready:
   );
 }
 
+/** Join address and room code: panel text beside the shared QR (R6-11). Long addresses shrink to
+ *  stay on one line (sized against the container's width). */
+export function JoinAddress({ url, roomCode, className }: { url: string | null; roomCode: string | null; className?: string }) {
+  if (!url && !roomCode) return null;
+  return (
+    <div className={cx('tvp-addr', className)}>
+      {url && (
+        <p className="tvp-addr-url">
+          <span className="tvp-addr-k">Or open</span>
+          <span className="tvp-addr-v" style={{ '--len': url.length } as CSSProperties}>
+            {url}
+          </span>
+        </p>
+      )}
+      {roomCode && (
+        <p className="tvp-addr-code" data-testid="tv-room-code">
+          <span className="tvp-addr-k">Room code</span>
+          <span className="tvp-addr-room">{roomCode}</span>
+        </p>
+      )}
+    </div>
+  );
+}
+
 /** Size of an element's content box (kept up to date with a ResizeObserver). */
 export function useBoxSize(ref: RefObject<HTMLElement | null>) {
   const [size, setSize] = useState({ w: 0, h: 0 });
@@ -103,33 +127,37 @@ export function useBoxSize(ref: RefObject<HTMLElement | null>) {
   return size;
 }
 
+/** Type scale (`min`…1) that makes an overflow-hidden box's content fit it. Starts again from 1
+ *  when `key` changes (content or box size), then shrinks until nothing is cut off. */
+export function useFitScale(ref: RefObject<HTMLElement | null>, key: string, min = 0.6) {
+  const [scale, setScale] = useState(1);
+  useLayoutEffect(() => setScale(1), [key]);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const need = el.scrollHeight;
+    const have = el.clientHeight;
+    if (have > 0 && need > have + 1) setScale((v) => Math.max(min, Math.floor(v * Math.max(0.9, have / need) * 100) / 100));
+  }, [ref, scale, key, min]);
+  return scale;
+}
+
 /**
  * Card grid that fills a box: picks the column count giving the largest readable cards
  * (cards need to be at least `minRatio` times wider than tall to fit a name beside the avatar).
  */
-export function fitCards(n: number, box: { w: number; h: number }, opts: { gap: number; maxH: number; minRatio: number; maxCols: number }) {
+export function fitCards(n: number, box: { w: number; h: number }, opts: { gap: number; maxH: number; minRatio: number; maxCols: number; idealRatio?: number }) {
   const count = Math.max(1, n);
   let best = { cols: 1, rows: count, cardW: box.w, cardH: 0, score: -1 };
   for (let cols = 1; cols <= Math.min(opts.maxCols, count); cols++) {
     const rows = Math.ceil(count / cols);
     const cardW = (box.w - opts.gap * (cols - 1)) / cols;
     const cardH = Math.min(opts.maxH, (box.h - opts.gap * (rows - 1)) / rows, cardW / opts.minRatio);
-    // Prefer bigger cards; break ties towards fewer rows.
-    const score = cardH + cols * 0.01;
+    // Prefer bigger cards; break ties towards fewer rows. With `idealRatio`, equally tall cards
+    // that are too narrow for it (names cut off) lose to fewer, wider columns.
+    const wide = opts.idealRatio ? Math.min(1, cardW / (cardH * opts.idealRatio)) : 1;
+    const score = cardH * (1 + 0.1 * wide) + cols * 0.01;
     if (score > best.score) best = { cols, rows, cardW, cardH, score };
   }
   return best;
-}
-
-/** Narrower than about 3:2 (5:4 / 4:3 projectors): pages use fewer columns. Re-renders with the
- *  board context, which changes on every resize. */
-export function useNarrow() {
-  useBoard();
-  return typeof window !== 'undefined' && window.innerWidth / Math.max(1, window.innerHeight) < 1.5;
-}
-
-/** Columns for n cards, given a column cap that depends on the space available. */
-export function columnsFor(n: number, maxCols: number) {
-  const c = n <= 1 ? 1 : n <= 4 ? 2 : n <= 9 ? 3 : n <= 16 ? 4 : n <= 25 ? 5 : 6;
-  return Math.max(1, Math.min(c, maxCols));
 }

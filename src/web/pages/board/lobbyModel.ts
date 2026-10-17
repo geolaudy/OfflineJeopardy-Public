@@ -263,6 +263,17 @@ export function summaryText(s: PersonSummary | undefined): string | null {
 
 export const modeLabel = (m: 'solo' | 'team' | null) => (m === 'team' ? 'Teams' : m === 'solo' ? 'Individuals' : '');
 
+/** R6-10: the board line under the lobby title — "2 Rounds • 60 Clues • Final Jeopardy!". */
+export function boardMeta(b: LobbyModel['board']): string | null {
+  if (!b) return null;
+  const parts = [`${b.rounds} ${b.rounds === 1 ? 'Round' : 'Rounds'}`, `${b.clues} ${b.clues === 1 ? 'Clue' : 'Clues'}`];
+  if (b.final) parts.push('Final Jeopardy!');
+  return parts.join(' • ');
+}
+
+/** The selected board's name: the active lobby's title (R6-10). */
+export const boardName = (m: LobbyModel) => m.board?.title ?? m.boardTitle ?? m.title;
+
 export function countLabel(m: LobbyModel) {
   const noun = m.count === 1 ? 'player' : 'players';
   return m.max > 0 ? `${m.count} / ${m.max} ${m.max === 1 ? 'player' : 'players'}` : `${m.count} ${noun}`;

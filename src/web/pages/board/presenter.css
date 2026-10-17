@@ -1,12 +1,22 @@
 /* Presenter: public lobby (full / compact), presented pages, nav rail.
-   All sizes in vh/vw (or container units inside the join card) so the layout holds at 16:9, 16:10,
-   5:4 and 4:3. Theme colours come from the .board-theme variables. Animate transform/opacity only. */
+   All sizes in vh/vw (or container units inside the join QR) so the layout holds at 16:9, 16:10,
+   5:4 and 4:3. Theme colours come from the .board-theme variables. Animate transform/opacity only.
+
+   R6-8/R6-9/R6-11 layout: content lives in panels (.tvp-panel / .tvp-panel-bg) — one look for all
+   of them (background, hairline border, radius, padding, soft shadow); cards inside a panel are
+   flat tints (--tvp-item), never cards with their own frame. The full lobby has ONE right-hand
+   panel (join QR + rules); everywhere else the compact lobby is ONE panel in the top-right corner
+   and pages keep their heading in the band beside it and their content in a full-width panel. */
 .board-theme {
   --tvp-surface: rgba(0, 0, 0, 0.3);
   --tvp-surface-2: rgba(0, 0, 0, 0.45);
   --tvp-line: rgba(255, 255, 255, 0.16);
   --tvp-shadow: 0 0 0 0 transparent;
   --tvp-ok: #4ade80;
+  --tvp-panel: rgba(0, 0, 0, 0.3);
+  --tvp-panel-shadow: inset 0 0 0 1px color-mix(in srgb, var(--b-fg, #ffffff) 10%, transparent), 0 1vh 3vh rgba(0, 0, 0, 0.22);
+  --tvp-item: color-mix(in srgb, var(--b-fg, #ffffff) 7%, transparent);
+  --tvp-item-2: color-mix(in srgb, var(--b-fg, #ffffff) 13%, transparent);
 }
 .board-theme[data-theme="modern"] {
   --tvp-surface: #ffffff;
@@ -14,11 +24,24 @@
   --tvp-line: #cbd5e1;
   --tvp-shadow: 0 0.3vh 1.2vh rgba(15, 23, 42, 0.08);
   --tvp-ok: #16a34a;
+  --tvp-panel: #ffffff;
+  --tvp-panel-shadow: 0 0 0 1px #e2e8f0, 0 1vh 3vh rgba(15, 23, 42, 0.08);
+  --tvp-item: #f1f5f9;
+  --tvp-item-2: #e2e8f0;
+}
+.board-theme[data-theme="modern"] .tvp-panel .tvp-card,
+.board-theme[data-theme="modern"] .tvp-person-bg,
+.board-theme[data-theme="modern"] .tvp-team-bg {
+  --tvp-shadow: none;
 }
 .board-theme[data-theme="contrast"] {
   --tvp-surface: #000000;
   --tvp-surface-2: #000000;
   --tvp-line: #ffffff;
+  --tvp-panel: #000000;
+  --tvp-panel-shadow: inset 0 0 0 0.2vh #ffffff;
+  --tvp-item: #161616;
+  --tvp-item-2: #2a2a2a;
 }
 
 .tvp {
@@ -26,22 +49,37 @@
   --top: 7.4vh;
   --pad-r: 2.4vw;
   --pad-b: 3.4vh;
+  /* Between the main content and the right-hand panel / between the heading band and a panel. */
   --gap: 2.2vw;
-  /* Join card height = width x k (fixed proportions; its content is laid out in cqw). */
-  --qr-k: 1.18;
+  --gap-y: 2vh;
+  /* Panel padding (one value for every panel). */
+  --sp: min(2.4vh, 1.5vw);
+  /* Join QR height = width x k (QR tile + "Scan to join"; fixed proportions, laid out in cqw). */
+  --qr-k: 1.13;
   --stage-h: calc(100vh - var(--top) - var(--pad-b));
-  /* R5-3.2: the join QR at about 60 % of its former size; the freed space holds the board and rules. */
+  /* R5-3.2: the join QR on the full lobby. */
   --qr-full: min(calc(var(--stage-h) * 0.36 / var(--qr-k)), 13.8vw);
-  /* Right-hand column of the full lobby: join steps + QR on top, board + rules below. */
-  --side: max(29vw, calc(var(--qr-full) * 2.2));
-  --panel: min(max(19vw, 28vh), 25vw);
+  /* Full lobby: the right-hand panel (join steps beside the QR, rules below). */
+  --side: max(28vw, calc(var(--qr-full) * 2 + 2 * var(--sp)));
+  /* Compact lobby (R6-8): QR width, info column, panel width and height. The height is the band
+     that presented pages keep their heading in. */
+  --cq: 18vh;
+  --cinfo: max(16vw, 28vh);
+  --cw: calc(var(--cq) + var(--cinfo) + 3 * var(--sp));
+  --band: calc(var(--cq) * var(--qr-k) + 2 * var(--sp));
   position: relative;
   flex: 1;
   min-height: 0;
   color: var(--b-fg);
 }
 .tvp.has-code {
-  --qr-k: 1.28;
+  /* The compact panel also shows the room code. */
+  --cq: 19.5vh;
+}
+.tvp.no-join {
+  --cq: 0px;
+  --cw: calc(var(--cinfo) + 2 * var(--sp));
+  --band: 18vh;
 }
 .tvp-stage {
   position: absolute;
@@ -50,6 +88,7 @@
   left: calc(var(--rail) + 2.2vw);
   right: var(--pad-r);
 }
+
 
 /* ---------- Rail + wordmark ---------- */
 .tvp-rail {
@@ -115,16 +154,52 @@
   color: var(--b-accent);
 }
 
-/* ---------- Join card (shared element) ---------- */
+/* ---------- Panels (R6-8/R6-9): one look everywhere ---------- */
+.tvp-panel,
+.tvp-panel-bg {
+  border-radius: 2vh;
+  background: var(--tvp-panel);
+  box-shadow: var(--tvp-panel-shadow);
+}
+.tvp-panel-bg {
+  position: absolute;
+  inset: 0;
+}
+.tvp-panel {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 1.6vh;
+  padding: var(--sp);
+  overflow: hidden;
+}
+.tvp-side-kicker {
+  font-family: var(--b-font);
+  font-weight: var(--bt-heavy);
+  font-size: 2vh;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--b-accent);
+}
+
+/* ---------- Join QR (shared element) ---------- */
+/* It sits in the top-right corner of the right-hand panel in both layouts (no frame of its own:
+   the white tile is the code's quiet zone). */
 .tvp-qr {
   --qr-w: var(--qr-full);
   position: absolute;
-  top: 0;
-  right: 0;
+  top: var(--sp);
+  right: var(--sp);
   z-index: 3;
   width: var(--qr-w);
   height: calc(var(--qr-w) * var(--qr-k));
   container-type: inline-size;
+}
+.tvp.is-compact .tvp-qr {
+  --qr-w: var(--cq);
 }
 /* Everything inside is in cqw (card width), so both sizes are exact scaled copies. */
 .tvp-qr-in {
@@ -132,57 +207,70 @@
   height: 100%;
   flex-direction: column;
   align-items: center;
-  /* Tight frame (R5-3.2); with the code's own 1-module margin this keeps a ~2-module quiet zone. */
-  padding: 3.2cqw 3.2cqw 2.6cqw;
-  overflow: hidden;
-  border-radius: 6cqw;
-  background: #ffffff;
-  color: #0f172a;
-  box-shadow:
-    0 0 0 1.4cqw color-mix(in srgb, var(--b-accent) 85%, transparent),
-    0 0 0 2.4cqw rgba(0, 0, 0, 0.35),
-    0 3cqw 8cqw rgba(0, 0, 0, 0.45);
   text-align: center;
 }
-.tvp.is-compact .tvp-qr {
-  --qr-w: var(--panel);
-}
 .tvp-qr-img {
-  width: 92cqw;
-  height: 92cqw;
+  width: 100cqw;
+  height: 100cqw;
   flex: none;
-  border-radius: 3cqw;
+  /* With the code's own 1-module margin this keeps a ~2-module quiet zone, without excess frame. */
+  padding: 3.4cqw;
+  border-radius: 4.5cqw;
+  background: #ffffff;
+  box-shadow: 0 0 0 0.6cqw color-mix(in srgb, var(--b-fg, #ffffff) 12%, transparent);
 }
 .tvp-qr-cta {
-  margin-top: -1cqw;
+  margin-top: 3cqw;
   font-size: 9cqw;
   font-weight: 800;
-  line-height: 1.05;
+  line-height: 1.1;
   letter-spacing: -0.01em;
+  white-space: nowrap;
 }
-.tvp-qr-url {
-  margin-top: 1.4cqw;
-  max-width: 100%;
+
+/* Join address and room code (panel text). */
+.tvp-addr {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1.2vh;
+  container-type: inline-size;
+}
+.tvp-addr-url {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.3vh;
+}
+.tvp-addr-k {
+  font-size: 1.5vh;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.68;
+}
+.tvp-addr-v {
   overflow: hidden;
   font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: min(2.2vh, calc(100cqw / (var(--len, 30) * 0.62)));
+  font-weight: 600;
   line-height: 1.3;
   white-space: nowrap;
-  color: #334155;
 }
-.tvp-qr-code {
-  margin-top: 2.4cqw;
-  font-size: 5cqw;
-  font-weight: 700;
+.tvp-addr-code {
+  display: flex;
+  align-items: center;
+  gap: 1vw;
 }
-.tvp-qr-code span {
-  margin-left: 1.2cqw;
-  padding: 0.4cqw 2cqw;
-  border-radius: 1.6cqw;
-  background: #0f172a;
-  color: #ffffff;
+.tvp-addr-room {
+  padding: 0.25vh 1.2vh 0.25vh 1.5vh;
+  border-radius: 1vh;
+  background: var(--b-accent);
+  color: #111827;
   font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 3vh;
   font-weight: 900;
-  letter-spacing: 0.3em;
+  letter-spacing: 0.25em;
 }
 
 /* ---------- Shared bits ---------- */
@@ -213,12 +301,18 @@
 }
 .tvp-head {
   flex: none;
+  min-width: 0;
 }
-.tvp-page-head {
+/* Heading band of a presented page: beside the compact lobby panel, bottom-aligned so the title
+   sits right above the content panel. */
+.tvp-band {
   display: flex;
+  min-width: 0;
+  min-height: var(--band);
+  flex: none;
   align-items: flex-end;
   gap: 2vw;
-  margin-bottom: 2.6vh;
+  margin: 0 calc(var(--cw) + var(--gap)) var(--gap-y) 0;
 }
 .tvp-kicker {
   font-family: var(--b-font);
@@ -242,20 +336,23 @@
   text-shadow: var(--bt-text-shadow);
 }
 .tvp-title-xl {
-  font-size: min(8vh, 4.6vw);
+  font-size: min(7.6vh, 4.4vw);
 }
 .tvp-sub {
   margin-top: 0.8vh;
+  overflow: hidden;
   font-size: 2.3vh;
   opacity: 0.8;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .tvp-muted {
   font-size: 2vh;
   opacity: 0.7;
 }
 .tvp-foot {
+  flex: none;
   margin-top: auto;
-  padding-top: 1.6vh;
   font-size: 1.9vh;
   opacity: 0.72;
 }
@@ -268,22 +365,36 @@
   text-transform: uppercase;
   opacity: 0.85;
 }
+/* R6-10: "2 Rounds • 60 Clues • Final Jeopardy!" and the compact chips after it. */
+.tvp-head-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1vh 1.4vw;
+  margin-top: 1.2vh;
+}
+.tvp-meta {
+  font-size: 2.6vh;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  opacity: 0.9;
+  white-space: nowrap;
+}
 .tvp-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 1vh;
-  margin-top: 1.6vh;
+  gap: 0.8vh;
 }
 .tvp-chip,
 .tvp-pill {
   display: inline-flex;
   align-items: center;
   gap: 0.7vh;
-  padding: 0.7vh 1.7vh;
+  padding: 0.5vh 1.4vh;
   border-radius: 999px;
-  background: var(--tvp-surface);
+  background: var(--tvp-item-2);
   box-shadow: var(--tvp-shadow);
-  font-size: 2.2vh;
+  font-size: 2vh;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -336,7 +447,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2.6vh;
+  font-size: 2.4vh;
   font-weight: 700;
   opacity: 0.8;
 }
@@ -351,7 +462,17 @@
   inset: 0 calc(var(--side) + var(--gap)) 0 0;
   display: flex;
   flex-direction: column;
-  gap: 3.2vh;
+  gap: var(--gap-y);
+}
+/* The players' content panel (R6-9). */
+.tvp-roster-panel {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 1.4vh;
+  padding: var(--sp);
 }
 .tvp-roster {
   position: relative;
@@ -360,24 +481,24 @@
 }
 .tvp-people {
   display: grid;
-  gap: 1.4vh 1.2vw;
   align-content: start;
 }
+/* R6-7: compact player cards (about 60 % of the former size); text keeps a readable minimum. */
 .tvp-person {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 1vw;
+  gap: 0.7vw;
   min-width: 0;
-  padding: 0 1.2vw;
-  font-size: var(--name, 3vh);
+  padding: 0 0.8vw 0 0.9vw;
+  font-size: var(--name, 2.6vh);
 }
 .tvp-person-bg {
   position: absolute;
   inset: 0;
-  border-radius: 1.6vh;
-  background: var(--tvp-surface);
-  box-shadow: var(--tvp-shadow);
+  border-radius: 1.2vh;
+  background: var(--tvp-item);
+  box-shadow: var(--tvp-shadow), inset 0.45vh 0 0 var(--pc);
 }
 .tvp-person-text {
   position: relative;
@@ -386,30 +507,33 @@
   flex: 1;
   flex-direction: column;
   justify-content: center;
-  gap: 0.1em;
+  gap: 0.12em;
 }
 .tvp-person-name {
   overflow: hidden;
   font-weight: 800;
-  line-height: 1.05;
+  line-height: 1.08;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.tvp-person .tvp-dev {
+  font-size: 0.66em;
+}
 .tvp-teams {
   display: grid;
-  gap: 1.6vh 1.2vw;
+  gap: 1.4vh 1vw;
   align-content: start;
 }
 .tvp-team {
   position: relative;
-  padding: 1.8vh 1.3vw;
+  padding: 1.6vh 1.1vw;
 }
 .tvp-team-bg {
   position: absolute;
   inset: 0;
-  border-radius: 1.8vh;
-  background: var(--tvp-surface);
-  box-shadow: var(--tvp-shadow), inset 0 0.7vh 0 var(--pc);
+  border-radius: 1.6vh;
+  background: var(--tvp-item);
+  box-shadow: var(--tvp-shadow), inset 0 0.6vh 0 var(--pc);
 }
 .tvp-team-head {
   position: relative;
@@ -417,8 +541,8 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 0.6vh 1vw;
-  margin-bottom: 1.4vh;
-  font-size: min(3.2vh, 2vw);
+  margin-bottom: 1.2vh;
+  font-size: min(3vh, 1.9vw);
 }
 .tvp-team-emoji {
   font-size: 1.1em;
@@ -447,7 +571,7 @@
   height: var(--line);
   align-items: center;
   gap: 0.8vw;
-  font-size: calc(var(--line) * 0.5);
+  font-size: max(1.9vh, calc(var(--line) * 0.5));
 }
 .tvp-team-member {
   display: flex;
@@ -463,112 +587,102 @@
   opacity: 0.65;
 }
 .tvp-waiting {
+  position: relative;
   flex: none;
-  font-size: 2.3vh;
+  font-size: 2.2vh;
 }
 .tvp-waiting-label {
   margin-right: 1vw;
   font-weight: 700;
   color: var(--b-accent);
 }
-.tvp-howto {
-  position: absolute;
-  top: 0;
-  right: calc(var(--qr-full) + 1.6vw);
-  width: calc(var(--side) - var(--qr-full) - 1.6vw);
-  max-height: calc(var(--qr-full) * var(--qr-k));
-  overflow: hidden;
-  font-size: min(2.1vh, 1.2vw);
-  line-height: 1.35;
-}
-.tvp-howto-title {
-  margin-bottom: 0.8vh;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--b-accent);
-}
-.tvp-howto ol {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6vh;
-}
-.tvp-howto li {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.8vw;
-  opacity: 0.9;
-}
-.tvp-howto svg {
-  width: 1.25em;
-  height: 1.25em;
-  flex: none;
-  margin-top: 0.05em;
-}
 
-/* Board + rules under the join card (R5-3.1/3.3). */
+/* R6-11: ONE right-hand panel — Join the Game (steps beside the QR, then the address / room code)
+   over the Game Rules. The QR itself is the shared element in the panel's top-right corner. */
 .tvp-side {
   position: absolute;
-  top: calc(var(--qr-full) * var(--qr-k) + 3vh);
+  top: 0;
   right: 0;
   bottom: 0;
-  display: flex;
   width: var(--side);
+}
+.tvp-side-in {
+  position: relative;
+  display: flex;
+  height: 100%;
   min-height: 0;
   flex-direction: column;
-  gap: 1.6vh;
+  gap: 2.4vh;
+  padding: var(--sp);
+  overflow: hidden;
 }
-.tvp-side-card {
-  min-height: 0;
-  padding: 1.8vh 1.4vw;
-  border-radius: 1.8vh;
-  background: var(--tvp-surface);
-  box-shadow: var(--tvp-shadow);
+.tvp-join {
+  display: grid;
+  flex: none;
+  grid-template-columns: minmax(0, 1fr) var(--qr-full);
+  gap: 2vh 1.2vw;
 }
-.tvp-side-kicker {
-  font-family: var(--b-font);
-  font-weight: var(--bt-heavy);
-  font-size: 1.8vh;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+.tvp.no-join .tvp-join {
+  grid-template-columns: minmax(0, 1fr);
+}
+.tvp-join-text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1.4vh;
+}
+.tvp-join-slot {
+  width: var(--qr-full);
+  height: calc(var(--qr-full) * var(--qr-k));
+}
+.tvp-join-addr {
+  grid-column: 1 / -1;
+}
+.tvp-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 1vh;
+  font-size: min(2.2vh, 1.25vw);
+  line-height: 1.3;
+}
+.tvp-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7vw;
+  opacity: 0.92;
+}
+.tvp-steps svg {
+  width: 1.2em;
+  height: 1.2em;
+  flex: none;
+  margin-top: 0.05em;
   color: var(--b-accent);
 }
-.tvp-side-board {
-  margin-top: 0.4vh;
-  overflow: hidden;
-  font-family: var(--b-font);
-  font-weight: var(--bt-heavy);
-  font-size: 3.2vh;
-  line-height: 1.1;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-transform: uppercase;
-}
-.tvp-side-meta {
-  margin-top: 0.4vh;
-  font-size: 1.9vh;
-  opacity: 0.8;
-}
-.tvp-side-rules {
+.tvp-rules-sec {
+  display: flex;
+  min-height: 0;
   flex: 1;
+  flex-direction: column;
+  gap: 1.2vh;
+  padding-top: 2.2vh;
+  border-top: 1px solid var(--tvp-line);
   overflow: hidden;
 }
-.tvp-side-rules dl {
+.tvp-rules-sec dl {
   display: grid;
-  margin-top: 0.8vh;
-  gap: 0.7vh;
-  font-size: min(2vh, 1.15vw);
+  gap: calc(0.9vh * var(--s, 1));
+  font-size: calc(min(2vh, 1.15vw) * var(--s, 1));
   line-height: 1.25;
 }
-.tvp-side-rules dl > div {
+.tvp-rules-sec dl > div {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr);
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.4fr);
   gap: 1vw;
 }
-.tvp-side-rules dt {
+.tvp-rules-sec dt {
   opacity: 0.75;
 }
-.tvp-side-rules dd {
+.tvp-rules-sec dd {
   font-weight: 700;
 }
 .tvp-real {
@@ -596,55 +710,50 @@
   font-weight: 600;
 }
 
-/* ---------- Compact panel ---------- */
+/* ---------- Compact panel (R6-8): one panel in the top-right corner ---------- */
 .tvp-compact {
   position: absolute;
-  top: calc(var(--panel) * var(--qr-k) + 1.6vh);
+  top: 0;
   right: 0;
-  bottom: 0;
-  width: var(--panel);
-}
-.tvp-compact-bg {
-  position: absolute;
-  inset: 0;
-  border-radius: 2vh;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.62));
-  border: 0.15vh solid var(--tvp-line);
-  box-shadow:
-    0 1.2vh 3.6vh rgba(0, 0, 0, 0.45),
-    inset 0 0.15vh 0 rgba(255, 255, 255, 0.08);
-}
-.board-theme[data-theme="modern"] .tvp-compact-bg {
-  background: #ffffff;
-  box-shadow: 0 1vh 3vh rgba(15, 23, 42, 0.16);
+  width: var(--cw);
+  height: var(--band);
 }
 .tvp-compact-inner {
   position: relative;
   display: flex;
   height: 100%;
   flex-direction: column;
-  gap: 1.8vh;
-  padding: 2vh 1.2vw;
-  /* No clipping: avatars fly in from the full lobby. */
+  justify-content: space-between;
+  gap: 0.6vh;
+  /* The QR takes the right-hand corner. No clipping: avatars fly in from the full lobby. */
+  padding: var(--sp) calc(2 * var(--sp) + var(--cq)) var(--sp) var(--sp);
+}
+.tvp.no-join .tvp-compact-inner {
+  justify-content: flex-start;
+  padding-right: var(--sp);
 }
 .tvp-compact-count {
   display: flex;
   align-items: baseline;
-  gap: 0.8vw;
-  flex-wrap: wrap;
+  gap: 0.7vw;
+  min-width: 0;
 }
 .tvp-compact-num {
   font-family: var(--b-font);
   font-weight: var(--bt-heavy);
-  font-size: 5.4vh;
+  font-size: 4.4vh;
   line-height: 0.95;
   color: var(--b-accent);
   text-shadow: var(--bt-text-shadow);
 }
 .tvp-compact-of {
-  font-size: 2.2vh;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 1.9vh;
   font-weight: 600;
-  opacity: 0.85;
+  opacity: 0.88;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .tvp-compact-label {
   width: 100%;
@@ -653,6 +762,10 @@
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.tvp-compact-count:has(.tvp-compact-label) {
+  flex-direction: column;
+  gap: 1vh;
 }
 .tvp-compact-status {
   display: inline-flex;
@@ -665,55 +778,89 @@
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  gap: min(0.9vh, 0.5vw);
-  min-height: 4.6vh;
+  gap: min(0.8vh, 0.5vw);
+  min-height: 4vh;
 }
 .tvp-strip-more {
   display: inline-flex;
-  height: 3.9vh;
-  min-width: 3.9vh;
+  height: 3.6vh;
+  min-width: 3.6vh;
   align-items: center;
   justify-content: center;
   padding: 0 0.8vh;
   border-radius: 999px;
-  background: var(--tvp-surface-2);
-  font-size: 1.9vh;
+  background: var(--tvp-item-2);
+  font-size: 1.8vh;
   font-weight: 800;
+}
+.tvp-strip-none {
+  font-size: 1.9vh;
+  opacity: 0.7;
 }
 .tvp-facts {
   display: flex;
+  min-width: 0;
   flex-direction: column;
-  gap: 1.2vh;
-  margin-top: auto;
-  padding-top: 1.6vh;
-  border-top: 1px solid var(--tvp-line);
+  gap: 0.5vh;
 }
 .tvp-facts > div {
   display: flex;
   min-width: 0;
-  flex-direction: column;
+  align-items: baseline;
+  gap: 0.6vw;
 }
 .tvp-facts-k {
-  font-size: 1.5vh;
+  flex: none;
+  width: 9.5vh;
+  white-space: nowrap;
+  font-size: 1.4vh;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   opacity: 0.65;
 }
 .tvp-facts-v {
-  font-size: 2.3vh;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 1.9vh;
   font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .tvp-facts-ready {
   display: inline-flex;
   align-items: center;
   gap: 0.8vh;
 }
+.tvp-compact .tvp-addr {
+  gap: 0.6vh;
+}
+.tvp-compact .tvp-addr-url .tvp-addr-k {
+  display: none;
+}
+.tvp-compact .tvp-addr-v {
+  font-size: min(1.8vh, calc(100cqw / (var(--len, 30) * 0.62)));
+  opacity: 0.85;
+}
+.tvp-compact .tvp-addr-code {
+  gap: 0.6vw;
+}
+.tvp-compact .tvp-addr-code .tvp-addr-k {
+  flex: none;
+  min-width: 9.5vh;
+  white-space: nowrap;
+  font-size: 1.4vh;
+}
+.tvp-compact .tvp-addr-room {
+  padding-top: 0.1vh;
+  padding-bottom: 0.1vh;
+  font-size: 2vh;
+}
 
 /* ---------- Presented pages ---------- */
 .tvp-pages {
   position: absolute;
-  inset: 0 calc(var(--panel) + var(--gap)) 0 0;
+  inset: 0;
 }
 .tvp-page {
   position: absolute;
@@ -722,11 +869,12 @@
   flex-direction: column;
   min-width: 0;
 }
+/* Items inside a content panel: flat tints, no frame of their own. */
 .tvp-card {
   position: relative;
   min-width: 0;
-  border-radius: 1.8vh;
-  background: var(--tvp-surface);
+  border-radius: 1.6vh;
+  background: var(--tvp-item);
   box-shadow: var(--tvp-shadow);
 }
 
@@ -748,7 +896,7 @@
   gap: 1.3vw;
   padding: 0 1.6vw 0 1vw;
   border-radius: 1.4vh;
-  background: var(--tvp-surface);
+  background: var(--tvp-item);
   box-shadow: var(--tvp-shadow), inset 0.55vh 0 0 var(--pc);
   font-size: min(calc(var(--row) * 0.36), 2.2vw);
 }
@@ -766,7 +914,7 @@
   opacity: 1;
 }
 .tvp-lb-row.is-top-1 {
-  background: var(--tvp-surface-2);
+  background: var(--tvp-item-2);
   box-shadow: var(--tvp-shadow), inset 0.55vh 0 0 var(--pc), inset 0 0 0 0.25vh var(--b-accent);
 }
 .tvp-lb-who {
@@ -810,12 +958,17 @@
   height: 100%;
   min-height: 0;
   flex-direction: column;
-  gap: 3vh;
 }
 .tvp-player-top {
   display: flex;
   align-items: center;
   gap: 2.2vw;
+}
+.tvp-player-top.tvp-band {
+  align-items: center;
+}
+.tvp-player-panel {
+  gap: 2.4vh;
 }
 .tvp-private {
   flex: 1;
@@ -838,7 +991,7 @@
   gap: 0.4vh;
   padding: 1.6vh 1.2vw;
   border-radius: 1.6vh;
-  background: var(--tvp-surface);
+  background: var(--tvp-item);
   box-shadow: var(--tvp-shadow);
 }
 .tvp-tile-v {
@@ -879,7 +1032,7 @@
   column-gap: 1vw;
   padding: 1vh 1.2vw;
   border-radius: 1.2vh;
-  background: var(--tvp-surface);
+  background: var(--tvp-item);
   box-shadow: var(--tvp-shadow);
 }
 .tvp-list-main {
@@ -974,7 +1127,7 @@
   gap: 0.5vw;
   padding: 0.5vh 1vh 0.5vh 0.5vh;
   border-radius: 999px;
-  background: var(--tvp-surface-2);
+  background: var(--tvp-item-2);
   font-size: min(2vh, 1.2vw);
   font-weight: 600;
 }
@@ -985,12 +1138,27 @@
 }
 .tvp-bcard {
   display: flex;
+  min-height: 0;
   flex-direction: column;
   gap: 1vh;
   padding: 2vh 1.4vw;
+  overflow: hidden;
+}
+/* Denser rows (more boards) drop the tags, then the description, rather than overflow. */
+.tvp-board-cards.is-mid .tvp-tags,
+.tvp-board-cards.is-dense .tvp-tags,
+.tvp-board-cards.is-dense .tvp-bcard-desc {
+  display: none;
+}
+.tvp-board-cards.is-mid .tvp-bcard-desc {
+  -webkit-line-clamp: 1;
+}
+.tvp-board-cards.is-dense .tvp-bcard {
+  gap: 0.6vh;
+  padding: 1.4vh 1.2vw;
 }
 .tvp-bcard.is-selected {
-  background: var(--tvp-surface-2);
+  background: var(--tvp-item-2);
   box-shadow: var(--tvp-shadow), inset 0 0 0 0.35vh var(--b-accent);
 }
 .tvp-badge {
@@ -1030,9 +1198,15 @@
   opacity: 0.8;
 }
 .tvp-bcard-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6vh 0.8vw;
   margin-top: auto;
   font-size: min(1.8vh, 1.1vw);
   font-weight: 600;
+}
+.tvp-bcard-meta > span:last-child {
   opacity: 0.75;
 }
 .tvp-tags {
@@ -1117,7 +1291,7 @@
   gap: 0.4vh;
   padding: 1.5vh 1.4vw;
   border-radius: 1.4vh;
-  background: var(--tvp-surface);
+  background: var(--tvp-item);
   box-shadow: var(--tvp-shadow);
 }
 .tvp-rule dt {
@@ -1134,25 +1308,23 @@
 }
 
 /* Buzzers */
+/* R6-9: compact controller cards in two or three columns: name, then device (and team) below. */
 .tvp-bz {
   display: grid;
-  gap: 1vh 1.2vw;
+  gap: 1vh 1.1vw;
   align-content: start;
-}
-.tvp-bz.is-two {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .tvp-bz-row {
   display: flex;
   height: var(--row);
   align-items: center;
-  gap: 1vw;
+  gap: 0.9vw;
   min-width: 0;
-  padding: 0 1.3vw 0 1vw;
+  padding: 0 1.1vw 0 0.9vw;
   border-radius: 1.4vh;
-  background: var(--tvp-surface);
-  box-shadow: var(--tvp-shadow), inset 0.55vh 0 0 var(--pc);
-  font-size: min(calc(var(--row) * 0.34), 1.8vw);
+  background: var(--tvp-item);
+  box-shadow: var(--tvp-shadow), inset 0.5vh 0 0 var(--pc);
+  font-size: max(1.9vh, min(calc(var(--row) * 0.3), 1.6vw));
 }
 .tvp-bz-row.is-off {
   opacity: 0.72;
@@ -1162,16 +1334,29 @@
   min-width: 0;
   flex: 1;
   flex-direction: column;
+  gap: 0.1em;
 }
 .tvp-bz-name {
   overflow: hidden;
   font-weight: 800;
+  line-height: 1.1;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.tvp-bz-line {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.8em;
+  font-size: 0.68em;
+  opacity: 0.88;
+}
 .tvp-bz-team {
-  font-size: 0.6em;
-  opacity: 0.75;
+  min-width: 0;
+  overflow: hidden;
+  opacity: 0.85;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .tvp-bz-dev {
   display: inline-flex;
@@ -1179,9 +1364,7 @@
   flex: none;
   align-items: center;
   gap: 0.4em;
-  font-size: 0.72em;
   font-weight: 600;
-  opacity: 0.88;
 }
 .tvp-bz-icon {
   width: 1.2em;
@@ -1193,7 +1376,6 @@
   align-items: center;
   justify-content: flex-end;
   gap: 0.45em;
-  min-width: 5.5em;
   white-space: nowrap;
   font-size: 0.66em;
   font-weight: 700;
@@ -1210,6 +1392,10 @@
 .tvp-fill {
   min-height: 0;
   flex: 1;
+}
+.tvp-settings-fill {
+  display: flex;
+  flex-direction: column;
 }
 .tvp-team-cards.is-few .tvp-tcard {
   gap: 2vh;
@@ -1252,7 +1438,7 @@
 .tvp-set-card {
   padding: 1.6vh 1.3vw;
   border-radius: 1.6vh;
-  background: var(--tvp-surface);
+  background: var(--tvp-item);
   box-shadow: var(--tvp-shadow);
   break-inside: avoid;
 }
@@ -1385,7 +1571,7 @@
   align-items: center;
   gap: 0.6em;
   overflow: hidden;
-  font-size: 0.52em;
+  font-size: 0.64em;
   font-weight: 600;
   opacity: 0.85;
   text-overflow: ellipsis;
@@ -1433,9 +1619,6 @@
 }
 
 /* ---------- Pre-lobby: setup preview before the host opens the lobby (R4-11) ---------- */
-.tvp.no-join .tvp-compact {
-  top: 0;
-}
 .tvp-pre {
   position: absolute;
   inset: 0;
@@ -1547,7 +1730,7 @@
   display: flex;
   height: 100%;
   flex-direction: column;
-  gap: 2.4vh;
+  gap: 0;
 }
 .tvp-h2h-top {
   display: grid;
@@ -1629,28 +1812,25 @@
   opacity: 1;
 }
 
-/* Compact lobby: teams (R5-3.4) */
+/* Compact lobby: teams (R5-3.4) in the corner panel — one per row, two per row when there are more. */
 .tvp-cteams {
-  display: flex;
-  flex-direction: column;
-  gap: 0.7vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.4vh 0.6vw;
+}
+.tvp-cteams.is-two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .tvp-cteam {
   display: flex;
+  min-width: 0;
   align-items: center;
-  gap: 0.7vw;
-  padding: 0.6vh 0.8vw;
-  border-radius: 1vh;
-  background: color-mix(in srgb, var(--pc) 22%, transparent);
-  box-shadow: inset 0.45vh 0 0 var(--pc);
-  font-size: 1.9vh;
-}
-.tvp-cteam-dot {
-  width: 1.3vh;
-  height: 1.3vh;
-  flex: none;
-  border-radius: 50%;
-  background: var(--pc);
+  gap: 0.5vw;
+  padding: 0.3vh 0.6vw 0.3vh 0.8vw;
+  border-radius: 0.9vh;
+  background: color-mix(in srgb, var(--pc, var(--b-fg)) 22%, transparent);
+  box-shadow: inset 0.4vh 0 0 var(--pc, transparent);
+  font-size: 1.65vh;
 }
 .tvp-cteam-name {
   min-width: 0;
@@ -1666,25 +1846,54 @@
   opacity: 0.85;
 }
 .tvp-cteam-more {
-  font-size: 1.7vh;
-  opacity: 0.75;
+  justify-content: center;
+  font-weight: 700;
+  opacity: 0.8;
 }
 
+/* Presented game recap: standings fitted to the content panel. */
+.tvp-band .tvh-kicker {
+  margin-bottom: 0.4vh;
+  text-align: left;
+}
+.tvp-band .tvh-recap-meta {
+  margin: 0.8vh 0 0;
+}
+.tvh-standings.is-fit .tvh-standing {
+  height: var(--row);
+  padding-top: 0;
+  padding-bottom: 0;
+  background: var(--tvp-item);
+  font-size: max(1.9vh, min(2.6vh, calc(var(--row) * 0.34)));
+}
+.tvh-standings.is-fit .tvh-standing.is-winner {
+  background: color-mix(in srgb, var(--b-accent) 18%, var(--tvp-item));
+}
 
 /* R6-13: one-line names clip at their box (overflow: hidden for the ellipsis), which cut off the
    descenders of g j p q y at tight line heights. A bottom padding gives the glyphs room to paint
    and the matching negative margin keeps every layout exactly where it was. */
 .tvp-person-name,
+.tvp-person-name-text,
 .tvp-team-name,
 .tvp-team-member > .truncate,
-.tvp-side-board,
 .tvp-lb-name,
 .tvp-pcard-name,
 .tvp-tcard-name,
+.tvp-member-chip > .truncate,
 .tvp-title,
+.tvp-sub,
 .tvp-list-main,
 .tvp-facts-v,
+.tvp-compact-of,
+.tvp-compact-label,
+.tvp-cteam-name,
+.tvp-bz-name,
+.tvp-bz-team,
+.tvp-h2h-name,
 .tvp-waiting-person,
+.tvh-recap-title,
+.tvh-standing-name > span,
 .bt-name,
 .bt-podium-name > .truncate {
   padding-bottom: 0.16em;

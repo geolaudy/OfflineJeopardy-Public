@@ -98,18 +98,35 @@ function RecentCard({ r, i }: { r: RecentGameCard; i: number }) {
 
 /** A finished game shown from the host's recent games (R5-2.3): final standings. */
 export function Recap({ g }: { g: GameSummaryCard }) {
-  const ctx = useBoard();
-  const rows = g.standings.slice(0, 8);
-  const mins = g.startedAt ? Math.max(1, Math.round((g.endedAt - g.startedAt) / 60000)) : null;
   return (
     <div className="tvh-recap" data-testid="tv-game-recap">
+      <RecapHead g={g} />
+      <RecapStandings g={g} />
+    </div>
+  );
+}
+
+/** Recap heading: kicker, board title and a one-line summary. */
+export function RecapHead({ g }: { g: GameSummaryCard }) {
+  const mins = g.startedAt ? Math.max(1, Math.round((g.endedAt - g.startedAt) / 60000)) : null;
+  return (
+    <div className="tvh-recap-head min-w-0">
       <p className="tvh-kicker">Game recap · {shortDate(g.endedAt)}</p>
       <h1 className="tvh-recap-title">{g.boardTitle}</h1>
       <p className="tvh-recap-meta">
         {g.mode === 'team' ? 'Teams' : 'Individuals'} · {g.cluesPlayed} clues played{mins ? ` · ${mins} min` : ''}
         {g.practice ? ' · Practice game' : ''}
       </p>
-      <ol className="tvh-standings">
+    </div>
+  );
+}
+
+/** Final standings; `rowVh` fixes the row height (the TV's presented page fits them to its panel). */
+export function RecapStandings({ g, rowVh }: { g: GameSummaryCard; rowVh?: number }) {
+  const ctx = useBoard();
+  const rows = g.standings.slice(0, 8);
+  return (
+      <ol className={cx('tvh-standings', rowVh != null && 'is-fit')} style={rowVh ? ({ '--row': `${rowVh}vh` } as CSSProperties) : undefined}>
         {rows.map((s, i) => (
           <motion.li
             key={`${s.name}:${i}`}
@@ -120,7 +137,7 @@ export function Recap({ g }: { g: GameSummaryCard }) {
             transition={{ duration: T.fade, ease: EASE_OUT_ARR, delay: 0.1 + i * 0.07 }}
           >
             <span className="tvh-rank">{s.placement ?? '–'}</span>
-            <Avatar profile={{ name: s.name, color: s.color, avatar: s.avatar, pictureUrl: s.pictureUrl }} size={Math.round(ctx.vh * 0.065)} />
+            <Avatar profile={{ name: s.name, color: s.color, avatar: s.avatar, pictureUrl: s.pictureUrl }} size={Math.round(ctx.vh * (rowVh ? Math.min(0.065, (rowVh * 0.68) / 100) : 0.065))} />
             <span className="tvh-standing-name">
               <span>
                 {s.isWinner && <Crown className="tvh-crown-inline" aria-label="Winner" />}
@@ -135,6 +152,5 @@ export function Recap({ g }: { g: GameSummaryCard }) {
           </motion.li>
         ))}
       </ol>
-    </div>
   );
 }
