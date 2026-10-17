@@ -1,13 +1,14 @@
-// Full-screen public lobby (R2-5): title, board, mode, players (avatars, colours, teams), subtle
-// controller readiness and how to join. The join QR card itself lives in Presenter (it stays
-// mounted and morphs between this screen and the compact panel).
+// Full-screen public lobby (R2-5, R6-7…R6-11): the board as the title, the players in one content
+// panel, and ONE right-hand panel with the join QR + instructions and the game rules. The join QR
+// itself lives in Presenter (it stays mounted and morphs between this screen and the compact
+// panel); this panel leaves room for it in its top-right corner.
 import { useRef, type CSSProperties } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Crown, Flame, Medal, Wifi, ScanLine, UserRound } from 'lucide-react';
 import { Avatar, cx } from '../../components/ui';
 import { avatarEmoji } from '../../lib/avatars';
-import { countLabel, modeLabel, summaryText, type LobbyModel, type LobbyPerson, type LobbyTeam } from './lobbyModel';
-import { DeviceTag, Fade, SharedAvatar, fitCards, useBoxSize } from './presentKit';
+import { boardMeta, boardName, countLabel, modeLabel, summaryText, type LobbyModel, type LobbyPerson, type LobbyTeam } from './lobbyModel';
+import { DeviceTag, Fade, JoinAddress, SharedAvatar, fitCards, useBoxSize, useFitScale } from './presentKit';
 import { COMPACT_AVATARS } from './CompactLobby';
 import { useBoard, vhPx } from './common';
 import { EASE_OUT_ARR, T } from './timing';
@@ -22,122 +23,145 @@ function useKnownKeys(keys: string[]) {
   return ref.current;
 }
 
-export function LobbyFull({ m, morphIn }: { m: LobbyModel; morphIn: boolean }) {
+export function LobbyFull({ m, morphIn, url, roomCode }: { m: LobbyModel; morphIn: boolean; url: string | null; roomCode: string | null }) {
   const ctx = useBoard();
   const known = useKnownKeys([...m.people.map((p) => p.key), ...(m.teams ?? []).map((t) => t.key)]);
   const rosterRef = useRef<HTMLDivElement>(null);
   const box = useBoxSize(rosterRef);
+  const board = boardName(m);
+  const meta = boardMeta(m.board);
+  // The rules shrink a little when they would not fit under the join section (long rule lists).
+  const rulesRef = useRef<HTMLElement>(null);
+  const rulesBox = useBoxSize(rulesRef);
+  const rulesScale = useFitScale(rulesRef, `${JSON.stringify(m.rules)}|${rulesBox.w}x${rulesBox.h}|${roomCode ?? ''}`);
   return (
     <div className="tvp-full" data-testid="tv-lobby-full">
       <div className="tvp-full-main">
-        <Fade className="tvp-head">
-          <p className="tvp-kicker">{m.kicker}</p>
-          <h1 className="tvp-title tvp-title-xl">{m.title}</h1>
-          {m.preparing ? (
+        {m.preparing ? (
+          <Fade className="tvp-head">
+            <p className="tvp-kicker">{m.kicker}</p>
+            <h1 className="tvp-title tvp-title-xl">{m.title}</h1>
             <p className="tvp-status" role="status">
               <i className={cx('tvp-dot', m.hostConnected && 'is-ready')} aria-hidden />
               {m.hostConnected ? 'The host is setting up the game…' : 'Waiting for the host to connect…'}
             </p>
-          ) : (
-            <div className="tvp-chips">
-              {m.boardTitle && <span className="tvp-chip">{m.boardTitle}</span>}
-              <span className="tvp-chip">{modeLabel(m.mode)}</span>
-              <span className="tvp-chip" data-testid="tv-lobby-count">
-                {countLabel(m)}
+          </Fade>
+        ) : (
+          // R6-10: eyebrow "Board", the board's name, then its size; no separate board card.
+          <Fade className="tvp-head" testId="tv-lobby-board">
+            <p className="tvp-kicker">Board</p>
+            <h1 className="tvp-title tvp-title-xl">{board}</h1>
+            <div className="tvp-head-meta">
+              {meta && <span className="tvp-meta">{meta}</span>}
+              <span className="tvp-chips">
+                {m.title !== board && <span className="tvp-chip">{m.title}</span>}
+                <span className="tvp-chip">{modeLabel(m.mode)}</span>
+                <span className="tvp-chip" data-testid="tv-lobby-count">
+                  {countLabel(m)}
+                </span>
+                {m.practice && <span className="tvp-chip is-accent">Practice game</span>}
               </span>
-              {m.practice && <span className="tvp-chip is-accent">Practice game</span>}
             </div>
-          )}
-        </Fade>
+          </Fade>
+        )}
 
-        <div className="tvp-roster" ref={rosterRef}>
-          {m.preparing ? (
-            <Fade className="tvp-empty">
-              <p className="tvp-empty-title">Players can get ready now</p>
-              <p>Scan the code to create or pick your profile. You can join as soon as the host opens the game.</p>
+        <div className="tvp-roster-panel">
+          <Fade className="tvp-panel-bg" />
+          <div className="tvp-roster" ref={rosterRef}>
+            {m.preparing ? (
+              <Fade className="tvp-empty">
+                <p className="tvp-empty-title">Players can get ready now</p>
+                <p>Create or pick your profile on your phone. You can join as soon as the host opens the game.</p>
+              </Fade>
+            ) : m.teams ? (
+              box.w > 0 && <Teams teams={m.teams} known={known} morphIn={morphIn} box={box} maxPerTeam={m.maxPerTeam} />
+            ) : m.people.length ? (
+              box.w > 0 && <People people={m.people} known={known} morphIn={morphIn} box={box} />
+            ) : (
+              <Fade className="tvp-empty">
+                <p className="tvp-empty-title">No players yet</p>
+                <p>Scan the code with your phone to join.</p>
+              </Fade>
+            )}
+          </div>
+
+          {(m.markers.crown || m.markers.leader) && (
+            <Fade className="tvp-legend" testId="tv-lobby-legend">
+              {m.markers.crown && (
+                <span>
+                  <Crown className="tvp-mark is-crown" aria-hidden /> Won the last game
+                </span>
+              )}
+              {m.markers.leader && (
+                <span>
+                  <Medal className="tvp-mark is-leader" aria-hidden /> Most wins here
+                </span>
+              )}
             </Fade>
-          ) : m.teams ? (
-            box.w > 0 && <Teams teams={m.teams} known={known} morphIn={morphIn} box={box} maxPerTeam={m.maxPerTeam} />
-          ) : m.people.length ? (
-            box.w > 0 && <People people={m.people} known={known} morphIn={morphIn} box={box} />
-          ) : (
-            <Fade className="tvp-empty">
-              <p className="tvp-empty-title">No players yet</p>
-              <p>Scan the code with your phone to join.</p>
+          )}
+
+          {m.mode === 'team' && m.waitingPeople.length > 0 && (
+            <Fade className="tvp-waiting" testId="tv-unassigned">
+              <span className="tvp-waiting-label">Not on a team yet</span>
+              <span className="tvp-waiting-people">
+                {m.waitingPeople.map((p, i) => (
+                  <span key={`${p.name}:${i}`} className="tvp-waiting-person">
+                    <Avatar profile={{ name: p.name, color: p.color, avatar: p.avatar, pictureUrl: p.pictureUrl }} size={vhPx(ctx, 3.4)} />
+                    {p.name}
+                    {p.realName && <span className="tvp-real">({p.realName})</span>}
+                  </span>
+                ))}
+              </span>
             </Fade>
           )}
         </div>
-
-        {(m.markers.crown || m.markers.leader) && (
-          <Fade className="tvp-legend" testId="tv-lobby-legend">
-            {m.markers.crown && (
-              <span>
-                <Crown className="tvp-mark is-crown" aria-hidden /> Won the last game
-              </span>
-            )}
-            {m.markers.leader && (
-              <span>
-                <Medal className="tvp-mark is-leader" aria-hidden /> Most wins here
-              </span>
-            )}
-          </Fade>
-        )}
-
-        {m.mode === 'team' && m.waitingPeople.length > 0 && (
-          <Fade className="tvp-waiting" testId="tv-unassigned">
-            <span className="tvp-waiting-label">Not on a team yet</span>
-            <span className="tvp-waiting-people">
-              {m.waitingPeople.map((p, i) => (
-                <span key={`${p.name}:${i}`} className="tvp-waiting-person">
-                  <Avatar profile={{ name: p.name, color: p.color, avatar: p.avatar, pictureUrl: p.pictureUrl }} size={vhPx(ctx, 3.4)} />
-                  {p.name}
-                  {p.realName && <span className="tvp-real">({p.realName})</span>}
-                </span>
-              ))}
-            </span>
-          </Fade>
-        )}
       </div>
 
-      <Fade className="tvp-howto" delay={0.1}>
-        <p className="tvp-howto-title">How to join</p>
-        <ol>
-          <li>
-            <Wifi aria-hidden /> Same Wi-Fi as this computer.
-          </li>
-          <li>
-            <ScanLine aria-hidden /> Scan the code.
-          </li>
-          <li>
-            <UserRound aria-hidden /> Pick your profile{m.preparing ? '' : ' and join'}.
-          </li>
-        </ol>
-      </Fade>
-
-      {!m.preparing && (
-        <div className="tvp-side" data-testid="tv-lobby-side">
-          {m.board && (
-            <Fade className="tvp-side-card" testId="tv-lobby-board">
-              <p className="tvp-side-kicker">Board</p>
-              <p className="tvp-side-board">{m.board.title}</p>
-              <p className="tvp-side-meta">
-                {m.board.rounds} {m.board.rounds === 1 ? 'round' : 'rounds'} · {m.board.clues} clues{m.board.final ? ' · Final Jeopardy!' : ''}
-              </p>
-            </Fade>
+      {/* R6-11: one panel — Join the Game (QR in the corner, steps, address) over the Game Rules. */}
+      <div className="tvp-side" data-testid="tv-lobby-side">
+        <Fade className="tvp-panel-bg" />
+        <Fade className="tvp-side-in">
+          <section className="tvp-join" aria-label="Join the Game">
+            <div className="tvp-join-text">
+              <p className="tvp-side-kicker">Join the Game</p>
+              <ol className="tvp-steps">
+                <li>
+                  <Wifi aria-hidden /> Join this Wi-Fi.
+                </li>
+                {m.preparing ? (
+                  <li>
+                    <ScanLine aria-hidden /> The code appears here when the host opens the game.
+                  </li>
+                ) : (
+                  <>
+                    <li>
+                      <ScanLine aria-hidden /> Scan the code.
+                    </li>
+                    <li>
+                      <UserRound aria-hidden /> Pick your profile and join.
+                    </li>
+                  </>
+                )}
+              </ol>
+            </div>
+            {!m.preparing && <div className="tvp-join-slot" aria-hidden />}
+            <JoinAddress url={m.preparing ? null : url} roomCode={roomCode} className="tvp-join-addr" />
+          </section>
+          {!m.preparing && m.rules.length > 0 && (
+            <section ref={rulesRef} className="tvp-rules-sec" style={{ '--s': rulesScale } as CSSProperties} data-testid="tv-lobby-rules">
+              <p className="tvp-side-kicker">Game Rules</p>
+              <dl>
+                {m.rules.map((r) => (
+                  <div key={r.label}>
+                    <dt>{r.label}</dt>
+                    <dd>{r.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
           )}
-          <Fade className="tvp-side-card tvp-side-rules" testId="tv-lobby-rules">
-            <p className="tvp-side-kicker">Rules</p>
-            <dl>
-              {m.rules.map((r) => (
-                <div key={r.label}>
-                  <dt>{r.label}</dt>
-                  <dd>{r.value}</dd>
-                </div>
-              ))}
-            </dl>
-          </Fade>
-        </div>
-      )}
+        </Fade>
+      </div>
     </div>
   );
 }
@@ -146,13 +170,19 @@ function People({ people, known, morphIn, box }: { people: LobbyPerson[]; known:
   const ctx = useBoard();
   const shown = people.slice(0, people.length > MAX_PEOPLE ? MAX_PEOPLE - 1 : MAX_PEOPLE);
   const more = people.length - shown.length;
-  // Size the cards from the space available, so 1 or 30 players fill it at any aspect ratio.
-  const gap = ctx.vh * 0.014;
-  const fit = fitCards(shown.length + (more ? 1 : 0), box, { gap, maxH: ctx.vh * 0.15, minRatio: 2.5, maxCols: 5 });
-  const cardH = Math.max(ctx.vh * 0.05, fit.cardH);
-  const name = Math.min(cardH * 0.3, fit.cardW * 0.085);
+  // R6-7: cards about 60 % of their former size (at most 9 % of the screen height) so more fit;
+  // sized from the space available, so 1 or 30 players fill it at any aspect ratio. Text keeps a
+  // readable minimum instead of shrinking with the card.
+  const gap = ctx.vh * 0.012;
+  const fit = fitCards(shown.length + (more ? 1 : 0), box, { gap, maxH: ctx.vh * 0.088, minRatio: 2.3, maxCols: 6, idealRatio: 3.4 });
+  const cardH = Math.max(ctx.vh * 0.055, fit.cardH);
+  // Few players: cards keep their proportions instead of stretching across the screen.
+  const maxW = Math.max(cardH * 3.6, ctx.vh * 0.3);
+  const cardW = Math.min(fit.cardW, maxW);
+  const name = Math.max(ctx.vh * 0.019, Math.min(ctx.vh * 0.027, cardH * 0.3, cardW * 0.098));
+  const col = fit.cardW > maxW ? `${Math.floor(maxW)}px` : 'minmax(0, 1fr)';
   return (
-    <div className="tvp-people" style={{ gridTemplateColumns: `repeat(${fit.cols}, minmax(0, 1fr))`, gridAutoRows: `${cardH}px`, '--name': `${name}px` } as CSSProperties}>
+    <div className="tvp-people" style={{ gridTemplateColumns: `repeat(${fit.cols}, ${col})`, gridAutoRows: `${cardH}px`, gap: `${gap}px`, '--name': `${name}px` } as CSSProperties}>
       <AnimatePresence propagate>
         {shown.map((p, i) => (
           <PersonCard key={p.key} p={p} av={cardH * 0.62} isNew={!known.has(p.key)} animateAvatar={morphIn && i >= COMPACT_AVATARS - 1 && known.has(p.key)} />
@@ -244,7 +274,7 @@ function Teams({ teams, known, morphIn, box, maxPerTeam }: { teams: LobbyTeam[];
   const rowsOfTeams = Math.ceil(teams.length / cols);
   // Member line height from the space each team card gets (card chrome is about 9vh).
   const perTeamVh = ((box.h / ctx.vh) * 100 - (rowsOfTeams - 1) * 1.6) / rowsOfTeams;
-  const lineVh = Math.max(2.4, Math.min(5.4, (perTeamVh - 9) / (most * 1.2)));
+  const lineVh = Math.max(2.4, Math.min(4.6, (perTeamVh - 9) / (most * 1.2)));
   let index = 0;
   return (
     <div className="tvp-teams" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
