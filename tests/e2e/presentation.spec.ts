@@ -59,7 +59,7 @@ test('score labels, the Final swipe and the podium with places 4+', async () => 
   await expect(tv.getByTestId('scoreboard')).toBeVisible();
   const podium = (n: string) => tv.getByTestId('podium').filter({ hasText: n });
 
-  // ---- R5-7: a right answer shows "+$400" beside the score, a wrong one "−$200" ----
+  // ---- R6-5: a right answer shows "+$400" in the score box, then the total; a wrong one "−$200" ----
   await h.act({ type: 'selectClue', clueId: 'hist_2' });
   await h.act({ type: 'unlockBuzzers' });
   await h.act({ type: 'hostBuzz', competitorId: A });
@@ -68,8 +68,9 @@ test('score labels, the Final swipe and the podium with places 4+', async () => 
   await expect(avaDelta).toHaveText('+$400');
   await expect(avaDelta).toHaveAttribute('data-dir', 'up');
   await shot(tv, 'score-delta');
-  await expect(avaDelta).toHaveCount(0, { timeout: 4000 }); // fades away
-  await expect(podium('Ava Podium').getByTestId('score')).toHaveText('400');
+  await expect(podium('Ava Podium').getByTestId('score')).toHaveText('+$400'); // replaces the score
+  await expect(avaDelta).toHaveCount(0, { timeout: 4000 }); // then the new total
+  await expect(podium('Ava Podium').getByTestId('score')).toHaveText('$400');
   await h.act({ type: 'closeClue' }).catch(() => {});
   await h.act({ type: 'selectClue', clueId: 'hist_1' });
   await h.act({ type: 'unlockBuzzers' });
@@ -108,9 +109,9 @@ test('score labels, the Final swipe and the podium with places 4+', async () => 
   await expect(tv.getByTestId('tv-final-answer')).toHaveText('Budapest');
   await expect(final).toHaveAttribute('data-swipe-seq', '1'); // reveal steps do not swipe
   await h.act({ type: 'judgeFinal', competitorId: C, correct: true });
-  await expect(tv.getByTestId('tv-final-verdict')).toContainText('700');
   await expect(tv.getByTestId('tv-final-verdict').getByTestId('score-delta')).toHaveText('+$300');
   await shot(tv, 'final-verdict');
+  await expect(tv.getByTestId('tv-final-verdict')).toHaveText('$700'); // then the new total
   await h.act({ type: 'finalReveal' }); // next contestant: Ben
   await expect(final).toHaveAttribute('data-swipe-seq', '2');
   await tv.waitForTimeout(250);

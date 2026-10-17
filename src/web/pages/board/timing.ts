@@ -16,10 +16,10 @@ export const T = {
   /** Board fill-in after the introduction: per-tile fade and the total stagger window. */
   fillTile: 0.28,
   fillSpread: 0.85,
-  /** Score change pop: slight scale-up + gain/loss colour, smooth return (R5-7). */
-  scoreFlash: 0.5,
-  /** "+$400" / "−$400" next to a changed score: fade in, hold, fade away (R5-7). */
-  scoreDelta: 1.6,
+  /** R6-6: how long a score box shows "+$400" / "−$400" before the new total, and the quick
+   *  fade/scale each of the two values enters with. */
+  scoreDelta: 1.3,
+  scoreSwapIn: 0.22,
   /** Results podium (R5-10): each step rising, the gap between steps (3rd → 2nd → 1st), then
    *  names / scores fading in. */
   podiumRise: 0.6,

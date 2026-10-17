@@ -10,9 +10,9 @@ import { finalEntryReveal } from '../../../shared/game';
 import { Avatar, cx, fmtScore } from '../../components/ui';
 import { playCue } from '../../lib/sound';
 import { competitorAvatar, competitorColor, competitorName, findCompetitor } from '../../lib/view';
-import { FitText, useBoard, useScoreChange } from './common';
+import { FitText, useBoard } from './common';
 import { TimerBar } from './TimerBar';
-import { ScoreDelta } from './ScoreDelta';
+import { ScoreSwap } from './ScoreDelta';
 import { SwipeStage, useSwipe, useTestId } from './Swipe';
 import { finalScreenKey, finalTransition } from './finalSwipe';
 import { EASE_OUT_ARR, T } from './timing';
@@ -98,9 +98,8 @@ function Spotlight({ g }: { g: GameView }) {
   const shown = finalEntryReveal(f, id);
   const pre = f.preScores[id] ?? 0;
   const result = e?.judged ? pre + (e.correct ? 1 : -1) * (e.wager ?? 0) : pre;
-  // A judgment made while this screen is up shows "+$/−$wager" (R5-7); one this TV loaded with
-  // does not animate.
-  const change = useScoreChange(result);
+  // A judgment made while this screen is up shows "+$/−$wager" in the score box, then the new
+  // total (R6-5); one this TV loaded with does not animate.
   const [judgedAtLoad] = useState(() => !!e?.judged);
   if (!e || !c) return <div className="flex-1" />;
   const color = competitorColor(c, g);
@@ -154,11 +153,11 @@ function Spotlight({ g }: { g: GameView }) {
               initial={judgedAtLoad ? false : { scale: 0.6, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ duration: T.fade }}
-              className={cx('bt-final-verdict', e.correct ? 'is-right' : 'is-wrong')}
+              className="bt-final-verdict"
               data-testid={tid('tv-final-verdict')}
+              data-correct={e.correct ? 'true' : 'false'}
             >
-              {e.correct ? '✓' : '✗'} <span className="tabular-nums">{fmtScore(result)}</span>
-              <ScoreDelta change={change} />
+              <ScoreSwap score={result} from={judgedAtLoad ? undefined : pre} />
             </motion.div>
           )}
         </div>

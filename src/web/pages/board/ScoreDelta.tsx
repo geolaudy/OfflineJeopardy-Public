@@ -1,13 +1,19 @@
-// "+$400" / "−$400" beside a score that just changed (R5-7). One system for every score change on
-// the TV: regular clues, Daily Double! and Final Jeopardy!. The parent positions it (relative);
-// it fades in, holds and fades away, then unmounts.
+// One system for every score change on the TV (R6-5, replacing the R5-7 side label): the score box
+// briefly shows the change itself — "+$600" in green or "−$600" in red, centred, in the money font —
+// and then the new total. Regular clues, Daily Double! and Final Jeopardy! all use it.
+//
+// - The authoritative score is the prop; this only decides what the box shows for a moment.
+// - A change arriving while another is still shown restarts the swap with the newest change, so
+//   animations never overlap and the total that follows is always the current one.
+// - A TV that loads mid-game (or the same value arriving again) shows the total, no animation.
 import { useEffect, useState, type CSSProperties } from 'react';
 import { cx } from '../../components/ui';
-import { deltaText, useBoard } from './common';
+import { deltaText, money, useBoard, useScoreChange } from './common';
 import { T } from './timing';
 
-export function ScoreDelta({ change, className }: { change: { delta: number; n: number } | null; className?: string }) {
+export function ScoreSwap({ score, from, className, animate = true }: { score: number; from?: number; className?: string; animate?: boolean }) {
   const { prefix } = useBoard();
+  const change = useScoreChange(score, from);
   const [doneN, setDoneN] = useState(0);
   const n = change?.n ?? 0;
   useEffect(() => {
@@ -15,20 +21,19 @@ export function ScoreDelta({ change, className }: { change: { delta: number; n: 
     const id = setTimeout(() => setDoneN(n), T.scoreDelta * 1000);
     return () => clearTimeout(id);
   }, [n]);
-  if (!change || change.delta === 0 || doneN >= change.n) return null;
-  const up = change.delta > 0;
+  const showing = animate && change && change.delta !== 0 && doneN < change.n ? change : null;
   return (
-    <span
-      key={change.n}
-      className={cx('bt-delta', up ? 'is-up' : 'is-down', className)}
-      style={{ '--bt-delta': `${T.scoreDelta}s` } as CSSProperties}
-      data-testid="score-delta"
-      data-dir={up ? 'up' : 'down'}
-      aria-hidden
-    >
-      {/* The sign gets its own, larger glyph so "+" / "−" read clearly at TV distance. */}
-      <span className="bt-delta-sign">{deltaText(prefix, change.delta).charAt(0)}</span>
-      {deltaText(prefix, change.delta).slice(1)}
+    <span className={cx('bt-swap', className)} style={{ '--bt-swap-in': `${T.scoreSwapIn}s` } as CSSProperties}>
+      {showing ? (
+        <span key={`d${showing.n}`} className={cx('bt-swap-v bt-delta', showing.delta > 0 ? 'is-up' : 'is-down')} data-testid="score-delta" data-dir={showing.delta > 0 ? 'up' : 'down'}>
+          {deltaText(prefix, showing.delta)}
+        </span>
+      ) : (
+        // Keyed by the change count: the new total fades in after a change, never on load.
+        <span key={`s${n}`} className={cx('bt-swap-v', n > 0 && animate && 'is-settle', score < 0 && 'is-neg')} data-testid="score-value">
+          {money(prefix, score)}
+        </span>
+      )}
     </span>
   );
 }

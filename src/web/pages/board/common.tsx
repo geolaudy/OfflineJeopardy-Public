@@ -69,8 +69,9 @@ export function deltaText(prefix: string, delta: number) {
  * loads mid-game) is never a change; the same value arriving again (duplicate state, reconnect)
  * is not either. `n` increases with every change so one-shot animations can restart.
  */
-export function useScoreChange(score: number) {
-  const [last, setLast] = useState(score);
+export function useScoreChange(score: number, from?: number) {
+  // `from`: the value before a change that happened as this element appeared (Final verdict).
+  const [last, setLast] = useState(from ?? score);
   const [change, setChange] = useState<{ delta: number; n: number } | null>(null);
   if (score !== last) {
     setLast(score);

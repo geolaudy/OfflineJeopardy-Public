@@ -3,7 +3,7 @@
 // with a swipe (R6-6); timers have no label and leave the TV at zero (R6-12); one highlight per
 // score box, the buzz-in replacing the picker ring (R6-3); no new-round sound under the Final (R6-4).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import { MotionConfig } from 'motion/react';
 import type { ReactNode } from 'react';
 import type { GameView, FinalView, CompetitorView, ProfilePublic } from '../../src/shared/views';
@@ -145,5 +145,61 @@ describe('Sound cues on state changes (R6-4)', () => {
   });
   it('a new standard round still plays the new-round cue', () => {
     expect(transitionCues(v({}), v({ roundIndex: 1 }))).toContain('roundEnd');
+  });
+});
+
+describe('Score changes inside the score box (R6-5)', () => {
+  const g = (a: number) => game({ phase: 'board', competitors: [player('a', 'Ann', a), player('b', 'Bob', 600)] });
+  it('the box shows +$600 instead of the score, then the new total; nothing beside it', () => {
+    vi.useFakeTimers();
+    try {
+      const view = render(<Scoreboard g={g(2400)} />, { wrapper: wrap() });
+      const box = () => screen.getAllByTestId('score')[0];
+      expect(box().textContent).toBe('$2,400');
+      view.rerender(<Scoreboard g={g(3000)} />);
+      expect(box().textContent).toBe('+$600'); // replaced, not added beside
+      expect(box().dataset.score).toBe('3000'); // the authoritative value is already the new one
+      expect(screen.getByTestId('score-delta').className).toContain('is-up');
+      act(() => void vi.advanceTimersByTime(1400));
+      expect(box().textContent).toBe('$3,000');
+      view.rerender(<Scoreboard g={g(2400)} />);
+      expect(box().textContent).toBe('−$600');
+      expect(screen.getByTestId('score-delta').className).toContain('is-down');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it('rapid changes never overlap and end on the current total', () => {
+    vi.useFakeTimers();
+    try {
+      const view = render(<Scoreboard g={g(0)} />, { wrapper: wrap() });
+      view.rerender(<Scoreboard g={g(400)} />);
+      act(() => void vi.advanceTimersByTime(500));
+      view.rerender(<Scoreboard g={g(-200)} />); // a correction mid-animation
+      expect(screen.getAllByTestId('score-delta')).toHaveLength(1);
+      expect(screen.getByTestId('score-delta').textContent).toBe('−$600');
+      act(() => void vi.advanceTimersByTime(1000)); // the first change's timer must not end the second early
+      expect(screen.getByTestId('score-delta').textContent).toBe('−$600');
+      act(() => void vi.advanceTimersByTime(400));
+      expect(screen.getAllByTestId('score')[0].textContent).toBe('−$200');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it('the Final verdict: the wager as a change, then the total — no green/red pill', () => {
+    vi.useFakeTimers();
+    try {
+      const entry = (judged: boolean) => ({ competitorId: 'a', hasWager: true, hasAnswer: true, submitted: true, wager: 150, answer: 'Buda', judged, correct: judged ? true : null, profileId: 'p-a' });
+      const shown = (judged: boolean) => game({ final: final({ stage: 'reveal', step: 'answer', entries: [entry(judged), final().entries[1]] }) });
+      const view = render(<FinalScreen g={shown(false)} />, { wrapper: wrap() });
+      view.rerender(<FinalScreen g={shown(true)} />);
+      const verdict = screen.getByTestId('tv-final-verdict');
+      expect(verdict.textContent).toBe('+$150');
+      expect(verdict.className).not.toMatch(/is-right|is-wrong/);
+      act(() => void vi.advanceTimersByTime(1400));
+      expect(screen.getByTestId('tv-final-verdict').textContent).toBe('$350');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

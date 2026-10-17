@@ -582,59 +582,20 @@
   font-variant-numeric: tabular-nums;
   text-shadow: var(--bt-text-shadow);
 }
-.bt-podium-score.is-neg {
+/* R6-5: the score box shows the change ("+$600" green / "−$600" red) in place of the total for a
+   moment, then the new total — same money font and size, centred, the box never changes size. */
+.bt-swap {
+  display: block;
+  white-space: nowrap;
+}
+.bt-swap-v {
+  display: inline-block;
+}
+.bt-swap-v.is-neg {
   color: #ff7a6b;
 }
-.bt-score-wrap {
-  position: relative;
-  display: inline-block;
-}
-.bt-score-num {
-  display: inline-block;
-}
-/* R5-7: short pop: eases up to a slight scale in the gain / loss colour, then settles back. */
-.bt-flash-up .bt-score-num {
-  animation: bt-flash-up var(--bt-flash, 0.5s) cubic-bezier(0.22, 0.61, 0.36, 1);
-}
-.bt-flash-down .bt-score-num {
-  animation: bt-flash-down var(--bt-flash, 0.5s) cubic-bezier(0.22, 0.61, 0.36, 1);
-}
-@keyframes bt-flash-up {
-  0% { transform: scale(1); }
-  32% { transform: scale(1.12); color: var(--bt-gain); }
-  62% { color: var(--bt-gain); }
-  100% { transform: scale(1); }
-}
-@keyframes bt-flash-down {
-  0% { transform: scale(1); }
-  32% { transform: scale(1.12); color: var(--bt-loss); }
-  62% { color: var(--bt-loss); }
-  100% { transform: scale(1); }
-}
-/* "+$400" / "-$400" beside the changed amount: same money font, a little smaller. */
 .bt-delta {
-  position: absolute;
-  top: 50%;
-  left: 100%;
-  margin-left: 0.4em;
-  translate: 0 -50%;
-  font-family: var(--bt-money-font);
-  font-weight: var(--bt-heavy);
-  font-size: 0.66em;
-  line-height: 1;
-  letter-spacing: 0.01em;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  text-shadow: var(--bt-text-shadow);
-  pointer-events: none;
-  animation: bt-delta var(--bt-delta, 1.6s) ease-out both;
-}
-.bt-delta-sign {
-  display: inline-block;
-  margin-right: 0.05em;
-  font-size: 1.32em;
-  line-height: 0;
-  vertical-align: -0.06em;
+  animation: bt-swap-in var(--bt-swap-in, 0.22s) cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
 .bt-delta.is-up {
   color: var(--bt-gain);
@@ -642,24 +603,16 @@
 .bt-delta.is-down {
   color: var(--bt-loss);
 }
-@keyframes bt-delta {
-  0% { opacity: 0; transform: translateX(-0.35em); }
-  14% { opacity: 1; transform: none; }
-  70% { opacity: 1; }
-  100% { opacity: 0; }
+.bt-swap-v.is-settle {
+  animation: bt-swap-settle var(--bt-swap-in, 0.22s) ease-out both;
 }
-/* Narrow podiums (many contestants, 4:3): the label floats above the score instead. */
-@container (max-width: 30vh) {
-  .bt-podium-score .bt-delta {
-    top: auto;
-    bottom: 100%;
-    left: 50%;
-    margin: 0 0 0.2em;
-    padding: 0.08em 0.4em;
-    translate: -50% 0;
-    border-radius: 999px;
-    background: rgba(0, 0, 0, 0.7);
-  }
+@keyframes bt-swap-in {
+  0% { opacity: 0; transform: scale(0.82); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes bt-swap-settle {
+  0% { opacity: 0; transform: translateY(0.12em); }
+  100% { opacity: 1; transform: none; }
 }
 .bt-control {
   color: var(--b-accent);
@@ -910,20 +863,17 @@
 }
 .bt-final-verdict {
   position: relative;
+  min-width: 24vh;
   padding: 0.6vh 2.4vh;
-  border-radius: 999px;
+  border-radius: calc(var(--b-radius) * 0.6);
+  background: var(--bt-podium-score);
   font-family: var(--bt-money-font);
   font-weight: var(--bt-heavy);
   font-size: 4.4vh;
-}
-.bt-final-verdict .bt-delta {
-  margin-left: 0.9em;
-}
-.bt-final-verdict.is-right {
-  background: rgba(10, 120, 50, 0.85);
-}
-.bt-final-verdict.is-wrong {
-  background: rgba(150, 20, 20, 0.85);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  text-shadow: var(--bt-text-shadow);
 }
 .bt-results {
   display: flex;
@@ -1126,30 +1076,27 @@
   text-transform: uppercase;
 }
 
-@keyframes bt-delta-fade {
+@keyframes bt-swap-fade {
   0% { opacity: 0; }
-  12% { opacity: 1; }
-  70% { opacity: 1; }
-  100% { opacity: 0; }
+  100% { opacity: 1; }
 }
+/* Reduced motion: the values simply fade (no scale / movement). */
 @media (prefers-reduced-motion: reduce) {
   .bt-fill,
-  .is-in .bt-dw-title,
-  .bt-flash-up .bt-score-num,
-  .bt-flash-down .bt-score-num {
+  .is-in .bt-dw-title {
     animation: none;
   }
-  .bt-delta {
-    animation-name: bt-delta-fade;
+  .bt-delta,
+  .bt-swap-v.is-settle {
+    animation-name: bt-swap-fade;
   }
 }
-.reduce-motion .is-in .bt-dw-title,
-.reduce-motion .bt-flash-up .bt-score-num,
-.reduce-motion .bt-flash-down .bt-score-num {
+.reduce-motion .is-in .bt-dw-title {
   animation: none;
 }
-.reduce-motion .bt-delta {
-  animation-name: bt-delta-fade;
+.reduce-motion .bt-delta,
+.reduce-motion .bt-swap-v.is-settle {
+  animation-name: bt-swap-fade;
 }
 
 /* ---------- Board intro: checker reveal (R2-23) ---------- */

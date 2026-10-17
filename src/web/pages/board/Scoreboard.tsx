@@ -1,12 +1,11 @@
 // Podium-style score strip along the bottom of the TV. No layout animations (they measure on every
-// render); score changes get a brief one-shot pop and a "+$400" / "−$400" label instead (R5-7).
+// render); a score change briefly shows "+$400" / "−$400" in the score box itself (R6-5).
 import type { CSSProperties } from 'react';
 import type { CompetitorView, GameView } from '../../../shared/views';
-import { Avatar, Lives, cx, fmtScore } from '../../components/ui';
+import { Avatar, Lives, cx } from '../../components/ui';
 import { competitorAvatar, competitorColor, competitorHighlight, competitorName, profileName } from '../../lib/view';
-import { useBoard, useScoreChange, vhPx } from './common';
-import { ScoreDelta } from './ScoreDelta';
-import { T } from './timing';
+import { useBoard, vhPx } from './common';
+import { ScoreSwap } from './ScoreDelta';
 
 export function Scoreboard({ g }: { g: GameView }) {
   const early = new Set(g.phase === 'clue' && g.clue ? g.buzzer.early.map((e) => e.competitorId) : []);
@@ -48,20 +47,9 @@ function Podium({ c, g, highlight, early }: { c: CompetitorView; g: GameView; hi
 }
 
 function Score({ score }: { score: number }) {
-  const change = useScoreChange(score);
   return (
-    <div
-      className={cx('bt-podium-score', score < 0 && 'is-neg', change && (change.delta > 0 ? 'bt-flash-up' : 'bt-flash-down'))}
-      style={{ '--bt-flash': `${T.scoreFlash}s` } as CSSProperties}
-      data-testid="score"
-    >
-      <span className="bt-score-wrap">
-        {/* Re-keyed on change so the one-shot pop restarts. */}
-        <span key={change?.n ?? 0} className="bt-score-num">
-          {fmtScore(score)}
-        </span>
-        <ScoreDelta change={change} />
-      </span>
+    <div className="bt-podium-score" data-testid="score" data-score={score}>
+      <ScoreSwap score={score} />
     </div>
   );
 }

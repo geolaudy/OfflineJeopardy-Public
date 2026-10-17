@@ -1,5 +1,5 @@
 // Phone buzzer + current game participation.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { send, useLive } from '../../lib/socket';
 import { Avatar, Button, Lives, cx, fmtScore, inputCls } from '../../components/ui';
 import { competitorName, findCompetitor, profileName, useTimerSeconds } from '../../lib/view';
@@ -29,6 +29,7 @@ export default function PlayTab({ me }: { me: Me }) {
   const myCheck = useLive((s) => s.myCheck);
   const [pressed, setPressed] = useState(false);
   const [, force] = useState(0);
+  const lastSent = useRef(-Infinity);
   // Re-render once when the "Too early" flash should disappear.
   useEffect(() => {
     if (!lastBuzz || lastBuzz.info !== 'early') return;
@@ -69,40 +70,38 @@ export default function PlayTab({ me }: { me: Me }) {
   const myComp = findCompetitor(g, ctx.competitorId)!;
   const winner = g.buzzer.winner;
   const iWon = winner && (winner.profileId === me.id || (myComp.kind === 'team' && winner.competitorId === myComp.id));
+  // R6-14: pointerdown (no click delay), instant local press feedback that never claims the win,
+  // and one message per press — a second press within 300 ms (finger bounce) is not sent.
   const buzz = () => {
+    const now = performance.now();
+    if (now - lastSent.current < 300) return;
+    lastSent.current = now;
     unlockAudio();
     setPressed(true);
-    setTimeout(() => setPressed(false), 200);
-    navigator.vibrate?.(40);
+    setTimeout(() => setPressed(false), 180);
+    navigator.vibrate?.(30);
     send({ t: 'buzz' });
   };
 
   const earlyFlash = !!lastBuzz && lastBuzz.info === 'early' && Date.now() - lastBuzz.at < 2000;
-  let label = 'BUZZ';
-  let tone = 'bg-slate-300 text-slate-600';
+  const look = buzzerLook(ctx, !!iWon, earlyFlash);
   let sub = REASONS[ctx.buzzReason ?? ''] ?? '';
   if (ctx.canBuzz) {
-    tone = 'bg-red-600 text-white shadow-[0_10px_0_#7f1d1d]';
-    sub = 'Tap to buzz in!';
+    sub = 'Tap anywhere on the buzzer!';
   } else if (ctx.buzzReason === 'locked-out') {
-    tone = 'bg-amber-400 text-amber-950';
-    label = 'WAIT';
     sub = ctx.lockedUntil != null && ctx.lockedUntil >= CLUE_LOCKOUT ? 'You buzzed too early — you are out for this clue' : 'Too early! Locked for a moment…';
   } else if (ctx.canPress) {
-    // Buzzers not open yet: the button is live (early presses count, like a real buzzer) but dimmed.
-    tone = 'bg-red-900/80 text-red-100 shadow-[0_10px_0_#450a0a]';
     sub = earlyFlash ? 'Too early! Wait for the host to open the buzzers.' : REASONS.locked;
   } else if (iWon) {
-    label = "YOU'RE IN!";
-    tone = 'bg-green-600 text-white';
     sub = myComp.kind === 'team' && winner?.profileId && winner.profileId !== me.id ? `${profileName(g.profiles[winner.profileId])} buzzed for your team` : 'Answer now!';
   } else if (winner) {
     const wc = findCompetitor(g, winner.competitorId);
     sub = `${competitorName(wc, g)} buzzed first`;
   }
+  const buzzing = !(g.phase === 'final' && g.final) && !ctx.dailyWager;
 
   return (
-    <div className="space-y-4">
+    <div className={cx(buzzing ? 'flex flex-1 flex-col gap-3' : 'space-y-4')} data-testid="play-view">
       <ColorChoice />
       <div className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm">
         <Avatar profile={myComp.kind === 'team' ? { name: myComp.name, color: myComp.color, avatar: myComp.avatar ?? 'shield', pictureUrl: null } : { ...me, color: ctx.color?.current ?? me.color }} size={40} />
@@ -133,24 +132,26 @@ export default function PlayTab({ me }: { me: Me }) {
               {g.clue.categoryName} · {g.clue.isDailyWager ? 'Daily Double!' : g.clue.value}
             </p>
           )}
-          <div className="flex justify-center py-4">
-            <button
-              onPointerDown={ctx.canPress ? buzz : undefined}
-              onContextMenu={(e) => e.preventDefault()}
-              disabled={!ctx.canPress}
-              className={cx(
-                'flex size-[min(16rem,42dvh)] items-center justify-center rounded-full text-4xl font-black transition-transform duration-100 select-none [-webkit-touch-callout:none] [touch-action:manipulation]',
-                tone,
-                pressed && 'translate-y-1.5 scale-[0.97]',
-                ctx.canBuzz && 'pulse-ring [--halo:#ef4444]',
-              )}
-              aria-label="Buzz"
-              data-state={ctx.canBuzz ? 'open' : ctx.canPress ? 'armed' : 'off'}
-              data-testid="buzzer"
-            >
-              {label}
-            </button>
-          </div>
+          {/* R6-14: one big rounded rectangle filling the section. Red = locked, yellow = open,
+              green = the server says you won. touch-action: none keeps a fast tap from scrolling
+              or zooming; no text selection or callout on long press. */}
+          <button
+            onPointerDown={ctx.canPress ? buzz : undefined}
+            onContextMenu={(e) => e.preventDefault()}
+            disabled={!ctx.canPress}
+            className={cx(
+              'relative flex min-h-[13rem] w-full flex-1 flex-col items-center justify-center gap-2 rounded-[2rem] px-4 font-black transition-[transform,filter] duration-75 select-none [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] [touch-action:none] disabled:cursor-default',
+              look.tone,
+              pressed && 'scale-[0.985] brightness-90',
+            )}
+            aria-label={`Buzzer: ${look.text}`}
+            data-state={ctx.canBuzz ? 'open' : ctx.canPress ? 'armed' : 'off'}
+            data-color={look.color}
+            data-testid="buzzer"
+          >
+            <span className="text-[clamp(2.5rem,12vw,4.5rem)] leading-none tracking-wide">{look.label}</span>
+            <span className="text-base font-bold opacity-90 sm:text-lg">{look.text}</span>
+          </button>
           <p className="text-center text-lg font-semibold" role="status" data-testid="buzz-status">
             {sub}
           </p>
@@ -204,6 +205,15 @@ function ColorChoice() {
       </button>
     </div>
   );
+}
+
+/** R6-14: the buzzer's colour and words. Colour is never the only signal: every state has a label. */
+export function buzzerLook(ctx: { canBuzz: boolean; canPress?: boolean; buzzReason?: string | null }, iWon: boolean, earlyFlash: boolean): { color: 'red' | 'yellow' | 'green'; label: string; text: string; tone: string } {
+  if (iWon) return { color: 'green', label: "YOU'RE IN!", text: 'Buzzed in', tone: 'bg-green-600 text-white shadow-[0_8px_0_#14532d]' };
+  if (ctx.canBuzz) return { color: 'yellow', label: 'BUZZ!', text: 'Unlocked', tone: 'bg-yellow-400 text-yellow-950 shadow-[0_8px_0_#a16207]' };
+  const red = 'bg-red-600 text-white shadow-[0_8px_0_#7f1d1d]';
+  if (ctx.buzzReason === 'locked-out' || earlyFlash) return { color: 'red', label: 'TOO EARLY', text: 'Locked', tone: red };
+  return { color: 'red', label: 'LOCKED', text: 'Wait for the host', tone: red };
 }
 
 function TimerLine() {

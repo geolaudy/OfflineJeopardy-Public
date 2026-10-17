@@ -142,6 +142,8 @@ test('full game: iPad host pairing, phone profiles + buzzing, private answers, l
   await expect(ipad.getByTestId('host-winner')).toHaveText('Sam');
   await expect(android.getByTestId('buzz-status')).toHaveText('Answer now!');
   await expect(iphone.getByTestId('buzz-status')).toHaveText('Sam buzzed first');
+  await android.screenshot({ path: 'test-results/screens/android-buzzer-won.png' });
+  await iphone.screenshot({ path: 'test-results/screens/iphone-buzzer-lost.png' });
 
   // Timer synchronised on TV and host
   await expect(tv.getByRole('timer')).toBeVisible();

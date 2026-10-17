@@ -249,7 +249,8 @@ function Portal({ me, setMe, signOut }: { me: Me; setMe: (m: Me) => void; signOu
         {profileName(me)}
       </span>
       <main className="scroll-area min-h-0 flex-1" id="portal-main">
-        <div className={cx('mx-auto pt-4 pb-[max(env(safe-area-inset-bottom),24px)] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]', page.path.startsWith('/join/leaderboard') ? 'max-w-2xl' : 'max-w-xl')}>
+        {/* The buzzer page fills the screen height (R6-14: the buzzer takes the free space). */}
+        <div className={cx('mx-auto pt-4 pb-[max(env(safe-area-inset-bottom),24px)] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]', page.path.startsWith('/join/leaderboard') ? 'max-w-2xl' : 'max-w-xl', page.path === '/join' && 'flex min-h-full flex-col')}>
           <Suspense fallback={<p className="text-slate-500">Loading…</p>}>
             <Routes>
               <Route index element={<PlayTab me={me} />} />
