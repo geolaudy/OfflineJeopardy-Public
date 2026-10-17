@@ -2,9 +2,12 @@
 
 ## Session 8 (2026-10-17) — round 6, stopped at the usage limit
 
-- `main` = origin/main (last commit 8806710): round-6 milestones A, B, D, E, F done and tested (Vitest 267, round6/host specs pass; full Playwright 38/38 after F).
-- **Milestone C (TV lobby/menu layout, R6-7…R6-11) is NOT merged.** A frontend agent worked on it in the worktree `.claude/worktrees/agent-a2b32342d6c9018bf` (branch `worktree-agent-a2b32342d6c9018bf`) and was stopped before reporting — inspect `git -C .claude/worktrees/agent-a2b32342d6c9018bf status/log`, finish, test (E2E_PORT=3240), merge.
-- `CHANGELOG.md` has an **uncommitted** v0.11.0 draft (its TV-layout bullet assumes C). After C: bump package.json to 0.11.0, `npm run release:local`, full Playwright, commit, push, tag v0.11.0 (windows-release skill). The GitHub API check of the release needs the owner (credential access was blocked).
+- **All round-6 milestones (A–F) are done, merged and tested**; `main` pushed to origin. Version **0.11.0**, tag `v0.11.0` pushed (GitHub Actions publishes the release).
+- Tests: tsc clean, Vitest 273/273, Playwright 41/41, verify-dist 17/17.
+- Local artifacts (include the owner's sounds — personal use only, never upload): `release/OfflineJeopardy-Setup-0.11.0.exe`, `release/OfflineJeopardy-Portable-0.11.0.exe`, `release/win-unpacked/`.
+- **Owner to check:** the GitHub release page for v0.11.0 has the installer, portable exe and SHA256SUMS.txt (the API check is blocked here). On real devices: fair buzzing with real phones on Wi-Fi (K35), TV swipe smoothness on the TV PC (K36), the new phone buzzer on real phones (K37), the new TV lobby layout on the TV.
+- The milestone-C worktree `.claude/worktrees/agent-a2b32342d6c9018bf` is merged and can be removed.
+- Read FEATURE_MATRIX "User feedback round 6" for per-item status.
 
 
 Read this first in a new session, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 4".

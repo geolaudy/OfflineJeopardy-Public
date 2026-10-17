@@ -4,6 +4,34 @@ All notable changes to OfflineJeopardy. Versions follow [semantic versioning](ht
 GitHub Releases (with the Windows installer and portable exe) are published for major milestones;
 their notes come from the matching section below (`scripts/release-notes.mjs`).
 
+## [0.11.0] — 2026-10-17
+
+### New Features
+- **Fairer buzzing on phones**: the game computer measures each phone's connection all the time and corrects for Wi-Fi delay (at most 50 ms), waiting a few milliseconds (never more than 60 ms) so a player on slower Wi-Fi who pressed first still wins. Joy-Cons keep working as before. Host → Rules → Advanced rules → "Who buzzed first" switches between Fair timing, Fair timing for slow Wi-Fi, and plain First to arrive.
+- **"How close was it?" on phones**: players who buzzed see "You buzzed in first!", "Alex buzzed 40 ms before you!" or — when it was too close to call honestly — "Very close buzz! Alex won." The host sees who else pressed and how far behind.
+- **New phone buzzer**: one big button filling the screen — red when locked, yellow when you can buzz, green when you're in — with words as well as colours, and it reacts the instant your finger touches it.
+- **Final Jeopardy! answer reveals start when you're ready**: when the think time runs out, the timer disappears, answers are locked and the iPad shows **Begin Answer Reveals**.
+- **Score changes in the score box**: the score briefly turns into "+$600" (green) or "−$600" (red) and then shows the new total — the same for clues, Daily Doubles and Final Jeopardy!.
+
+### Improvements
+- Category introductions on the TV are smooth again (they stuttered on PCs without strong graphics); the Final Jeopardy! swipes too.
+- TV lobby and menus redesigned: smaller player cards so more fit, the minimized lobby is one tidy panel in the top-right corner, menu pages use the full width (three boards per row, two or three buzzer columns), the lobby header shows the board with its rounds, clues and Final Jeopardy!, and rules, QR code and joining instructions share one panel.
+- iPad: the TV preview during the category introduction no longer repeats the player cards and is bigger; Previous Category is on the left and Next Category on the right; the yellow ring around the picking player is no longer cut off.
+- TV category names are as large in their boxes as on the iPad.
+- The timer on the TV has no label any more and disappears when it reaches zero.
+- A player who picks a clue and then buzzes in gets one highlight, not two.
+- Player names no longer have the bottoms of g, j, p, q and y cut off.
+- Early buzzes are judged by when the button was really pressed: a press made clearly before the buzzers opened is caught even if it arrives a little after.
+
+### Bug Fixes
+- A short "board" sound no longer plays when Final Jeopardy! begins.
+- The Final Jeopardy! timer no longer stays on the TV at 0, and the reveal no longer starts by itself.
+
+### Known Issues
+- Fair timing was tested with simulated networks and local connections, not yet with real phones on your Wi-Fi. Differences between phone touch screens and Joy-Con Bluetooth (about 10–20 ms) cannot be measured by any software, so very close buzzes are shown as "Very close".
+- The smoother TV animations were measured on the development PC, not on your TV computer — if it still stutters, turn on Settings → "Reduce motion on the game board" and let us know.
+- The new phone buzzer was tested in phone emulation; please report anything that scrolls or misses taps on a real phone.
+
 ## [0.10.0] — 2026-10-15
 
 ### New Features
