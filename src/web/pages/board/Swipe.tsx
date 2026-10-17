@@ -39,12 +39,14 @@ export function useSwipe(key: string, kindFor: (prev: string, next: string) => S
   return current;
 }
 
+// Whole transform strings + will-change (R6-15): the layers slide as composited layers on the
+// compositor thread instead of being repainted every frame.
 const VARIANTS: Variants = {
-  enter: (k: SwipeKind) => (k === 'swipe' ? { x: '100%', opacity: 1 } : { x: 0, opacity: 0 }),
-  center: (k: SwipeKind) => ({ x: 0, opacity: 1, transition: { duration: k === 'swipe' ? T.slide : T.fade, ease: EASE_OUT_ARR } }),
+  enter: (k: SwipeKind) => (k === 'swipe' ? { transform: 'translateX(100%)', opacity: 1 } : { transform: 'translateX(0%)', opacity: 0 }),
+  center: (k: SwipeKind) => ({ transform: 'translateX(0%)', opacity: 1, transition: { duration: k === 'swipe' ? T.slide : T.fade, ease: EASE_OUT_ARR } }),
   exit: (k: SwipeKind) =>
     k === 'swipe'
-      ? { x: '-100%', opacity: 1, transition: { duration: T.slide, ease: EASE_OUT_ARR } }
+      ? { transform: 'translateX(-100%)', opacity: 1, transition: { duration: T.slide, ease: EASE_OUT_ARR } }
       : // Cross-fade: stay put under the new layer while it fades in, then go.
         { opacity: 0, transition: { duration: 0.05, delay: T.fade } },
 };
@@ -80,7 +82,7 @@ function SwipeLayer({ kind, seq, className, children }: { kind: SwipeKind; seq: 
       initial="enter"
       animate="center"
       exit="exit"
-      style={{ zIndex: seq + 1 }}
+      style={{ zIndex: seq + 1, willChange: 'transform' }}
       aria-hidden={present ? undefined : true}
       inert={!present}
       data-swipe-layer={present ? 'current' : 'leaving'}

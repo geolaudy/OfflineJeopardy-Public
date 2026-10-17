@@ -38,17 +38,21 @@ export function Intro({ g }: { g: GameView }) {
   useEffect(() => {
     first.current = false;
   }, []);
-  const enter = reduced ? { opacity: 0 } : isFirst ? (step < 0 ? (fill ? { opacity: 1 } : { opacity: 0, scale: 0.9 }) : { opacity: 0 }) : { x: dir > 0 ? '100%' : '-100%' };
+  // R6-15: whole `transform` strings (not motion's x/scale) so the swipe runs as a compositor
+  // animation (WAAPI) and keeps its pace even while the main thread is busy; with will-change the
+  // card is rasterised once instead of repainted on every frame (see docs/PERFORMANCE.md).
+  const enter = reduced ? { opacity: 0 } : isFirst ? (step < 0 ? (fill ? { opacity: 1 } : { opacity: 0, transform: tf(0, 0.9) }) : { opacity: 0 }) : { transform: tf(dir > 0 ? 100 : -100) };
   return (
     <motion.div className="bt-intro" exit={{ opacity: 0 }} transition={{ duration: T.fade }} data-testid="intro" data-step={step} data-dir={dir > 0 ? 'forward' : 'back'}>
       <AnimatePresence initial={true} custom={dir}>
         <motion.div
           key={`${intro.roundIndex}:${step}`}
           className="absolute inset-0"
+          style={{ willChange: 'transform' }}
           custom={dir}
-          variants={{ exit: (d: number) => (reduced ? { opacity: 0 } : { x: d > 0 ? '-100%' : '100%' }) }}
+          variants={{ exit: (d: number) => (reduced ? { opacity: 0 } : { transform: tf(d > 0 ? -100 : 100) }) }}
           initial={enter}
-          animate={{ x: 0, opacity: 1, scale: 1 }}
+          animate={{ transform: tf(0), opacity: 1 }}
           exit="exit"
           transition={{ duration: T.slide, ease: EASE_OUT_ARR }}
         >
@@ -63,10 +67,16 @@ export function Intro({ g }: { g: GameView }) {
             // Classic board intro (R2-23): the blank screens light up in a checker pattern, then the
             // board dims and the round title appears over it.
             <>
-              <motion.div className="absolute inset-0" animate={{ opacity: 0.22 }} transition={{ delay: total, duration: T.fade * 1.5 }}>
+              <motion.div className="absolute inset-0" style={{ willChange: 'opacity' }} animate={{ opacity: 0.22 }} transition={{ delay: total, duration: T.fade * 1.5 }}>
                 <BoardReveal g={g} total={total} />
               </motion.div>
-              <motion.div className="bt-intro-card" initial={{ opacity: 0, scale: reduced ? 1 : 0.94 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: total * 0.9, duration: T.fade * 1.4, ease: EASE_OUT_ARR }}>
+              <motion.div
+                className="bt-intro-card"
+                style={{ willChange: 'transform, opacity' }}
+                initial={{ opacity: 0, transform: `scale(${reduced ? 1 : 0.94})` }}
+                animate={{ opacity: 1, transform: 'scale(1)' }}
+                transition={{ delay: total * 0.9, duration: T.fade * 1.4, ease: EASE_OUT_ARR }}
+              >
                 <FitText text={round.name} max={16} min={6} className="bt-round-title" boxClassName="max-h-[40vh] flex-1 min-h-0" />
                 <div className="bt-rule" aria-hidden />
                 <p className="bt-intro-kicker">{n} categories</p>
@@ -89,6 +99,9 @@ export function Intro({ g }: { g: GameView }) {
     </motion.div>
   );
 }
+
+/** One transform shape for every swipe keyframe (so WAAPI interpolates it directly). */
+const tf = (xPct: number, scale = 1) => `translateX(${xPct}%) scale(${scale})`;
 
 /** +1 when the step moved forward, -1 when it moved back; kept for the step it was computed for,
  *  so the exiting card leaves in the same direction the new one arrives from. */
