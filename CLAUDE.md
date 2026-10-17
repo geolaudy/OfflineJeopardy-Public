@@ -110,83 +110,7 @@ Update this file before ending a development session.
 
 Configure and use six specialized Claude Code subagents.
 
-### Research Agent
-
-Responsibilities:
-
-- Research suitable implementation approaches.
-- Investigate unfamiliar APIs and libraries.
-- Evaluate Windows controller support.
-- Investigate uncertain reference behaviors.
-- Use REA selectively.
-- Document findings.
-
-### Backend Agent
-
-Responsibilities:
-
-- Node.js backend.
-- Local server.
-- WebSockets.
-- SQLite.
-- Database migrations.
-- Profile authentication.
-- Persistent game state.
-- Statistics and event recording.
-- Security.
-
-### Frontend Agent
-
-Responsibilities:
-
-- React interfaces.
-- Clean UI design.
-- Board editor.
-- Public game board.
-- iPad host controller.
-- Smartphone player portal.
-- Profile dashboards.
-- Theme system.
-- Responsive layouts.
-
-### Gameplay Agent
-
-Responsibilities:
-
-- Game-state engine.
-- Scoring.
-- Wagering.
-- Timers.
-- Buzzers.
-- Team rules.
-- Individual contribution tracking.
-- Game modes.
-- Gameplay event records.
-
-### QA Agent
-
-Responsibilities:
-
-- Unit tests.
-- Integration tests.
-- End-to-end tests.
-- Regression tests.
-- Multiplayer synchronization tests.
-- Offline testing.
-- Controller input simulation.
-- Packaging verification.
-
-### Integration Agent
-
-Responsibilities:
-
-- Electron integration.
-- Windows packaging.
-- Dependency management.
-- Shared interfaces.
-- Agent code integration.
-- Build configuration.
-- Release validation.
+The six subagents (research, backend, frontend, gameplay, QA, integration) are defined in `.claude/agents/`; each file defines its responsibilities.
 
 Use agents when beneficial.
 
@@ -233,33 +157,7 @@ Document research findings in `RESEARCH_NOTES.md`.
 
 ## 7. PREFERRED TECHNOLOGY STACK
 
-Use:
-
-### Frontend
-- React.
-- TypeScript.
-- Vite.
-- Tailwind CSS.
-- Zustand.
-- Framer Motion or an appropriate equivalent.
-
-### Backend
-- Node.js.
-- TypeScript.
-- Fastify or Express.
-- WebSockets.
-- SQLite.
-
-### Desktop
-- Electron.
-- Windows installer packaging.
-- Portable Windows packaging where practical.
-
-### Testing
-- Vitest.
-- React Testing Library.
-- Playwright.
-- Backend integration tests.
+The chosen stack is in `package.json`.
 
 Prefer established, maintained libraries.
 
@@ -959,18 +857,8 @@ The primary goal is a polished, reliable, fully offline game with minimal unnece
 
 Every stable milestone: run tests, build, update docs, commit and push to `origin/main`.
 
-Windows builds:
+Before ending a session, build the latest stable version (`npm run release:local`) and record artifact paths in `SESSION_HANDOFF.md`.
 
-- `npm run dist` builds the NSIS installer and the portable exe into `release/` (unsigned, `--publish never`).
-- `npm run dist:verify` (scripts/verify-dist.mjs) checks the artifacts and the asar contents and starts both packaged executables headlessly with `--smoke-test=<report.json>`.
-- `npm run release:local` = typecheck + Vitest + dist + verify.
-- Before ending a session, build the latest stable version and record artifact paths in `SESSION_HANDOFF.md`.
-
-GitHub Releases (major milestones only, never for small fixes):
-
-1. Run Vitest and Playwright; bump `package.json` version (semver); write the `CHANGELOG.md` section (New Features / Improvements / Bug Fixes / Known Issues, plain language).
-2. Build + verify locally, commit, push.
-3. Create and push the tag `vX.Y.Z`. `.github/workflows/windows-build.yml` then tests, packages, verifies and publishes the release with the installer, portable exe and SHA256SUMS.txt.
-4. Verify the release and its assets exist; record the version in `PROGRESS.md`.
+GitHub Releases are for major milestones only, never for small fixes. Build commands and the release procedure are in the `windows-release` skill (`.claude/skills/windows-release/SKILL.md`).
 
 Never move or delete published tags, overwrite releases, force-push, or attach unverified binaries, API keys or player databases.
