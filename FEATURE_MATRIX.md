@@ -308,19 +308,19 @@ Last run 2026-10-12: Vitest 58/58 (43 unit, 15 integration), Playwright 8/8.
 | R7-4 | Lobby cards: controller + smoothed latency (reusing clock sync) | P2 | NOT STARTED |  |  |  |
 | R7-5 | Board colours/typography/spacing/shadows from the reference SVG via shared tokens | P1 | NOT STARTED |  |  |  |
 | R7-6 | Board-control star (sharp, gold, reserved space) distinct from the buzz-in highlight | P1 | NOT STARTED |  |  |  |
-| R7-7 | Final Jeopardy! clue vertically centred | P1 | NOT STARTED |  |  |  |
-| R7-8 | Correct/incorrect sounds for every Final judgment (bots too), once | P1 | NOT STARTED |  |  |  |
-| R7-9 | Final reveal shows the wager only; one score-change animation (score card) | P1 | NOT STARTED |  |  |  |
-| R7-10 | Final category typography identical on both screens | P1 | NOT STARTED |  |  |  |
-| R7-11 | Manual score adjustments silent and unanimated | P1 | NOT STARTED |  |  |  |
-| R7-12 | Final verdict: vector check / X in the score-change colours | P2 | NOT STARTED |  |  |  |
+| R7-7 | Final Jeopardy! clue vertically centred | P1 | TESTED | board/FinalScreen.tsx (.bt-final-q), board.css | DOM (round7.dom) | Visual centring checked by screenshot |
+| R7-8 | Correct/incorrect sounds for every Final judgment (bots too), once | P1 | TESTED | board/soundCues.ts (finalJudgments) | DOM (round7.dom: $0 wager, once) | Root cause: cues followed score deltas; bots often wager $0. Not judged by ear (K23) |
+| R7-9 | Final reveal shows the wager only; one score-change animation (score card) | P1 | TESTED | board/FinalScreen.tsx (verdict box removed) | DOM (round6.dom, presentation.dom), E (presentation, teams-editor) | — |
+| R7-10 | Final category typography identical on both screens | P1 | IMPLEMENTED | board.css .bt-intro-cat (shadow in em) | Screenshots | Visual |
+| R7-11 | Manual score adjustments silent and unanimated | P1 | TESTED | engine/projection scoreCauseOf, views scoreCause, soundCues, ScoreDelta/useScoreChange quiet, Scoreboard | U (round7), DOM (round7.dom), E (presentation) | Undo is quiet too (D68) |
+| R7-12 | Final verdict: vector check / X in the score-change colours | P2 | TESTED | board/VerdictMark.tsx, FinalScreen RevealProgress, board.css .bt-verdict | DOM (presentation.dom), E (presentation) | — |
 | R7-13 | Clue zoom shows the clue text throughout; ~1/0.85 × duration | P2 | NOT STARTED |  |  |  |
 | R7-14 | Setting: player colour on score cards (border / name / both) | P2 | NOT STARTED |  |  |  |
 | R7-15 | Clue text shadow = value shadow (token) | P2 | NOT STARTED |  |  |  |
 | R7-16 | Clues vertically centred, stable on answer reveal, long clues fit | P1 | NOT STARTED |  |  |  |
 | R7-17 | Consistent gameplay and menu styling systems (tokens) | P2 | NOT STARTED |  |  |  |
 | R7-18 | iPad home nickname/profile-name alignment | P2 | NOT STARTED |  |  |  |
-| R7-19 | iPad Safari / web-app layout: nothing clipped or off-screen (Boards, Present on TV) | P1 | NOT STARTED |  |  |  |
+| R7-19 | iPad Safari / web-app layout: nothing clipped or off-screen (Boards, Present on TV) | P1 | IMPLEMENTED | styles.css .app-screen (position: fixed, html:has), lib/viewport.ts, host/AppShell (scroll reset) | E (round7-host: 10 pages × 6 Safari/web-app sizes, toolbar resize) | Emulation has no Safari toolbars — real iPad needed (K38) |
 | R7-20 | iPad uses the shared gameplay theme | P2 | NOT STARTED |  |  |  |
 | R7-21 | iPad game preview fixed size/position in every state; compact overlays | P1 | NOT STARTED |  |  |  |
 | R7-22 | iPad score editor (editable, −/+, change, Save/Cancel, recent changes, Remove Player) | P1 | NOT STARTED |  |  |  |
@@ -329,8 +329,8 @@ Last run 2026-10-12: Vitest 58/58 (43 unit, 15 integration), Playwright 8/8.
 | R7-25 | iPad preview matches the TV | P2 | NOT STARTED |  |  |  |
 | R7-26 | Board creator padding | P3 | NOT STARTED |  |  |  |
 | R7-27 | No "(AI)" suffix on AI board titles | P3 | NOT STARTED |  |  |  |
-| R7-28 | Phone theme editor + submenus have Back | P1 | NOT STARTED |  |  |  |
-| R7-29 | Phone buzzer constant size in every state | P1 | NOT STARTED |  |  |  |
+| R7-28 | Phone theme editor + submenus have Back | P1 | TESTED | host/AppShell SUB_PAGES back button, desk/Themes back link | E (round7-host) | Phone portal already had Back on detail pages |
+| R7-29 | Phone buzzer constant size in every state | P1 | TESTED | join/PlayTab.tsx (fixed clue/timer row and status area) | E (round7-host: 5 states, same box) | Real phones not tested (K37) |
 | R7-30.1 | Buzzinga imports bring media | P3 | NOT STARTED |  |  |  |
 | R7-30.2 | AI bots really use AI; Gemini 503 retries/backoff | P3 | NOT STARTED |  |  |  |
 | R7-30.3 | AI boards: 2 rounds + Final by default, validated | P3 | NOT STARTED |  |  |  |

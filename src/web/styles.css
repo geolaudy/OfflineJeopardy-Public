@@ -41,12 +41,21 @@ body {
   overscroll-behavior: none;
 }
 
-/* Full-screen app shells: the *visible* viewport on mobile (dvh), with a vh fallback.
-   Content scrolls inside the shell, so Safari's collapsing toolbars never resize fixed bars. */
+/* Full-screen app shells (host, phone, game computer). R7-19: pinned to the layout viewport with
+   position: fixed — it always matches what Safari shows, toolbars visible or minimised, in a tab or
+   as a Home-Screen web app — and the document itself never scrolls, so a swipe on a short page
+   cannot minimise Safari's toolbars or push the shell's bottom bar off screen. Content scrolls
+   inside the shell. */
 .app-screen {
-  height: 100vh;
-  height: 100dvh;
+  position: fixed;
+  inset: 0;
   overflow: hidden;
+}
+html:has(.app-screen),
+html:has(.app-screen) body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 .scroll-area {
   overflow-y: auto;

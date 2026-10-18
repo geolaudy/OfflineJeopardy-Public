@@ -2,7 +2,7 @@
 // game computer, a "Present on TV" switch that mirrors presentable pages on the TV (public data
 // only — the server builds it), and a way back to the start screen on the game computer.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CircleHelp, Gamepad2, History as HistoryIcon, House, LayoutGrid, Medal, Trophy, Menu, Monitor, MonitorOff, Settings as SettingsIcon, Users, UsersRound, type LucideIcon } from 'lucide-react';
 import { present as sendPresent, useLive } from '../../lib/socket';
 import { ConnectionBadge, Drawer, cx } from '../../components/ui';
@@ -11,6 +11,14 @@ import { isDesktopApp } from '../../lib/desktop';
 import { NAV, type NavId } from '../../../shared/navigation';
 
 const NAV_ICONS: Record<NavId, LucideIcon> = { home: House, boards: LayoutGrid, players: Users, teams: UsersRound, buzzers: Gamepad2, leaderboards: Medal, history: HistoryIcon, tournaments: Trophy, settings: SettingsIcon, help: CircleHelp };
+
+/** Pages below a navigation page and where Back leads (R7-28: no dead ends on small screens). */
+const SUB_PAGES: { match: RegExp; title: string; parent: string; parentLabel: string }[] = [
+  { match: /^\/host\/themes\/?$/, title: 'TV themes', parent: '/host/settings', parentLabel: 'Settings' },
+  { match: /^\/host\/boards\/[^/]+\/?$/, title: 'Board editor', parent: '/host/boards', parentLabel: 'Boards' },
+  { match: /^\/host\/tournaments\/[^/]+\/?$/, title: 'Tournament', parent: '/host/tournaments', parentLabel: 'Tournaments' },
+];
+export const subPageOf = (path: string) => SUB_PAGES.find((p) => p.match.test(path)) ?? null;
 
 /** Host navigation in the shared order (R4-9). */
 export const HOST_NAV: { to: string; label: string; icon: LucideIcon; end?: boolean; id: NavId }[] = [
@@ -86,6 +94,12 @@ export default function AppShell({ children }: { children: ReactNode }) {
     if (enabledRef.current) sendPresent(req);
   }, []);
 
+  // A new page starts at its top (R7-19: switching tabs never leaves the content scrolled).
+  const mainRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    mainRef.current?.scrollTo(0, 0);
+  }, [location.pathname]);
+
   // Navigation drives the TV while presenting (private pages leave it unchanged).
   useEffect(() => {
     setMenu(false);
@@ -99,7 +113,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
   // On Home with a game or lobby, the game bar carries the navigation button: one bar, not two (small phones).
   const hasGame = useLive((s) => !!s.game);
   const homeBar = (location.pathname === '/host' || location.pathname === '/host/') && (hasGame || !!lobby?.open);
-  const current = HOST_NAV.find((n) => (n.end ? location.pathname === n.to || location.pathname === `${n.to}/` : location.pathname.startsWith(n.to)))?.label ?? 'Host';
+  const sub = subPageOf(location.pathname);
+  const navigate = useNavigate();
+  const current = sub?.title ?? HOST_NAV.find((n) => (n.end ? location.pathname === n.to || location.pathname === `${n.to}/` : location.pathname.startsWith(n.to)))?.label ?? 'Host';
 
   const nav = (
     <ul className="space-y-1">
@@ -157,6 +173,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
       <div className="app-screen flex flex-col bg-slate-100 lg:flex-row">
         {/* Narrow screens: top bar + drawer. */}
         <header className={cx('safe-top safe-x flex min-h-14 shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-2 lg:hidden', homeBar && 'hidden')}>
+          {sub && (
+            <button onClick={() => navigate(sub.parent)} className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-slate-100" aria-label={`Back to ${sub.parentLabel}`} data-testid="app-back">
+              <ArrowLeft size={22} aria-hidden />
+            </button>
+          )}
           <button onClick={() => setMenu(true)} className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-slate-100" aria-label="Open navigation" data-testid="app-nav-toggle">
             <Menu size={22} aria-hidden />
           </button>
@@ -183,7 +204,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <div className="mt-auto">{footer}</div>
           </div>
         </Drawer>
-        <main className="scroll-area safe-x relative min-h-0 min-w-0 flex-1">{children}</main>
+        <main ref={mainRef} className="scroll-area safe-x relative min-h-0 min-w-0 flex-1">{children}</main>
       </div>
     </Ctx.Provider>
   );

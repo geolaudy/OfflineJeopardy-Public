@@ -671,7 +671,9 @@
   text-align: center;
   line-height: 1.05;
   letter-spacing: 0.03em;
-  text-shadow: 0.6vh 0.6vh 0 #000, 0 0 2vh rgba(0, 0, 0, 0.35);
+  /* In em, so the shadow keeps its proportion at every size: the Final category looks the same on
+     its own screen (large) and above the clue (small) (R7-10). */
+  text-shadow: 0.046em 0.046em 0 #000, 0 0 0.15em rgba(0, 0, 0, 0.35);
 }
 .board-theme:not([data-theme="classic"]) .bt-intro-cat {
   text-shadow: var(--bt-text-shadow);
@@ -861,19 +863,33 @@
   font-size: 1.25em;
   letter-spacing: 0.01em;
 }
-.bt-final-verdict {
-  position: relative;
-  min-width: 24vh;
-  padding: 0.6vh 2.4vh;
-  border-radius: calc(var(--b-radius) * 0.6);
-  background: var(--bt-podium-score);
-  font-family: var(--bt-money-font);
-  font-weight: var(--bt-heavy);
-  font-size: 4.4vh;
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-  text-shadow: var(--bt-text-shadow);
+/* R7-7: the Final clue is centred in the whole stage. The top band (kicker + category) is mirrored
+   at the bottom (submission chips + timer), so the text never runs into either. */
+.bt-final-q {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: var(--bt-final-band, 21vh) 5vw;
+  pointer-events: none;
+}
+/* R7-12: judged answers — sharp vector check / cross in the score-change colours. */
+.bt-verdict {
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3.4;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+  filter: drop-shadow(0.06em 0.06em 0 rgba(0, 0, 0, 0.7));
+}
+.bt-verdict.is-up {
+  color: var(--bt-gain);
+}
+.bt-verdict.is-down {
+  color: var(--bt-loss);
 }
 .bt-results {
   display: flex;

@@ -35,7 +35,7 @@ function Podium({ c, g, highlight, early }: { c: CompetitorView; g: GameView; hi
         {control && <span className="sr-only">(picks the next clue)</span>}
       </div>
       {c.kind === 'team' && <div className="bt-podium-members">{c.memberIds.map((m) => profileName(g.profiles[m])).join(' · ')}</div>}
-      <Score score={c.score} />
+      <Score score={c.score} quiet={!!g.scoreCause?.quiet} />
       {c.lives !== undefined && (c.lives > 0 ? <Lives lives={c.lives} max={g.rules.survivalLives} size={vhPx(ctx, 1.9)} className="bt-podium-lives" /> : <span className="bt-out">OUT</span>)}
       {early && (
         <span className="bt-early" aria-label="Buzzed early">
@@ -46,10 +46,10 @@ function Podium({ c, g, highlight, early }: { c: CompetitorView; g: GameView; hi
   );
 }
 
-function Score({ score }: { score: number }) {
+function Score({ score, quiet }: { score: number; quiet: boolean }) {
   return (
     <div className="bt-podium-score" data-testid="score" data-score={score}>
-      <ScoreSwap score={score} />
+      <ScoreSwap score={score} quiet={quiet} />
     </div>
   );
 }

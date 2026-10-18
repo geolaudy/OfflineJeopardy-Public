@@ -5,6 +5,17 @@ import { gapIsConfident } from '../../shared/buzzTiming.js';
 import type { GameView, PlayerContext, ProfilePublic, ViewRole } from '../../shared/views.js';
 import { buzzBlockReason, competitorForProfile, lockoutUntil, roundMaxValue } from './engine.js';
 
+/** The most recent event that changed (or, for undo, may have changed) scores. Manual adjustments,
+ *  refunds and undo are quiet; judged answers, wagers and early-buzz penalties are not (R7-11). */
+function scoreCauseOf(s: GameState): GameView['scoreCause'] {
+  for (let i = s.events.length - 1; i >= 0; i--) {
+    const e = s.events[i];
+    const quiet = e.type === 'score_adjust' || e.type === 'undo';
+    if (quiet || (!e.voided && e.scoreDelta)) return { seq: e.seq, quiet };
+  }
+  return null;
+}
+
 export function projectState(s: GameState, role: ViewRole, rawProfiles: Record<Id, ProfilePublic>): GameView {
   const host = role === 'host';
   // Everyone sees the lobby colour (R4-13); the profile's own colour stays its preference.
@@ -127,6 +138,7 @@ export function projectState(s: GameState, role: ViewRole, rawProfiles: Record<I
     startedAt: s.startedAt,
     endedAt: s.endedAt,
     profiles,
+    scoreCause: scoreCauseOf(s),
   };
   if (host) {
     view.undoLabel = s.undoStack.length ? s.undoStack[s.undoStack.length - 1].label : null;

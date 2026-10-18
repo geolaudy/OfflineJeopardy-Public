@@ -82,7 +82,9 @@ test('score labels, the Final swipe and the podium with places 4+', async () => 
   await h.act({ type: 'adjustScore', competitorId: A, delta: 600 });
   await h.act({ type: 'adjustScore', competitorId: B, delta: 600 });
   await h.act({ type: 'adjustScore', competitorId: C, delta: 400 });
-  await expect(podium('Ben Podium').getByTestId('score-delta')).toHaveText('+$600');
+  // Manual adjustments are silent: the box shows the new total straight away (R7-11).
+  await expect(podium('Ben Podium').getByTestId('score')).toHaveText('$600');
+  await expect(podium('Ben Podium').getByTestId('score-delta')).toHaveCount(0);
 
   // ---- R5-6: Final Jeopardy! — swipe from the answers to the reveal and between contestants ----
   await h.act({ type: 'startFinal' });
@@ -109,9 +111,14 @@ test('score labels, the Final swipe and the podium with places 4+', async () => 
   await expect(tv.getByTestId('tv-final-answer')).toHaveText('Budapest');
   await expect(final).toHaveAttribute('data-swipe-seq', '1'); // reveal steps do not swipe
   await h.act({ type: 'judgeFinal', competitorId: C, correct: true });
-  await expect(tv.getByTestId('tv-final-verdict').getByTestId('score-delta')).toHaveText('+$300');
+  // R7-9: the wager stays; the one score change is in Cat's score box at the bottom.
+  const catBox = tv.getByTestId('podium').filter({ hasText: 'Cat' }).getByTestId('score');
+  await expect(catBox.getByTestId('score-delta')).toHaveText('+$300');
+  await expect(tv.getByTestId('tv-final-wager')).toContainText('$300');
+  await expect(tv.getByTestId('tv-final-spotlight').getByTestId('score-delta')).toHaveCount(0);
+  await expect(tv.getByTestId('tv-final-chip').first().getByTestId('verdict-mark')).toHaveAttribute('data-correct', 'true'); // R7-12
   await shot(tv, 'final-verdict');
-  await expect(tv.getByTestId('tv-final-verdict')).toHaveText('$700'); // then the new total
+  await expect(catBox).toHaveText('$700'); // then the new total
   await h.act({ type: 'finalReveal' }); // next contestant: Ben
   await expect(final).toHaveAttribute('data-swipe-seq', '2');
   await tv.waitForTimeout(250);

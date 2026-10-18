@@ -8,7 +8,8 @@ import { Button, Card, Field, Modal, cx, inputCls, toast } from '../../component
 import { contrastRatio } from '../../lib/avatars';
 import { FONT_STACKS, THEME_PRESETS, newThemeData, type CustomTheme, type CustomThemeData, type FontKey, type PresetId, type ThemeColors } from '../../../shared/themes';
 import type { PreviewMessage, PreviewView } from '../board/Preview';
-import { RotateCcw, Plus, Upload } from 'lucide-react';
+import { ArrowLeft, RotateCcw, Plus, Upload } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const COLOR_FIELDS: [keyof ThemeColors, string][] = [
   ['background', 'Background'],
@@ -58,6 +59,9 @@ export default function Themes() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-5 p-6">
+      <Link to="/host/settings" className="inline-flex min-h-11 items-center gap-2 font-semibold text-blue-700" data-testid="themes-back">
+        <ArrowLeft size={18} aria-hidden /> Settings
+      </Link>
       <div className="flex flex-wrap items-center gap-2">
         <h1 className="min-w-0 flex-[1_1_16rem] text-3xl font-black">TV themes</h1>
         <Button variant="secondary" onClick={() => importRef.current?.click()}>

@@ -4,15 +4,15 @@
 // R5-6: the move from answer writing to the reveal, and from one contestant to the next, is the
 // category-introduction swipe (with its sound), once per host action.
 import { AnimatePresence, motion } from 'motion/react';
-import { useState, type CSSProperties } from 'react';
+import type { CSSProperties } from 'react';
 import type { GameView } from '../../../shared/views';
 import { finalEntryReveal } from '../../../shared/game';
-import { Avatar, cx, fmtScore } from '../../components/ui';
+import { Avatar, cx } from '../../components/ui';
 import { playCue } from '../../lib/sound';
 import { competitorAvatar, competitorColor, competitorName, findCompetitor } from '../../lib/view';
-import { FitText, useBoard } from './common';
+import { FitText, money, useBoard } from './common';
 import { TimerBar } from './TimerBar';
-import { ScoreSwap } from './ScoreDelta';
+import { VerdictMark } from './VerdictMark';
 import { SwipeStage, useSwipe, useTestId } from './Swipe';
 import { finalScreenKey, finalTransition } from './finalSwipe';
 import { EASE_OUT_ARR, T } from './timing';
@@ -55,12 +55,15 @@ function FinalContent({ g }: { g: GameView }) {
         className="bt-intro-cat"
         boxClassName={early ? 'min-h-0 flex-1' : revealing ? 'h-[6vh] shrink-0' : 'h-[9vh] shrink-0'}
       />
-      {(f.stage === 'wagers' || f.stage === 'clue' || f.stage === 'closed') && <SubmissionChips g={g} kind={f.stage === 'wagers' ? 'wager' : 'answer'} />}
+      {f.stage === 'wagers' && <SubmissionChips g={g} kind="wager" />}
       {(f.stage === 'clue' || f.stage === 'closed') && f.question && (
-        <motion.div className="flex min-h-0 w-full flex-1 flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: T.reveal }}>
+        // R7-7: centred in the whole stage, not in the space left under the category; the header
+        // band is mirrored at the bottom so long clues never run into it.
+        <motion.div className="bt-final-q" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: T.reveal }}>
           <FitText text={f.question} max={7} min={2.2} className="bt-question" boxClassName="min-h-0 flex-1" />
         </motion.div>
       )}
+      {(f.stage === 'clue' || f.stage === 'closed') && <SubmissionChips g={g} kind="answer" bottom />}
       {f.stage === 'reveal' && <Spotlight g={g} />}
       {f.stage === 'done' && <Summary g={g} />}
       <TimerBar timer={g.timer} />
@@ -70,11 +73,11 @@ function FinalContent({ g }: { g: GameView }) {
 
 /** Who has locked in a wager / submitted an answer (never what): green border = in, gray = not
  *  (or being changed) (R5-6). */
-function SubmissionChips({ g, kind }: { g: GameView; kind: 'wager' | 'answer' }) {
+function SubmissionChips({ g, kind, bottom }: { g: GameView; kind: 'wager' | 'answer'; bottom?: boolean }) {
   const f = g.final!;
   const tid = useTestId();
   return (
-    <div className="flex shrink-0 flex-wrap justify-center gap-[1.2vw]" data-testid={tid('tv-final-status')}>
+    <div className={cx('flex shrink-0 flex-wrap justify-center gap-[1.2vw]', bottom && 'mt-auto')} data-testid={tid('tv-final-status')}>
       {f.entries.map((e) => {
         const done = kind === 'wager' ? e.hasWager : e.submitted;
         return (
@@ -87,7 +90,9 @@ function SubmissionChips({ g, kind }: { g: GameView; kind: 'wager' | 'answer' })
   );
 }
 
-/** The contestant being revealed: name, picture, score before the Final → wager → answer → result. */
+/** The contestant being revealed: name, picture, score before the Final → wager → answer. The
+ *  judgment shows in the score box at the bottom (one score-change animation, R7-9) and as a mark
+ *  on the contestant's chip below. */
 function Spotlight({ g }: { g: GameView }) {
   const f = g.final!;
   const ctx = useBoard();
@@ -97,14 +102,14 @@ function Spotlight({ g }: { g: GameView }) {
   const c = findCompetitor(g, id);
   const shown = finalEntryReveal(f, id);
   const pre = f.preScores[id] ?? 0;
-  const result = e?.judged ? pre + (e.correct ? 1 : -1) * (e.wager ?? 0) : pre;
-  // A judgment made while this screen is up shows "+$/−$wager" in the score box, then the new
-  // total (R6-5); one this TV loaded with does not animate.
-  const [judgedAtLoad] = useState(() => !!e?.judged);
   if (!e || !c) return <div className="flex-1" />;
   const color = competitorColor(c, g);
   return (
-    <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-[2.4vh]" data-testid={tid('tv-final-spotlight')}>
+    <div
+      className="flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-[2.4vh]"
+      data-testid={tid('tv-final-spotlight')}
+      data-judged={e.judged ? (e.correct ? 'correct' : 'incorrect') : undefined}
+    >
       <div className="bt-final-spot" style={{ '--pc': color } as CSSProperties} data-competitor={id}>
         <div className="bt-final-who">
           <span className="bt-final-ring">
@@ -116,7 +121,7 @@ function Spotlight({ g }: { g: GameView }) {
             </div>
             <div className="bt-final-pre">
               <span className="bt-final-label">Before Final Jeopardy!</span>
-              <b className="tabular-nums">{fmtScore(pre)}</b>
+              <b className="tabular-nums">{money(ctx.prefix, pre)}</b>
             </div>
           </div>
         </div>
@@ -144,22 +149,10 @@ function Spotlight({ g }: { g: GameView }) {
           <AnimatePresence initial={false}>
             {shown !== 'none' && (
               <motion.div key="wager" initial={{ opacity: 0, y: '2vh' }} animate={{ opacity: 1, y: 0 }} transition={{ duration: T.fade }} data-testid={tid('tv-final-wager')}>
-                <span className="bt-final-label">Wager</span> <b className="tabular-nums">{fmtScore(e.wager ?? 0)}</b>
+                <span className="bt-final-label">Wager</span> <b className="tabular-nums">{money(ctx.prefix, e.wager ?? 0)}</b>
               </motion.div>
             )}
           </AnimatePresence>
-          {e.judged && (
-            <motion.div
-              initial={judgedAtLoad ? false : { scale: 0.6, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: T.fade }}
-              className="bt-final-verdict"
-              data-testid={tid('tv-final-verdict')}
-              data-correct={e.correct ? 'true' : 'false'}
-            >
-              <ScoreSwap score={result} from={judgedAtLoad ? undefined : pre} />
-            </motion.div>
-          )}
         </div>
       </div>
       <RevealProgress g={g} />
@@ -177,9 +170,14 @@ function RevealProgress({ g }: { g: GameView }) {
         const e = f.entries.find((x) => x.competitorId === id);
         const c = findCompetitor(g, id);
         return (
-          <span key={id} className={cx('bt-chip bt-name', i === f.cursor && f.stage === 'reveal' && 'is-done', i > f.cursor && 'opacity-60')}>
+          <span
+            key={id}
+            className={cx('bt-chip bt-name', i === f.cursor && f.stage === 'reveal' && 'is-done', i > f.cursor && 'opacity-60')}
+            data-testid={tid('tv-final-chip')}
+            data-verdict={e?.judged ? (e.correct ? 'correct' : 'incorrect') : undefined}
+          >
             {competitorName(c, g)}
-            {e?.judged ? (e.correct ? ' ✓' : ' ✗') : ''}
+            {e?.judged && <VerdictMark correct={!!e.correct} />}
           </span>
         );
       })}
@@ -190,6 +188,7 @@ function RevealProgress({ g }: { g: GameView }) {
 /** After the last judgment: the correct response and everyone's result. */
 function Summary({ g }: { g: GameView }) {
   const f = g.final!;
+  const { prefix } = useBoard();
   return (
     <>
       {f.answer && (
@@ -207,7 +206,7 @@ function Summary({ g }: { g: GameView }) {
               <div className="bt-name truncate text-[2.8vh]">{competitorName(c, g)}</div>
               <div className="bt-question mt-[0.6vh] truncate text-[3vh]">{e.answer || '(no answer)'}</div>
               <div className="mt-[0.4vh] text-[2vh]">
-                <span className="bt-final-label">Wager</span> <span className="bt-money text-[2.4vh]">{fmtScore(e.wager ?? 0)}</span>
+                <span className="bt-final-label">Wager</span> <span className="bt-money text-[2.4vh]">{money(prefix, e.wager ?? 0)}</span>
               </div>
             </div>
           );

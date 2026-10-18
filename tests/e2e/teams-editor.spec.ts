@@ -173,7 +173,8 @@ test('import + edit a board, then a mixed-mode team game through the Final', asy
   await expect(ipad.getByTestId('final-reveal-answer')).toHaveText('Buda and Pest');
   await expect(tv.getByTestId('scoreboard')).not.toContainText('350'); // not scored before judging
   await ipad.getByTestId('final-correct').click();
-  await expect(tv.getByTestId('tv-final-verdict')).toContainText('350');
+  await expect(tv.getByTestId('tv-final-spotlight')).toHaveAttribute('data-judged', 'correct');
+  await expect(tv.getByTestId('scoreboard')).toContainText('350'); // the score box carries the change (R7-9)
   await tv.screenshot({ path: 'test-results/screens/tv-final-reveal.png' });
   await ipad.screenshot({ path: 'test-results/screens/ipad-final-reveal.png' });
   await ipad.getByTestId('final-reveal-next').click(); // finish the reveal

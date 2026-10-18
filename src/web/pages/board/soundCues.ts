@@ -21,6 +21,15 @@ export function transitionCues(p: GameView, g: GameView): SoundCue[] {
   // The think music ends on its own; no "time's up" on top of it.
   if (g.timer?.expired && !p.timer?.expired && g.timer.kind !== 'final') out.push('timeUp');
   if (g.phase === 'ended' && p.phase !== 'ended') out.push('winner');
+  // R7-8: a Final Jeopardy! judgment sounds once, from the judgment itself — a $0 wager (common for
+  // bots) changes no score but is still right or wrong.
+  const judged = finalJudgments(p, g);
+  if (judged !== null) {
+    out.push(judged ? 'correct' : 'incorrect');
+    return out;
+  }
+  // R7-11: manual adjustments and undo change the score silently.
+  if (g.scoreCause?.quiet) return out;
   const before = new Map(p.competitors.map((c) => [c.id, c.score]));
   let delta = 0;
   for (const c of g.competitors) delta += c.score - (before.get(c.id) ?? c.score);
@@ -29,4 +38,13 @@ export function transitionCues(p: GameView, g: GameView): SoundCue[] {
     else if (delta < 0) out.push('incorrect');
   }
   return out;
+}
+
+/** The verdict of a Final answer judged between two states (null = none). */
+function finalJudgments(p: GameView, g: GameView): boolean | null {
+  if (!g.final || !p.final) return null;
+  const was = new Map(p.final.entries.map((e) => [e.competitorId, e.judged]));
+  let verdict: boolean | null = null;
+  for (const e of g.final.entries) if (e.judged && was.get(e.competitorId) === false) verdict = !!e.correct;
+  return verdict;
 }

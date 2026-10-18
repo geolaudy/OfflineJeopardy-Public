@@ -151,6 +151,9 @@ export interface GameView {
   endedAt: number | null;
   profiles: Record<Id, ProfilePublic>;
   online?: Id[]; // profiles with a connected phone/portal
+  /** The latest event that changed scores (R7-11). `quiet` = a manual adjustment or an undo: the
+   *  TV shows the new total without a sound or the "+$/−$" swap. */
+  scoreCause?: { seq: number; quiet: boolean } | null;
   // host only
   undoLabel?: string | null;
   events?: GameplayEvent[];

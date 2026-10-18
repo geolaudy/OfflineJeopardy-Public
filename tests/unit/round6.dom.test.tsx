@@ -186,21 +186,15 @@ describe('Score changes inside the score box (R6-5)', () => {
       vi.useRealTimers();
     }
   });
-  it('the Final verdict: the wager as a change, then the total — no green/red pill', () => {
-    vi.useFakeTimers();
-    try {
-      const entry = (judged: boolean) => ({ competitorId: 'a', hasWager: true, hasAnswer: true, submitted: true, wager: 150, answer: 'Buda', judged, correct: judged ? true : null, profileId: 'p-a' });
-      const shown = (judged: boolean) => game({ final: final({ stage: 'reveal', step: 'answer', entries: [entry(judged), final().entries[1]] }) });
-      const view = render(<FinalScreen g={shown(false)} />, { wrapper: wrap() });
-      view.rerender(<FinalScreen g={shown(true)} />);
-      const verdict = screen.getByTestId('tv-final-verdict');
-      expect(verdict.textContent).toBe('+$150');
-      expect(verdict.className).not.toMatch(/is-right|is-wrong/);
-      act(() => void vi.advanceTimersByTime(1400));
-      expect(screen.getByTestId('tv-final-verdict').textContent).toBe('$350');
-    } finally {
-      vi.useRealTimers();
-    }
+  it('the Final verdict: the wager stays as it is, no second score change beside it (R7-9)', () => {
+    const entry = (judged: boolean) => ({ competitorId: 'a', hasWager: true, hasAnswer: true, submitted: true, wager: 150, answer: 'Buda', judged, correct: judged ? true : null, profileId: 'p-a' });
+    const shown = (judged: boolean) => game({ final: final({ stage: 'reveal', step: 'answer', entries: [entry(judged), final().entries[1]] }) });
+    const view = render(<FinalScreen g={shown(false)} />, { wrapper: wrap() });
+    view.rerender(<FinalScreen g={shown(true)} />);
+    expect(screen.queryByTestId('tv-final-verdict')).toBeNull();
+    expect(screen.queryByTestId('score-delta')).toBeNull();
+    expect(screen.getByTestId('tv-final-wager').textContent).toBe('Wager $150');
+    expect(screen.getByTestId('tv-final-spotlight').dataset.judged).toBe('correct');
   });
 });
 

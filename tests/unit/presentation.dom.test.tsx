@@ -122,7 +122,7 @@ describe('Final Jeopardy! swipe (R5-6)', () => {
     expect(playCue).toHaveBeenCalledTimes(1);
   });
 
-  it('the verdict shows the wager as a gain or loss when judged on screen', () => {
+  it('a judged answer: wager unchanged, a vector mark on the contestant chip (R7-9, R7-12)', () => {
     const W = wrap();
     const shown = (judged: boolean, correct: boolean | null) =>
       game({
@@ -137,14 +137,17 @@ describe('Final Jeopardy! swipe (R5-6)', () => {
       });
     const view = render(<FinalScreen g={shown(false, null)} />, { wrapper: W });
     expect(screen.queryByTestId('score-delta')).toBeNull();
+    expect(screen.queryByTestId('verdict-mark')).toBeNull();
     view.rerender(<FinalScreen g={shown(true, false)} />);
-    expect(screen.getByTestId('tv-final-verdict').textContent).toContain('50');
-    expect(screen.getByTestId('score-delta').textContent).toBe('−$150');
-    cleanup();
-    // Loaded after the judgment: the result, no animated label.
-    render(<FinalScreen g={shown(true, true)} />, { wrapper: W });
-    expect(screen.getByTestId('tv-final-verdict').textContent).toContain('350');
     expect(screen.queryByTestId('score-delta')).toBeNull();
+    expect(screen.getByTestId('tv-final-wager').textContent).toContain('$150');
+    const mark = screen.getByTestId('verdict-mark');
+    expect(mark.tagName.toLowerCase()).toBe('svg');
+    expect(mark.dataset.correct).toBe('false');
+    expect(mark.getAttribute('class')).toContain('is-down');
+    cleanup();
+    render(<FinalScreen g={shown(true, true)} />, { wrapper: W });
+    expect(screen.getByTestId('verdict-mark').dataset.correct).toBe('true');
   });
 });
 

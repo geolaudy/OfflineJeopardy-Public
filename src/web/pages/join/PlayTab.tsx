@@ -129,11 +129,12 @@ export default function PlayTab({ me }: { me: Me }) {
         <DailyWagerForm />
       ) : (
         <>
-          {g.clue && (
-            <p className="text-center text-sm text-slate-600">
-              {g.clue.categoryName} · {g.clue.isDailyWager ? 'Daily Double!' : g.clue.value}
-            </p>
-          )}
+          {/* R7-29: fixed slots above and below the buzzer — clue line + timer, status + timing —
+              so the buzzer keeps the same size and position in every state. */}
+          <div className="flex h-8 shrink-0 items-center justify-between gap-3 text-sm text-slate-600" data-testid="buzz-clue-line">
+            <span className="min-w-0 truncate">{g.clue ? `${g.clue.categoryName} · ${g.clue.isDailyWager ? 'Daily Double!' : g.clue.value}` : ''}</span>
+            <TimerLine compact />
+          </div>
           {/* R6-14: one big rounded rectangle filling the section. Red = locked, yellow = open,
               green = the server says you won. touch-action: none keeps a fast tap from scrolling
               or zooming; no text selection or callout on long press. */}
@@ -154,11 +155,12 @@ export default function PlayTab({ me }: { me: Me }) {
             <span className="text-[clamp(2.5rem,12vw,4.5rem)] leading-none tracking-wide">{look.label}</span>
             <span className="text-base font-bold opacity-90 sm:text-lg">{look.text}</span>
           </button>
-          <p className="text-center text-lg font-semibold" role="status" data-testid="buzz-status">
-            {sub}
-          </p>
-          <BuzzTimingLine g={g} timing={ctx.buzzTiming ?? null} />
-          <TimerLine />
+          <div className="flex h-[6.5rem] shrink-0 flex-col items-center gap-1.5 overflow-hidden" data-testid="buzz-status-area">
+            <p className="line-clamp-2 text-center text-lg leading-snug font-semibold" role="status" data-testid="buzz-status">
+              {sub}
+            </p>
+            <BuzzTimingLine g={g} timing={ctx.buzzTiming ?? null} />
+          </div>
         </>
       )}
     </div>
@@ -228,7 +230,7 @@ function BuzzTimingLine({ g, timing }: { g: GameView; timing: PlayerContext['buz
   const text = timing ? buzzTimingText(g, timing) : null;
   if (!text) return null;
   return (
-    <p className={cx('rounded-xl px-3 py-2 text-center font-bold', timing!.result === 'won' ? 'bg-green-50 text-green-900' : 'bg-slate-100 text-slate-800')} data-testid="buzz-timing" data-confident={timing!.confident ? 'true' : 'false'}>
+    <p className={cx('line-clamp-1 rounded-xl px-3 py-1.5 text-center text-sm font-bold', timing!.result === 'won' ? 'bg-green-50 text-green-900' : 'bg-slate-100 text-slate-800')} data-testid="buzz-timing" data-confident={timing!.confident ? 'true' : 'false'}>
       {text}
     </p>
   );
@@ -243,11 +245,11 @@ export function buzzerLook(ctx: { canBuzz: boolean; canPress?: boolean; buzzReas
   return { color: 'red', label: 'LOCKED', text: 'Wait for the host', tone: red };
 }
 
-function TimerLine() {
+function TimerLine({ compact }: { compact?: boolean }) {
   const timer = useLive((s) => s.game?.timer ?? null);
   const secs = useTimerSeconds(timer);
   if (!timer || secs == null) return null;
-  return <p className="text-center text-2xl font-black tabular-nums">{timer.expired ? "Time's up" : `${secs}s`}</p>;
+  return <p className={cx('font-black tabular-nums', compact ? 'shrink-0 text-lg text-slate-900' : 'text-center text-2xl')} data-testid="phone-timer">{timer.expired ? "Time's up" : `${secs}s`}</p>;
 }
 
 function FinalForm({ me }: { me: Me }) {
