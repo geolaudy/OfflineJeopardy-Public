@@ -9,10 +9,12 @@ export function PersonName({ p, nick, name, className, realClassName }: { p?: Pi
   const real = (name ?? p?.name ?? '').trim() || 'Player';
   const shown = nickname || real;
   return (
-    <span className={cx('flex min-w-0 flex-col', className)} data-testid="person-name">
-      <span className="[overflow-wrap:anywhere]">{shown}</span>
+    // Block layout (not a column flexbox): WebKit sized a column flexbox inside a row too narrowly and
+    // broke short names mid-word on the iPad.
+    <span className={cx('block min-w-0', className)} data-testid="person-name">
+      <span className="block [overflow-wrap:break-word]">{shown}</span>
       {nickname && nickname.toLowerCase() !== real.toLowerCase() && (
-        <span className={cx(realClassName ?? 'text-[0.8em]', 'leading-tight font-normal text-slate-500 [overflow-wrap:anywhere]')} data-testid="person-real-name">
+        <span className={cx(realClassName ?? 'text-[0.8em]', 'block leading-tight font-normal text-slate-500 [overflow-wrap:break-word]')} data-testid="person-real-name">
           {real}
         </span>
       )}

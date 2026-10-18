@@ -38,15 +38,24 @@ export const BOARD_THEMES: [string, string][] = [
 /** A whole number saved when the field is left (not on every keystroke). */
 function NumberSetting({ value, min, max, unit, onCommit }: { value: number; min: number; max: number; unit: string; onCommit: (n: number) => void }) {
   const [text, setText] = useState(String(value));
-  useEffect(() => setText(String(value)), [value]);
+  // A saved value arriving from the server must not overwrite what is being typed (it reset the
+  // field when the host typed again right after a save, and the new number was then lost).
+  const editing = useRef(false);
+  useEffect(() => {
+    if (!editing.current) setText(String(value));
+  }, [value]);
   const commit = () => {
+    editing.current = false;
     const n = Math.min(max, Math.max(min, Math.round(Number(text) || min)));
     setText(String(n));
     if (n !== value) onCommit(n);
   };
   return (
     <div className="flex items-center gap-2">
-      <input className={cx(inputCls, 'w-24')} inputMode="numeric" value={text} onChange={(e) => setText(e.target.value.replace(/[^0-9]/g, ''))} onBlur={commit} onKeyDown={(e) => e.key === 'Enter' && commit()} aria-label={`Minimum ${unit}`} />
+      <input className={cx(inputCls, 'w-24')} inputMode="numeric" value={text} onChange={(e) => {
+          editing.current = true;
+          setText(e.target.value.replace(/[^0-9]/g, ''));
+        }} onBlur={commit} onKeyDown={(e) => e.key === 'Enter' && commit()} aria-label={`Minimum ${unit}`} />
       <span className="text-sm text-slate-600">{unit}</span>
     </div>
   );

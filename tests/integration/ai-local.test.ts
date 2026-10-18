@@ -118,7 +118,7 @@ describe('Create a board with AI (spec §19)', () => {
     expect(r.status).toBe(200);
     expect(r.data).toMatchObject({ filled: 4, total: 9 });
     const b = (await api(s, 'GET', `/api/boards/${r.data.id}`, undefined, host)).data;
-    expect(b).toMatchObject({ title: 'Space (AI)', tags: ['AI-generated'] });
+    expect(b).toMatchObject({ title: 'Space', tags: ['AI-generated'] }); // R7-27: no "(AI)" suffix; the tag marks it
     expect(b.description).toMatch(/Check every clue/);
     const [round, final] = b.content.rounds;
     expect(round.categories.map((c: { name: string }) => c.name)).toEqual(['Moons', 'Rockets', '']);

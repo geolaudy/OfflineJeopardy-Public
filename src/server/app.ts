@@ -280,7 +280,7 @@ export async function startServer(opts: ServerOptions) {
     if (!r.ok) return bad(reply, r.error, 502);
     const board = repo.saveBoard(
       db,
-      { title: `${body.topic} (AI)`.slice(0, 120), description: `Generated with AI from the topic "${body.topic}". Check every clue before playing — AI can be wrong.`, tags: ['AI-generated'], content: r.content },
+      { title: body.topic.slice(0, 120), description: `Generated with AI from the topic "${body.topic}". Check every clue before playing — AI can be wrong.`, tags: ['AI-generated'], content: r.content },
       { version: true },
     );
     audit(db, 'host', 'ai.generate-board', { id: board.id, topic: body.topic, filled: r.filled, total: r.total });

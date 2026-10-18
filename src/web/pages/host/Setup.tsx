@@ -461,7 +461,7 @@ function SoloSetup({ g }: { g: GameView }) {
               <li key={c.id} className="flex items-center gap-3 rounded-xl bg-slate-50 p-2" data-testid={c.bot ? 'setup-bot' : 'setup-player'}>
                 <Avatar profile={competitorAvatar(c, g)} size={40} />
                 <span className="min-w-0 flex-1">
-                  {c.bot || !c.profileId ? <span className="block truncate font-semibold">{name}</span> : <PersonName p={g.profiles[c.profileId]} className="flex font-semibold" realClassName="text-sm" />}
+                  {c.bot || !c.profileId ? <span className="block truncate font-semibold">{name}</span> : <PersonName p={g.profiles[c.profileId]} className="font-semibold" realClassName="text-sm" />}
                   {c.bot && (
                     <span className="mt-0.5 flex flex-wrap items-center gap-2">
                       <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700" data-testid="bot-level-badge">
@@ -667,8 +667,11 @@ function TeamSetup({ g }: { g: GameView }) {
       </button>
       <button className="flex min-w-0 flex-1 items-center gap-2 text-left" onClick={() => setMoving(pid)} aria-label={`Move ${label(pid)}`} data-testid="move-player">
         <Avatar profile={g.profiles[pid]} size={32} />
-        <PersonName p={g.profiles[pid]} className="flex min-w-0 font-semibold" realClassName="text-sm" />
-        {g.online?.includes(pid) && <span className="ml-auto shrink-0 text-xs text-green-700">● phone</span>}
+        {/* R7-3/R7-18: names stacked, the phone status on its own line, so names have the full width. */}
+        <span className="min-w-0 flex-1">
+          <PersonName p={g.profiles[pid]} className="font-semibold" realClassName="text-sm" />
+          {g.online?.includes(pid) && <span className="block text-xs text-green-700">● phone</span>}
+        </span>
       </button>
     </li>
   );

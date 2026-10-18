@@ -4,6 +4,7 @@
 //   proportions are exactly the TV's. Nothing is sent to the server or the TV; no sound plays.
 // - HostBoardGrid: the TV board grid (same classes and theme) with tappable tiles.
 // - FitBox: the largest box of a given aspect ratio that fits the available space.
+// Both screens have square corners, like the TV they stand for (R7-23).
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Dices } from 'lucide-react';
 import type { GameView } from '../../../shared/views';
@@ -113,7 +114,7 @@ export function TvPreview({ game, scoreboard, title, size, testId }: { game: Gam
   }, [ready, look, offset, mirror, scoreboard]);
   const scale = size.w / W;
   return (
-    <div className="absolute inset-0 overflow-hidden rounded-xl bg-black shadow-sm ring-1 ring-black/10" data-testid={testId} data-ready={ready ? 'true' : 'false'}>
+    <div className="absolute inset-0 overflow-hidden bg-black shadow-sm ring-1 ring-black/10" data-testid={testId} data-ready={ready ? 'true' : 'false'}>
       <iframe
         ref={ref}
         src="/board/preview?live=1"
@@ -137,7 +138,7 @@ export function HostBoardGrid({ g, onTile }: { g: GameView; onTile: (clueId: str
   const cols = round.categories.length;
   const rows = Math.max(0, ...round.categories.map((c) => c.clues.length));
   return (
-    <div className="board-theme host-tv absolute inset-0 overflow-hidden rounded-xl shadow-sm" data-theme={root.dataTheme} style={root.style} data-testid="host-board">
+    <div className="board-theme host-tv absolute inset-0 overflow-hidden shadow-sm" data-theme={root.dataTheme} style={root.style} data-testid="host-board">
       <div className="bt-grid" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gridTemplateRows: `var(--bt-cat-row, 1.3fr) repeat(${rows}, minmax(0, 1fr))` }}>
         {round.categories.map((c) => (
           <div key={c.id} className="bt-cell bt-cat" data-testid="host-category">

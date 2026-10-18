@@ -517,9 +517,10 @@ export default function BoardEditor() {
   const editingClue = editing ? content.rounds[editing.ri]?.categories[editing.ci]?.clues[editing.qi] : undefined;
 
   return (
-    <div className="mx-auto max-w-[1400px]">
+    // R7-26: the same side and bottom padding as the other pages (the sticky bar stays edge to edge).
+    <div className="mx-auto max-w-[1400px] px-4 pb-6 sm:px-6">
       {/* Top bar */}
-      <div className="sticky top-0 z-20 -mx-2 mb-3 flex flex-wrap items-center gap-2 border-b border-slate-200 bg-slate-50/95 px-2 py-2 backdrop-blur">
+      <div className="sticky top-0 z-20 -mx-4 mb-3 flex flex-wrap items-center gap-2 border-b border-slate-200 bg-slate-50/95 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6">
         <Link
           to="/host/boards"
           onClick={(e) => {

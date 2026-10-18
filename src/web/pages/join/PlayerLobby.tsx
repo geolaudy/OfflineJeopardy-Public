@@ -62,7 +62,7 @@ export function PlayerLobby({ me, join }: { me: Me; join: React.ReactNode }) {
       <section className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm">
         <Avatar profile={{ ...profile, color: ctx?.color?.current ?? profile.color }} size={52} />
         <div className="min-w-0 flex-1">
-          <PersonName p={profile} className="flex text-lg font-bold" realClassName="text-sm" />
+          <PersonName p={profile} className="text-lg font-bold" realClassName="text-sm" />
           {inGame && (
             <p className="flex items-center gap-1 text-sm text-slate-600" data-testid="my-buzzer">
               <BuzzIcon size={15} aria-hidden /> {buzzer.label}
@@ -139,7 +139,7 @@ export function PlayerLobby({ me, join }: { me: Me; join: React.ReactNode }) {
                       <li key={m}>
                         <button className="flex min-h-9 items-center gap-1.5 rounded-full bg-slate-100 py-0.5 pr-3 pl-0.5 text-sm" onClick={() => open(m)} data-testid="phone-lobby-player">
                           <Avatar profile={g.profiles[m]} size={28} />
-                          <PersonName p={g.profiles[m]} className="flex font-semibold" realClassName="text-xs" />
+                          <PersonName p={g.profiles[m]} className="font-semibold" realClassName="text-xs" />
                         </button>
                       </li>
                     ))}
@@ -172,7 +172,7 @@ function People({ g, ids, bots = [], title, onOpen }: { g: GameView; ids: string
           <li key={id}>
             <button className="flex min-h-12 w-full items-center gap-2 rounded-xl px-1 text-left hover:bg-slate-50" onClick={() => onOpen(id)} data-testid="phone-lobby-player">
               <Avatar profile={g.profiles[id]} size={36} />
-              <PersonName p={g.profiles[id]} className="flex flex-1 font-semibold" realClassName="text-sm" />
+              <PersonName p={g.profiles[id]} className="flex-1 font-semibold" realClassName="text-sm" />
               {g.online?.includes(id) && <span className="text-xs text-green-700">● online</span>}
             </button>
           </li>

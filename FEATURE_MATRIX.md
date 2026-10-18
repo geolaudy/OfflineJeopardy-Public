@@ -319,16 +319,16 @@ Last run 2026-10-12: Vitest 58/58 (43 unit, 15 integration), Playwright 8/8.
 | R7-15 | Clue text shadow = value shadow (token) | P2 | TESTED | board.css --bt-clue-shadow = --bt-hard-shadow | E (round7-tv) | — |
 | R7-16 | Clues vertically centred, stable on answer reveal, long clues fit | P1 | TESTED | board/ClueMedia.tsx (.bt-answer-mirror), board.css | E (round7-tv: centred ±4 %, reveal moves the clue < 1.5 px) | Media clues keep their media-first layout |
 | R7-17 | Consistent gameplay and menu styling systems (tokens) | P2 | IN PROGRESS | Gameplay: shared tokens (gold, board blue, hard shadows) in board.css; menus/lobby: layout tokens --head / --lift / --tvp-real (milestone C) | E (round7-tv, round7c-tv) | iPad side in milestone D |
-| R7-18 | iPad home nickname/profile-name alignment | P2 | NOT STARTED |  |  |  |
+| R7-18 | iPad home nickname/profile-name alignment | P2 | IMPLEMENTED | components/PersonName (block layout, stacked), host/Setup lobby rows (names full width, phone status on its own line) | E (round5-lobby screenshot r5-host-team-lobby) | Checked visually in WebKit iPad emulation; the owner should confirm it is the screen meant |
 | R7-19 | iPad Safari / web-app layout: nothing clipped or off-screen (Boards, Present on TV) | P1 | IMPLEMENTED | styles.css .app-screen (position: fixed, html:has), lib/viewport.ts, host/AppShell (scroll reset) | E (round7-host: 10 pages × 6 Safari/web-app sizes, toolbar resize) | Emulation has no Safari toolbars — real iPad needed (K38) |
 | R7-20 | iPad uses the shared gameplay theme | P2 | NOT STARTED |  |  |  |
 | R7-21 | iPad game preview fixed size/position in every state; compact overlays | P1 | NOT STARTED |  |  |  |
 | R7-22 | iPad score editor (editable, −/+, change, Save/Cancel, recent changes, Remove Player) | P1 | TESTED | host/ScoreEditor.tsx (replaces Live ScoreAdjust; step = round's lowest clue value), engine reverseScoreChange (audited, undoable), undo restores events voided by undone actions | U (round7d: remove / offset / once / undo; playtest fuzzer), E (round7d-host: WebKit iPad landscape + portrait) | Remove Player is refused once the player/team has points in this game (history protection); not tried on a real iPad (K38) |
-| R7-23 | iPad board preview square corners | P3 | NOT STARTED |  |  |  |
+| R7-23 | iPad board preview square corners | P3 | IMPLEMENTED | host/TvMirror.tsx (TvPreview + HostBoardGrid without rounding) | Screenshots (round6-host) | Visual only |
 | R7-24 | iPad correct-answer banner like the reference | P2 | TESTED | host/AnswerBanner.tsx (band variant), host/answer-band.css (red stripes, small label, clue font + --bt-hard-shadow), HostClue (band inside the themed clue card, top) | E (round7d-host: band at the top, full card width, host only; host-ipad, game, practice, media) | Peek-in-practice and notes kept inside the band; Final and played-clue views keep the compact banner |
 | R7-25 | iPad preview matches the TV | P2 | NOT STARTED |  |  |  |
-| R7-26 | Board creator padding | P3 | NOT STARTED |  |  |  |
-| R7-27 | No "(AI)" suffix on AI board titles | P3 | NOT STARTED |  |  |  |
+| R7-26 | Board creator padding | P3 | IMPLEMENTED | desk/BoardEditor.tsx (px-4 pb-6 sm:px-6 like the other pages; sticky bar edge to edge) | E (editor, ai-board screenshots) | Visual only |
+| R7-27 | No "(AI)" suffix on AI board titles | P3 | TESTED | server/app.ts (title = topic; the AI-generated tag marks it) | I (ai-local) | Existing boards keep their titles (user text untouched) |
 | R7-28 | Phone theme editor + submenus have Back | P1 | TESTED | host/AppShell SUB_PAGES back button, desk/Themes back link | E (round7-host) | Phone portal already had Back on detail pages |
 | R7-29 | Phone buzzer constant size in every state | P1 | TESTED | join/PlayTab.tsx (fixed clue/timer row and status area) | E (round7-host: 5 states, same box) | Real phones not tested (K37) |
 | R7-30.1 | Buzzinga imports bring media | P3 | NOT STARTED |  |  |  |
