@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode, type RefObject } from 'react';
 import { create } from 'zustand';
 import { avatarEmoji, PLAYER_COLORS, readableOn, contrastRatio } from '../lib/avatars';
 import type { ProfilePublic } from '../../shared/views';
@@ -187,10 +187,58 @@ function useScrollLock(active: boolean) {
 
 const isTouch = () => typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
 
+/**
+ * R10-4: the part of the screen not covered by the on-screen keyboard. iOS Safari (and Chrome on
+ * Android, which resizes only the visual viewport) leave a `fixed inset-0` overlay full height when
+ * the keyboard opens, so a bottom sheet would sit under the keyboard. While `active`, returns the
+ * visual viewport's top and height when it is smaller than the window (keyboard open), else null.
+ */
+export function useKeyboardViewport(active: boolean) {
+  const [box, setBox] = useState<{ top: number; height: number } | null>(null);
+  useEffect(() => {
+    const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+    if (!active || !vv) return setBox(null);
+    const read = () => {
+      const covered = window.innerHeight - vv.height > 80; // a keyboard, not a browser bar
+      setBox((b) => (!covered ? null : b && b.top === vv.offsetTop && b.height === vv.height ? b : { top: vv.offsetTop, height: vv.height }));
+    };
+    read();
+    vv.addEventListener('resize', read);
+    vv.addEventListener('scroll', read);
+    return () => {
+      vv.removeEventListener('resize', read);
+      vv.removeEventListener('scroll', read);
+    };
+  }, [active]);
+  return box;
+}
+
+/** R10-4: keeps a focused field inside `ref` visible (after the keyboard has finished opening). */
+function useKeepFocusVisible(ref: RefObject<HTMLElement | null>, active: boolean, dep: unknown) {
+  useEffect(() => {
+    const root = ref.current;
+    if (!active || !root) return;
+    const show = () => {
+      const el = document.activeElement;
+      // A field's own row (marked data-keep-visible) comes into view with it — e.g. its Save button.
+      if (el instanceof HTMLElement && root.contains(el) && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) (el.closest('[data-keep-visible]') ?? el).scrollIntoView({ block: 'nearest' });
+    };
+    const t = window.setTimeout(show, 60);
+    const onFocus = () => window.setTimeout(show, 300);
+    root.addEventListener('focusin', onFocus);
+    return () => {
+      window.clearTimeout(t);
+      root.removeEventListener('focusin', onFocus);
+    };
+  }, [ref, active, dep]);
+}
+
 export function Modal({ open, onClose, title, children, wide }: { open: boolean; onClose: () => void; title: string; children: ReactNode; wide?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const close = useLatest(onClose);
   useScrollLock(open);
+  const kb = useKeyboardViewport(open);
+  useKeepFocusVisible(ref, open, kb?.height);
   // Runs only when the dialog opens — NOT on every re-render. (It used to depend on the inline
   // onClose, so every live state update re-focused the first input and popped the iPad keyboard.)
   useEffect(() => {
@@ -207,7 +255,10 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
   return (
     <div
       className="fade-in fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 sm:items-center sm:p-4"
-      style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)' }}
+      // R10-4: with the keyboard open the overlay covers only the visible part of the screen, so
+      // the sheet (and its Save / Cancel) sits right above the keyboard.
+      style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)', ...(kb ? { top: kb.top, bottom: 'auto', height: kb.height } : {}) }}
+      data-keyboard={kb ? 'open' : undefined}
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       {/* Height is bounded by the *visible* viewport (dvh) so the title and close button can never
@@ -219,6 +270,7 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
         aria-modal="true"
         aria-label={title}
         className={cx('safe-x flex max-h-[calc(100dvh-max(env(safe-area-inset-top),12px))] w-full flex-col rounded-t-2xl bg-white shadow-xl outline-none sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl', wide ? 'sm:max-w-3xl' : 'sm:max-w-md')}
+        style={kb ? { maxHeight: `calc(${kb.height}px - max(env(safe-area-inset-top), 12px))` } : undefined}
       >
         <div className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-100 px-5 py-3">
           <h2 className="text-xl font-bold">{title}</h2>

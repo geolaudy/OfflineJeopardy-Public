@@ -357,6 +357,8 @@ Last run 2026-10-12: Vitest 58/58 (43 unit, 15 integration), Playwright 8/8.
 
 ## User feedback round 9 (2026-10-18) — see USER_FEEDBACK.md "Round 9"
 
+**R9-6 (Final Jeopardy! clue and correct-response pictures and sounds): USER-VERIFIED ON REAL HARDWARE — PASS** (the owner, local 0.13.0 build with round 9, real TV + iPad, reported 2026-10-18 with round 10).
+
 | ID | Feature | Pri | Status | Source | Tests | Limitations |
 |---|---|---|---|---|---|---|
 | R9-1 | Release v0.13.0 | P1 | TESTED | package.json 0.13.0, CHANGELOG [0.13.0], tag v0.13.0 | Full Playwright 53/53, Vitest 316/316, verify-dist 17/17, GitHub Actions build + 3 release assets | — |
@@ -371,3 +373,13 @@ Last run 2026-10-12: Vitest 58/58 (43 unit, 15 integration), Playwright 8/8.
 | R9-L1 | Category subheadings in CSV import/export | P3 | TESTED | shared/boardIO (CSV_HEADER + category_subheading, first row of a category sets it), importers/sources/csv (+ alias "subheading"), importers/types + pipeline (kept, ≤ 100 chars) | U (round9), I (server: export header) | Old CSV files without the column import unchanged |
 | R9-L2 | iPad buzzed-in line without "Nickname (Name)" | P3 | TESTED | host/HostClue Answering (player: real name under the nickname; team member: real name small and gray after the nickname; no parentheses) | E (round9: team member with a nickname, no "(", bar fits) | — |
 | R9-L3 | Clue sound never cut off by a short length reading | P2 | TESTED | board/ClueMedia useMediaSync (status "ended" leaves a still-playing element alone), host/MediaControls useDuration (+ durationchange) | E (round9, media) | K42 |
+
+## User feedback round 10 (2026-10-18) — see USER_FEEDBACK.md "Round 10"
+
+| ID | Feature | Pri | Status | Source | Tests | Limitations |
+|---|---|---|---|---|---|---|
+| R10-3 | Category subheading directly under the name | P2 | TESTED | board/common FitStack (lines shrink together, centred as one group) + CategoryText (board, iPad replica) + CategoryTitle (introduction, Final), board.css | E (round10: introduction gap < 3 % of the screen, board group centred in its cell, Final category), round8 spec | — |
+| R10-5 | Final media ↔ text gap | P2 | TESTED | board/ClueMedia MEDIA_TEXT_GAP_VH (3vh, taken from the text's share) for every Final MediaStage (clue + correct response); board.css .has-sub (more room under a subheading) | E (round10: picture → text gap > 2.5 % of the screen, picture still > 30 %), round9 spec | — |
+| R10-8 | TV answer closer under the clue | P2 | TESTED | board/ClueMedia useAnswerLift (answer ANSWER_GAP_VH = 4.5vh under the clue's last line, measured; never lower than before; the clue does not move) | E (round10: clue unmoved, gap 3–6.5 % of the screen), round7-tv / presentation specs | Plain text clues (media clues show the answer in place of the hint, unchanged) |
+| R10-4 | Phone nickname sheet above the keyboard | P1 | TESTED | components/ui useKeyboardViewport (overlay = visual viewport while a keyboard covers the screen) + useKeepFocusVisible (focused field's row scrolled into view), join/PlayerLobby (input + Cancel + Save in one row when there is room, Enter saves) | E (round10: simulated keyboard — iPhone portrait/landscape (WebKit), Pixel 7 (Chromium): input, Save, Cancel above it; long nickname; Cancel / Save) | Simulated keyboard only — real iPhone / Android not tested (K44) |
+| R10-10 | Next round straight from the last clue | P1 | TESTED | lib/view cluesLeft + nextStage (any round structure), host/HostClue NextStageButton (Start <next round> / Start Final Jeopardy! / End Game & Show Results), engine closeOutcome (setRound / startFinal / endGame from an open clue record answered / unanswered / skipped like Return to Board) | U (round10: 6 — answered / unanswered outcome, intro of the next round, Final, no Final → results, one round + Final, Undo), E (round10: not on earlier clues; Start Double Round → TV intro, no clue stage; Start Final Jeopardy!) | — |

@@ -114,14 +114,101 @@ export function usePrefersReducedMotion() {
 export const CATEGORY_TEXT_SHARE = 0.34;
 
 /** R8-9: a category header on the board (TV and iPad replica): the name — the same size as
- *  without a subheading (its box is 68 % of the cell, its share scaled to match) — with a smaller
- *  subheading under it when the category has one. */
+ *  without a subheading — with a smaller subheading under it when the category has one. R10-3:
+ *  the two lines are one group, centred together, the subheading directly under the name. */
 export function CategoryText({ name, subheading, scale, min }: { name: string; subheading?: string; scale: number; min: number }) {
   if (!subheading?.trim()) return <FitText text={name} max={4.4 * scale} maxBox={CATEGORY_TEXT_SHARE * scale} min={min * scale} className="bt-cat-text" />;
   return (
-    <div className="bt-cat-stack">
-      <FitText text={name} max={4.4 * scale} maxBox={(CATEGORY_TEXT_SHARE * scale) / 0.68} min={min * 0.85 * scale} className="bt-cat-text" boxClassName="bt-cat-name-box" />
-      <FitText text={subheading} max={2.2 * scale} maxBox={0.6} min={0.9 * scale} className="bt-cat-sub" boxClassName="bt-cat-sub-box" testId="category-subheading" />
+    <FitStack
+      lines={[
+        { text: name, em: 1, className: 'bt-cat-text' },
+        { text: subheading, em: 0.55, minVh: 0.9 * scale, className: 'bt-cat-sub', testId: 'category-subheading' },
+      ]}
+      max={4.4 * scale}
+      maxBox={CATEGORY_TEXT_SHARE * scale}
+      min={min * 0.85 * scale}
+    />
+  );
+}
+
+/** A category name with its subheading (R10-3) for the introduction and Final screens. */
+export function CategoryTitle({ name, subheading, max, min, subEm, subMin, boxClassName, subTestId }: { name: string; subheading?: string; max: number; min: number; subEm: number; subMin: number; boxClassName?: string; subTestId: string }) {
+  if (!subheading?.trim()) return <FitText text={name} max={max} min={min} className="bt-intro-cat" boxClassName={boxClassName} />;
+  return (
+    <FitStack
+      lines={[
+        { text: name, em: 1, className: 'bt-intro-cat' },
+        { text: subheading, em: subEm, minVh: subMin, className: 'bt-intro-sub', testId: subTestId },
+      ]}
+      max={max}
+      min={min}
+      boxClassName={boxClassName}
+    />
+  );
+}
+
+export interface FitLine {
+  text: string;
+  /** Size relative to the first line's. */
+  em: number;
+  /** Never smaller than this (vh), however much the group shrinks. */
+  minVh?: number;
+  className?: string;
+  testId?: string;
+}
+
+/**
+ * R10-3: several lines of text that shrink together (like FitText) to fit one box and are centred
+ * in it as one group — a category name with its subheading directly underneath, at any length.
+ */
+export function FitStack({ lines, max, maxBox, min, boxClassName }: { lines: FitLine[]; max: number; maxBox?: number; min: number; boxClassName?: string }) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
+  const key = JSON.stringify(lines.map((l) => [l.text, l.em, l.minVh ?? 0]));
+  useLayoutEffect(() => {
+    const box = boxRef.current;
+    const el = ref.current;
+    if (!box || !el) return;
+    const fit = () => {
+      const vh = window.innerHeight / 100;
+      const kids = Array.from(el.children) as HTMLElement[];
+      const spec = JSON.parse(key) as [string, number, number][];
+      const set = (px: number) => kids.forEach((k, i) => (k.style.fontSize = `${Math.max(px * (spec[i]?.[1] ?? 1), (spec[i]?.[2] ?? 0) * vh)}px`));
+      const fits = () => kids.every((k) => k.scrollWidth <= box.clientWidth + 1) && el.offsetHeight <= box.clientHeight + 1;
+      let hi = maxBox ? box.clientHeight * maxBox : max * vh;
+      let lo = Math.min(min * vh, hi);
+      set(hi);
+      if (fits() || box.clientHeight === 0) return;
+      for (let i = 0; i < 9; i++) {
+        const mid = (lo + hi) / 2;
+        set(mid);
+        if (fits()) lo = mid;
+        else hi = mid;
+      }
+      set(lo);
+    };
+    fit();
+    if (typeof ResizeObserver === 'undefined') return;
+    let last = `${box.clientWidth}x${box.clientHeight}`;
+    const ro = new ResizeObserver(() => {
+      const now = `${box.clientWidth}x${box.clientHeight}`;
+      if (now !== last) {
+        last = now;
+        fit();
+      }
+    });
+    ro.observe(box);
+    return () => ro.disconnect();
+  }, [key, max, maxBox, min]);
+  return (
+    <div ref={boxRef} className={cx('bt-fit-box', boxClassName)}>
+      <div ref={ref} className="bt-fit bt-fit-stack">
+        {lines.map((l, i) => (
+          <div key={i} className={l.className} style={{ fontSize: `${max * l.em}vh` }} data-testid={l.testId}>
+            <RichText text={l.text} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 } // R7-5: capitals ≈ 25 % of the tile height, as on the reference board

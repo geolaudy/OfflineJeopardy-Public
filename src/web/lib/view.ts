@@ -95,3 +95,16 @@ export function phaseLabel(g: GameView) {
       return 'Game over';
   }
 }
+
+/** Unplayed clues left in the current round. */
+export function cluesLeft(g: GameView) {
+  return g.rounds[g.roundIndex]?.categories.reduce((a, c) => a + c.clues.filter((q) => !q.used).length, 0) ?? 0;
+}
+
+/** R10-10: what follows the current round once it has no clues left — the next standard round,
+ *  the Final, or (neither) the end of the game. Works for any number of rounds. */
+export function nextStage(g: GameView): { kind: 'round'; index: number; name: string } | { kind: 'final' } | { kind: 'end' } {
+  const index = g.rounds.findIndex((r, i) => i > g.roundIndex && r.kind === 'standard');
+  if (index >= 0) return { kind: 'round', index, name: g.rounds[index].name };
+  return g.rounds.some((r) => r.kind === 'final') ? { kind: 'final' } : { kind: 'end' };
+}

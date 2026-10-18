@@ -87,6 +87,8 @@ export function QuestionCard({ g, still }: { g: GameView; still?: boolean }) {
   const classic = clue.media.length === 0 && clue.answerMedia.length === 0;
   const areaRef = useRef<HTMLDivElement>(null);
   const area = useBoxSize(areaRef);
+  const slotRef = useRef<HTMLDivElement>(null);
+  const lift = useAnswerLift(areaRef, slotRef, classic && clue.answerRevealed, `${clue.clueId}:${area.w}x${area.h}`);
   return (
     <div className={cx('bt-stage flex min-h-0 flex-1 flex-col items-center px-[4vw] pt-[5.5vh] pb-[7.5vh]', still && 'is-still')} data-testid="tv-stage">
       {/* R7-16: plain text clues mirror the answer slot above the text, so the clue is centred on
@@ -110,7 +112,7 @@ export function QuestionCard({ g, still }: { g: GameView; still?: boolean }) {
       </div>
       {/* Plain text clues: fixed slot so the classic answer reveal never re-flows the question. */}
       {classic && (
-        <div className="bt-answer-slot w-full shrink-0 pt-[2vh]">
+        <div ref={slotRef} className="bt-answer-slot w-full shrink-0 pt-[2vh]" style={lift ? { transform: `translateY(${-lift}px)` } : undefined} data-lift={Math.round(lift)}>
           <AnimatePresence>
             {clue.answerRevealed && !!clue.answer && (
               <motion.p
@@ -132,6 +134,34 @@ export function QuestionCard({ g, still }: { g: GameView; still?: boolean }) {
   );
 }
 
+/** R10-8: the revealed answer of a plain text clue sits this far (vh) under the clue's last line. */
+export const ANSWER_GAP_VH = 4.5;
+
+/**
+ * R10-8: how far to lift the answer slot so the revealed answer sits ANSWER_GAP_VH under the clue
+ * text instead of at the bottom of the clue area — measured from the text actually on screen, so it
+ * works for one line or many. Never negative (a long clue keeps the answer where it was); the clue
+ * itself never moves.
+ */
+function useAnswerLift(areaRef: RefObject<HTMLElement | null>, slotRef: RefObject<HTMLElement | null>, on: boolean, key: string) {
+  const [lift, setLift] = useState(0);
+  useLayoutEffect(() => {
+    if (!on) return setLift(0);
+    const text = areaRef.current?.querySelector('[data-testid="clue-text"]');
+    const slot = slotRef.current;
+    if (!text || !slot) return;
+    const vh = window.innerHeight / 100;
+    // The slot's own lift is excluded: measure where it would be unlifted.
+    const slotTop = slot.getBoundingClientRect().top + lift;
+    const gap = slotTop + 2 * vh - text.getBoundingClientRect().bottom;
+    setLift(Math.max(0, gap - ANSWER_GAP_VH * vh));
+  }, [on, key]);
+  return lift;
+}
+
+/** R10-5: space (vh) between a Final clue's or correct response's media and its text. */
+export const MEDIA_TEXT_GAP_VH = 3;
+
 /** A media composition filling the space it is given (Final Jeopardy!, R9-6): measured, then laid
  *  out like an open clue's — except that a sound with a picture is a badge on the picture's corner
  *  instead of its own line, so the picture can be larger in the Final's smaller area. */
@@ -140,13 +170,13 @@ export function MediaStage({ g, mc, side, testId }: { g: GameView; mc: MediaClue
   const area = useBoxSize(ref);
   return (
     <div ref={ref} className="flex min-h-0 w-full flex-1 flex-col items-center justify-center" data-testid={testId}>
-      {area.h > 0 && <Composition g={g} mc={mc} side={side} area={area} inlineAudio />}
+      {area.h > 0 && <Composition g={g} mc={mc} side={side} area={area} inlineAudio gapVh={MEDIA_TEXT_GAP_VH} />}
     </div>
   );
 }
 
 /** Media first (upper area) with the text beneath; the pair is centred as one composition. */
-function Composition({ g, mc: clue, side, area, inlineAudio }: { g: GameView; mc: MediaClue; side: Side; area: { w: number; h: number }; inlineAudio?: boolean }) {
+function Composition({ g, mc: clue, side, area, inlineAudio, gapVh = 0 }: { g: GameView; mc: MediaClue; side: Side; area: { w: number; h: number }; inlineAudio?: boolean; gapVh?: number }) {
   const { scale, vh } = useBoard();
   const id = clue.clueId;
   // Answer side: answer media if the clue has some, otherwise keep the clue media on screen.
@@ -185,7 +215,8 @@ function Composition({ g, mc: clue, side, area, inlineAudio }: { g: GameView; mc
           min={2.2 * Math.min(1, scale.clue)}
           className={side === 'answer' ? 'bt-question bt-answer-text' : 'bt-question'}
           boxClassName="w-full shrink-0"
-          boxStyle={{ height: visual.length || audio.length ? textH - (visual.length ? 0 : audioH) : area.h }}
+          // R10-5: a fixed gap above text that follows media, taken from the text's own share.
+          boxStyle={visual.length || audio.length ? { height: textH - (visual.length ? 0 : audioH) - (gapVh / 100) * vh, marginTop: (gapVh / 100) * vh } : { height: area.h }}
           testId={side === 'answer' ? 'clue-answer' : 'clue-text'}
         />
       )}
@@ -324,7 +355,6 @@ export function useMediaSync(ref: RefObject<HTMLMediaElement | null>, g: GameVie
       const at = mine.status === 'stopped' ? 0 : target;
       if (Math.abs(el.currentTime - at) > 0.05) el.currentTime = at;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ref, mine?.status, mine?.positionMs, mine?.startedAt, mine?.muted, !!mine]);
   // Stop when the element leaves the screen (clue closed, answer revealed).
   useEffect(() => {

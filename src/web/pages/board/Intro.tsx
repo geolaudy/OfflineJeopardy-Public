@@ -9,7 +9,7 @@ import { cueDuration, playCue } from '../../lib/sound';
 import { serverNow } from '../../lib/socket';
 import type { GameView } from '../../../shared/views';
 import { cx } from '../../components/ui';
-import { FitText, useBoard } from './common';
+import { CategoryTitle, FitText, useBoard } from './common';
 import { EASE_OUT_ARR, T } from './timing';
 import { BoardReveal, revealPlan, revealTimeline, useFx } from './fx';
 
@@ -65,12 +65,7 @@ export function Intro({ g }: { g: GameView }) {
               <p className="bt-intro-kicker">
                 Category {step + 1} of {n}
               </p>
-              <FitText text={cat.name} max={15} min={5} className="bt-intro-cat" boxClassName="min-h-0 max-h-[52vh] flex-1" />
-              {cat.subheading && (
-                <p className="bt-intro-sub" data-testid="intro-subheading">
-                  {cat.subheading}
-                </p>
-              )}
+              <CategoryTitle name={cat.name} subheading={cat.subheading} max={15} min={5} subEm={0.3} subMin={2.8} boxClassName="min-h-0 max-h-[52vh] flex-1" subTestId="intro-subheading" />
             </div>
           ) : fill ? (
             // Classic board intro (R2-23): the blank screens light up in a checker pattern, then the

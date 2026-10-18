@@ -1,5 +1,11 @@
 # Progress
 
+## Session 14 — 2026-10-18 (second machine, mvanwitz; round 10)
+
+- Resumed: `main` = `origin/main` (557bf0e), clean; v0.13.0 is the latest GitHub release (verified last session). The owner tested the local build (0.13.0 + round 9) on real hardware: **Final Jeopardy! media — USER-VERIFIED ON REAL HARDWARE — PASS** (FEATURE_MATRIX round 9). New feedback: USER_FEEDBACK "Round 10", plan milestone 24.
+- **Milestone A:** R10-3 subheading grouped with its name (`FitStack`: one box, lines shrink together, centred as a group — board, iPad replica, introduction, Final); R10-5 3vh gap between Final media and text; R10-8 the revealed answer 4.5vh under the clue's measured last line (never lower than before, the clue unmoved); R10-4 phone sheets follow the visual viewport above the keyboard, the focused field's row is scrolled into view, the nickname sheet got Cancel + Enter-to-save; R10-10 Start <next round> / Start Final Jeopardy! / End Game & Show Results replace Return to Board after a round's last clue — and a clue closed that way records its real outcome (it counted as skipped before).
+- Tests: tsc clean, **Vitest 338/338** (new unit round10: 6); Playwright round10 (4, new) + round8, round9, round5-lobby, presentation, round7-tv, round6-tv-layout, game, playtest — **23/23**.
+
 ## Session 13 — 2026-10-18 (second machine, mvanwitz; v0.13.0 + round 9)
 
 - **Release v0.13.0:** full Playwright run on dab0740 **53/53** (enough free memory this time), then `release:local` (Vitest 316/316, verify-dist 17/17) → f219f51, tag v0.13.0 → GitHub Actions "Windows build v0.13.0" succeeded → https://github.com/geolaudy/OfflineJeopardy/releases/tag/v0.13.0 with OfflineJeopardy-Setup-0.13.0.exe, OfflineJeopardy-Portable-0.13.0.exe, SHA256SUMS.txt (verified via the GitHub API).

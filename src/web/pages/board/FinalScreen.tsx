@@ -12,7 +12,7 @@ import { finalEntryReveal } from '../../../shared/game';
 import { Avatar, cx } from '../../components/ui';
 import { playCue } from '../../lib/sound';
 import { competitorAvatar, competitorColor, competitorName, findCompetitor } from '../../lib/view';
-import { FitText, money, useBoard } from './common';
+import { CategoryTitle, FitText, money, useBoard } from './common';
 import { TimerBar } from './TimerBar';
 import { VerdictMark } from './VerdictMark';
 import { SwipeStage, useSwipe, useTestId } from './Swipe';
@@ -61,24 +61,24 @@ function FinalContent({ g }: { g: GameView }) {
   return (
     <>
       <p className="bt-kicker shrink-0">Final Jeopardy!</p>
-      <FitText
-        text={f.category}
+      {/* R10-3: the subheading sits directly under the category, the two centred as one group
+          (its box grows by the subheading's line, as the separate line did before). */}
+      <CategoryTitle
+        name={f.category}
+        subheading={f.categorySubheading}
         max={early ? 13 : revealing || mediaClue ? 3.6 : 5}
         min={early ? 4 : 2.2}
-        className="bt-intro-cat"
-        boxClassName={early ? 'min-h-0 flex-1' : revealing || mediaClue ? 'h-[6vh] shrink-0' : 'h-[9vh] shrink-0'}
+        subEm={early ? 0.34 : 0.6}
+        subMin={early ? 2.6 : 1.8}
+        boxClassName={early ? 'min-h-0 flex-1' : f.categorySubheading?.trim() ? (revealing || mediaClue ? 'h-[9vh] shrink-0' : 'h-[12vh] shrink-0') : revealing || mediaClue ? 'h-[6vh] shrink-0' : 'h-[9vh] shrink-0'}
+        subTestId="final-subheading"
       />
-      {f.categorySubheading && (
-        <p className={cx('bt-intro-sub shrink-0', !early && 'is-small')} data-testid="final-subheading">
-          {f.categorySubheading}
-        </p>
-      )}
       {f.stage === 'wagers' && <SubmissionChips g={g} kind="wager" />}
       {(f.stage === 'clue' || f.stage === 'closed') && (f.question?.trim() || f.media.length > 0) && (
         // R7-7: centred in the whole stage, not in the space left under the category; the header
         // band is mirrored at the bottom so long clues never run into it. With media (R9-6) the
         // picture gets the room down to the answer chips.
-        <motion.div className={cx('bt-final-q', f.media.length > 0 && 'has-media')} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: T.reveal }} data-testid="tv-final-clue">
+        <motion.div className={cx('bt-final-q', f.media.length > 0 && 'has-media', !!f.categorySubheading?.trim() && 'has-sub')} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: T.reveal }} data-testid="tv-final-clue">
           {f.media.length > 0 ? (
             <MediaStage g={g} mc={finalMedia(f, 'clue')} side="clue" />
           ) : (

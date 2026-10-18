@@ -336,3 +336,20 @@ Release v0.13.0 first (full Playwright run), then the iPad Final Jeopardy! scree
 | R9-6.8 | Keep wagers, timer, think music, answers, reveal order, judging, scores, bots, teams, results working | A |
 | R9-6.9 | Board editor saves, reloads, edits and removes Final media; existing boards keep working | A |
 | R9-6.10 | Regression tests (15 cases listed in the request) | A |
+
+# User Feedback — Round 10 (received 2026-10-18, session 14, after testing the local 0.13.0 build)
+
+The owner tested the local build (0.13.0 + round 9) on real hardware: **Final Jeopardy! clue and correct-response pictures and sounds — USER-VERIFIED ON REAL HARDWARE — PASS.** Don't reopen that system except for the items below.
+
+| ID | Requirement (summary) | Milestone |
+|---|---|---|
+| R10-2 | Board editor: preview the Final's category, clue and correct response as the TV shows them (text, picture, sound and combinations), sound play / pause / restart (one copy, stops on close), from unsaved editor values, no game needed, TV aspect kept, same components as the TV | D |
+| R10-3 | Category subheading directly under the name as one group (board, introduction, Final, previews), centred, multi-line names, no negative-margin hack | A |
+| R10-4 | Phone nickname editor stays visible above the on-screen keyboard (input, typed text, Save, Cancel); portrait and landscape | A |
+| R10-5 | Final Jeopardy!: a modest gap between media and text (clue and correct response), shared value, no overlap | A |
+| R10-6 | iPad: larger fixed-aspect TV preview; the score-card band becomes host controls; controls overlay the preview within its bounds; no iPad timer bar (TV unchanged); no layout shifts in any state; landscape/portrait/desktop | B |
+| R10-7 | iPad answer banner: no "only you"; answer text in the label's typography; notes in the same style; inside the preview (no resize); uses its width before height; lightbox for long answers / notes; stripes reversed; private | C |
+| R10-8 | TV: the revealed answer slightly closer under the clue (consistent gap, the clue does not move) | A |
+| R10-9 | iPad: category and value compact inside the preview in the gameplay style (not added to the TV clue) | B |
+| R10-10 | After a round's last clue, "Start Round 2" / "Start Final Jeopardy!" (or the end of the game) replaces Return to Board; no automatic advance; any round structure | A |
+| R10-11 | Board editor: visual bold / italic / underline (no visible markup) for clues and answers (regular and Final); existing [b]/[i]/[u] boards keep working; safe; undo, paste, shortcuts; tests | D |

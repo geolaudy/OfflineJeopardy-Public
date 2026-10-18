@@ -8,12 +8,12 @@
 //     needed rarely lives in "More".
 // Every control follows the server state (answeringEnded, answerRevealed, resolved, buzzer…).
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ArrowLeft, BellRing, Check, ChevronRight, Dices, Eye, EyeOff, Image as ImageIcon, Lock, LockOpen, NotebookPen, Pause, Play, RotateCcw, Timer, Video, Wrench, X, Zap } from 'lucide-react';
+import { ArrowLeft, BellRing, Check, ChevronRight, Dices, Eye, EyeOff, Flag, Image as ImageIcon, Lock, LockOpen, NotebookPen, Pause, Play, RotateCcw, Timer, Video, Wrench, X, Zap } from 'lucide-react';
 import type { CompetitorView, GameView } from '../../../shared/views';
 import type { HostAction } from '../../../shared/actions';
 import { BOT_LEVELS } from '../../../shared/game';
 import { ActionButton, Avatar, Button, Field, cx, fmtScore, inputCls } from '../../components/ui';
-import { competitorAvatar, competitorName, findCompetitor, profileName, useTimer, useTimerSeconds, TIMER_LABELS } from '../../lib/view';
+import { cluesLeft, competitorAvatar, competitorName, findCompetitor, nextStage, profileName, useTimer, useTimerSeconds, TIMER_LABELS } from '../../lib/view';
 import { EarlyBuzzQuick } from './EarlyBuzzRule';
 import { MediaControls } from './MediaControls';
 import { AnswerBanner } from './AnswerBanner';
@@ -169,6 +169,29 @@ function HostAnswer({ g, onPicture }: { g: GameView; onPicture: () => void }) {
   );
 }
 
+/** R10-10: the step after a round's last clue — straight into the next round (its introduction),
+ *  the Final, or the results when the board has neither. The clue closes with its real outcome. */
+function NextStageButton({ g, run }: { g: GameView; run: Run }) {
+  const next = nextStage(g);
+  if (next.kind === 'round')
+    return (
+      <ActionButton size="xl" variant="primary" onAction={() => run({ type: 'setRound', roundIndex: next.index })} data-testid="clue-next-round">
+        Start {next.name} <ChevronRight size={22} aria-hidden />
+      </ActionButton>
+    );
+  if (next.kind === 'final')
+    return (
+      <ActionButton size="xl" variant="primary" onAction={() => run({ type: 'startFinal' })} data-testid="clue-start-final">
+        <Flag size={22} aria-hidden /> Start Final Jeopardy!
+      </ActionButton>
+    );
+  return (
+    <ActionButton size="xl" variant="success" onAction={() => run({ type: 'endGame' })} data-testid="clue-end-game">
+      <Flag size={22} aria-hidden /> End Game &amp; Show Results
+    </ActionButton>
+  );
+}
+
 function ClueFooter({ g, run, responder, who, setWho }: { g: GameView; run: Run; responder: CompetitorView | undefined; who: string | null; setWho: (v: string | null) => void }) {
   const clue = g.clue!;
   const id = clue.clueId;
@@ -206,7 +229,9 @@ function ClueFooter({ g, run, responder, who, setWho }: { g: GameView; run: Run;
     );
 
   let primary: ReactNode = null;
-  if (clue.answerRevealed)
+  // R10-10: after the round's last clue the next step replaces Return to Board (no empty board).
+  if (clue.answerRevealed && cluesLeft(g) === 0) primary = <NextStageButton g={g} run={run} />;
+  else if (clue.answerRevealed)
     primary = (
       <ActionButton size="xl" variant="primary" onAction={() => run({ type: 'closeClue', clueId: id })} data-testid="back-to-board">
         <ArrowLeft size={22} aria-hidden /> Return to Board

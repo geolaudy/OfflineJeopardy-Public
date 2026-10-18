@@ -125,3 +125,11 @@ Rollback point: tag v0.13.0 (published). See USER_FEEDBACK.md "Round 9"; statuse
 - **0 — Release v0.13.0:** full Playwright run 53/53, then the release. **Done.**
 - **A — Final Jeopardy! media + iPad Final in the game frame:** R9-5, R9-6.1 … R9-6.10. **Done** (D82).
 - Next: smaller leftovers (category subheadings in CSV, the iPad buzzed-in line's inline "Nickname (Name)").
+
+## Milestone 24 — User feedback round 10 (started 2026-10-18, session 14)
+
+Rollback point: tag v0.13.0. See USER_FEEDBACK.md "Round 10"; statuses in FEATURE_MATRIX.md. The owner verified Final media on real hardware.
+- **A — Small gameplay and presentation fixes:** R10-3, R10-5, R10-8, R10-4, R10-10. **Done.**
+- **B — iPad preview:** R10-6, R10-9 (highest priority after A).
+- **C — Host answer banner:** R10-7.
+- **D — Board editor:** R10-2 (Final previews), R10-11 (visual rich text).

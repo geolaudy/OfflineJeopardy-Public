@@ -786,7 +786,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       if (s.phase !== 'board' && s.phase !== 'clue') fail('Rounds can be changed from the board');
       const r = s.board.rounds[a.roundIndex];
       if (!r || r.kind !== 'standard') fail('No such round');
-      closeActiveClue(tx, 'skipped');
+      closeActiveClue(tx, closeOutcome(s));
       s.roundIndex = a.roundIndex;
       s.phase = 'board';
       // Lowest score picks first in a new round (traditional rule); host can override.
@@ -1052,9 +1052,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       // A repeated tap (or a tap meant for a clue that is already closed) must not close the next clue.
       if (a.clueId && s.clue?.clueId !== a.clueId) return { ignored: true, info: 'stale' };
       if (s.phase !== 'clue' || !s.clue) fail('No clue is open');
-      const c = s.clue!;
-      const answered = s.events.some((e) => !e.voided && e.type === 'answer' && e.clueId === c.clueId && e.result === 'correct');
-      closeActiveClue(tx, answered ? 'answered' : c.answerRevealed || c.answeringEnded || c.resolved ? 'unanswered' : 'skipped');
+      closeActiveClue(tx, closeOutcome(s));
       s.phase = 'board';
       return;
     }
@@ -1198,7 +1196,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       if (idx < 0) fail('This board has no Final round');
       const round = s.board.rounds[idx];
       if (!round.categories[0]?.clues[0]) fail('The Final round has no clue');
-      closeActiveClue(tx, 'skipped');
+      closeActiveClue(tx, closeOutcome(s));
       s.intro = null;
       const scores = scoresOf(s.events);
       const lives = livesOf(s);
@@ -1341,7 +1339,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
     case 'endGame': {
       if (s.phase === 'ended') fail('Game already ended');
       if (s.phase === 'lobby') fail('The game has not started');
-      closeActiveClue(tx, 'skipped');
+      closeActiveClue(tx, closeOutcome(s));
       s.phase = 'ended';
       s.timer = null;
       s.intro = null;
@@ -1547,6 +1545,15 @@ function settleMedia(s: GameState) {
 function finalState(s: GameState) {
   if (s.phase !== 'final' || !s.final) fail('The Final round is not active');
   return s.final!;
+}
+
+/** How the open clue ends when the host moves on: answered (someone was right), unanswered (it was
+ *  played out — revealed, time up or judged) or skipped (closed before anything happened). */
+function closeOutcome(s: GameState): 'answered' | 'unanswered' | 'skipped' {
+  const c = s.clue;
+  if (!c) return 'skipped';
+  if (s.events.some((e) => !e.voided && e.type === 'answer' && e.clueId === c.clueId && e.result === 'correct')) return 'answered';
+  return c.answerRevealed || c.answeringEnded || c.resolved ? 'unanswered' : 'skipped';
 }
 
 function closeActiveClue(tx: Tx, result: 'answered' | 'unanswered' | 'skipped') {

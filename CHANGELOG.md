@@ -10,6 +10,10 @@ their notes come from the matching section below (`scripts/release-notes.mjs`).
 - **Pictures and sounds in Final Jeopardy!**: a Final clue can be a picture, a sound or both, with or without text, and the correct response can have its own picture and sound. The TV shows the clue's picture large; you play its sound from the iPad (play, pause, resume, restart). The think time and think music start when the sound has finished (or when you tap Start think time). The correct response's picture and sound appear only after the answer reveals; on the iPad you can look at (and listen to) them privately before that.
 
 ### Improvements
+- After the last clue of a round the iPad offers **Start Round 2** / **Start Final Jeopardy!** (or **End Game & Show Results**) instead of Return to Board — no more empty board in between.
+- A category's subheading sits directly under its name (board, category introduction, Final Jeopardy!).
+- The revealed answer on the TV sits a little closer under the clue.
+- Final Jeopardy!: a little more space between a picture and the text under it.
 - The iPad's Final Jeopardy! screen uses the same layout as the rest of the game: the TV preview stays in one place, with the next step in the bar underneath.
 - Spreadsheet (CSV) files can carry category subheadings (optional `category_subheading` column); exports include them.
 
@@ -19,6 +23,8 @@ their notes come from the matching section below (`scripts/release-notes.mjs`).
 - A clue whose answer is only a picture no longer counts as "missing answer".
 - A clue's sound is never cut off on the TV when the iPad misjudges its length.
 - The iPad shows a player's real name next to their nickname without brackets when they buzz in, as the TV does.
+- Phones: the nickname box no longer disappears under the on-screen keyboard; it has a Cancel button and Enter saves.
+- A clue closed by moving to the next round (or the Final, or the end) counts as answered / unanswered in the statistics, not as skipped.
 
 ## [0.13.0] — 2026-10-18
 

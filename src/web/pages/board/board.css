@@ -747,19 +747,9 @@
   text-shadow: var(--bt-text-shadow);
 }
 /* R8-9: category subheading — the category font, smaller, under the name. */
-.bt-cat-stack {
-  display: flex;
-  width: 100%;
-  min-height: 0;
-  flex-direction: column;
-}
-.bt-cat-name-box {
-  min-height: 0;
-  flex: 68 1 0;
-}
-.bt-cat-sub-box {
-  min-height: 0;
-  flex: 32 1 0;
+/* R10-3: name and subheading are one group (FitStack); a small, size-relative gap between them. */
+.bt-fit-stack > * + * {
+  margin-top: 0.12em;
 }
 .bt-cat-sub,
 .bt-intro-sub {
@@ -777,14 +767,7 @@
   text-shadow: var(--bt-text-shadow);
 }
 .bt-intro-sub {
-  max-width: 80%;
-  margin: 1.2vh auto 0;
-  font-size: 4.4vh;
   overflow-wrap: break-word;
-}
-.bt-intro-sub.is-small {
-  margin-top: 0.4vh;
-  font-size: 2.4vh;
 }
 .bt-round-title {
   font-family: var(--b-font);
@@ -985,6 +968,10 @@
    chips (no mirrored band below). */
 .bt-final-q.has-media {
   padding: 18vh 4vw 16.5vh;
+}
+/* R10-3: the category's subheading line takes 3vh more above the picture. */
+.bt-final-q.has-media.has-sub {
+  padding-top: 21.5vh;
 }
 /* R7-12: judged answers — sharp vector check / cross in the score-change colours. */
 .bt-verdict {
