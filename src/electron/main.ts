@@ -65,7 +65,8 @@ async function boot() {
   let lastErr: unknown;
   for (let port = 3000; port <= 3010; port++) {
     try {
-      server = await startServer({ dataDir, port, host: '0.0.0.0', webDir, secretCodec: secretCodec(), soundPackDirs: soundPackDirs(dataDir) });
+      // Developer tools (R7-31) only when not packaged, or on request (OJ_DEV_TOOLS=1).
+      server = await startServer({ dataDir, port, host: '0.0.0.0', webDir, secretCodec: secretCodec(), soundPackDirs: soundPackDirs(dataDir), devTools: !app.isPackaged || process.env.OJ_DEV_TOOLS === '1' });
       break;
     } catch (e) {
       lastErr = e;

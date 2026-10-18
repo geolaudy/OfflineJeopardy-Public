@@ -104,7 +104,7 @@ Rollback point: tag v0.11.0 (verified on GitHub). See USER_FEEDBACK.md "Round 7"
 - **A, B — done** (session 9, other computer: 41352f8, 5323344).
 - **C — Lobby/menu layout:** R7-2, R7-3, R7-4, R7-17. **Done** (session 10): one heading/content line on every TV page, stacked names that never clip, phone delay on lobby cards.
 - **D — iPad host:** R7-18, R7-20, R7-21, R7-22, R7-23, R7-24, R7-25, R7-26, R7-27 (R7-20/25 after B's tokens). **Done** (sessions 10–11).
-- **E — Developer tools:** R7-31 (small: dev-only page, buzzer fairness test with simulated offsets, JSON export).
+- **E — Developer tools:** R7-31 (small: dev-only page, buzzer fairness test with simulated offsets, JSON export). **Done** (session 11, D76).
 - **F — AI/import (agent, worktree):** R7-30.1 … R7-30.5.
 - **G — Controller research (research agent):** R7-32.
 - Order: A → B → (C, D) → E; F and G in parallel from the start. Release v0.12.0 when A–D (+ whatever of E–G is verified) are done and tested.

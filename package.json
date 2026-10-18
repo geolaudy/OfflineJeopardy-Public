@@ -55,7 +55,7 @@
   },
   "scripts": {
     "dev": "concurrently -k -n server,web \"npm:dev:server\" \"npm:dev:web\"",
-    "dev:server": "tsx watch src/server/cli.ts --data=data --sfx=new_sfx",
+    "dev:server": "tsx watch src/server/cli.ts --data=data --sfx=new_sfx --dev-tools",
     "dev:web": "vite",
     "serve": "tsx src/server/cli.ts",
     "build:web": "vite build",

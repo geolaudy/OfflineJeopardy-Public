@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { downloadFile, hostApi } from '../../lib/api';
+import { api, downloadFile, hostApi } from '../../lib/api';
 import { attempt, useFetch } from '../../lib/hooks';
 import { Button, Card, Field, cx, inputCls } from '../../components/ui';
 import { configureSound } from '../../lib/sound';
@@ -77,6 +77,8 @@ export default function Settings() {
   const s = useFetch(() => hostApi<S>('GET', '/api/settings'), []);
   const diag = useFetch(() => hostApi<{ integrity: string; schemaVersion: number; dataDir: string; version: string }>('GET', '/api/admin/diagnostics'), []);
   const [advanced, setAdvanced] = useState(false);
+  // R7-31: developer tools exist only when the server runs with them on (never in a release).
+  const dev = useFetch(() => api<{ devTools?: boolean }>('GET', '/api/info'), []).data?.devTools;
   const restoreRef = useRef<HTMLInputElement>(null);
   const d = desktop();
   const set = async (patch: Partial<S>) => {
@@ -186,6 +188,11 @@ export default function Settings() {
             <p>Version {diag.data?.version} · database schema v{diag.data?.schemaVersion} · integrity check: {diag.data?.integrity}</p>
             <p className="font-mono break-all">Data folder: {diag.data?.dataDir}</p>
           </div>
+          {dev && (
+            <Link to="/host/dev" className="inline-flex min-h-11 items-center font-semibold text-blue-700" data-testid="devtools-link">
+              Developer tools <ChevronRight size={16} aria-hidden />
+            </Link>
+          )}
         </Card>
       )}
     </div>

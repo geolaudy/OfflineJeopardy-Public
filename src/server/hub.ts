@@ -143,6 +143,29 @@ export class Hub {
     if (this.latency.update(current)) this.lobby?.refreshSoon();
   }
 
+  /** R7-31 developer diagnostics: every connection's role and clock sync, numbered instead of
+   *  named (no ids, names, tokens or addresses, so the report can be shared). */
+  diagnostics() {
+    const mono = performance.now();
+    const round = (v: number | null) => (v == null || !Number.isFinite(v) ? null : Math.round(v * 10) / 10);
+    let n = 0;
+    return [...this.clients].map((c) => {
+      const est = c.sync.estimate(mono);
+      const probed = this.probed(c);
+      return {
+        connection: ++n,
+        role: c.role ?? 'connecting',
+        kind: c.observer ? 'game computer' : c.role === 'host' ? (c.trusted ? 'host' : 'host (not signed in)') : c.role === 'player' ? (c.profileId ? 'player' : 'portal') : c.role === 'public' ? 'TV / public' : 'connecting',
+        controllers: c.deviceIds.size,
+        clockSync: probed
+          ? { synced: est.synced, rttMedianMs: round(est.rttMedian), jitterMs: round(est.jitter), uncertaintyMs: round(est.uSync), samples: est.samples }
+          : null,
+        clientReportedRttMs: round(c.rtt),
+        lobbyDelayShownMs: c.role === 'player' && c.profileId ? (this.latency.get(c.profileId) ?? null) : null,
+      };
+    });
+  }
+
   /** Shown phone delay of a player (undefined while measuring or not connected). */
   phoneLatency(profileId: string) {
     return this.latency.get(profileId);

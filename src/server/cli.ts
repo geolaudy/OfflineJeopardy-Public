@@ -11,7 +11,9 @@ if (args.has('fresh')) fs.rmSync(dataDir, { recursive: true, force: true }); // 
 
 // --sfx=<folder>: the owner's Jeopardy!/Buzzinga sound files (e.g. new_sfx) for development (R4-1).
 const soundPackDirs = args.get('sfx') ? [path.resolve(args.get('sfx')!)] : [];
-const server = await startServer({ dataDir, port, webDir, logger: args.has('verbose'), soundPackDirs });
+// --dev-tools: developer diagnostics and the buzzer fairness test (R7-31).
+const devTools = args.has('dev-tools') || process.env.OJ_DEV_TOOLS === '1';
+const server = await startServer({ dataDir, port, webDir, logger: args.has('verbose'), soundPackDirs, devTools });
 console.log(`OfflineJeopardy server on ${server.url} (data: ${dataDir})`);
 console.log(`Host pairing code: ${server.pairingCode}`);
 const stop = async () => {

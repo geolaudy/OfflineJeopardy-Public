@@ -15,6 +15,7 @@ const NAV_ICONS: Record<NavId, LucideIcon> = { home: House, boards: LayoutGrid, 
 /** Pages below a navigation page and where Back leads (R7-28: no dead ends on small screens). */
 const SUB_PAGES: { match: RegExp; title: string; parent: string; parentLabel: string }[] = [
   { match: /^\/host\/themes\/?$/, title: 'TV themes', parent: '/host/settings', parentLabel: 'Settings' },
+  { match: /^\/host\/dev\/?$/, title: 'Developer tools', parent: '/host/settings', parentLabel: 'Settings' },
   { match: /^\/host\/boards\/[^/]+\/?$/, title: 'Board editor', parent: '/host/boards', parentLabel: 'Boards' },
   { match: /^\/host\/tournaments\/[^/]+\/?$/, title: 'Tournament', parent: '/host/tournaments', parentLabel: 'Tournaments' },
 ];

@@ -7,7 +7,10 @@
 - Fixed a test race in lobby.spec (read the pairing code before it loaded).
 - Tests: tsc clean, Vitest 297/297, Playwright full run 47/48 (the lobby race, then fixed: 2/2 passing).
 - **Release v0.12.0** (round 7 A–D + R7-32): version bump + CHANGELOG section, `release:local` passed (verify-dist 17/17), tag v0.12.0 pushed → GitHub Actions run 39102878564 succeeded → https://github.com/geolaudy/OfflineJeopardy/releases/tag/v0.12.0 with OfflineJeopardy-Setup-0.12.0.exe, OfflineJeopardy-Portable-0.12.0.exe, SHA256SUMS.txt (verified via the GitHub API).
-- **Next:** round 7 milestone E (R7-31 developer tools), then F (R7-30.x) — see SESSION_HANDOFF.md.
+- **Milestone E (R7-31 developer tools):** `server/fairnessSim.ts` (the R6-24 simulation moved out of the test, now shared) + `runFairnessTest`; `server/devTools.ts` — host-only `/api/dev/diagnostics` (versions, memory, event-loop delay, numbered connections with clock sync, controllers, game summary; no secrets/names/addresses), `/api/dev/diagnostics/reset`, `/api/dev/fairness` (refused during a clue / Final); `desk/DevTools.tsx` at /host/dev with the fairness test form, result tables and **Export report (JSON)**. On only with `--dev-tools` (dev server, e2e server), an unpackaged app or `OJ_DEV_TOOLS=1` (D76).
+- New tests: integration devtools (4), e2e devtools.spec.
+- Tests: tsc clean, Vitest **301/301**, devtools.spec passing on its own. **The full Playwright run could not complete**: this PC ran out of memory (browser pages crashed, workers exited 0xC0000142) and Claude Code stopped the run — an environment problem, not a code failure. Re-run `npx playwright test` on a machine with free memory before the next release.
+- **Next:** round 7 milestone F (R7-30.x) — see SESSION_HANDOFF.md.
 
 ## Session 10 — 2026-10-17 (second developer machine, mvanwitz; round 7 milestone C)
 

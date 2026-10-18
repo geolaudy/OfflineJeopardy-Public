@@ -31,6 +31,7 @@ import { ImageError, MAX_UPLOAD_BYTES, processClueImage, processProfilePicture, 
 import * as stats from './stats.js';
 import { createZip, isZip, readZip, ZipError, type ZipEntry } from './zip.js';
 import { registerImportRoutes } from './importRoutes.js';
+import { registerDevRoutes } from './devTools.js';
 import { LobbyManager } from './lobby.js';
 import { INTRO_STEP_MS, normalizeTvFx, PACK_FILE_RULES, SOUND_CUES, tvFxSchema } from '../shared/tvFx.js';
 import { PACK_ID, SoundPacks } from './soundPacks.js';
@@ -66,6 +67,8 @@ export interface ServerOptions {
   /** Folders with Jeopardy!/Buzzinga sound files shipped with a personal build or used in
    *  development (R4-1). Never part of public releases. */
   soundPackDirs?: string[];
+  /** R7-31: developer tools (diagnostics, fairness test). Off in normal releases. */
+  devTools?: boolean;
 }
 
 const COLOR = z.string().regex(/^#[0-9a-fA-F]{6}$/);
@@ -196,8 +199,11 @@ export async function startServer(opts: ServerOptions) {
       urls: { join: `${base}/join`, host: `${base}/host`, board: `${base}/board` },
       game: g ? { id: g.id, title: g.title, phase: g.phase, mode: g.mode } : null,
       clients: hub.size,
+      devTools: !!opts.devTools,
     };
   });
+  // R7-31: developer tools exist only when switched on (never in a normal release build).
+  if (opts.devTools) registerDevRoutes(app, { version: APP_VERSION, hub, games, controllers, requireHost });
   app.get('/api/qr', async (req, reply) => {
     const q = req.query as { target?: string };
     if (q.target === 'hostPair') {
