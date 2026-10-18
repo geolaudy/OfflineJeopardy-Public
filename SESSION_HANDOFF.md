@@ -1,19 +1,23 @@
 # Session handoff
 
-Read this first, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 9". Ready-to-paste resume prompts: `CONTINUE_PROMPT_SAME_COMPUTER.txt` / `CONTINUE_PROMPT_OTHER_COMPUTER.txt`.
+Read this first, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 10". Ready-to-paste resume prompts: `CONTINUE_PROMPT_SAME_COMPUTER.txt` / `CONTINUE_PROMPT_OTHER_COMPUTER.txt`.
 
-## Current state (session 13, 2026-10-18 — v0.13.0 released; round 9 done)
+## Current state (session 14, 2026-10-18 — round 10 done; v0.14.0 released)
 
-- **Branch:** `main` = `origin/main`, clean (latest code commit **6deb8fb**, plus this handoff commit). package.json **0.13.0** = the latest GitHub release (https://github.com/geolaudy/OfflineJeopardy/releases/tag/v0.13.0, 3 assets verified). CHANGELOG **[Unreleased]** lists what came after it (Final Jeopardy! pictures and sounds, iPad Final frame, CSV subheadings, buzzed-in names, sound never cut off).
-- **Done and tested this session:** full Playwright 53/53 → **release v0.13.0**; round 9 (USER_FEEDBACK "Round 9"): R9-5 iPad Final in the game frame, R9-6.1–6.10 Final Jeopardy! media (root cause: the Final's view carried only text, its TV screen rendered only text and playback accepted only a regular clue — D82); leftovers R9-L1 (CSV subheadings), R9-L2 (buzzed-in names), R9-L3 (sound never cut off, K42).
-- **Tests:** tsc clean, **Vitest 332/332** (the round-6 socket timing test is flaky under load — K43; it passes on its own). Playwright: new round9 spec (3) + presentation, playtest, teams-editor, practice, media, round7d-host, round7-tv, round8, round6-host, host-ipad, editor, bots, survival, library passing. **No full Playwright run since round 9** — do one before the next release.
-- **Local build (personal, includes new_sfx — never upload):** `release/OfflineJeopardy-Setup-0.13.0.exe` and `release/OfflineJeopardy-Portable-0.13.0.exe` built from 6deb8fb (verify-dist 17/17). They contain the round-9 work although the version number still says 0.13.0.
-- **Owner to check on real devices:** a Final with a picture and a sound on the real TV and iPad (sound plays only on the TV; the think time starts when it ends), iPad screens (K38), lobby phone delays (K40), Buzzinga with a real share link, Gemini with a real key (K31).
+- **Branch:** `main` = `origin/main`, clean. package.json **0.14.0** = the latest GitHub release (https://github.com/geolaudy/OfflineJeopardy/releases/tag/v0.14.0, GitHub Actions run 39160856035 succeeded; 3 assets verified via the API: installer, portable, SHA256SUMS.txt). CHANGELOG **[Unreleased]** is empty.
+- **The owner verified on real hardware:** Final Jeopardy! clue and correct-response pictures and sounds (round 9) — **PASS** (FEATURE_MATRIX round 9).
+- **Done and tested this session (USER_FEEDBACK "Round 10", plan milestone 24):**
+  - A: category subheading grouped under its name (FitStack); Final media ↔ text gap; TV answer 4.5vh under the clue's last line; phone sheets above the on-screen keyboard (visualViewport) + nickname Cancel; Start <next round> / Start Final Jeopardy! / End Game & Show Results after a round's last clue (real clue outcome recorded).
+  - B + C (D83): the iPad live frame is only the 16:9 TV preview (~930 × 523 on an iPad Pro 11 landscape); controls in the score-strip band (`HOST_BAND` 14 %); no iPad timer bar; category + value on the answer banner; banner in one typography with an "All" sheet; stripes reversed; all Modals render at the page root.
+  - D (D84): visual bold / italic / underline editor (TipTap 3.31.4, pinned; stored [b]/[i]/[u] format unchanged); Final Category / Clue / Answer previews in the board editor with local Play / Pause / Restart.
+- **Tests:** tsc clean, **Vitest 345/345**, **full Playwright 62/62**, verify-dist 17/17.
+- **Local build (personal, includes new_sfx — never upload):** `release/OfflineJeopardy-Setup-0.14.0.exe`, `release/OfflineJeopardy-Portable-0.14.0.exe`.
+- **Owner to check on real devices:** the new iPad layout (landscape + portrait: controls band, answer band, All sheet), the phone nickname sheet with the real keyboard (K44), the editor's text box and Final previews, a round's last clue → Start Round 2.
 
 ### Single recommended next task
 
-1. **Full Playwright run** (`npm run build` then `npx playwright test`, nothing else open). If green, **release v0.14.0** (Final Jeopardy! media is a user-visible fix worth a release): `npm version 0.14.0 --no-git-tag-version`, rename CHANGELOG **[Unreleased]** to **[0.14.0] — <date>** and add a Known Issues line (K42), `npm run release:local`, commit, push, `git tag -a v0.14.0`, push the tag, verify the release + 3 assets via the GitHub API.
-2. Then wait for the owner's next feedback round; open items otherwise are hardware checks (Joy-Cons, iPad, TV), the accessibility audit (O9) and P3 ideas (O6 workspaces, O13 plugins, profile import, a data-folder UI), plus reading media lengths on the server at upload (K42).
+1. Wait for the owner's feedback on 0.14.0 (record it as the next USER_FEEDBACK round).
+2. Otherwise: hardware checks (Joy-Cons, iPad, TV), the accessibility audit (O9), reading media lengths on the server at upload (K42), P3 ideas (O6 workspaces, O13 plugins, profile import, a data-folder UI).
 
 ### Two developers, two machines
 

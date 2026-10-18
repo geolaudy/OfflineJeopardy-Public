@@ -6,14 +6,13 @@ Continue the existing OfflineJeopardy project in this repository. Do not restart
 2. Run: git fetch origin && git status -sb && git log --oneline -5
    - Branch: main (tracks origin/main). Expect a clean tree at the latest commit listed in SESSION_HANDOFF.md.
    - If origin/main is ahead (the other computer pushed), pull first (git pull --ff-only) and re-read the handoff.
-3. Current state: v0.13.0 is released on GitHub (verified). Round 9 (USER_FEEDBACK.md "Round 9":
-   Final Jeopardy! pictures and sounds, iPad Final in the game frame) and the small leftovers are done
-   and pushed (latest code commit 6deb8fb). CHANGELOG [Unreleased] lists them. No full Playwright run
-   since round 9 yet.
-4. Exact next task (SESSION_HANDOFF.md "Single recommended next task"): close other programs, run
-   npm run build && npx playwright test once; if green, release v0.14.0 with the windows-release skill
-   (rename CHANGELOG [Unreleased] to [0.14.0]). The round-6 socket timing test is flaky under load
-   (KNOWN_ISSUES K43) — re-run it alone before treating it as a failure.
+3. Current state: v0.14.0 is released on GitHub (verified; full Playwright 62/62, Vitest 345/345).
+   Round 10 (USER_FEEDBACK.md "Round 10": larger iPad preview with controls in the band, answer
+   banner, next round from the last clue, subheading spacing, phone keyboard, visual text editor,
+   Final previews in the editor) is done and pushed. The owner verified Final media on real hardware.
+4. Exact next task (SESSION_HANDOFF.md "Single recommended next task"): record the owner's next
+   feedback round and implement it; otherwise the open items listed there. The round-6 socket timing
+   test is flaky under load (KNOWN_ISSUES K43) — re-run it alone before treating it as a failure.
 5. This machine: no Python (write Node edit scripts with the Write tool, not bash heredocs);
    Playwright needs chromium + webkit (already installed here); new_sfx/ and references/ are
    git-ignored and present. If a full Playwright run is stopped for low memory, close other programs

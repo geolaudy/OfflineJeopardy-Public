@@ -8,13 +8,12 @@ Continue the existing OfflineJeopardy project. The last sessions ran on the seco
 2. Read CLAUDE.md, SESSION_HANDOFF.md (top section), PROGRESS.md (top section), KNOWN_ISSUES.md.
 3. Run npm install (dependencies may have changed), then npx tsc -p . and npx vitest run to get a
    baseline. Playwright needs chromium and webkit (npx playwright install chromium webkit).
-4. Current state: v0.13.0 is released (verified). Round 9 (Final Jeopardy! pictures and sounds, iPad
-   Final in the game frame) and small leftovers are done (latest code commit 6deb8fb); CHANGELOG
-   [Unreleased] lists them. No full Playwright run since round 9 yet.
-5. Exact next task: "Single recommended next task" in SESSION_HANDOFF.md — a full Playwright run
-   (npm run build && npx playwright test); if green, release v0.14.0 (windows-release skill; rename
-   CHANGELOG [Unreleased] to [0.14.0]; your local build includes your new_sfx sounds — never upload
-   those files). The round-6 socket timing test is flaky under load (KNOWN_ISSUES K43).
+4. Current state: v0.14.0 is released (verified). Round 10 (larger iPad preview with controls in the
+   band, answer banner, next round from the last clue, phone keyboard, visual text editor, Final
+   previews in the editor) is done. npm install is needed: TipTap packages were added (pinned).
+5. Exact next task: "Single recommended next task" in SESSION_HANDOFF.md — the owner's next feedback
+   round, otherwise the open items listed there. Your local builds include your new_sfx sounds —
+   never upload those files. The round-6 socket timing test is flaky under load (KNOWN_ISSUES K43).
 6. Your new_sfx/ (personal sounds, never commit or upload) and references/ folders are git-ignored
    and stay on your machine.
 7. Commit and push after each stable sub-task. At the end of the session update SESSION_HANDOFF.md,
