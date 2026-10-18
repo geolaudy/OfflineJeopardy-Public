@@ -215,3 +215,28 @@ describe('saved games and boards (R9-6.9)', () => {
     expect(issues.filter((i) => /World Capitals/.test(i.message))).toEqual([]);
   });
 });
+
+describe('category subheadings in CSV (R8-9 leftover)', () => {
+  it('export → import keeps them; files without the column still import', async () => {
+    const { exportBoardCsv, importBoardCsv } = await import('../../src/shared/boardIO');
+    const b = boardWith({});
+    b.rounds[0].categories[0].subheading = 'Name the year, please';
+    b.rounds.find((r) => r.kind === 'final')!.categories[0].subheading = 'Europe';
+    const csv = exportBoardCsv(b);
+    expect(csv.split('\r\n')[0]).toBe('round,category,value,question,answer,daily_wager,notes,category_subheading');
+    const back = importBoardCsv(csv).content!;
+    expect(back.rounds[0].categories[0].subheading).toBe('Name the year, please');
+    expect(back.rounds[0].categories[1].subheading).toBeUndefined();
+    expect(back.rounds.find((r) => r.kind === 'final')!.categories[0].subheading).toBe('Europe');
+    const old = importBoardCsv('category,value,question,answer\nA,100,q,a\n');
+    expect(old.errors).toEqual([]);
+    expect(old.content!.rounds[0].categories[0].subheading).toBeUndefined();
+  });
+
+  it('the spreadsheet importer reads a subheading column too', async () => {
+    const { parseGenericCsv } = await import('../../src/server/importers/sources/csv');
+    const { applyLimits } = await import('../../src/server/importers/pipeline');
+    const n = applyLimits(parseGenericCsv('category,subheading,value,question,answer\nA,Before 1900,100,q,a\nA,,200,q2,a2\nB,,100,q3,a3\n', 'x.csv'));
+    expect(n.rounds[0].categories.map((c) => c.subheading)).toEqual(['Before 1900', undefined]);
+  });
+});

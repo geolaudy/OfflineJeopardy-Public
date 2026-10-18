@@ -3,7 +3,8 @@ import { z } from 'zod';
 import type { BoardContent, Round } from './game.js';
 import { uid } from './boardUtils.js';
 
-export const CSV_HEADER = ['round', 'category', 'value', 'question', 'answer', 'daily_wager', 'notes'];
+// `category_subheading` (R8-9) is optional on import: files without it still load.
+export const CSV_HEADER = ['round', 'category', 'value', 'question', 'answer', 'daily_wager', 'notes', 'category_subheading'];
 
 const mediaListSchema = z
   .array(z.object({ kind: z.enum(['image', 'audio', 'video']), url: z.string().max(300).regex(/^\/media\/[a-zA-Z0-9_./-]+$/), caption: z.string().max(200).optional() }))
@@ -63,7 +64,7 @@ export function exportBoardCsv(content: BoardContent): string {
     for (const c of r.categories)
       for (const q of c.clues)
         lines.push(
-          [r.kind === 'final' ? 'Final' : r.name, c.name, String(q.value), q.question, q.answer, q.dailyWager ? 'yes' : '', q.notes ?? ''].map(csvCell).join(','),
+          [r.kind === 'final' ? 'Final' : r.name, c.name, String(q.value), q.question, q.answer, q.dailyWager ? 'yes' : '', q.notes ?? '', c.subheading ?? ''].map(csvCell).join(','),
         );
   return lines.join('\r\n') + '\r\n';
 }
@@ -146,6 +147,9 @@ export function importBoardCsv(text: string): ImportResult {
       cat = { id: uid('c'), name: catName, clues: [] };
       round.categories.push(cat);
     }
+    // The first row of a category that has a subheading sets it.
+    const sub = get('category_subheading').slice(0, 100);
+    if (sub && !cat.subheading) cat.subheading = sub;
     if (isFinal && cat.clues.length) return errors.push(`Line ${line}: the Final round can only have one clue.`);
     const dw = /^(y|yes|true|1|x)$/i.test(get('daily_wager'));
     const notes = get('notes');

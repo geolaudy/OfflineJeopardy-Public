@@ -2,7 +2,7 @@
 //
 // Columns (header row, any order, case-insensitive):
 //   round, category, value, question, answer, daily_wager, notes, image, answer_image, caption,
-//   answer_caption
+//   answer_caption, category_subheading
 // `image` / `answer_image` hold http(s) links to a picture, sound or video file (several may be
 // separated with "|"). The file type is decided after download by content, not by the column name.
 // Local file names are reported as missing — use a board package (.zip) to bring local media.
@@ -19,9 +19,10 @@ const ALIASES: Record<string, string> = {
   image_caption: 'caption',
   dailywager: 'daily_wager',
   daily_double: 'daily_wager',
+  subheading: 'category_subheading',
 };
 
-export const GENERIC_CSV_COLUMNS = ['round', 'category', 'value', 'question', 'answer', 'daily_wager', 'notes', 'image', 'answer_image', 'caption', 'answer_caption'];
+export const GENERIC_CSV_COLUMNS = ['round', 'category', 'value', 'question', 'answer', 'daily_wager', 'notes', 'image', 'answer_image', 'caption', 'answer_caption', 'category_subheading'];
 
 function mediaCell(cell: string, caption: string): NormalizedMedia[] {
   return cell
@@ -71,6 +72,8 @@ export function parseGenericCsv(text: string, fileName: string): NormalizedBoard
       cat = { name: catName, clues: [] };
       round.categories.push(cat);
     }
+    const sub = get('category_subheading');
+    if (sub && !cat.subheading) cat.subheading = sub;
     if (isFinal && cat.clues.length) return void warnings.push(`Line ${line}: the Final round has only one clue — row skipped.`);
     const notes = get('notes');
     cat.clues.push({

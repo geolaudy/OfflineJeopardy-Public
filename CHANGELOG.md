@@ -11,11 +11,14 @@ their notes come from the matching section below (`scripts/release-notes.mjs`).
 
 ### Improvements
 - The iPad's Final Jeopardy! screen uses the same layout as the rest of the game: the TV preview stays in one place, with the next step in the bar underneath.
+- Spreadsheet (CSV) files can carry category subheadings (optional `category_subheading` column); exports include them.
 
 ### Bug Fixes
 - Pictures and sounds attached to the Final Jeopardy! clue or answer in the board editor now show and play during the game (before, the TV showed only the text, and a picture-only clue showed nothing).
 - Board editor: adding two pictures or sounds in quick succession keeps both.
 - A clue whose answer is only a picture no longer counts as "missing answer".
+- A clue's sound is never cut off on the TV when the iPad misjudges its length.
+- The iPad shows a player's real name next to their nickname without brackets when they buzz in, as the TV does.
 
 ## [0.13.0] — 2026-10-18
 

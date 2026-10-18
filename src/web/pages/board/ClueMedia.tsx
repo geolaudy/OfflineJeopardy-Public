@@ -316,6 +316,9 @@ export function useMediaSync(ref: RefObject<HTMLMediaElement | null>, g: GameVie
       el.play().catch(() => {
         // Autoplay blocked in a plain browser before any click; the Electron TV window allows it.
       });
+    } else if (mine.status === 'ended' && !el.paused && !el.ended) {
+      // The server's end comes from the length the host's browser read, which can be short
+      // (WebKit sometimes misreads WAV files): a sound still playing here finishes, never cut off.
     } else {
       el.pause();
       const at = mine.status === 'stopped' ? 0 : target;

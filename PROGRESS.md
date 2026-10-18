@@ -6,7 +6,10 @@
 - **Round 9 (USER_FEEDBACK "Round 9", milestone 23):** Final Jeopardy! media bug — root cause: the board saved the Final's media, but the Final's game view carried only its text, the TV's Final screen rendered only text (a picture-only clue rendered nothing) and media playback accepted only an open regular clue. Fixed in one path with the regular media system (D82): FinalView media/answerMedia/layout/thinking, projection rules, engine playback target, think time after a sound clue, playback cleanup (`settleMedia`), TV composition reused (`MediaStage`, sound badge on the picture), think music never over the clue's sound, iPad preview muted.
 - **R9-5:** the iPad Final in `GameFrame` (preview fixed in every stage, every `final-*` id kept), private correct-response band with a Picture / Sound sheet.
 - Found on the way: two quick uploads to one editor media list replaced each other (fixed); a picture-only answer counted as "missing answer" (fixed).
-- Tests: tsc clean, **Vitest 330/330** (new unit round9: 14), Playwright round9 (2, new) + presentation, playtest, teams-editor, practice, media, round7d-host, round7-tv, round8, round6-host, host-ipad, editor, bots, survival — **25/25**.
+- **Leftovers:** category subheadings in CSV (export column, both CSV importers); the iPad's buzzed-in line shows the real name without brackets (player: underneath, team member: small and gray after the nickname).
+- Found while testing: WebKit on Windows sometimes reads a 2-second WAV as ~1 s (no later correction) — the server's "media finished" time comes from the host's reading, so the TV cut the sound off. The TV now lets a still-playing sound finish; the host also listens for duration corrections (K42).
+- Tests: tsc clean, **Vitest 332/332**; Playwright round9 (3) + host-ipad, round7d-host, presentation, teams-editor, library, media passing.
+- Earlier in the session: Vitest 330/330 (new unit round9: 14), Playwright round9 (2, new) + presentation, playtest, teams-editor, practice, media, round7d-host, round7-tv, round8, round6-host, host-ipad, editor, bots, survival — **25/25**.
 
 ## Session 12 — 2026-10-18 (second machine, mvanwitz; round 8)
 

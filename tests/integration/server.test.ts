@@ -420,7 +420,7 @@ describe('boards: import, export, versions', () => {
     const host = await hostToken(s);
     const boardId = await sampleBoardId(s, host);
     const csv = await fetch(`${s.url}/api/boards/${boardId}/export?format=csv`, { headers: { authorization: `Bearer ${host}` } }).then((r) => r.text());
-    expect(csv.split('\n')[0].trim()).toBe('round,category,value,question,answer,daily_wager,notes');
+    expect(csv.split('\n')[0].trim()).toBe('round,category,value,question,answer,daily_wager,notes,category_subheading');
     const preview = await api(s, 'POST', '/api/boards/import', { format: 'csv', text: csv, preview: true }, host);
     expect(preview.data.summary).toEqual({ rounds: 3, categories: 13, clues: 61 });
     expect(preview.data.saved).toBeNull();

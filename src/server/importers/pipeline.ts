@@ -2,11 +2,11 @@
 import type { BoardContent, MediaRef } from '../../shared/game.js';
 import { boardContentSchema } from '../../shared/boardIO.js';
 import { uid, validateBoard } from '../../shared/boardUtils.js';
-import type { MediaKind, NormalizedBoard, NormalizedClue, NormalizedImport, NormalizedMedia, NormalizedRound } from './types.js';
+import type { MediaKind, NormalizedBoard, NormalizedCategory, NormalizedClue, NormalizedImport, NormalizedMedia, NormalizedRound } from './types.js';
 import { ImportError } from './types.js';
 
 // Mirrors boardContentSchema in src/shared/boardIO.ts.
-export const LIMITS = { rounds: 10, categories: 20, clues: 20, media: 6, roundName: 60, categoryName: 100, question: 2000, answer: 1000, notes: 2000, caption: 200, title: 120, value: 1_000_000 };
+export const LIMITS = { rounds: 10, categories: 20, clues: 20, media: 6, roundName: 60, categoryName: 100, subheading: 100, question: 2000, answer: 1000, notes: 2000, caption: 200, title: 120, value: 1_000_000 };
 
 const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
 
@@ -31,6 +31,7 @@ export function applyLimits(board: NormalizedBoard): NormalizedBoard {
     media: mediaList(q.media, where),
     answerMedia: mediaList(q.answerMedia, where),
   });
+  const sub = (c: NormalizedCategory) => (c.subheading?.trim() ? { subheading: text(c.subheading.trim(), LIMITS.subheading) } : {});
 
   const standard: NormalizedRound[] = [];
   let final: NormalizedRound | null = null;
@@ -45,7 +46,7 @@ export function applyLimits(board: NormalizedBoard): NormalizedBoard {
       if (!cats.length) continue;
       if (cats.length > 1 || cats[0].clues.length > 1) w.push('The Final round keeps only its first clue.');
       const c = cats[0];
-      final = { name, kind: 'final', categories: [{ name: text(c.name, LIMITS.categoryName), clues: [clue({ ...c.clues[0], value: 0, dailyWager: undefined }, `${name} / ${c.name}`)] }] };
+      final = { name, kind: 'final', categories: [{ name: text(c.name, LIMITS.categoryName), ...sub(c), clues: [clue({ ...c.clues[0], value: 0, dailyWager: undefined }, `${name} / ${c.name}`)] }] };
       continue;
     }
     if (!cats.length) continue;
@@ -58,7 +59,7 @@ export function applyLimits(board: NormalizedBoard): NormalizedBoard {
       kind: 'standard',
       categories: cats.map((c) => {
         if (c.clues.length > LIMITS.clues) w.push(`${name} / ${c.name}: only the first ${LIMITS.clues} clues are kept.`);
-        return { name: text(c.name, LIMITS.categoryName), clues: c.clues.slice(0, LIMITS.clues).map((q) => clue(q, `${name} / ${c.name} / ${q.value}`)) };
+        return { name: text(c.name, LIMITS.categoryName), ...sub(c), clues: c.clues.slice(0, LIMITS.clues).map((q) => clue(q, `${name} / ${c.name} / ${q.value}`)) };
       }),
     });
   }
@@ -148,6 +149,7 @@ export function buildContent(board: NormalizedBoard, stored: Map<string, StoredM
       categories: r.categories.map((c) => ({
         id: uid('c'),
         name: c.name,
+        ...(c.subheading ? { subheading: c.subheading } : {}),
         clues: c.clues.map((q) => {
           const media = refs(q.media);
           const answerMedia = refs(q.answerMedia);

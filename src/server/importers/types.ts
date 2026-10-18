@@ -33,6 +33,8 @@ export interface NormalizedClue {
 
 export interface NormalizedCategory {
   name: string;
+  /** R8-9: smaller second line under the name. */
+  subheading?: string;
   clues: NormalizedClue[];
 }
 

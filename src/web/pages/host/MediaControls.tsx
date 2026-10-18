@@ -24,10 +24,14 @@ function useDuration(m: MediaRef) {
     el.preload = 'metadata';
     el.muted = true;
     const on = () => setMs(Number.isFinite(el.duration) ? Math.round(el.duration * 1000) : null);
+    // Safari may first report an estimate; 'durationchange' brings the exact length (the server
+    // uses it to know when the sound has finished).
     el.addEventListener('loadedmetadata', on);
+    el.addEventListener('durationchange', on);
     el.src = m.url;
     return () => {
       el.removeEventListener('loadedmetadata', on);
+      el.removeEventListener('durationchange', on);
       el.removeAttribute('src');
       el.load();
     };
