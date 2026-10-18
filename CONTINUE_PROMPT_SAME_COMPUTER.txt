@@ -6,10 +6,10 @@ Continue the existing OfflineJeopardy project in this repository. Do not restart
 2. Run: git fetch origin && git status -sb && git log --oneline -5
    - Branch: main (tracks origin/main). Expect a clean tree at the latest commit listed in SESSION_HANDOFF.md.
    - If origin/main is ahead (the other computer pushed), pull first (git pull --ff-only) and re-read the handoff.
-3. Current state: v0.14.0 is released on GitHub (verified; full Playwright 62/62, Vitest 345/345).
-   Round 10 (USER_FEEDBACK.md "Round 10": larger iPad preview with controls in the band, answer
-   banner, next round from the last clue, subheading spacing, phone keyboard, visual text editor,
-   Final previews in the editor) is done and pushed. The owner verified Final media on real hardware.
+3. Current state: v0.15.0 is released on GitHub (verified; full Playwright 70/70, Vitest 360/360).
+   Rounds 10 and 11 (USER_FEEDBACK.md: host full screen with one fitting for every screen shape,
+   host timer line, one buzz glow, web-app manifests + safe areas, Final answering closed by the
+   host, Buzzinga picture-clue text) are done and pushed.
 4. Exact next task (SESSION_HANDOFF.md "Single recommended next task"): record the owner's next
    feedback round and implement it; otherwise the open items listed there. The round-6 socket timing
    test is flaky under load (KNOWN_ISSUES K43) — re-run it alone before treating it as a failure.

@@ -8,9 +8,9 @@ Continue the existing OfflineJeopardy project. The last sessions ran on the seco
 2. Read CLAUDE.md, SESSION_HANDOFF.md (top section), PROGRESS.md (top section), KNOWN_ISSUES.md.
 3. Run npm install (dependencies may have changed), then npx tsc -p . and npx vitest run to get a
    baseline. Playwright needs chromium and webkit (npx playwright install chromium webkit).
-4. Current state: v0.14.0 is released (verified). Round 10 (larger iPad preview with controls in the
-   band, answer banner, next round from the last clue, phone keyboard, visual text editor, Final
-   previews in the editor) is done. npm install is needed: TipTap packages were added (pinned).
+4. Current state: v0.15.0 is released (verified). Rounds 10 and 11 are done (host full screen and
+   one fitting for every screen shape, web-app manifests, Final answering closed by the host,
+   visual text editor, ...). npm install is needed: TipTap packages were added in round 10 (pinned).
 5. Exact next task: "Single recommended next task" in SESSION_HANDOFF.md — the owner's next feedback
    round, otherwise the open items listed there. Your local builds include your new_sfx sounds —
    never upload those files. The round-6 socket timing test is flaky under load (KNOWN_ISSUES K43).

@@ -1,22 +1,23 @@
 # Session handoff
 
-Read this first, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 10". Ready-to-paste resume prompts: `CONTINUE_PROMPT_SAME_COMPUTER.txt` / `CONTINUE_PROMPT_OTHER_COMPUTER.txt`.
+Read this first, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 11". Ready-to-paste resume prompts: `CONTINUE_PROMPT_SAME_COMPUTER.txt` / `CONTINUE_PROMPT_OTHER_COMPUTER.txt`.
 
-## Current state (session 14, 2026-10-18 — round 10 done; v0.14.0 released)
+## Current state (session 14, 2026-10-18 — rounds 10 + 11 done; v0.15.0 released)
 
-- **Branch:** `main` = `origin/main`, clean. package.json **0.14.0** = the latest GitHub release (https://github.com/geolaudy/OfflineJeopardy/releases/tag/v0.14.0, GitHub Actions run 39160856035 succeeded; 3 assets verified via the API: installer, portable, SHA256SUMS.txt). CHANGELOG **[Unreleased]** is empty.
-- **The owner verified on real hardware:** Final Jeopardy! clue and correct-response pictures and sounds (round 9) — **PASS** (FEATURE_MATRIX round 9).
-- **Done and tested this session (USER_FEEDBACK "Round 10", plan milestone 24):**
-  - A: category subheading grouped under its name (FitStack); Final media ↔ text gap; TV answer 4.5vh under the clue's last line; phone sheets above the on-screen keyboard (visualViewport) + nickname Cancel; Start <next round> / Start Final Jeopardy! / End Game & Show Results after a round's last clue (real clue outcome recorded).
-  - B + C (D83): the iPad live frame is only the 16:9 TV preview (~930 × 523 on an iPad Pro 11 landscape); controls in the score-strip band (`HOST_BAND` 14 %); no iPad timer bar; category + value on the answer banner; banner in one typography with an "All" sheet; stripes reversed; all Modals render at the page root.
-  - D (D84): visual bold / italic / underline editor (TipTap 3.31.4, pinned; stored [b]/[i]/[u] format unchanged); Final Category / Clue / Answer previews in the board editor with local Play / Pause / Restart.
-- **Tests:** tsc clean, **Vitest 345/345**, **full Playwright 62/62**, verify-dist 17/17.
-- **Local build (personal, includes new_sfx — never upload):** `release/OfflineJeopardy-Setup-0.14.0.exe`, `release/OfflineJeopardy-Portable-0.14.0.exe`.
-- **Owner to check on real devices:** the new iPad layout (landscape + portrait: controls band, answer band, All sheet), the phone nickname sheet with the real keyboard (K44), the editor's text box and Final previews, a round's last clue → Start Round 2.
+- **Branch:** `main` = `origin/main`, clean. package.json **0.15.0** = the latest GitHub release (https://github.com/geolaudy/OfflineJeopardy/releases/tag/v0.15.0, GitHub Actions run 39171324571 succeeded; 3 assets verified via the API: installer, portable, SHA256SUMS.txt). CHANGELOG **[Unreleased]** is empty. v0.14.0 (round 10) was released earlier this session.
+- **Round 11 (USER_FEEDBACK "Round 11", plan milestone 25) — done and tested:**
+  - A: Buzzinga picture / sound clue text → clue text (both caption lines; no caption); one "buzzers open" glow (the whole-box shadow drew a second line above the timer); no TV "buzzed in" card on the host preview; host timer line along the top of the control band; controls centred.
+  - B (D85): host full screen (Fullscreen API or window-filling layout, Esc, nothing remounts) and one fitting for full screen and the embedded preview — top strip (answer band / status) · TV area at the TV's proportions with blue around it · control band (timer line, next step, Fullscreen button).
+  - C (D86): host/join web-app manifests (scope "/", standalone, icons) — the cause of Safari's bar on some pages of the iPad Home Screen app — and one safe-area rule so every host page clears the status bar (the Boards title sat under it).
+  - D (D87): Final Jeopardy! answering stays open after the think time until the host closes it (rule `finalClose`, default 'host'; 'timer' = old behaviour).
+- **Tests:** tsc clean, **Vitest 360/360**, **full Playwright 70/70**, verify-dist 17/17.
+- **Local build (personal, includes new_sfx — never upload):** `release/OfflineJeopardy-Setup-0.15.0.exe`, `release/OfflineJeopardy-Portable-0.15.0.exe`.
+- **Owner to check on real devices:** re-add the iPad Home Screen icon from the host page, then every page (K46); host full screen on the iPad (K45); the new frame in landscape / portrait; Final answering after time-up with real phones; a Buzzinga picture-clue import.
+- **Code style note:** do not run Prettier with its defaults on project files — the code base uses single quotes and long lines (a default run rewrote whole files in round 10; fixed this session).
 
 ### Single recommended next task
 
-1. Wait for the owner's feedback on 0.14.0 (record it as the next USER_FEEDBACK round).
+1. Wait for the owner's feedback on 0.15.0 (record it as the next USER_FEEDBACK round).
 2. Otherwise: hardware checks (Joy-Cons, iPad, TV), the accessibility audit (O9), reading media lengths on the server at upload (K42), P3 ideas (O6 workspaces, O13 plugins, profile import, a data-folder UI).
 
 ### Two developers, two machines
