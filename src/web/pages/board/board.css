@@ -219,6 +219,18 @@
   opacity: 1;
   transition: opacity var(--bt-fade, 0.35s) ease-out;
 }
+/* R8-8: [b] in board text is the heaviest weight, so it stands out from the (already bold) clue
+   font; [i] and [u] use the font's italics and a line under the text. */
+.board-theme strong {
+  font-weight: 900;
+  /* The black weight alone is subtle next to the bold clue font; a hairline stroke in the text
+     colour makes [b] read as bold from the sofa. */
+  -webkit-text-stroke: 0.03em currentColor;
+}
+.board-theme u {
+  text-decoration-thickness: 0.06em;
+  text-underline-offset: 0.12em;
+}
 .bt-question {
   font-family: var(--b-clue-font);
   font-weight: var(--bt-clue-weight);
@@ -733,6 +745,46 @@
 }
 .board-theme:not([data-theme="classic"]) .bt-intro-cat {
   text-shadow: var(--bt-text-shadow);
+}
+/* R8-9: category subheading — the category font, smaller, under the name. */
+.bt-cat-stack {
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  flex-direction: column;
+}
+.bt-cat-name-box {
+  min-height: 0;
+  flex: 68 1 0;
+}
+.bt-cat-sub-box {
+  min-height: 0;
+  flex: 32 1 0;
+}
+.bt-cat-sub,
+.bt-intro-sub {
+  font-family: var(--b-cat-font, var(--b-font));
+  font-weight: var(--bt-heavy);
+  text-transform: uppercase;
+  text-align: center;
+  line-height: 1.05;
+  letter-spacing: 0.04em;
+  opacity: 0.88;
+  text-shadow: 0.04em 0.04em 0 #000;
+}
+.board-theme:not([data-theme="classic"]) .bt-cat-sub,
+.board-theme:not([data-theme="classic"]) .bt-intro-sub {
+  text-shadow: var(--bt-text-shadow);
+}
+.bt-intro-sub {
+  max-width: 80%;
+  margin: 1.2vh auto 0;
+  font-size: 4.4vh;
+  overflow-wrap: break-word;
+}
+.bt-intro-sub.is-small {
+  margin-top: 0.4vh;
+  font-size: 2.4vh;
 }
 .bt-round-title {
   font-family: var(--b-font);

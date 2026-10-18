@@ -9,6 +9,7 @@ import { serverNow } from '../../lib/socket';
 import { cx } from '../../components/ui';
 import { FitText, useBoard } from './common';
 import { EASE_OUT_ARR, T } from './timing';
+import { RichText } from '../../components/RichText';
 
 type Side = 'clue' | 'answer';
 type Indexed = { m: MediaRef; i: number };
@@ -111,7 +112,7 @@ export function QuestionCard({ g, still }: { g: GameView; still?: boolean }) {
                 className="bt-answer"
                 data-testid="clue-answer"
               >
-                {clue.answer}
+                <RichText text={clue.answer} />
               </motion.p>
             )}
           </AnimatePresence>

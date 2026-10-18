@@ -9,6 +9,7 @@ import { ActionButton, Avatar, Button, inputCls, cx, fmtScore } from '../../comp
 import { competitorAvatar, competitorName, findCompetitor, profileName, useTimer } from '../../lib/view';
 import { Trophy, Check, X, ChevronRight, LifeBuoy } from 'lucide-react';
 import { AnswerBanner } from './AnswerBanner';
+import { RichText } from '../../components/RichText';
 
 type Run = (a: HostAction) => Promise<{ ok: boolean }>;
 
@@ -32,8 +33,10 @@ export default function FinalControl({ g, run }: { g: GameView; run: Run }) {
           {g.timer && <span className="ml-auto text-xl font-black tabular-nums" data-testid="final-timer">{Math.ceil((remaining ?? 0) / 1000)}s</span>}
         </div>
         <p className="mt-3 text-sm font-bold tracking-wide text-slate-500 uppercase">Final Jeopardy! · {f.category}</p>
-        <p className="text-2xl leading-snug font-semibold">{f.question}</p>
-        {f.answer && <AnswerBanner className="mt-3" answer={f.answer} />}
+        <p className="text-2xl leading-snug font-semibold">
+          <RichText text={f.question} />
+        </p>
+        {f.answer && <AnswerBanner className="mt-3" answer={<RichText text={f.answer} />} />}
         {f.entries.length === 0 && <p className="mt-2 font-semibold text-amber-700">Nobody has a positive score, so nobody plays Final Jeopardy! — show the winner to end the game.</p>}
       </div>
 

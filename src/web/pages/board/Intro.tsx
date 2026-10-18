@@ -66,6 +66,11 @@ export function Intro({ g }: { g: GameView }) {
                 Category {step + 1} of {n}
               </p>
               <FitText text={cat.name} max={15} min={5} className="bt-intro-cat" boxClassName="min-h-0 max-h-[52vh] flex-1" />
+              {cat.subheading && (
+                <p className="bt-intro-sub" data-testid="intro-subheading">
+                  {cat.subheading}
+                </p>
+              )}
             </div>
           ) : fill ? (
             // Classic board intro (R2-23): the blank screens light up in a checker pattern, then the

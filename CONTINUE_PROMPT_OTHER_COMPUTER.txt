@@ -1,0 +1,18 @@
+OFFLINEJEOPARDY — PICK UP ON THE OTHER COMPUTER (geolaudy machine)
+
+Continue the existing OfflineJeopardy project. The last sessions ran on the second computer
+(mvanwitz). Do not restart or rewrite anything.
+
+1. git pull --ff-only on main (https://github.com/geolaudy/OfflineJeopardy). Confirm a clean tree
+   and that your HEAD matches the latest commit named in SESSION_HANDOFF.md.
+2. Read CLAUDE.md, SESSION_HANDOFF.md (top section), PROGRESS.md (top section), KNOWN_ISSUES.md.
+3. Run npm install (dependencies may have changed), then npx tsc -p . and npx vitest run to get a
+   baseline. Playwright needs chromium and webkit (npx playwright install chromium webkit).
+4. Current state: v0.12.0 is released. Round 8 milestones A, B and C are done (see USER_FEEDBACK.md
+   "Round 8" and FEATURE_MATRIX "User feedback round 8"). Round 7 milestone F (R7-30.1 … 30.5,
+   AI / Buzzinga import) is still open.
+5. Exact next task: "Single recommended next task" in SESSION_HANDOFF.md.
+6. Your new_sfx/ (personal sounds, never commit or upload) and references/ folders are git-ignored
+   and stay on your machine.
+7. Commit and push after each stable sub-task. At the end of the session update SESSION_HANDOFF.md,
+   PROGRESS.md and both CONTINUE_PROMPT_*.txt files, commit and push.

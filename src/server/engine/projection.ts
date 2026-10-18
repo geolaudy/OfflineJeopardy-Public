@@ -34,6 +34,7 @@ export function projectState(s: GameState, role: ViewRole, rawProfiles: Record<I
       id: c.id,
       // Final category names stay hidden from non-hosts until the Final starts.
       name: r.kind === 'final' && !host && s.phase !== 'final' && s.phase !== 'ended' ? '' : c.name,
+      ...(c.subheading?.trim() && !(r.kind === 'final' && !host && s.phase !== 'final' && s.phase !== 'ended') ? { subheading: c.subheading.trim() } : {}),
       clues:
         r.kind === 'final' && !host
           ? []
@@ -83,6 +84,7 @@ export function projectState(s: GameState, role: ViewRole, rawProfiles: Record<I
     final = {
       stage: st,
       category: fc?.name ?? '',
+      categorySubheading: fc?.subheading?.trim() ?? '',
       question: host || st === 'clue' || st === 'closed' || st === 'reveal' || st === 'done' ? (fq?.question ?? '') : null,
       answer: host || st === 'done' ? (fq?.answer ?? '') : null,
       order: s.final.order,

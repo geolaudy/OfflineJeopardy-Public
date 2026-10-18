@@ -8,6 +8,7 @@ import { unlockAudio } from '../../lib/sound';
 import type { Me } from './JoinPage';
 import type { GameView, PlayerContext } from '../../../shared/views';
 import { PlayerLobby } from './PlayerLobby';
+import { RichText } from '../../components/RichText';
 
 
 const REASONS: Record<string, string> = {
@@ -321,7 +322,9 @@ function FinalForm({ me }: { me: Me }) {
       )}
       {f.stage === 'clue' && (
         <>
-          <p className="text-center text-lg">{f.question}</p>
+          <p className="text-center text-lg">
+            <RichText text={f.question} />
+          </p>
           {editing ? (
             <>
               <textarea className={inputCls} rows={2} value={answer} onChange={(e) => setAnswer(e.target.value)} aria-label="Your answer" placeholder="Your answer" maxLength={200} data-testid="phone-final-answer" data-draft-saved={!!answer.trim() && answer.trim() === (mine?.draft ?? '') ? 'true' : 'false'} />

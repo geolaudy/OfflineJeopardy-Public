@@ -6,6 +6,9 @@
    category.*, value.* — declared at runtime by BoardPage as "OJ User …"). Nothing is downloaded. */
 @import '@fontsource/merriweather/700.css';
 @import '@fontsource/merriweather/900.css';
+/* R8-8: real italics for [i] in clue text. */
+@import '@fontsource/merriweather/700-italic.css';
+@import '@fontsource/merriweather/900-italic.css';
 @import '@fontsource/anton/400.css';
 
 @font-face {

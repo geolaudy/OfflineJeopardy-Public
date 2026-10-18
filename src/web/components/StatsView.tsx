@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Card, Modal, cx, fmtScore, pct } from './ui';
 import { useFetch } from '../lib/hooks';
 import { api } from '../lib/api';
+import { RichText } from './RichText';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Stats = any;
@@ -208,7 +209,9 @@ export function GameDetail({ id, as, onClose, highlightProfile }: { id: string; 
                     <div className="text-xs text-slate-500">
                       {clue?.category} · {clue?.value || (e.wager != null ? `wager ${e.wager}` : '')}
                     </div>
-                    <div>{clue?.question}</div>
+                    <div>
+                      <RichText text={clue?.question ?? ''} />
+                    </div>
                     <div className="text-slate-700">
                       <b>{name(e.competitorId)}</b>
                       {member(e.profileId) && g.mode === 'team' ? ` (${member(e.profileId)})` : ''}{' '}

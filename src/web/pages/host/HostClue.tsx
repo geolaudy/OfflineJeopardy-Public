@@ -20,6 +20,8 @@ import { AnswerBanner } from './AnswerBanner';
 import { FitBox, TvPreview, useBoardLook } from './TvMirror';
 import { themeRoot } from '../board/common';
 import { GameFrame } from './GameFrame';
+import { RichText } from '../../components/RichText';
+import { plainText } from '../../../shared/richText';
 
 type Run = (a: HostAction) => Promise<{ ok: boolean }>;
 
@@ -53,7 +55,7 @@ export function ClueStage({ g, run }: { g: GameView; run: Run }) {
       {/* The TV shows the Daily Double! splash until the wager is locked; the host may read ahead. */}
       {clue.question && (
         <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-700" data-testid="host-dd-clue">
-          <b>The clue (only you):</b> {clue.question}
+          <b>The clue (only you):</b> <RichText text={clue.question} />
         </p>
       )}
     </>
@@ -78,7 +80,7 @@ export function ClueStage({ g, run }: { g: GameView; run: Run }) {
             {/* The preview is hidden from screen readers; the clue text is here for them. */}
             {clue.question && (
               <p className="sr-only" data-testid="host-clue-text">
-                {clue.question}
+                {plainText(clue.question)}
               </p>
             )}
             <div className="board-theme absolute inset-x-0 top-0 z-10" data-theme={root.dataTheme} style={root.style}>
@@ -139,7 +141,7 @@ function HostAnswer({ g, onPicture }: { g: GameView; onPicture: () => void }) {
   const pictures = clue.answerMedia.length > 0 && !hidden;
   return (
     <AnswerBanner
-      answer={hidden ? undefined : clue.answer}
+      answer={hidden ? undefined : <RichText text={clue.answer} />}
       label={g.practice ? 'Correct response' : 'Correct response · only you'}
       band
       aside={
@@ -505,7 +507,10 @@ function BotAnswer({ g, c }: { g: GameView; c: CompetitorView }) {
           </p>
           {clue.answer && !g.practice && (
             <p className="mt-1 text-sm text-slate-600">
-              Expected (only you see this): <b data-testid="bot-expected">{clue.answer}</b>
+              Expected (only you see this):{' '}
+              <b data-testid="bot-expected">
+                <RichText text={clue.answer} />
+              </b>
             </p>
           )}
           <p className="mt-1 text-xs text-slate-500">

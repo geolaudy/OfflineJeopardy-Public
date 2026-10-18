@@ -6,6 +6,7 @@
 // years with years), or a nearby number. Easier bots guess from further away.
 import type { BotLevel, BoardContent, GameState } from '../shared/game.js';
 import { scoresOf } from '../shared/game.js';
+import { plainText } from '../shared/richText.js';
 
 export interface ClueContext {
   category: string;
@@ -26,20 +27,22 @@ const norm = (t: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-/** Find a clue (including the Final) and the answers around it. */
+/** Find a clue (including the Final) and the answers around it — as plain text (no formatting tags or
+ *  line breaks, R8-8), so bots and the AI compare and say real words. */
 export function clueContext(board: BoardContent, clueId: string): ClueContext | null {
   for (const r of board.rounds)
     for (const c of r.categories) {
       const q = c.clues.find((x) => x.id === clueId);
       if (!q) continue;
-      const all = board.rounds.flatMap((rr) => rr.categories.flatMap((cc) => cc.clues.map((x) => x.answer)));
+      const all = board.rounds.flatMap((rr) => rr.categories.flatMap((cc) => cc.clues.map((x) => plainText(x.answer))));
+      const answer = plainText(q.answer);
       return {
         category: c.name,
-        question: q.question,
-        answer: q.answer,
+        question: plainText(q.question),
+        answer,
         value: q.value,
-        sameCategory: c.clues.filter((x) => x.id !== clueId).map((x) => x.answer),
-        board: all.filter((a) => a && norm(a) !== norm(q.answer)),
+        sameCategory: c.clues.filter((x) => x.id !== clueId).map((x) => plainText(x.answer)),
+        board: all.filter((a) => a && norm(a) !== norm(answer)),
       };
     }
   return null;

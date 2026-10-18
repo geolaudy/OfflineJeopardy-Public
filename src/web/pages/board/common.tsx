@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState
 import type { CSSProperties } from 'react';
 import { cx } from '../../components/ui';
 import { themeCssVars, valuePrefixFor, type CustomThemeData } from '../../../shared/themes';
+import { RichText } from '../../components/RichText';
 
 export interface BoardPresentation {
   theme: string;
@@ -110,7 +111,20 @@ export function usePrefersReducedMotion() {
 
 /** R6-2.4: a category name may be at most this share of its cell's text box height (one line) —
  *  the proportion the iPad replica already had; long names still shrink to fit. */
-export const CATEGORY_TEXT_SHARE = 0.34; // R7-5: capitals ≈ 25 % of the tile height, as on the reference board
+export const CATEGORY_TEXT_SHARE = 0.34;
+
+/** R8-9: a category header on the board (TV and iPad replica): the name — the same size as
+ *  without a subheading (its box is 68 % of the cell, its share scaled to match) — with a smaller
+ *  subheading under it when the category has one. */
+export function CategoryText({ name, subheading, scale, min }: { name: string; subheading?: string; scale: number; min: number }) {
+  if (!subheading?.trim()) return <FitText text={name} max={4.4 * scale} maxBox={CATEGORY_TEXT_SHARE * scale} min={min * scale} className="bt-cat-text" />;
+  return (
+    <div className="bt-cat-stack">
+      <FitText text={name} max={4.4 * scale} maxBox={(CATEGORY_TEXT_SHARE * scale) / 0.68} min={min * 0.85 * scale} className="bt-cat-text" boxClassName="bt-cat-name-box" />
+      <FitText text={subheading} max={2.2 * scale} maxBox={0.6} min={0.9 * scale} className="bt-cat-sub" boxClassName="bt-cat-sub-box" testId="category-subheading" />
+    </div>
+  );
+} // R7-5: capitals ≈ 25 % of the tile height, as on the reference board
 
 /**
  * Text that shrinks (between `min` and `max`, in vh) until it fits its box — long category names
@@ -174,7 +188,8 @@ export function FitText({
   return (
     <div ref={boxRef} className={cx('bt-fit-box', boxClassName)} style={boxStyle}>
       <div ref={ref} className={cx('bt-fit', className)} style={{ fontSize: `${max}vh` }} data-testid={testId}>
-        {text}
+        {/* R8-7/R8-8: line breaks and bold / italics / underline from the board. */}
+        <RichText text={text} />
       </div>
     </div>
   );

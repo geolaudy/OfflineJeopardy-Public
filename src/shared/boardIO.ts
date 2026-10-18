@@ -29,7 +29,7 @@ export const boardContentSchema = z.object({
         id: z.string().min(1).max(64),
         name: z.string().max(60),
         kind: z.enum(['standard', 'final']),
-        categories: z.array(z.object({ id: z.string().min(1).max(64), name: z.string().max(100), clues: z.array(clueSchema).max(20) })).max(20),
+        categories: z.array(z.object({ id: z.string().min(1).max(64), name: z.string().max(100), subheading: z.string().max(100).optional(), clues: z.array(clueSchema).max(20) })).max(20),
       }),
     )
     .min(1)

@@ -9,6 +9,7 @@ import { GenerateBoardModal } from './GenerateBoard';
 import { clueComplete } from '../../../shared/boardUtils';
 import { CSV_HEADER } from '../../../shared/boardIO';
 import type { BoardContent, Clue } from '../../../shared/game';
+import { RichText } from '../../components/RichText';
 
 // ---------- API shapes ----------
 
@@ -581,9 +582,9 @@ function ClueDetail({ clue, light }: { clue?: Clue; light?: boolean }) {
   return (
     <div>
       <p className={cx('text-xs uppercase tracking-wide', muted)}>Question</p>
-      <p className="mb-2 whitespace-pre-wrap text-lg">{clue.question || <em className={muted}>(empty)</em>}</p>
+      <p className="mb-2 text-lg">{clue.question ? <RichText text={clue.question} /> : <em className={muted}>(empty)</em>}</p>
       <p className={cx('text-xs uppercase tracking-wide', muted)}>Answer</p>
-      <p className="whitespace-pre-wrap font-semibold">{clue.answer || <em className={muted}>(empty)</em>}</p>
+      <p className="font-semibold">{clue.answer ? <RichText text={clue.answer} /> : <em className={muted}>(empty)</em>}</p>
       {clue.notes ? <p className={cx('mt-2 text-sm', muted)}>Notes: {clue.notes}</p> : null}
       {clue.media?.length ? <p className={cx('mt-2 text-sm', muted)}>{clue.media.length} media attachment(s)</p> : null}
     </div>

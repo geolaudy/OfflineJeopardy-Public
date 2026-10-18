@@ -1,18 +1,18 @@
 # Session handoff
 
-Read this first, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 7".
+Read this first, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 8". Ready-to-paste resume prompts: `CONTINUE_PROMPT_SAME_COMPUTER.txt` / `CONTINUE_PROMPT_OTHER_COMPUTER.txt`.
 
-## Current state (session 11, 2026-10-18 — round 7 A–D released as v0.12.0)
+## Current state (session 12, 2026-10-18 — round 8 milestones A, B, C committed and pushed)
 
-- **Branch:** `main`, pushed to `origin/main` (https://github.com/geolaudy/OfflineJeopardy). Version **0.12.0**; tag `v0.12.0` pushed; GitHub Actions run 39102878564 **succeeded** and published https://github.com/geolaudy/OfflineJeopardy/releases/tag/v0.12.0 with OfflineJeopardy-Setup-0.12.0.exe, OfflineJeopardy-Portable-0.12.0.exe and SHA256SUMS.txt (checked through the GitHub API with the stored git credential; the repo is private, so the unauthenticated API returns Not Found).
-- **Round 7 (IMPLEMENTATION_PLAN milestone 21):** A, B, C, D and G (R7-32 research) done and released in v0.12.0. **E (R7-31 developer tools) done after the release** (in main, not yet in a release). **Not started: F (R7-30.1–30.5 AI/import).**
-- **Tests (session 11):** tsc clean, Vitest 297/297, Playwright 47/48 in the last full run (lobby.spec pairing-code race, fixed and passing). After milestone E: Vitest 301/301; **the full Playwright run after E was stopped because this PC ran low on memory** (browser crashes, not test failures) — first thing next session: run `npx playwright test` once with nothing else open. Intermittent under full-suite load, passed on every re-run: presentation "team buzz-in" (session 10).
-- **Local build (session 11, mvanwitz machine, release commit 88584d2):** `npm run release:local` passed, verify-dist **17/17**: `release/OfflineJeopardy-Setup-0.12.0.exe`, `release/OfflineJeopardy-Portable-0.12.0.exe`, `release/win-unpacked/` — these contain the owner's personal sounds (personal use only, never upload); the public GitHub build has none.
-- **Owner to check on real devices:** the new iPad frame and score editor on the real iPad (K38), the lobby phone delays with real phones (K40), the TV menu/lobby layout on the TV.
+- **Branch:** `main`, pushed to `origin/main` (https://github.com/geolaudy/OfflineJeopardy). Version **0.12.0** (released, tag v0.12.0, 3 assets). Everything after it is in `main` only: round 7 milestone E (developer tools) and round 8 A–C.
+- **Round 8 (IMPLEMENTATION_PLAN milestone 22, USER_FEEDBACK "Round 8"):** A (R8-2 clue flicker, R8-3 iPad board styling, R8-4 board fill → intro, R8-5 Final answer sizing), B (R8-6.1–6.4 minimized lobby) and C (R8-7 line breaks, R8-8 bold/italic/underline, R8-9 category subheadings) **done and tested**.
+- **Round 7:** A–E and G done. **F (R7-30.1–30.5, AI / Buzzinga import) not started.**
+- **Tests:** tsc clean, Vitest 304+ (see PROGRESS), Playwright full run 49/49 after milestone E; round-8 specs and every affected spec passing (a full run after milestone C is recorded in PROGRESS when it finishes).
+- **Owner to check on real devices:** the round-7/8 iPad screens on the real iPad (K38), lobby phone delays with real phones (K40), the TV layouts on the TV, the board-fill timing with the real sound pack.
 
 ### Single recommended next task
 
-**Round 7 milestone F — R7-30.1 … R7-30.5 (AI / import)** (USER_FEEDBACK "Round 7"): 30.1 Buzzinga imports bring their images/audio/video (investigate `server/importers/sources` + `importers/media.ts`; graceful failures, no broken references); 30.2 verify bot AI answers are really used (diagnose the pipeline in `server/ai.ts` / `botAnswers.ts`) and add bounded retries with backoff for Gemini 503 (`aiProviders/gemini.ts`); 30.3 AI boards default to 2 rounds + Final, validated, never saved as complete when incomplete (`ai.generateBoard`); 30.4 research sign-in-based AI connections (official methods only, document in RESEARCH_NOTES); 30.5 AI clue from a prompt in the board editor (clue + answer, editable, no silent overwrite). Developer tools for testing: `npm run dev:server` has `--dev-tools` (Settings → Advanced → Developer tools).
+**Release v0.13.0** (round 8 A–C + developer tools) with the windows-release skill once a full Playwright run is green: version bump, CHANGELOG section, `npm run release:local`, commit, push, tag `v0.13.0`, verify the GitHub release (API with the stored git credential — the repo is private). **Then round 7 milestone F — R7-30.1 … R7-30.5 (AI / import):** 30.1 Buzzinga imports bring their images/audio/video (`server/importers/sources` + `importers/media.ts`; graceful failures); 30.2 verify bot AI answers are really used and add bounded retries with backoff for Gemini 503 (`aiProviders/gemini.ts`); 30.3 AI boards default to 2 rounds + Final, validated, never saved as complete when incomplete; 30.4 research sign-in-based AI connections (official methods only, RESEARCH_NOTES); 30.5 AI clue from a prompt in the board editor (clue + answer, editable, no silent overwrite).
 
 ### Two developers, two machines
 

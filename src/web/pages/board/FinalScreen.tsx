@@ -16,6 +16,7 @@ import { VerdictMark } from './VerdictMark';
 import { SwipeStage, useSwipe, useTestId } from './Swipe';
 import { finalScreenKey, finalTransition } from './finalSwipe';
 import { EASE_OUT_ARR, T } from './timing';
+import { RichText } from '../../components/RichText';
 
 const swipeSound = () => playCue('categoryIntro');
 
@@ -55,6 +56,11 @@ function FinalContent({ g }: { g: GameView }) {
         className="bt-intro-cat"
         boxClassName={early ? 'min-h-0 flex-1' : revealing ? 'h-[6vh] shrink-0' : 'h-[9vh] shrink-0'}
       />
+      {f.categorySubheading && (
+        <p className={cx('bt-intro-sub shrink-0', !early && 'is-small')} data-testid="final-subheading">
+          {f.categorySubheading}
+        </p>
+      )}
       {f.stage === 'wagers' && <SubmissionChips g={g} kind="wager" />}
       {(f.stage === 'clue' || f.stage === 'closed') && f.question && (
         // R7-7: centred in the whole stage, not in the space left under the category; the header
@@ -195,7 +201,9 @@ function Summary({ g }: { g: GameView }) {
       {f.answer && (
         <motion.div className="flex shrink-0 flex-col items-center gap-[0.8vh]" initial={{ opacity: 0, y: '3vh' }} animate={{ opacity: 1, y: 0 }} transition={{ duration: T.reveal, ease: EASE_OUT_ARR }}>
           <span className="bt-final-label text-[2.4vh]">Correct response</span>
-          <p className="bt-answer">{f.answer}</p>
+          <p className="bt-answer">
+            <RichText text={f.answer} />
+          </p>
         </motion.div>
       )}
       <div className="grid w-full max-w-[88vw] shrink-0 gap-[1.4vh]" style={{ gridTemplateColumns: `repeat(${Math.min(4, Math.max(1, f.order.length))}, minmax(0, 1fr))` }}>

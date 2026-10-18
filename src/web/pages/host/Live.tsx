@@ -15,6 +15,7 @@ import { ClueStage } from './HostClue';
 import { HostBoardGrid, TvPreview } from './TvMirror';
 import ScoreEditor from './ScoreEditor';
 import { GameFrame } from './GameFrame';
+import { RichText } from '../../components/RichText';
 
 type Run = (a: HostAction) => Promise<{ ok: boolean }>;
 
@@ -125,8 +126,10 @@ function BoardStage({ g, run, onDevices }: { g: GameView; run: Run; onDevices: (
       {played && (
         <Modal open onClose={() => setPlayed(null)} title="Played clue">
           <div className="space-y-3">
-            <p className="text-lg">{q?.question}</p>
-            <AnswerBanner answer={q?.answer} />
+            <p className="text-lg">
+              <RichText text={q?.question ?? ''} />
+            </p>
+            <AnswerBanner answer={q?.answer ? <RichText text={q.answer} /> : undefined} />
             <Button
               variant="secondary"
               disabled={g.phase !== 'board'}

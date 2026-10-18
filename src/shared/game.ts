@@ -38,6 +38,8 @@ export type ClueUnlock = 'default' | 'immediate' | 'host' | 'mediaStart' | 'medi
 export interface Category {
   id: Id;
   name: string;
+  /** R8-9: a smaller second line under the name (context, e.g. "Name the year"). */
+  subheading?: string;
   clues: Clue[];
 }
 

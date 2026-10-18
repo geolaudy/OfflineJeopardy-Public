@@ -7,8 +7,10 @@ import { ActionButton, Button, Field, Modal, cx, inputCls, toast } from '../../c
 import { blankBoard, blankCategory, blankClue, blankFinal, blankRound, boardStats, clueComplete, hasClueMedia, uid, validateBoard } from '../../../shared/boardUtils';
 import { boardContentSchema } from '../../../shared/boardIO';
 import type { BoardContent, Category, Clue, ClueLayout, ClueUnlock, MediaRef, Round } from '../../../shared/game';
-import { Eye, Star, ArrowLeft, Image, Music, Film, OctagonAlert, TriangleAlert, ChevronLeft, ChevronRight, X, Download, Sparkles } from 'lucide-react';
+import { Eye, Star, ArrowLeft, Image, Music, Film, OctagonAlert, TriangleAlert, ChevronLeft, ChevronRight, X, Download, Sparkles, Bold, Italic, Underline } from 'lucide-react';
 import { acceptFor, formatList, MEDIA_FORMATS, type MediaKind } from '../../../shared/mediaTypes';
+import { isRich, plainText, toggleTag } from '../../../shared/richText';
+import { RichText } from '../../components/RichText';
 
 // ---------- types & helpers ----------
 
@@ -796,6 +798,16 @@ export default function BoardEditor() {
                   onChange={(e) => updateCat(ri, ci, (x) => ({ ...x, name: e.target.value }))}
                   className="w-full resize-none rounded-lg bg-blue-950/40 px-2 py-1 text-center text-sm font-bold uppercase text-white placeholder:normal-case placeholder:text-blue-300 focus:bg-blue-950 focus:outline-none focus:ring-2 focus:ring-amber-400"
                 />
+                {/* R8-9: optional smaller line under the category name on the TV. */}
+                <input
+                  aria-label={`Category ${ci + 1} subheading`}
+                  maxLength={100}
+                  value={c.subheading ?? ''}
+                  placeholder="Subheading (optional)"
+                  onChange={(e) => updateCat(ri, ci, (x) => ({ ...x, subheading: e.target.value || undefined }))}
+                  className="mt-1 w-full rounded-lg bg-blue-950/40 px-2 py-1 text-center text-xs font-semibold uppercase text-blue-50 placeholder:normal-case placeholder:font-normal placeholder:text-blue-300/80 focus:bg-blue-950 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  data-testid="category-subheading-input"
+                />
               </div>
             ))}
             {Array.from({ length: rowCount }).map((_, row) =>
@@ -836,7 +848,7 @@ export default function BoardEditor() {
                         {q.media?.length ? <span title="Has media"><Image size={12} className="inline" aria-hidden /></span> : null}
                       </span>
                     </span>
-                    <span className={cx('line-clamp-2 text-xs', done ? 'text-slate-700' : 'italic text-amber-800')}>{q.question.trim() ? q.question : hasClueMedia(q) ? mediaLabel(q) : 'Needs clue text or media'}</span>
+                    <span className={cx('line-clamp-2 text-xs', done ? 'text-slate-700' : 'italic text-amber-800')}>{q.question.trim() ? plainText(q.question) : hasClueMedia(q) ? mediaLabel(q) : 'Needs clue text or media'}</span>
                   </button>
                 );
               }),
@@ -1043,8 +1055,8 @@ function ClueFields({ clue, onChange, final, category = '' }: { clue: Clue; onCh
         <h3 id="clue-presentation" className="font-bold">
           Clue presentation
         </h3>
-        <Field label="Question (shown on the board)" hint={media.length ? 'Optional when the clue is a picture, sound or video.' : undefined}>
-          <textarea className={inputCls} rows={3} maxLength={2000} value={clue.question} onChange={(e) => onChange({ question: e.target.value })} />
+        <Field label="Question (shown on the board)" hint={media.length ? 'Optional when the clue is a picture, sound or video.' : undefined} group>
+          <RichField value={clue.question} onChange={(question) => onChange({ question })} rows={3} maxLength={2000} label="Question" fieldLabel="Question (shown on the board)" testId="clue-question" />
         </Field>
         <AiClueHelper clue={clue} category={category} onChange={onChange} />
         <MediaList
@@ -1060,8 +1072,8 @@ function ClueFields({ clue, onChange, final, category = '' }: { clue: Clue; onCh
         <h3 id="answer-reveal" className="font-bold">
           Answer reveal
         </h3>
-        <Field label="Answer (host only until revealed)">
-          <input className={inputCls} maxLength={1000} value={clue.answer} onChange={(e) => onChange({ answer: e.target.value })} />
+        <Field label="Answer (host only until revealed)" group>
+          <RichField value={clue.answer} onChange={(answer) => onChange({ answer })} rows={2} maxLength={1000} label="Answer" fieldLabel="Answer (host only until revealed)" testId="clue-answer-input" />
         </Field>
         <MediaList
           label="Answer media (optional)"
@@ -1389,5 +1401,74 @@ function VersionsModal({
         </ul>
       ) : null}
     </Modal>
+  );
+}
+
+/**
+ * Clue / answer text with line breaks (Enter or Shift+Enter) and bold, italics, underline
+ * (R8-7, R8-8): the buttons and Ctrl+B / I / U wrap the selection in [b] [i] [u] tags, which the TV,
+ * the host and phones render (RichText). A preview appears once formatting or a line break is used.
+ */
+function RichField({ value, onChange, rows, maxLength, label, fieldLabel, testId }: { value: string; onChange: (v: string) => void; rows: number; maxLength: number; label: string; fieldLabel: string; testId: string }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  const apply = (tag: 'b' | 'i' | 'u') => {
+    const el = ref.current;
+    if (!el) return;
+    const r = toggleTag(value, el.selectionStart, el.selectionEnd, tag);
+    if (r.text.length > maxLength) return;
+    onChange(r.text);
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(r.start, r.end);
+    });
+  };
+  const tools: { tag: 'b' | 'i' | 'u'; name: string; Icon: typeof Bold }[] = [
+    { tag: 'b', name: 'Bold', Icon: Bold },
+    { tag: 'i', name: 'Italic', Icon: Italic },
+    { tag: 'u', name: 'Underline', Icon: Underline },
+  ];
+  return (
+    <div className="space-y-1">
+      <div className="flex flex-wrap items-center gap-1" role="toolbar" aria-label={`${label} formatting`}>
+        {tools.map(({ tag, name, Icon }) => (
+          <button
+            key={tag}
+            type="button"
+            className="flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+            onMouseDown={(e) => e.preventDefault()} // keep the selection in the text box
+            onClick={() => apply(tag)}
+            aria-label={`${name} (${label.toLowerCase()})`}
+            title={`${name} (Ctrl+${tag.toUpperCase()})`}
+            data-testid={`${testId}-${tag}`}
+          >
+            <Icon size={18} aria-hidden />
+          </button>
+        ))}
+        <span className="ml-auto text-xs text-slate-500">Enter or Shift+Enter starts a new line</span>
+      </div>
+      <textarea
+        ref={ref}
+        className={inputCls}
+        rows={rows}
+        maxLength={maxLength}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          const k = e.key.toLowerCase();
+          if ((e.ctrlKey || e.metaKey) && !e.altKey && (k === 'b' || k === 'i' || k === 'u')) {
+            e.preventDefault();
+            apply(k);
+          }
+        }}
+        aria-label={fieldLabel}
+        data-testid={testId}
+      />
+      {isRich(value) && (
+        <div className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-800" data-testid={`${testId}-preview`}>
+          <span className="mr-1 text-xs font-semibold text-slate-500">As shown:</span>
+          <RichText text={value} />
+        </div>
+      )}
+    </div>
   );
 }

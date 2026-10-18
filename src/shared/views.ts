@@ -54,7 +54,7 @@ export interface ClueCell {
 export interface RoundView {
   name: string;
   kind: 'standard' | 'final';
-  categories: { id: Id; name: string; clues: ClueCell[] }[];
+  categories: { id: Id; name: string; subheading?: string; clues: ClueCell[] }[];
 }
 
 export interface ClueView {
@@ -99,6 +99,8 @@ export interface FinalEntryView {
 export interface FinalView {
   stage: FinalState['stage'];
   category: string;
+  /** R8-9: the category's subheading ('' when none). */
+  categorySubheading: string;
   question: string | null;
   answer: string | null;
   /** Reveal order, lowest → highest pre-Final score (R4-2). */

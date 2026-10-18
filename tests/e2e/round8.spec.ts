@@ -176,3 +176,72 @@ test('the minimized lobby moves with the page on a menu change (R8-6.4)', async 
   ws.close();
   await done();
 });
+
+test('rich clue text and a category subheading: editor, TV and iPad (R8-7, R8-8, R8-9)', async () => {
+  test.setTimeout(120_000);
+  const { api, host, h, mk, done } = await setup('Round 8 rich');
+  const H = { authorization: `Bearer ${host}` };
+  // A copy of the starter board with a subheading and a formatted first clue.
+  const boards = (await (await api.get('/api/boards', { headers: H })).json()) as { id: string; title: string }[];
+  const src = (await (await api.get(`/api/boards/${boards.find((b) => b.title === 'Starter Trivia Night')!.id}`, { headers: H })).json()) as { content: { rounds: { kind: string; categories: { name: string; subheading?: string; clues: { id: string; question: string; answer: string }[] }[] }[] } };
+  const content = src.content;
+  content.rounds[0].categories[0].subheading = 'Name the empire';
+  content.rounds[0].categories[0].clues[0].question = 'This [b]ancient[/b] civilization\nbuilt [i]Machu Picchu[/i].';
+  content.rounds[0].categories[0].clues[0].answer = '[u]The Inca[/u]';
+  const created = (await (await api.post('/api/boards', { headers: H, data: { title: 'Rich Round 8', content } })).json()) as { id: string };
+
+  // Editor: the subheading field; Bold wraps the selection; Shift+Enter makes a new line.
+  const pc = await (await cr.newContext({ viewport: { width: 1366, height: 900 } })).newPage();
+  await pc.goto(`${BASE}/host/boards/${created.id}`);
+  await expect(pc.getByLabel('Category 1 subheading')).toHaveValue('Name the empire');
+  await pc.getByRole('button', { name: /^Edit History 400/ }).click();
+  const answer = pc.getByTestId('clue-answer-input');
+  await expect(answer).toBeVisible();
+  await answer.fill('Rome');
+  await answer.press('Control+a');
+  await pc.getByTestId('clue-answer-input-b').click();
+  await expect(answer).toHaveValue('[b]Rome[/b]');
+  await answer.press('End');
+  await answer.press('Shift+Enter');
+  await answer.type('Italy');
+  await expect(answer).toHaveValue('[b]Rome[/b]\nItaly');
+  await expect(pc.getByTestId('clue-answer-input-preview').locator('strong')).toHaveText('Rome');
+  await expect(pc.getByTestId('clue-answer-input-preview').locator('br')).toHaveCount(1);
+  await shot(pc, 'editor-rich');
+
+  // Play the board: subheading on the TV and the iPad board; formatted clue and answer.
+  await api.post('/api/games/close', { headers: H });
+  await api.post('/api/games', { headers: H, data: { boardId: created.id, mode: 'solo' } });
+  const h2 = await hostSocket(host);
+  await h2.until((g) => g?.boardId === created.id || !!g);
+  const p = await mk('Rich Rae', '#dc2626');
+  await h2.act({ type: 'addPlayer', profileId: p.profile.id });
+  const tv = await (await cr.newContext({ viewport: { width: 1920, height: 1080 } })).newPage();
+  await tv.goto(`${BASE}/board`);
+  await h2.act({ type: 'startGame' });
+  await expect(tv.getByTestId('intro-subheading')).toHaveCount(0); // round title first
+  await h2.act({ type: 'introNext' });
+  await expect(tv.getByTestId('intro-subheading')).toHaveText('Name the empire');
+  await h2.act({ type: 'introSkip' });
+  await expect(tv.getByTestId('board-category').first().getByTestId('category-subheading')).toHaveText('Name the empire');
+  const ipad = await (await wk.newContext({ ...devices['iPad Pro 11 landscape'] })).newPage();
+  await ipad.goto(`${BASE}/host`);
+  await expect(ipad.getByTestId('host-category').first().getByTestId('category-subheading')).toHaveText('Name the empire');
+  await tv.waitForTimeout(1500);
+  await shot(tv, 'tv-subheading');
+  await shot(ipad, 'ipad-subheading');
+  const g = await h2.until((x) => x.phase === 'board');
+  await h2.act({ type: 'selectClue', clueId: g.rounds[0].categories[0].clues[0].id });
+  const panel = tv.getByTestId('tv-clue-panel');
+  await expect(panel.locator('strong')).toHaveText('ancient');
+  await expect(panel.locator('strong')).toHaveCSS('font-weight', '900'); // heavier than the bold clue font
+  await expect(panel.locator('em')).toHaveText('Machu Picchu');
+  await expect(panel.getByTestId('clue-side').locator('br')).toHaveCount(1);
+  await expect(ipad.getByTestId('answer-banner').locator('u')).toHaveText('The Inca');
+  await h2.act({ type: 'revealAnswer', clueId: g.rounds[0].categories[0].clues[0].id });
+  await expect(tv.getByTestId('clue-answer').locator('u')).toHaveText('The Inca');
+  await tv.waitForTimeout(800);
+  await shot(tv, 'tv-rich-clue');
+  h2.close();
+  await done();
+});

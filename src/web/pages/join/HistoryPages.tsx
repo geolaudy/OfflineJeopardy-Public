@@ -7,6 +7,7 @@ import { useFetch } from '../../lib/hooks';
 import { cx, fmtScore } from '../../components/ui';
 import type { Me } from './JoinPage';
 import { Trophy } from 'lucide-react';
+import { RichText } from '../../components/RichText';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -215,8 +216,12 @@ export function GameDetailPage({ me }: { me: Me }) {
                 {clue.dailyWager ? ' · Daily Double!' : ''}
                 {result === 'unanswered' ? ' · nobody got it' : result === 'skipped' ? ' · skipped' : ''}
               </div>
-              <p className="mt-0.5">{clue.question}</p>
-              <p className="text-sm font-semibold text-green-800">{clue.answer}</p>
+              <p className="mt-0.5">
+                <RichText text={clue.question} />
+              </p>
+              <p className="text-sm font-semibold text-green-800">
+                <RichText text={clue.answer} />
+              </p>
               <ul className="mt-1 space-y-0.5 text-sm">
                 {events
                   .filter((e: any) => !mine || isMine(e))
