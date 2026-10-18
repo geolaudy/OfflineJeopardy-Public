@@ -6,9 +6,10 @@ their notes come from the matching section below (`scripts/release-notes.mjs`).
 
 ## [Unreleased]
 
+## [0.15.0] — 2026-10-18
+
 ### New Features
 - **Full screen on the host controller**: the new button at the right end of the control band fills the screen with the TV preview, the red answer band at the top and your controls at the bottom (Exit, or Esc, to go back). The game carries on untouched while you switch.
-
 - **Final Jeopardy!: you decide when answering ends.** When the think time runs out, players can still send in (or change) their answers until you tap **Close Answer Submissions**; their phones say "Time is up — waiting for the host to close answering". The old behaviour (answers close with the time) is still available under Rules & timers → Advanced rules.
 
 ### Improvements
@@ -20,6 +21,11 @@ their notes come from the matching section below (`scripts/release-notes.mjs`).
 - iPad Home Screen app: every page now stays inside the app (no Safari bar on some pages), and the OfflineJeopardy title no longer sits under the status bar on the Boards page. Remove the old Home Screen icon and add it again once from the host page (Share → Add to Home Screen).
 - Buzzinga import: the text of a picture (or sound) clue now arrives as the clue's text, editable in the clue text box, instead of as the picture's caption.
 - TV: the "buzzers open" glow no longer draws a second faint line above the timer.
+
+### Known Issues
+- The full-screen host view, the new host layout and the Home Screen web-app fix were tested in browser emulation (iPad, iPhone, desktop), not yet on your iPad. The iPad's Home Screen icon must be added again once (Share → Add to Home Screen on the host page) for every page to stay inside the app.
+- In a normal Safari tab, Safari's own address bar and toolbars stay visible in full screen where Safari does not allow a page to hide them.
+- Boards imported from Buzzinga before this version keep the clue text in the picture's caption; import them again to get it in the clue text.
 
 ## [0.14.0] — 2026-10-18
 
