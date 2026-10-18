@@ -121,6 +121,9 @@ export const hostActionSchema = z.discriminatedUnion('type', [
     note: z.string().max(120).optional(),
     profileId: id.nullable().optional(),
   }),
+  // R7-22: take back one score change (a manual adjustment is removed; a gameplay change is
+  // offset by an opposite adjustment). Audited: linked to the original event.
+  z.object({ type: z.literal('reverseScoreChange'), eventId: id }),
   z.object({ type: z.literal('correctAttribution'), eventId: id, profileId: id.nullable() }),
   z.object({
     type: z.literal('timerStart'),

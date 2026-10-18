@@ -61,6 +61,7 @@ const UNDOABLE = new Set([
   'closeClue',
   'restoreClue',
   'adjustScore',
+  'reverseScoreChange',
   'correctAttribution',
   'setRound',
   'setControl',
@@ -316,6 +317,7 @@ export function undoLabel(type: string): string {
     closeClue: 'close clue',
     restoreClue: 'restore clue',
     adjustScore: 'score adjustment',
+    reverseScoreChange: 'score change taken back',
     correctAttribution: 'attribution change',
     setRound: 'round change',
     setControl: 'board control',
@@ -1079,6 +1081,24 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       });
       return;
     }
+    case 'reverseScoreChange': {
+      // R7-22: the score editor's "Latest score changes". A manual adjustment is removed (voided,
+      // with a zero correction that records who/when); an answer or wager keeps its statistics
+      // and gets an opposite score adjustment linked to it; an early-buzz penalty is refunded.
+      const orig = s.events.find((e) => e.id === a.eventId);
+      if (!orig || orig.voided || !orig.scoreDelta) fail('That score change cannot be taken back');
+      const o = orig!;
+      if (s.events.some((e) => !e.voided && e.type === 'score_adjust' && e.correctsEventId === o.id)) fail('That score change was already taken back');
+      if (o.type === 'buzz' && o.result === 'early') return reduce(tx, { type: 'refundPenalty', eventId: o.id });
+      if (o.type === 'score_adjust') {
+        const corr = emit(tx, { type: 'score_adjust', competitorId: o.competitorId, profileId: o.profileId, roundIndex: s.roundIndex, note: 'adjustment removed', correctsEventId: o.id });
+        voidEvent(tx, o, corr.id);
+        return;
+      }
+      if (o.type !== 'answer' && o.type !== 'wager') fail('That score change cannot be taken back');
+      emit(tx, { type: 'score_adjust', competitorId: o.competitorId, profileId: o.profileId, scoreDelta: -o.scoreDelta, roundIndex: s.roundIndex, note: 'score change reversed', correctsEventId: o.id });
+      return;
+    }
     case 'correctAttribution': {
       const orig = s.events.find((e) => e.id === a.eventId);
       if (!orig || orig.voided) fail('Event not found');
@@ -1313,6 +1333,15 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       const snap = s.undoStack.pop();
       if (!snap) fail('Nothing to undo');
       const u = emit(tx, { type: 'undo', note: snap!.label });
+      // Events from after the snapshot are voided; an older event that one of them had voided (a
+      // removed adjustment, a refunded penalty, a re-attributed answer) counts again.
+      const later = new Set(s.events.filter((e) => e.seq > snap!.seq && e.id !== u.id).map((e) => e.id));
+      for (const e of s.events)
+        if (e.seq <= snap!.seq && e.voided && e.voidedBy && later.has(e.voidedBy)) {
+          e.voided = false;
+          e.voidedBy = undefined;
+          tx.touched.set(e.id, e);
+        }
       for (const e of s.events) if (e.seq > snap!.seq && e.id !== u.id && !e.voided) voidEvent(tx, e, u.id);
       const data = JSON.parse(snap!.data);
       for (const k of RESTORABLE) (s as unknown as Record<string, unknown>)[k] = data[k];

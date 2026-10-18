@@ -1,0 +1,44 @@
+/* R7-24: the host's private answer as a red striped band across the top of the clue card
+   (references/host_controller_layout.png). Inside .board-theme, so the clue font and the hard
+   shadow come from the same tokens as the TV (board.css). */
+.host-answer-band {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.75rem 0.45rem;
+  color: #ffffff;
+  background: repeating-linear-gradient(135deg, #b01f1f 0 3px, #981a1a 3px 6px);
+  box-shadow: inset 0 -2px 0 rgb(0 0 0 / 0.25);
+}
+.host-answer-band-in {
+  min-width: 0;
+  flex: 1;
+  text-align: center;
+}
+.host-answer-band-label {
+  font-family: var(--b-font, inherit);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  text-shadow: 0.08em 0.08em 0 #000000;
+}
+.host-answer-band-text {
+  font-family: var(--b-clue-font, inherit);
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  text-shadow: var(--bt-hard-shadow, 0.05em 0.05em 0 #000000);
+  overflow-wrap: anywhere;
+}
+.host-answer-band-aside {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.5rem;
+}

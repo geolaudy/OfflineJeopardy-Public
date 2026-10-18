@@ -9,7 +9,11 @@
   - R7-3: `StackedName` on the TV (nickname, profile name underneath in `--tvp-real` gray; long names shrink to 72 % and then wrap; lobby cards fit-scale their text block) — lobby cards, team rows, unassigned chips, Players page. `PersonName` (host + phones) stacked the same way, no parentheses.
   - R7-4: `server/lobbyLatency.ts` smooths the clock-sync round trip per phone (EWMA, 5/10/100 ms steps, hysteresis); the hub re-reads it every 2 s and rebuilds the lobby only when a shown value changes; lobby cards show "Phone • 25 ms", "Phone • measuring…", "Phone • not connected", "Joy-Con (L) • Bluetooth", "Keyboard key • this PC". Display only.
   - Decisions D71–D73, known issue K40.
-- Tests at the end of the milestone: tsc clean, **Vitest 293/293** (new round7c unit + integration), **Playwright 46 specs: 45 passed in the full run + `presentation.spec` "team buzz-in" failed once and passed 5/5 on re-runs** (intermittent under full-suite load; it passed in the baseline too). New: `tests/e2e/round7c-tv.spec.ts`.
+- **Milestone D started:**
+  - R7-22 score editor (`host/ScoreEditor.tsx`, references/host_score_adjust_screen*.png): editable score with − / + by the round's lowest clue value, green/red change, Save / Cancel, "Latest score changes" with take-back (new engine action `reverseScoreChange`, D74), Remove Player with confirmation (only without points, K41). Undo now also restores events an undone action had voided (pre-existing gap for refunds / attribution changes).
+  - R7-24 answer band (`AnswerBanner` band variant, `answer-band.css`): red striped band across the top of the clue card with a small "Correct response · only you" label over the answer in the clue font.
+  - Tests: tsc clean, Vitest 297/297, Playwright 47/47 (full run, with R7-22); after R7-24: round7d-host, host-ipad, game, practice, media, round6-host passing.
+- Tests at the end of milestone C: tsc clean, **Vitest 293/293** (new round7c unit + integration), **Playwright 46 specs: 45 passed in the full run + `presentation.spec` "team buzz-in" failed once and passed 5/5 on re-runs** (intermittent under full-suite load; it passed in the baseline too). New: `tests/e2e/round7c-tv.spec.ts`.
 
 ## Session 9 — 2026-10-17 (round 7, other computer — reconstructed from git in session 10)
 

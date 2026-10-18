@@ -2,15 +2,15 @@
 
 Read this first, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 7".
 
-## Current state (session 10, 2026-10-17 — milestone C committed and pushed)
+## Current state (session 10, 2026-10-17 — milestone C and part of D committed and pushed)
 
 - **Branch:** `main`, pushed to `origin/main` (https://github.com/geolaudy/OfflineJeopardy). Version in package.json: **0.11.0** (last release v0.11.0; no release for round 7 yet).
-- **Round 7 (IMPLEMENTATION_PLAN milestone 21):** A, B, G (R7-32 research) and **C done** and tested. **Not started: D (iPad host), E (developer tools), F (AI/import).**
-- **Tests (end of session 10):** tsc clean, Vitest 293/293, Playwright 46 specs (45 passed in the full run; `presentation.spec` "team buzz-in" is intermittent under full-suite load — it passed 5/5 on re-runs and in the baseline).
+- **Round 7 (IMPLEMENTATION_PLAN milestone 21):** A, B, G (R7-32 research) and **C done** and tested. **D in progress: R7-22 (score editor) and R7-24 (answer band) done and tested; R7-18, R7-20, R7-21, R7-23, R7-25, R7-26, R7-27 open.** Not started: E (developer tools), F (AI/import).
+- **Tests (end of session 10):** tsc clean, Vitest 297/297, Playwright 47/47 in the last full run (`presentation.spec` "team buzz-in" failed once in an earlier full run and passed on every re-run — intermittent under load).
 
 ### Single recommended next task
 
-**Milestone D, starting with R7-22 (iPad score editor, P1)** — replace `ScoreAdjust` in `src/web/pages/host/Live.tsx` with the editor in `references/host_score_adjust_screen*.png`: editable score field, − / + stepping by the round's lowest clue value, accumulated change shown green/red, Save / Cancel, "Latest score changes" with remove/reverse (needs an engine action to reverse a `score_adjust` event — check `src/server/engine/engine.ts` and the undo model first), Remove Player with confirmation. Manual changes stay silent/unanimated on the TV (D68). Then R7-24 (striped "CORRECT RESPONSE" band, `references/host_controller_layout.png`), R7-21 / R7-25 / R7-20 (preview fixed size, shared tokens), R7-18, R7-23, R7-26, R7-27. After D is tested: release **v0.12.0** (windows-release skill).
+**Finish milestone D: R7-21 + R7-25 + R7-20 (the iPad game preview — one fixed size/aspect/position in every state, controls and the bot's answer in compact overlays/reserved bars, the same board/clue theme tokens and proportions as the TV; see `host/TvMirror.tsx` `TvPreview`/`FitBox`, `host/host-tv.css`, `board/board.css`).** Then the small ones: R7-18 (iPad home nickname/profile name stacked — `PersonName` is already stacked; check the host home/landing), R7-23 (square corners on the iPad board preview), R7-26 (board creator padding), R7-27 (no "(AI)" title suffix). After D is tested: release **v0.12.0** (windows-release skill).
 
 ### Two developers, two machines
 

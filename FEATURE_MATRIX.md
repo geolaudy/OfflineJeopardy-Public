@@ -323,9 +323,9 @@ Last run 2026-10-12: Vitest 58/58 (43 unit, 15 integration), Playwright 8/8.
 | R7-19 | iPad Safari / web-app layout: nothing clipped or off-screen (Boards, Present on TV) | P1 | IMPLEMENTED | styles.css .app-screen (position: fixed, html:has), lib/viewport.ts, host/AppShell (scroll reset) | E (round7-host: 10 pages × 6 Safari/web-app sizes, toolbar resize) | Emulation has no Safari toolbars — real iPad needed (K38) |
 | R7-20 | iPad uses the shared gameplay theme | P2 | NOT STARTED |  |  |  |
 | R7-21 | iPad game preview fixed size/position in every state; compact overlays | P1 | NOT STARTED |  |  |  |
-| R7-22 | iPad score editor (editable, −/+, change, Save/Cancel, recent changes, Remove Player) | P1 | NOT STARTED |  |  |  |
+| R7-22 | iPad score editor (editable, −/+, change, Save/Cancel, recent changes, Remove Player) | P1 | TESTED | host/ScoreEditor.tsx (replaces Live ScoreAdjust; step = round's lowest clue value), engine reverseScoreChange (audited, undoable), undo restores events voided by undone actions | U (round7d: remove / offset / once / undo; playtest fuzzer), E (round7d-host: WebKit iPad landscape + portrait) | Remove Player is refused once the player/team has points in this game (history protection); not tried on a real iPad (K38) |
 | R7-23 | iPad board preview square corners | P3 | NOT STARTED |  |  |  |
-| R7-24 | iPad correct-answer banner like the reference | P2 | NOT STARTED |  |  |  |
+| R7-24 | iPad correct-answer banner like the reference | P2 | TESTED | host/AnswerBanner.tsx (band variant), host/answer-band.css (red stripes, small label, clue font + --bt-hard-shadow), HostClue (band inside the themed clue card, top) | E (round7d-host: band at the top, full card width, host only; host-ipad, game, practice, media) | Peek-in-practice and notes kept inside the band; Final and played-clue views keep the compact banner |
 | R7-25 | iPad preview matches the TV | P2 | NOT STARTED |  |  |  |
 | R7-26 | Board creator padding | P3 | NOT STARTED |  |  |  |
 | R7-27 | No "(AI)" suffix on AI board titles | P3 | NOT STARTED |  |  |  |

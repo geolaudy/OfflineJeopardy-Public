@@ -4,15 +4,16 @@
 import { useState } from 'react';
 import type { CompetitorView, GameView } from '../../../shared/views';
 import type { HostAction } from '../../../shared/actions';
-import { ActionButton, Avatar, Button, Field, Lives, Modal, inputCls, cx, fmtScore } from '../../components/ui';
+import { ActionButton, Avatar, Button, Lives, Modal, inputCls, cx, fmtScore } from '../../components/ui';
 import { competitorAvatar, competitorHighlight, competitorName, findCompetitor } from '../../lib/view';
 import ControllersPanel, { AssignListener } from '../../components/ControllersPanel';
 import FinalControl from './FinalControl';
 import { HOST_SHORTCUTS, useHostShortcuts } from './shortcuts';
 import { Undo2, Gamepad2, Play, ChevronLeft, ChevronRight, ChevronsRight, Square, SlidersHorizontal, QrCode, Flag } from 'lucide-react';
 import { AnswerBanner } from './AnswerBanner';
-import { Attribution, ClueStage } from './HostClue';
+import { ClueStage } from './HostClue';
 import { FitBox, HostBoardGrid, TvPreview } from './TvMirror';
+import ScoreEditor from './ScoreEditor';
 
 type Run = (a: HostAction) => Promise<{ ok: boolean }>;
 
@@ -67,7 +68,7 @@ export default function Live({ g, run }: { g: GameView; run: Run }) {
           </ActionButton>
         </div>
       </footer>
-      {adjust && <ScoreAdjust g={g} c={g.competitors.find((x) => x.id === adjust.id) ?? adjust} run={run} onClose={() => setAdjust(null)} />}
+      {adjust && <ScoreEditor g={g} c={g.competitors.find((x) => x.id === adjust.id) ?? adjust} run={run} onClose={() => setAdjust(null)} />}
       <Modal open={devices} onClose={() => setDevices(false)} title="Buzzers & controllers" wide>
         <ControllersPanel g={g} />
       </Modal>
@@ -317,47 +318,5 @@ function IntroStage({ g, run }: { g: GameView; run: Run }) {
         </ActionButton>
       </div>
     </div>
-  );
-}
-
-function ScoreAdjust({ g, c, run, onClose }: { g: GameView; c: CompetitorView; run: Run; onClose: () => void }) {
-  const [amount, setAmount] = useState('');
-  const [who, setWho] = useState<string | null>(null);
-  const n = Number(amount);
-  const apply = async (sign: 1 | -1) => {
-    if (!n) return;
-    const r = await run({ type: 'adjustScore', competitorId: c.id, delta: sign * n, note: 'manual', profileId: c.kind === 'team' ? who : undefined });
-    if (r.ok) onClose();
-  };
-  return (
-    <Modal open onClose={onClose} title={`Adjust ${competitorName(c, g)}`}>
-      <div className="space-y-4">
-        <p className="text-3xl font-black tabular-nums">{fmtScore(c.score)}</p>
-        <Field label="Amount">
-          <input className={inputCls} inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ''))} aria-label="Points" autoFocus />
-        </Field>
-        <div className="flex flex-wrap gap-2">
-          {[100, 200, 400, 500, 1000].map((v) => (
-            <Button key={v} variant="secondary" onClick={() => setAmount(String(v))}>
-              {v}
-            </Button>
-          ))}
-        </div>
-        {c.kind === 'team' && <Attribution g={g} c={c} value={who} onChange={setWho} compact={false} />}
-        <div className="grid grid-cols-2 gap-2">
-          <ActionButton size="lg" variant="success" disabled={!n} onAction={() => apply(1)}>
-            + Award
-          </ActionButton>
-          <ActionButton size="lg" variant="danger" disabled={!n} onAction={() => apply(-1)}>
-            − Deduct
-          </ActionButton>
-        </div>
-        {g.phase === 'board' && (
-          <Button size="lg" variant="ghost" className="w-full" onClick={async () => (await run({ type: 'setControl', competitorId: c.id })).ok && onClose()}>
-            Give board control to {competitorName(c, g)}
-          </Button>
-        )}
-      </div>
-    </Modal>
   );
 }

@@ -53,9 +53,8 @@ export function ClueStage({ g, run }: { g: GameView; run: Run }) {
 
   return (
     <div className="flex h-full min-h-[420px] flex-col gap-2" data-testid="clue-panel">
-      <HostAnswer g={g} onPicture={() => setLightbox(true)} />
       <div className="flex min-h-0 flex-1 flex-col gap-2 landscape:flex-row">
-        <ClueCard g={g} />
+        <ClueCard g={g} answer={<HostAnswer g={g} onPicture={() => setLightbox(true)} />} />
         {side && <div className="scroll-area flex shrink-0 flex-col gap-2 portrait:max-h-[50%] landscape:w-[min(24rem,40%)]">{side}</div>}
       </div>
       <ClueFooter g={g} run={run} responder={responder} who={who} setWho={setWho} />
@@ -64,7 +63,7 @@ export function ClueStage({ g, run }: { g: GameView; run: Run }) {
   );
 }
 
-/** The private answer, in a compact red banner clearly apart from the clue (R4-5). In practice
+/** The private answer as a red striped band across the top of the clue card (R4-5, R7-24). In practice
  *  games the host is usually playing too, so it stays hidden until revealed (one tap to peek). */
 function HostAnswer({ g, onPicture }: { g: GameView; onPicture: () => void }) {
   const clue = g.clue!;
@@ -75,9 +74,8 @@ function HostAnswer({ g, onPicture }: { g: GameView; onPicture: () => void }) {
   return (
     <AnswerBanner
       answer={hidden ? undefined : clue.answer}
-      label={g.practice ? 'Answer' : 'Answer · only you'}
-      center
-      className="shrink-0"
+      label={g.practice ? 'Correct response' : 'Correct response · only you'}
+      band
       aside={
         pictures ? (
           <button className="flex min-h-11 items-center gap-1.5 rounded-lg bg-white/15 px-3 text-sm font-semibold text-white ring-1 ring-white/40 active:bg-white/25" onClick={onPicture} aria-label="Show the answer picture (only you)" data-testid="answer-image">
@@ -103,8 +101,8 @@ function HostAnswer({ g, onPicture }: { g: GameView; onPicture: () => void }) {
   );
 }
 
-/** The clue, large, in the TV's colours and clue font. */
-function ClueCard({ g }: { g: GameView }) {
+/** The clue, large, in the TV's colours and clue font; the private answer band on top (R7-24). */
+function ClueCard({ g, answer }: { g: GameView; answer?: ReactNode }) {
   const clue = g.clue!;
   const look = useBoardLook();
   const root = themeRoot(look.theme, look.custom);
@@ -114,6 +112,7 @@ function ClueCard({ g }: { g: GameView }) {
   const wagerStage = clue.isDailyWager && clue.stage === 'wager';
   return (
     <div className="board-theme host-clue relative flex min-h-[180px] min-w-0 flex-1 flex-col overflow-hidden rounded-xl shadow-sm" data-theme={root.dataTheme} style={root.style} data-testid="host-clue">
+      {answer}
       <div className="flex shrink-0 items-center gap-2 px-4 pt-2 text-sm font-bold tracking-wide uppercase opacity-90">
         <span className="min-w-0 flex-1 truncate">{clue.categoryName}</span>
         <span className="rounded-md bg-black/30 px-2 py-0.5 tabular-nums">
