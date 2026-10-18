@@ -297,3 +297,44 @@ Last run 2026-10-12: Vitest 58/58 (43 unit, 15 integration), Playwright 8/8.
 | R6-9 | TV menu pages inside one content panel; Boards 3 per row, Buzzers 2–3 columns, Players/Teams/Leaderboards responsive | P2 | TESTED | board/PresentPages.tsx, TvHome.tsx, presenter.css | E (round6-tv-layout, presentation, lobby-stats, compare) | — |
 | R6-10 | Lobby header: BOARD eyebrow, board name, "2 Rounds • 60 Clues • Final Jeopardy!" + mode/player pills; separate board card removed | P2 | TESTED | board/LobbyFull.tsx, lobbyModel.ts | DOM (round6c.dom), E (round6-tv-layout) | — |
 | R6-11 | One right-hand panel: Join the Game (instructions, QR, address) + Game Rules | P2 | TESTED | board/LobbyFull.tsx | E (round6-tv-layout, lobby, round5-lobby) | QR scan distance not re-measured (K33) |
+
+## User feedback round 7 (2026-10-17) — see USER_FEEDBACK.md "Round 7"
+
+| ID | Feature | Pri | Status | Source | Tests | Limitations |
+|---|---|---|---|---|---|---|
+| R7-0 | v0.11.0 on GitHub (main, tag, release assets) verified before any change | P0 | TESTED | — | GitHub API check (session 9) | — |
+| R7-2 | TV menu pages: header/subheader at the Lobby page height; minimized lobby does not push content down | P2 | NOT STARTED |  |  |  |
+| R7-3 | Long names not clipped; nickname over a smaller gray profile name everywhere | P2 | NOT STARTED |  |  |  |
+| R7-4 | Lobby cards: controller + smoothed latency (reusing clock sync) | P2 | NOT STARTED |  |  |  |
+| R7-5 | Board colours/typography/spacing/shadows from the reference SVG via shared tokens | P1 | NOT STARTED |  |  |  |
+| R7-6 | Board-control star (sharp, gold, reserved space) distinct from the buzz-in highlight | P1 | NOT STARTED |  |  |  |
+| R7-7 | Final Jeopardy! clue vertically centred | P1 | NOT STARTED |  |  |  |
+| R7-8 | Correct/incorrect sounds for every Final judgment (bots too), once | P1 | NOT STARTED |  |  |  |
+| R7-9 | Final reveal shows the wager only; one score-change animation (score card) | P1 | NOT STARTED |  |  |  |
+| R7-10 | Final category typography identical on both screens | P1 | NOT STARTED |  |  |  |
+| R7-11 | Manual score adjustments silent and unanimated | P1 | NOT STARTED |  |  |  |
+| R7-12 | Final verdict: vector check / X in the score-change colours | P2 | NOT STARTED |  |  |  |
+| R7-13 | Clue zoom shows the clue text throughout; ~1/0.85 × duration | P2 | NOT STARTED |  |  |  |
+| R7-14 | Setting: player colour on score cards (border / name / both) | P2 | NOT STARTED |  |  |  |
+| R7-15 | Clue text shadow = value shadow (token) | P2 | NOT STARTED |  |  |  |
+| R7-16 | Clues vertically centred, stable on answer reveal, long clues fit | P1 | NOT STARTED |  |  |  |
+| R7-17 | Consistent gameplay and menu styling systems (tokens) | P2 | NOT STARTED |  |  |  |
+| R7-18 | iPad home nickname/profile-name alignment | P2 | NOT STARTED |  |  |  |
+| R7-19 | iPad Safari / web-app layout: nothing clipped or off-screen (Boards, Present on TV) | P1 | NOT STARTED |  |  |  |
+| R7-20 | iPad uses the shared gameplay theme | P2 | NOT STARTED |  |  |  |
+| R7-21 | iPad game preview fixed size/position in every state; compact overlays | P1 | NOT STARTED |  |  |  |
+| R7-22 | iPad score editor (editable, −/+, change, Save/Cancel, recent changes, Remove Player) | P1 | NOT STARTED |  |  |  |
+| R7-23 | iPad board preview square corners | P3 | NOT STARTED |  |  |  |
+| R7-24 | iPad correct-answer banner like the reference | P2 | NOT STARTED |  |  |  |
+| R7-25 | iPad preview matches the TV | P2 | NOT STARTED |  |  |  |
+| R7-26 | Board creator padding | P3 | NOT STARTED |  |  |  |
+| R7-27 | No "(AI)" suffix on AI board titles | P3 | NOT STARTED |  |  |  |
+| R7-28 | Phone theme editor + submenus have Back | P1 | NOT STARTED |  |  |  |
+| R7-29 | Phone buzzer constant size in every state | P1 | NOT STARTED |  |  |  |
+| R7-30.1 | Buzzinga imports bring media | P3 | NOT STARTED |  |  |  |
+| R7-30.2 | AI bots really use AI; Gemini 503 retries/backoff | P3 | NOT STARTED |  |  |  |
+| R7-30.3 | AI boards: 2 rounds + Final by default, validated | P3 | NOT STARTED |  |  |  |
+| R7-30.4 | Research sign-in-based AI connections | P3 | NOT STARTED |  |  |  |
+| R7-30.5 | AI clue from a prompt in the editor | P3 | NOT STARTED |  |  |  |
+| R7-31 | Developer tools + diagnostic export | P3 | NOT STARTED |  |  |  |
+| R7-32 | Joy-Cons via Apple TV + Steam Link research | P3 | NOT STARTED |  |  |  |

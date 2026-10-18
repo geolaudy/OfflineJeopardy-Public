@@ -16,3 +16,6 @@ coverage/
 new_sfx/
 build/private-sfx/
 .claude/worktrees/
+
+# Owner reference images (third-party screenshots; design reference only)
+references/

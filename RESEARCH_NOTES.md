@@ -119,3 +119,23 @@ Full write-up: [`docs/BUZZER_FAIRNESS_RESEARCH.md`](docs/BUZZER_FAIRNESS_RESEARC
 - **Joy-Con and keyboard bridge:** no network compensation. Only the TV-renderer dispatch delay is compensated (via `timeStamp`, cap 30 ms). Bluetooth and 60 Hz report latency are treated as uncertainty.
 - **Needs a DECISIONS entry superseding D15.** Client timestamps become bounded hints, and the server stays authoritative.
 - **Not fetched:** the Valve wiki returned HTTP 403, so only its search summary was used; there was no workaround attempt. Unverified: per-platform semantics of touch and WebHID `timeStamp`, and inter-model touch-pipeline bias (needs a slow-motion video check).
+
+## Board reference (R7-5, session 9)
+
+Source: Wikimedia Commons `Jeopardy!_game_board_US.svg` (viewBox 324.86 × 192.13; text is outlined
+as paths, each drawn twice — a black copy and an offset coloured copy, i.e. a hard shadow). Rendered
+with sharp at 5000 px and measured:
+
+| Property | Value |
+|---|---|
+| Background / gutters | black `#000` |
+| Tile | `#071277`, 50.574 × 28.287 (aspect 1.79) |
+| Column gap | 3.08 (6.1 % of tile width); outer margin 3.0 |
+| Row gap | 2.83 between clue rows (10 % of tile height); 4.77 between the category row and the first clue row |
+| Value text | gold `#d69f4c`, glyph height ("$" incl. bars) 53 % of tile height, centre at 49 %; "$1000" fills 72 % of the tile width |
+| Value shadow | black, no blur, offset ≈ +0.80 x / +0.74 y = **2.8 % / 2.6 % of tile height** |
+| Category text | white `#fff`, cap height 25 % of tile height per line, line pitch ≈ 1.22 × cap height, max width ≈ 86–88 % of the tile |
+| Category shadow | black, no blur, offset ≈ +0.31 x / +0.34 y = **1.1 % / 1.2 % of tile height** (subtler than the values) |
+
+Typeface: condensed heavy grotesque (Swiss 911 Compressed look); we keep the bundled OFL Anton
+(already used) — no commercial font is downloaded (spec §5.6).

@@ -249,3 +249,49 @@ the request. Statuses: FEATURE_MATRIX.md → "User feedback round 6".
 | R6-22 | Implement fair server-authoritative timing: latency/jitter measurement, bounded compensation with validated timestamps, short arbitration window, Joy-Con path not compensated blindly, offline | F |
 | R6-23 | Phones show how close it was (only to players who buzzed): "You buzzed in first!", "Alex buzzed 42 ms before you!", or "Very close buzz! Alex won." when uncertain; early-buzz info; colours kept | F |
 | R6-24 | Simulations: 2/5/10 phones, latency, jitter, reordering, duplicates, early buzzes, forged timestamps, inflated latency, disconnects, Joy-Con vs phone; compare with arrival order (accuracy, bias, added delay, false early penalties) | F |
+
+# User Feedback — Round 7 (received 2026-10-17, session 9, reviewing v0.11.0)
+
+Rollback point: tag **v0.11.0** (Vitest 273/273, Playwright 41/41; already pushed and released —
+verified via the GitHub API at the start of session 9). Visual references: the Wikimedia board SVG
+(`Jeopardy!_game_board_US.svg`, measured in RESEARCH_NOTES.md "Board reference") and the owner's
+images in `references/` (git-ignored: third-party screenshots). IDs follow the request's sections.
+Statuses: FEATURE_MATRIX.md → "User feedback round 7".
+
+| ID | Requirement (summary) | Milestone |
+|---|---|---|
+| R7-2 | TV menu pages: the minimized lobby must not push the page down; page header/subheader at the same height as on the Lobby page on every menu page; content uses the free width; no overlaps | C |
+| R7-3 | TV lobby: long names never clipped (wider cards / 2 columns / wrapping / responsive type); nickname is the main name with the profile name *underneath*, smaller, gray, same family — everywhere the pair appears | C |
+| R7-4 | TV lobby cards show the controller + measured latency ("Phone • 24 ms", "Joy-Con • Bluetooth"); smoothed, throttled, honest precision, unavailable/disconnected states; reuse the fair-timing clock-sync data; no effect on buzzing | C |
+| R7-5 | Board colours, typography, spacing and shadows like the reference SVG (blue tiles, gold values, white categories, hard shadows — categories subtler than values); shared theme tokens; related yellow/blue accents follow; licensed fonts only | B |
+| R7-6 | Board control shown by a sharp gold five-pointed star left of the picture in the score card (same yellow, name-height, name-like shadow), space always reserved (nothing shifts); buzz-in highlight kept and distinct; teams | B |
+| R7-7 | Final Jeopardy! clue vertically centred in the whole presentation area | A |
+| R7-8 | Correct/incorrect sounds when the host judges a **bot's** (and every) Final answer; once per judgment; current sound pack | A |
+| R7-9 | Final reveal shows only the wager — no extra ±$ next to it; the one score-change animation is the score card's | A |
+| R7-10 | Final category text: same font/size/position/shadow on "category only" and "Lock Wagers and Show Clue" (category-only screen is the reference) | A |
+| R7-11 | Manual score adjustments are silent and unanimated (no sound, no ±$ swap; score simply changes); still synced, recorded and undoable | A |
+| R7-12 | Final reveal verdict indicators: sharp vector green check / red X in the score-change colours | A |
+| R7-13 | Clue zoom: clue text visible inside the expanding tile throughout; zoom ~1/0.85 × as long; smooth, audio in sync | B |
+| R7-14 | Setting "Player colour on score cards": picture border (default, no top bar) / name / both; uses the lobby colour; saved; live on the TV | B |
+| R7-15 | Full-screen clue text shadow = dollar-value shadow (shared token) | B |
+| R7-16 | Full-screen clues vertically centred; revealing the answer never moves the clue; long clues shrink to fit (no overlap with the answer area); media layouts kept | B |
+| R7-17 | Two coherent styling systems (gameplay; menus/lobby) with shared tokens/components | B, C |
+| R7-18 | iPad home: nickname / profile name aligned in the new stacked style | D |
+| R7-19 | iPad Safari + Home-Screen web app: no clipped navigation or off-screen buttons (Boards → Present on TV), dynamic viewport, safe areas, both orientations, laptop | A |
+| R7-20 | iPad preview uses the same board/clue theme as the TV (tokens, not copies) | D |
+| R7-21 | iPad game preview keeps one size/aspect/position in every state; controls and the bot's answer in compact overlays/reserved bars | D |
+| R7-22 | iPad score editor like the references: editable score, − / + by the round's lowest value, green/red accumulated change, Save/Cancel, recent score changes with remove/reverse, Remove Player with confirmation | D |
+| R7-23 | iPad board preview with square corners | D |
+| R7-24 | iPad correct-answer banner like `references/host_controller_layout.png` (red striped band, small CORRECT ANSWER label over the response, clue font, white + shadow), overlaying the clue; host-only | D |
+| R7-25 | iPad preview matches the TV (fonts, sizes, padding, shadows, media, proportions) via shared components/tokens | D |
+| R7-26 | Board creator padding (portrait/landscape, consistent with other pages) | D |
+| R7-27 | No "(AI)" suffix on AI board titles (metadata/tag instead; user-typed text untouched) | D |
+| R7-28 | Phone theme editor (and every phone submenu) has a clear Back; browser back works; no dead ends | A |
+| R7-29 | Phone buzzer keeps the same size/position in every state; status text in a reserved area | A |
+| R7-30.1 | Buzzinga imports bring their images/audio/video (investigate why not; graceful failures; no broken references) | F |
+| R7-30.2 | AI bots: verify AI answers are really used (diagnose pipeline); Gemini 503 resilience (bounded retries with backoff, timeouts, clear errors) | F |
+| R7-30.3 | AI boards default to 2 rounds + Final Jeopardy!, validated; incomplete generation never saved as complete | F |
+| R7-30.4 | Research sign-in-based AI connections (Claude, Gemini, ChatGPT) — official methods only; document feasibility | F |
+| R7-30.5 | AI clue from a prompt in the editor (clue + answer, editable, no silent overwrite) | F |
+| R7-31 | Developer tools (not in normal releases): buzzer fairness test with known offsets, latency, sync/perf diagnostics, exportable JSON report without secrets | E |
+| R7-32 | Research Joy-Cons through Apple TV + Steam Link (separate controllers? buttons?); implement what is feasible, document limits and alternatives | G |
