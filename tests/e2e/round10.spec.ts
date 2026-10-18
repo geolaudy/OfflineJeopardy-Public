@@ -261,7 +261,8 @@ test('iPad: large fixed 16:9 preview, controls in the score-strip band, answer b
       await expect(ipad.getByTestId(id)).toBeVisible();
       await ipad.waitForTimeout(250);
       const b = (boxes[state] = (await ipad.getByTestId(id).boundingBox())!);
-      expect(Math.abs(b.width / b.height - 16 / 9), `${state}: 16:9`).toBeLessThan(0.01);
+      const st = (await ipad.getByTestId('game-stage').boundingBox())!;
+      expect(Math.abs(st.width / st.height - 16 / 9 / 0.86), `${state}: TV proportions`).toBeLessThan(0.01); // R11-3
       // The controls stay inside the preview's left and right edges.
       const bar = (await ipad.getByTestId('game-bar').boundingBox())!;
       expect(bar.x).toBeGreaterThanOrEqual(b.x - 1);

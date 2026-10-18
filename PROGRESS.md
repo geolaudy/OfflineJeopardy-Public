@@ -4,6 +4,8 @@
 
 - v0.14.0 confirmed: tag v0.14.0 = f5508c5 (release commit), published with 3 assets. New feedback: USER_FEEDBACK "Round 11", plan milestone 25.
 - **Milestone A:** R11-2 Buzzinga picture / sound clue text → clue text (both caption lines; no caption); R11-6 the "buzzers open" bottom glow had a shadow around its whole 7vh box — that drew the second line above the timer; now only the bottom line glows; R11-5 the TV's "buzzed in" card is hidden in the host preview; R11-4 host timer line along the top of the control band (same timer animation as the TV); R11-3.7 controls centred in the band.
+- **Milestone B (D85):** host full screen (Fullscreen API or window-filling layout, Esc, nothing remounts) and one fitting for full screen and the embedded preview: top strip (answer band / who is choosing) — TV area at the TV's proportions with blue around it — control band (timer line, next step, Fullscreen button). Found on the way: a formatter run in round 10 had rewritten PlayerLobby.tsx in another code style; it is back to the project style with only the nickname change.
+- Tests after B: Playwright round11 (6) + round10, round9, round7d-host, host-ipad, round6-host, game, practice, presentation, playtest, round8, bots, teams-editor, survival, round7-host, media passing.
 - Tests: Vitest **353/353** (new unit round11: 8); Playwright round11 (2, new) + round10, round9, round7d-host, host-ipad, presentation, round7-tv, themes, library, bots — 23/23.
 
 ## Session 14 — 2026-10-18 (second machine, mvanwitz; round 10)

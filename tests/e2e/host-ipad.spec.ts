@@ -154,14 +154,16 @@ test('board replica and the clue footer flow on the iPad (R5-13, R5-14)', async 
   await expect(ipad.getByTestId('host-tile')).toHaveCount(30);
   await expect(ipad.getByTestId('host-category').first()).toHaveText('History');
   const box = (await ipad.getByTestId('host-board-box').boundingBox())!;
-  expect(Math.abs(box.width / box.height - 16 / 9)).toBeLessThan(0.02); // TV aspect, not stretched
+  const stage = (await ipad.getByTestId('game-stage').boundingBox())!;
+  expect(Math.abs(stage.width / stage.height - 16 / 9 / 0.86)).toBeLessThan(0.02); // the TV's proportions (R11-3), not stretched
   expect(box.width).toBeGreaterThan(LANDSCAPE.viewport.width * 0.7); // large (next to the navigation)
   await shot(ipad, 'landscape-board');
   await ipad.setViewportSize(PORTRAIT);
   await ipad.waitForTimeout(300);
   const pbox = (await ipad.getByTestId('host-board-box').boundingBox())!;
   await shot(ipad, 'portrait-board');
-  expect(Math.abs(pbox.width / pbox.height - 16 / 9)).toBeLessThan(0.02);
+  const pstage = (await ipad.getByTestId('game-stage').boundingBox())!;
+  expect(Math.abs(pstage.width / pstage.height - 16 / 9 / 0.86)).toBeLessThan(0.02); // R11-3
   const main = (await ipad.locator('main').boundingBox())!;
   expect(pbox.width).toBeGreaterThan(main.width - 30); // uses the full width of the content column
   await ipad.setViewportSize(LANDSCAPE.viewport);
@@ -172,7 +174,7 @@ test('board replica and the clue footer flow on the iPad (R5-13, R5-14)', async 
   await expect(ipad.getByTestId('host-clue-text')).toContainText('Machu Picchu');
   const unlock = ipad.getByTestId('unlock');
   const ub = (await unlock.boundingBox())!;
-  expect(ub.x + ub.width).toBeGreaterThan(LANDSCAPE.viewport.width - 40);
+  expect(ub.x + ub.width).toBeGreaterThan(LANDSCAPE.viewport.width - 110); // right, next to the Fullscreen button (R11-3)
   const footer = (await ipad.getByTestId('clue-footer').boundingBox())!;
   expect(ub.y).toBeGreaterThanOrEqual(footer.y);
   expect(ub.height).toBeGreaterThanOrEqual(56);

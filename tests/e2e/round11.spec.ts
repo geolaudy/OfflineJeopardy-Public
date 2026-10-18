@@ -164,3 +164,93 @@ test('one buzzers-open glow; no buzzed-in card on the iPad preview; host timer l
   await expect(tv.getByTestId('tv-unlock-indicator')).toHaveCount(0);
   h.close();
 });
+
+/** Width ÷ height of the TV's presentation area (16:9 minus the 14 % score strip). */
+const STAGE = 16 / 9 / 0.86;
+
+for (const [label, browserName, ctxOpts] of [
+  ['iPad landscape', 'webkit', { ...devices['iPad Pro 11 landscape'] }],
+  ['iPad portrait', 'webkit', { ...devices['iPad Pro 11'] }],
+  ['iPhone landscape', 'webkit', { ...devices['iPhone 13 landscape'] }],
+  ['wide desktop', 'chromium', { viewport: { width: 2560, height: 1080 } }],
+] as const) {
+  test(`host full screen and embedded preview share one fitting: ${label} (R11-3, R11-8)`, async () => {
+    test.setTimeout(150_000);
+    const { api, host, H } = await setup();
+    const boards = (await (await api.get('/api/boards', { headers: H })).json()) as { id: string; title: string }[];
+    const { h, ids } = await startGame(api, host, H, boards.find((b) => b.title === 'Starter Trivia Night')!.id, label.slice(0, 4));
+    const browser = browserName === 'webkit' ? wk : cr;
+    const ipad = await (await browser.newContext(ctxOpts)).newPage();
+    await ipad.goto(`${BASE}/host`);
+    const vw = ipad.viewportSize()!;
+    const box = async (id: string) => (await ipad.getByTestId(id).first().boundingBox())!;
+    /** The fitting rules: strip / blue stage / band stacked over the frame's whole width; the TV area at the TV's proportions, inside the frame. */
+    const check = async (frameId: string, what: string) => {
+      const f = await box(frameId);
+      const strip = await box('game-strip');
+      const stage = await box('game-stage');
+      const bar = await box('game-bar');
+      expect(Math.abs(stage.width / stage.height - STAGE), `${what}: TV proportions`).toBeLessThan(0.02);
+      expect(Math.abs(strip.width - f.width), `${what}: strip spans the frame`).toBeLessThan(1.5);
+      expect(Math.abs(bar.width - f.width), `${what}: band spans the frame`).toBeLessThan(1.5);
+      expect(stage.x).toBeGreaterThanOrEqual(f.x - 0.5);
+      expect(stage.x + stage.width).toBeLessThanOrEqual(f.x + f.width + 0.5);
+      expect(stage.y).toBeGreaterThanOrEqual(strip.y + strip.height - 0.5); // under the red band
+      expect(stage.y + stage.height).toBeLessThanOrEqual(f.y + f.height - 79); // above the controls
+      expect(Math.abs(stage.x + stage.width / 2 - (f.x + f.width / 2)), `${what}: centred`).toBeLessThan(1.5);
+      expect(await ipad.getByTestId('game-bar').evaluate((e) => e.scrollWidth <= e.clientWidth + 1), `${what}: no horizontal overflow`).toBe(true);
+      return f;
+    };
+    await expect(ipad.getByTestId('host-board-box')).toBeVisible();
+    await ipad.waitForTimeout(300);
+    const board = await check('host-board-box', 'board');
+    await h.act({ type: 'selectClue', clueId: 'geo_2' });
+    await expect(ipad.getByTestId('clue-preview-box')).toBeVisible();
+    await ipad.waitForTimeout(300);
+    const clue = await check('clue-preview-box', 'clue');
+    expect(clue).toEqual(board); // the same frame in every state
+    await ipad.getByTestId('unlock').click();
+    await h.act({ type: 'timerStart', kind: 'buzz', seconds: 60 });
+    const before = (await h.until((x) => x.timer?.durationMs === 60_000)).timer;
+    expect(before?.startedAt).toBeTruthy();
+    await shot(ipad, `${label.replace(' ', '-')}-embedded`);
+
+    // Full screen: the same rules over the whole screen; nothing about the game changes.
+    await ipad.getByTestId('fullscreen-toggle').click();
+    await expect(ipad.getByTestId('host-live')).toHaveAttribute('data-fullscreen', 'true');
+    await expect(ipad.getByTestId('fullscreen-toggle')).toHaveAccessibleName('Exit Fullscreen');
+    await ipad.waitForTimeout(400);
+    const full = await check('clue-preview-box', 'full screen');
+    expect(full.width).toBeGreaterThan(vw.width - 40); // the whole width (minus the page margin)
+    expect(full.height).toBeGreaterThan(clue.height - 1);
+    const stageFull = await box('game-stage');
+    // Wider than the TV's proportions: blue at the sides, the content not stretched.
+    if (full.width / (full.height - 168) > STAGE + 0.05) expect(stageFull.width).toBeLessThan(full.width - 20);
+    await expect(ipad.getByTestId('answer-banner')).toBeVisible();
+    await expect(ipad.getByTestId('host-timer-line')).toBeVisible();
+    const during = await h.until(() => true);
+    expect(during.clue?.clueId).toBe('geo_2');
+    expect(during.buzzer.status).toBe('open');
+    expect(during.timer?.startedAt).toBe(before?.startedAt); // the timer was not restarted
+    await shot(ipad, `${label.replace(' ', '-')}-fullscreen`);
+    // The host can play from full screen: a buzz, Correct.
+    await h.act({ type: 'hostBuzz', competitorId: ids[0] });
+    await ipad.getByTestId('correct').click();
+    await expect(ipad.getByTestId('host-live')).toHaveAttribute('data-fullscreen', 'true');
+    const fullAfter = await check('clue-preview-box', 'full screen after judging');
+    expect(fullAfter).toEqual(full);
+
+    // Exit (the button; Esc on a desktop): back to the embedded frame, same place and size.
+    if (browserName === 'chromium') await ipad.keyboard.press('Escape');
+    else await ipad.getByTestId('fullscreen-toggle').click();
+    await expect(ipad.getByTestId('host-live')).toHaveAttribute('data-fullscreen', 'false');
+    await ipad.waitForTimeout(400);
+    // (Same size and place; the page may sit scrolled where the clicks above scrolled it.)
+    const back = await check('clue-preview-box', 'after exit');
+    expect([back.x, back.width, back.height]).toEqual([clue.x, clue.width, clue.height]);
+    const after = await h.until(() => true);
+    expect(after.clue?.clueId).toBe('geo_2');
+    expect(after.competitors.find((c: { id: string }) => c.id === ids[0]).score).toBeGreaterThan(0);
+    h.close();
+  });
+}

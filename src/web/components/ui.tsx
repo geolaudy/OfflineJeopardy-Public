@@ -284,7 +284,8 @@ export function Modal({ open, onClose, title, children, wide, xl, vars }: { open
         <div className="scroll-area min-h-0 flex-1 px-5 pt-4 pb-[max(env(safe-area-inset-bottom),20px)]">{children}</div>
       </div>
     </div>,
-    document.body,
+    // Inside the element in real full screen (R11-3), or nothing outside it would show.
+    document.fullscreenElement ?? document.body,
   );
 }
 

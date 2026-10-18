@@ -96,7 +96,8 @@ test('iPad game preview: one size and position in every state, controls in the r
       }
     }
     const ref = boxes.board;
-    expect(Math.abs(ref.width / ref.height - 16 / 9)).toBeLessThan(0.02);
+    const stage = (await ipad.getByTestId('game-stage').boundingBox())!;
+    expect(Math.abs(stage.width / stage.height - 16 / 9 / 0.86)).toBeLessThan(0.02); // R11-3
     for (const [state, b] of Object.entries(boxes)) {
       for (const k of ['x', 'y', 'width', 'height'] as const) expect(Math.abs(b[k] - ref[k]), `${s.name} ${state} ${k}`).toBeLessThanOrEqual(1);
     }
@@ -195,13 +196,15 @@ test('iPad score editor: step, type, save, take back, remove player (R7-22)', as
   // R7-24: the private answer is a striped band across the top of the clue card, host only.
   g = await h.until((x) => x.phase === 'board');
   await h.act({ type: 'selectClue', clueId: g.rounds[0].categories[0].clues[0].id });
-  const band = ipad.getByTestId('host-clue').getByTestId('answer-banner');
+  // R11-3.3: the band is the frame's top strip, right above the TV area, as wide as the frame.
+  const band = ipad.getByTestId('game-strip').getByTestId('answer-banner');
   await expect(band).toHaveAttribute('data-variant', 'band');
   await expect(band).toContainText('Correct response');
   await expect(band.getByTestId('host-answer')).not.toBeEmpty();
-  const [bandBox, clueBox] = [(await band.boundingBox())!, (await ipad.getByTestId('host-clue').boundingBox())!];
-  expect(Math.abs(bandBox.y - clueBox.y)).toBeLessThanOrEqual(1); // at the very top of the clue card
-  expect(Math.abs(bandBox.width - clueBox.width)).toBeLessThanOrEqual(1);
+  const [bandBox, frameBox, stageBox] = [(await band.boundingBox())!, (await ipad.getByTestId('clue-preview-box').boundingBox())!, (await ipad.getByTestId('game-stage').boundingBox())!];
+  expect(Math.abs(bandBox.y - frameBox.y)).toBeLessThanOrEqual(1);
+  expect(Math.abs(bandBox.width - frameBox.width)).toBeLessThanOrEqual(1);
+  expect(bandBox.y + bandBox.height).toBeLessThanOrEqual(stageBox.y + 1);
 
   h.close();
   await api.post('/api/games/close', { headers: H });

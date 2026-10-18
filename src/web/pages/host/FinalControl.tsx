@@ -16,8 +16,7 @@ import { AnswerBanner } from './AnswerBanner';
 import { RichText } from '../../components/RichText';
 import { GameFrame } from './GameFrame';
 import { FinalMediaControls, MediaThumbs } from './MediaControls';
-import { TvPreview, useBoardLook } from './TvMirror';
-import { themeRoot } from '../board/common';
+import { TvPreview } from './TvMirror';
 
 type Run = (a: HostAction) => Promise<{ ok: boolean }>;
 
@@ -26,8 +25,6 @@ const STAGE_LABEL: Record<(typeof STAGES)[number], string> = { category: 'Catego
 
 export default function FinalControl({ g, run }: { g: GameView; run: Run }) {
   const f = g.final!;
-  const look = useBoardLook();
-  const root = themeRoot(look.theme, look.custom);
   const [mediaOpen, setMediaOpen] = useState(false);
   // Who answered for a team (optional credit, statistics only); reset for each contestant.
   const [who, setWho] = useState<string | null>(null);
@@ -40,17 +37,9 @@ export default function FinalControl({ g, run }: { g: GameView; run: Run }) {
         timer={g.timer}
         testId="final-control"
         boxTestId="final-preview-box"
-        preview={(size) => (
-          <div className="absolute inset-0" data-testid="host-final">
-            <TvPreview game={g} scoreboard={false} band title="TV preview" size={size} testId="final-preview" />
-            {/* The preview is hidden from screen readers; the clue text is here for them. */}
-            {f.question && (
-              <p className="sr-only" data-testid="host-final-text">
-                {plainText(f.question)}
-              </p>
-            )}
-            {hasAnswer && (
-              <div className="board-theme absolute inset-x-0 top-0 z-10" data-theme={root.dataTheme} style={root.style}>
+        // R11-3.3: the correct-response band is the frame's top strip.
+        top={
+          hasAnswer ? (
                 <AnswerBanner
                   answer={f.answer?.trim() ? <RichText text={f.answer} /> : undefined}
                   label="Correct response"
@@ -71,7 +60,22 @@ export default function FinalControl({ g, run }: { g: GameView; run: Run }) {
                     ) : undefined
                   }
                 />
-              </div>
+          ) : (
+            <div className="flex flex-1 items-center justify-center px-3">
+              <p className="host-band-title truncate text-2xl">
+                <RichText text={f.category} />
+              </p>
+            </div>
+          )
+        }
+        preview={(size) => (
+          <div className="absolute inset-0" data-testid="host-final">
+            <TvPreview game={g} scoreboard={false} band title="TV preview" size={size} testId="final-preview" />
+            {/* The preview is hidden from screen readers; the clue text is here for them. */}
+            {f.question && (
+              <p className="sr-only" data-testid="host-final-text">
+                {plainText(f.question)}
+              </p>
             )}
           </div>
         )}
@@ -131,7 +135,7 @@ function FinalOverlay({ g, run, who, setWho }: { g: GameView; run: Run; who: str
   if (!status && !playable && !credit && !preview) return null;
   return (
     <div
-      className="scroll-area absolute right-2 bottom-[calc(var(--band)+0.5rem)] z-20 flex max-h-[calc(100%-var(--band)-6rem)] w-[min(24rem,calc(100%-1rem))] flex-col gap-2 overflow-y-auto rounded-xl bg-white/95 p-1 shadow-lg ring-1 ring-black/10"
+      className="scroll-area absolute right-2 bottom-[calc(var(--band)+0.5rem)] z-20 flex max-h-[calc(100%-var(--band)-var(--strip)-1rem)] w-[min(24rem,calc(100%-1rem))] flex-col gap-2 overflow-y-auto rounded-xl bg-white/95 p-1 shadow-lg ring-1 ring-black/10"
       data-testid="final-overlay"
     >
       {preview && (
@@ -265,8 +269,8 @@ function FinalBar({ g, run, who }: { g: GameView; run: Run; who: string | null }
   }
   return (
     <div className="@container flex items-center" data-testid="final-bar">
-      <div className="flex w-full flex-wrap items-center gap-2 @4xl:flex-nowrap">
-        <p className="min-w-0 basis-full px-1 text-slate-600 @4xl:flex-1 @4xl:basis-auto">{status}</p>
+      <div className="flex w-full flex-wrap items-center gap-2 @3xl:flex-nowrap">
+        <p className="min-w-0 basis-full px-1 text-slate-600 @3xl:flex-1 @3xl:basis-auto">{status}</p>
         <div className="ml-auto flex shrink-0 items-center gap-2">{actions}</div>
       </div>
     </div>
@@ -295,8 +299,8 @@ function RevealBar({ g, run, who }: { g: GameView; run: Run; who: string | null 
   const judge = (correct: boolean) => run({ type: 'judgeFinal', competitorId: c.id, correct, profileId: c.kind === 'team' ? who : undefined });
   return (
     <div className="@container flex touch-pan-y items-center" onPointerDown={onDown} onPointerUp={onUp} data-testid="final-reveal">
-      <div className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 @4xl:flex-nowrap">
-        <div className="flex min-w-0 basis-full items-center gap-3 @4xl:flex-1 @4xl:basis-auto">
+      <div className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 @3xl:flex-nowrap">
+        <div className="flex min-w-0 basis-full items-center gap-3 @3xl:flex-1 @3xl:basis-auto">
           <Avatar profile={competitorAvatar(c, g)} size={36} />
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-baseline gap-2">

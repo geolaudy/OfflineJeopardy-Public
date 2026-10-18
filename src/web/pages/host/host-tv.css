@@ -60,35 +60,42 @@
 /* R10-6: the host's controls in the TV preview, where the TV has its score strip — dark like that
    strip, inside the preview's width. Text in the app's slate greys reads as white here; popovers
    that open from the band (class host-light) keep their light look. */
-.host-band-ground {
-  background: #03051a;
+.host-dark {
+  background: linear-gradient(rgb(12 18 66 / 0.96), rgb(5 8 34 / 0.97));
+  color: #ffffff;
 }
 .host-band {
   border-top: 1px solid rgb(255 255 255 / 0.14);
-  background: linear-gradient(rgb(12 18 66 / 0.96), rgb(5 8 34 / 0.97));
   padding: 0.375rem 0.5rem;
-  color: #ffffff;
 }
-.host-band :is(.text-slate-400, .text-slate-500):not(.host-light *, button *, summary *, button, summary) {
+/* R11-3.3: the top strip — the correct-response band fills it; otherwise a status line. */
+.host-strip {
+  border-bottom: 1px solid rgb(255 255 255 / 0.14);
+}
+.host-strip > .host-answer-band {
+  flex: 1;
+  justify-content: center;
+}
+.host-dark :is(.text-slate-400, .text-slate-500):not(.host-light *, button *, summary *, button, summary) {
   color: rgb(255 255 255 / 0.62);
 }
-.host-band :is(.text-slate-600, .text-slate-700, .text-slate-900):not(.host-light *, button *, summary *, button, summary) {
+.host-dark :is(.text-slate-600, .text-slate-700, .text-slate-900):not(.host-light *, button *, summary *, button, summary) {
   color: rgb(255 255 255 / 0.9);
 }
-.host-band .text-green-700:not(.host-light *) {
+.host-dark .text-green-700:not(.host-light *) {
   color: #86efac;
 }
-.host-band .text-red-700:not(.host-light *) {
+.host-dark .text-red-700:not(.host-light *) {
   color: #fca5a5;
 }
-.host-band .text-amber-700:not(.host-light *) {
+.host-dark .text-amber-700:not(.host-light *) {
   color: #fcd34d;
 }
-.host-band .host-light {
+.host-dark .host-light {
   color: #0f172a;
 }
 /* Names and the main line in the board's typography, as on the TV's score strip. */
-.host-band .host-band-title {
+.host-dark .host-band-title {
   font-family: var(--b-font, inherit);
   font-weight: 900;
   letter-spacing: 0.03em;
@@ -99,17 +106,17 @@
    ghost buttons (no ground) read as white on the band. */
 /* In the base layer, so a button's own colour classes (Tailwind utilities) still win. */
 @layer base {
-  .host-band :where(button, summary, select, input, textarea) {
+  .host-dark :where(button, summary, select, input, textarea) {
     color: #0f172a;
   }
 }
-.host-band button.bg-transparent:not(.host-light *) {
+.host-dark button.bg-transparent:not(.host-light *) {
   color: rgb(255 255 255 / 0.88);
 }
-.host-band button.bg-transparent:not(.host-light *):hover {
+.host-dark button.bg-transparent:not(.host-light *):hover {
   background: rgb(255 255 255 / 0.1);
 }
-.host-band .text-green-900:not(.host-light *) {
+.host-dark .text-green-900:not(.host-light *) {
   color: #86efac;
 }
 /* The frame carries the TV's theme variables (fonts, colours) for the band, not its look. */
@@ -136,4 +143,8 @@
 }
 .host-timer-line.is-low .host-timer-line-fill {
   background: #ff4b3a;
+}
+/* R11-3: the window-filling full-screen layout keeps clear of the notch / home indicator. */
+.host-fullscreen {
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
 }

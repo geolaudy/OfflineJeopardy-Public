@@ -19,7 +19,7 @@ import { EarlyBuzzQuick } from './EarlyBuzzRule';
 import { MediaControls } from './MediaControls';
 import { AnswerBanner } from './AnswerBanner';
 import { FitBox, TvPreview, useBoardLook } from './TvMirror';
-import { presentationFor, themeRoot, tileMoney } from '../board/common';
+import { presentationFor, tileMoney } from '../board/common';
 import { GameFrame } from './GameFrame';
 import { RichText } from '../../components/RichText';
 import { plainText } from '../../../shared/richText';
@@ -67,7 +67,6 @@ export function ClueStage({ g, run }: { g: GameView; run: Run }) {
     </>
   ) : null;
   const look = useBoardLook();
-  const root = themeRoot(look.theme, look.custom);
 
   return (
     <>
@@ -75,6 +74,8 @@ export function ClueStage({ g, run }: { g: GameView; run: Run }) {
         timer={g.timer}
         testId="clue-panel"
         boxTestId="clue-preview-box"
+        // R11-3.3: the correct-response band is the frame's top strip (above the blue area).
+        top={<HostAnswer g={g} prefix={presentationFor(look.theme, look.custom, true, 0).prefix} onPicture={() => setLightbox(true)} />}
         preview={(size) => (
           <div className="absolute inset-0" data-testid="host-clue">
             <TvPreview game={g} scoreboard={false} band title="TV preview" size={size} testId="clue-preview" />
@@ -84,16 +85,13 @@ export function ClueStage({ g, run }: { g: GameView; run: Run }) {
                 {plainText(clue.question)}
               </p>
             )}
-            <div className="board-theme absolute inset-x-0 top-0 z-10" data-theme={root.dataTheme} style={root.style}>
-              <HostAnswer g={g} prefix={presentationFor(look.theme, look.custom, true, 0).prefix} onPicture={() => setLightbox(true)} />
-            </div>
           </div>
         )}
         overlay={
           side && (
             <div
               className={cx(
-                'scroll-area absolute right-2 bottom-[calc(var(--band)+0.5rem)] z-20 flex max-h-[calc(100%-var(--band)-6rem)] flex-col gap-2 overflow-y-auto rounded-xl bg-white/95 p-1 shadow-lg ring-1 ring-black/10',
+                'scroll-area absolute right-2 bottom-[calc(var(--band)+0.5rem)] z-20 flex max-h-[calc(100%-var(--band)-var(--strip)-1rem)] flex-col gap-2 overflow-y-auto rounded-xl bg-white/95 p-1 shadow-lg ring-1 ring-black/10',
                 wagerStage ? 'w-[min(26rem,calc(100%-1rem))]' : 'w-[min(24rem,calc(100%-1rem))]',
               )}
               data-testid="clue-overlay"
@@ -249,8 +247,8 @@ function ClueFooter({ g, run, responder, who, setWho }: { g: GameView; run: Run;
   return (
     // Narrow footers (portrait, iPad mini) put the status on its own row above the actions.
     <div className="@container flex items-center" data-testid="clue-footer">
-      <div className="flex w-full flex-wrap items-center gap-2 @4xl:flex-nowrap">
-      <div className="min-w-0 basis-full px-1 @4xl:flex-1 @4xl:basis-auto">{status}</div>
+      <div className="flex w-full flex-wrap items-center gap-2 @3xl:flex-nowrap">
+      <div className="min-w-0 basis-full px-1 @3xl:flex-1 @3xl:basis-auto">{status}</div>
       <div className="ml-auto flex shrink-0 items-center gap-2">
         <More g={g} run={run} showReveal={!revealInFooter && !clue.answerRevealed && !wagerStage} pendingJudgement={pendingJudgement} practiceBuzz={practiceBuzz} />
         {primary}

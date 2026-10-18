@@ -6,7 +6,11 @@ their notes come from the matching section below (`scripts/release-notes.mjs`).
 
 ## [Unreleased]
 
+### New Features
+- **Full screen on the host controller**: the new button at the right end of the control band fills the screen with the TV preview, the red answer band at the top and your controls at the bottom (Exit, or Esc, to go back). The game carries on untouched while you switch.
+
 ### Improvements
+- The host preview now fits any screen shape: the TV picture keeps its exact proportions and is centred, with the TV's blue around it on wider screens; the red answer band sits above it and the controls below it, both as wide as the screen.
 - The iPad shows the timer again, as a thin line along the top of its control band (the TV preview stays as large as before), and the controls sit centred in that band.
 - The iPad's TV preview no longer shows the "buzzed in" card over the top of the clue (the TV still does; the iPad names the player in its control band).
 

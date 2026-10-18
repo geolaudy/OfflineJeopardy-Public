@@ -141,6 +141,8 @@ test('Final Jeopardy! media: editor save + reload, TV picture and sound, correct
   await expect(ipad.getByTestId('host-board-box')).toBeVisible();
   await ipad.waitForTimeout(250);
   const boardBox = (await ipad.getByTestId('host-board-box').boundingBox())!;
+  const stage = (await ipad.getByTestId('game-stage').boundingBox())!;
+  expect(Math.abs(stage.width / stage.height - 16 / 9 / 0.86)).toBeLessThan(0.02); // R11-3: the TV's proportions
   await h.act({ type: 'startFinal' });
 
   // 2) Category: the host may read ahead (clue picture privately); the TV shows neither picture.
@@ -247,7 +249,6 @@ test('Final Jeopardy! media: editor save + reload, TV picture and sound, correct
   await expect(tv.locator('audio')).toHaveCount(0);
 
   // The preview never moved: same box as on the board, in every Final stage.
-  expect(Math.abs(boardBox.width / boardBox.height - 16 / 9)).toBeLessThan(0.02);
   for (const [state, b] of Object.entries(boxes)) for (const k of ['x', 'y', 'width', 'height'] as const) expect(Math.abs(b[k] - boardBox[k]), `${state} ${k}`).toBeLessThanOrEqual(1);
   h.close();
   await api.post('/api/games/close', { headers: H });

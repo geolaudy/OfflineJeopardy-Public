@@ -60,8 +60,9 @@ test('iPad host: preview without score strip, Previous | Next, full highlight ri
   const preview = ipad.frameLocator('iframe[title="TV preview"]');
   await expect(preview.getByTestId('intro')).toBeVisible();
   await expect(preview.getByTestId('scoreboard')).toHaveCount(0);
+  // R11-3: the TV's presentation area (its screen without the score strip), at its proportions.
   const box = (await ipad.getByTestId('intro-preview').boundingBox())!;
-  expect(Math.abs(box.width / box.height - 16 / 9)).toBeLessThan(0.02);
+  expect(Math.abs(box.width / box.height - 16 / 9 / 0.86)).toBeLessThan(0.02);
 
   // ---- R6-2.3: Previous on the left, Next on the right ----
   const prev = (await ipad.getByTestId('intro-prev').boundingBox())!;

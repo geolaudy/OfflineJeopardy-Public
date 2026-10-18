@@ -1,7 +1,7 @@
 // Live game control for the host (iPad landscape first, portrait supported).
 // Board: a replica of the TV board (R5-13). Clue: HostClue.tsx (R5-14). Introduction: category
 // list, live TV preview and Next / Previous / Auto / Stop Auto / Skip (R5-12).
-import { useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import type { CompetitorView, GameView } from '../../../shared/views';
 import type { HostAction } from '../../../shared/actions';
 import { ActionButton, Avatar, Button, Lives, Modal, inputCls, cx, fmtScore } from '../../components/ui';
@@ -14,17 +14,107 @@ import { AnswerBanner } from './AnswerBanner';
 import { ClueStage } from './HostClue';
 import { HostBoardGrid, TvPreview } from './TvMirror';
 import ScoreEditor from './ScoreEditor';
-import { GameFrame } from './GameFrame';
+import { GameFrame, HostFullscreenCtx } from './GameFrame';
 import { RichText } from '../../components/RichText';
 
 type Run = (a: HostAction) => Promise<{ ok: boolean }>;
+
+type FsElement = HTMLElement & { webkitRequestFullscreen?: () => Promise<void> | void };
+type FsDocument = Document & { webkitFullscreenElement?: Element | null; webkitExitFullscreen?: () => Promise<void> | void };
+const fullscreenElement = () => document.fullscreenElement ?? (document as FsDocument).webkitFullscreenElement ?? null;
+
+/**
+ * R11-3: the host controller full screen. The browser's Fullscreen API where it is available (the
+ * whole live screen — preview, controls and scores — becomes the screen); where it is not (iPhone
+ * Safari, some installed web apps) the live screen covers the browser window instead. The same
+ * component tree stays mounted either way, so nothing about the game changes when switching.
+ */
+function useHostFullscreen(ref: RefObject<HTMLElement | null>) {
+  const [on, setOn] = useState(false);
+  const native = useRef(false);
+  useEffect(() => {
+    const onChange = () => {
+      if (!fullscreenElement() && native.current) {
+        native.current = false;
+        setOn(false); // left with Esc or the system's own control
+      }
+    };
+    document.addEventListener('fullscreenchange', onChange);
+    document.addEventListener('webkitfullscreenchange', onChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', onChange);
+      document.removeEventListener('webkitfullscreenchange', onChange);
+    };
+  }, []);
+  const exitNative = () => {
+    native.current = false;
+    const d = document as FsDocument;
+    if (!fullscreenElement()) return;
+    void Promise.resolve((d.exitFullscreen ?? d.webkitExitFullscreen)?.call(d)).catch(() => undefined);
+  };
+  // Esc leaves full screen (the browser usually handles it in real full screen; when the key still
+  // reaches the page, leave both) — unless a dialog is open, which Esc closes first.
+  useEffect(() => {
+    if (!on) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || document.querySelector('[role="dialog"]')) return;
+      setOn(false);
+      exitNative();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [on]);
+  // Leaving the live screen (game over, switching games) leaves full screen too.
+  useEffect(() => () => exitNative(), []);
+  // Back from full screen, the page is where it was (a phone may have scrolled it meanwhile).
+  const scroll = useRef<{ win: number; els: [Element, number][] } | null>(null);
+  useLayoutEffect(() => {
+    const saved = scroll.current;
+    if (on || !saved) return;
+    scroll.current = null;
+    for (const [el, top] of saved.els) el.scrollTop = top;
+    window.scrollTo(0, saved.win);
+  }, [on]);
+  const toggle = useCallback(() => {
+    if (on) {
+      setOn(false);
+      exitNative();
+      return;
+    }
+    const els: [Element, number][] = [];
+    for (let el = ref.current?.parentElement ?? null; el; el = el.parentElement) if (el.scrollTop) els.push([el, el.scrollTop]);
+    ref.current?.querySelectorAll('.overflow-auto').forEach((el) => els.push([el, el.scrollTop]));
+    scroll.current = { win: window.scrollY, els };
+    setOn(true);
+    const el = ref.current as FsElement | null;
+    const req = el?.requestFullscreen ?? el?.webkitRequestFullscreen;
+    if (!el || !req) return;
+    try {
+      void Promise.resolve(req.call(el)).then(
+        () => (native.current = true),
+        () => undefined, // refused: the window-filling layout stays
+      );
+    } catch {
+      // not allowed here: the window-filling layout stays
+    }
+  }, [on, ref]);
+  return useMemo(() => ({ on, toggle }), [on, toggle]);
+}
 
 export default function Live({ g, run }: { g: GameView; run: Run }) {
   const [adjust, setAdjust] = useState<CompetitorView | null>(null);
   const [devices, setDevices] = useState(false);
   useHostShortcuts(g, run);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const fs = useHostFullscreen(rootRef);
   return (
-    <div className="flex h-full flex-col">
+    <HostFullscreenCtx.Provider value={fs}>
+    <div
+      ref={rootRef}
+      className={cx('flex h-full flex-col', fs.on && 'host-fullscreen fixed inset-0 z-[45] bg-slate-100')}
+      data-testid="host-live"
+      data-fullscreen={fs.on ? 'true' : 'false'}
+    >
       <div className="min-h-0 flex-1 overflow-auto p-2 sm:p-3">
         {g.phase === 'final' ? (
           <FinalControl g={g} run={run} />
@@ -76,6 +166,7 @@ export default function Live({ g, run }: { g: GameView; run: Run }) {
       </Modal>
       <AssignListener g={g} />
     </div>
+    </HostFullscreenCtx.Provider>
   );
 }
 
@@ -94,23 +185,22 @@ function BoardStage({ g, run, onDevices }: { g: GameView; run: Run; onDevices: (
     <>
       <GameFrame
         boxTestId="host-board-box"
-        // R10-6: the board where the TV has it (above the score strip's place).
-        preview={(size) => (
-          <div className="absolute inset-x-0 top-0" style={{ height: size.stage }}>
-            <HostBoardGrid g={g} onTile={(id, used) => (used ? setPlayed(id) : run({ type: 'selectClue', clueId: id }))} />
+        // R11-3.3: who is choosing, in the top strip; the board in the TV's blue area.
+        top={
+          <div className="flex min-w-0 flex-1 flex-col items-center justify-center px-3 text-center">
+            <h2 className="host-band-title max-w-full truncate text-2xl" data-testid="choosing">
+              {remaining === 0 ? 'This round is complete' : picker ? `${competitorName(picker, g)} is choosing a clue` : 'Choose a clue'}
+            </h2>
+            <p className="max-w-full truncate text-sm text-slate-500">
+              {round.name} · {remaining === 0 ? 'every clue has been played' : `${remaining} ${remaining === 1 ? 'clue' : 'clues'} left`}
+              {picker?.bot && remaining > 0 ? ' · picks by itself' : ''}
+            </p>
           </div>
-        )}
+        }
+        preview={() => <HostBoardGrid g={g} onTile={(id, used) => (used ? setPlayed(id) : run({ type: 'selectClue', clueId: id }))} />}
         bar={
           <div className="flex flex-wrap items-center gap-2">
-            <div className="min-w-0 flex-1 px-1">
-              <h2 className="host-band-title truncate text-xl" data-testid="choosing">
-                {remaining === 0 ? 'This round is complete' : picker ? `${competitorName(picker, g)} is choosing a clue` : 'Choose a clue'}
-              </h2>
-              <p className="truncate text-sm text-slate-500">
-                {round.name} · {remaining === 0 ? 'every clue has been played' : `${remaining} ${remaining === 1 ? 'clue' : 'clues'} left`}
-                {picker?.bot && remaining > 0 ? ' · picks by itself' : ''}
-              </p>
-            </div>
+            <p className="min-w-0 flex-1 px-1 text-slate-600">{remaining === 0 ? 'Every clue in this round has been played.' : 'Tap a clue on the board to open it.'}</p>
             {/* The next step appears only when the round is finished; earlier it lives in Options. */}
             {remaining === 0 && next && (
               <ActionButton size="lg" onAction={() => run({ type: 'setRound', roundIndex: next.i })} data-testid="next-round">
@@ -287,17 +377,17 @@ function IntroStage({ g, run }: { g: GameView; run: Run }) {
       testId="intro-controls"
       boxTestId="intro-preview-box"
       // R6-2.1 / R10-6: the presentation; the host's controls where the TV has its scores.
-      preview={(size) => <TvPreview game={g} scoreboard={false} band title="TV preview" size={size} testId="intro-preview" />}
-      bar={
-        <div className="flex flex-col gap-1.5">
-          <p className="flex min-w-0 items-baseline gap-3 px-1" data-testid="intro-now">
-            <span className="shrink-0 text-xs font-bold tracking-wide text-slate-500 uppercase">Introduce the categories{intro.auto ? ' · automatic' : ''}</span>
-            <span className="host-band-title min-w-0 truncate text-lg">{current}</span>
-            <span className="ml-auto shrink-0 text-sm text-slate-600">{intro.step < 0 ? 'The round title is on the TV.' : `Category ${intro.step + 1} of ${n}`}</span>
+      top={
+        <div className="flex min-w-0 flex-1 flex-col items-center justify-center px-3 text-center" data-testid="intro-now">
+          <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">Introduce the categories{intro.auto ? ' · automatic' : ''}</p>
+          <p className="flex max-w-full min-w-0 items-baseline gap-3">
+            <span className="host-band-title min-w-0 truncate text-2xl">{current}</span>
+            <span className="shrink-0 text-sm text-slate-600">{intro.step < 0 ? 'The round title is on the TV.' : `Category ${intro.step + 1} of ${n}`}</span>
           </p>
-          <IntroBar g={g} run={run} n={n} nextLabel={nextLabel} />
         </div>
       }
+      preview={(size) => <TvPreview game={g} scoreboard={false} band title="TV preview" size={size} testId="intro-preview" />}
+      bar={<IntroBar g={g} run={run} n={n} nextLabel={nextLabel} />}
     />
   );
 }
