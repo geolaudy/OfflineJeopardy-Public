@@ -12,9 +12,24 @@ import { Gamepad2, Lightbulb, UsersRound, Vibrate } from 'lucide-react';
 
 const BUTTON_CHOICES: Record<string, string[]> = {
   joycon: ['any', 'SL,SR', 'A', 'B', 'X', 'Y', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'L,ZL', 'R,ZR'],
-  gamepad: ['any', 'B0', 'B1', 'B2', 'B3'],
+  // Standard gamepad mapping (Xbox-style pads, incl. controllers forwarded by Steam Link): every
+  // button can be chosen, shoulders and triggers too (R7-32).
+  gamepad: ['any', 'B4,B5,B6,B7', 'B4,B6', 'B5,B7', 'B0', 'B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B12', 'B13', 'B14', 'B15'],
   keyboard: ['any'],
 };
+
+const PAD_BUTTONS: Record<string, string> = { B0: 'A', B1: 'B', B2: 'X', B3: 'Y', B4: 'LB / L', B5: 'RB / R', B6: 'LT / ZL', B7: 'RT / ZR', B12: 'D-pad up', B13: 'D-pad down', B14: 'D-pad left', B15: 'D-pad right' };
+
+/** "B4,B6" → "LB / L or LT / ZL" for gamepads; Joy-Con names as they are. */
+export function buttonChoiceLabel(kind: string, v: string) {
+  if (v === 'any') return 'Any button';
+  if (kind !== 'gamepad') return v;
+  if (v === 'B4,B5,B6,B7') return 'Any shoulder or trigger';
+  return v
+    .split(',')
+    .map((b) => PAD_BUTTONS[b] ?? b)
+    .join(' or ');
+}
 
 export function targetLabel(t: BindingTarget, g: GameView) {
   if (t.kind === 'profile') return profileName(g.profiles[t.profileId]);
@@ -102,7 +117,7 @@ export default function ControllersPanel({ g }: { g: GameView | null }) {
                 >
                   {(BUTTON_CHOICES[c.kind] ?? ['any']).concat(BUTTON_CHOICES[c.kind]?.includes(c.buzzButtons) ? [] : [c.buzzButtons]).map((v) => (
                     <option key={v} value={v}>
-                      {v === 'any' ? 'Any button' : v}
+                      {buttonChoiceLabel(c.kind, v)}
                     </option>
                   ))}
                 </select>
@@ -147,7 +162,13 @@ export default function ControllersPanel({ g }: { g: GameView | null }) {
           <li>Lights keep flashing after pairing? Remove the device in Windows Bluetooth settings and pair it again.</li>
           <li>Laggy or missed presses: keep Joy-Cons within a few metres and away from Wi-Fi routers; too many Bluetooth devices can cause interference.</li>
           <li>A Joy-Con dropped mid-game? Other buzzers keep working. Re-pair it, or switch that player to their phone (they can buzz from the player page right away).</li>
-          <li>The default buzz button is "any button" (except Home, Capture, + and −). You can pick a specific button per controller.</li>
+          <li>The default buzz button is "any button" (except Home, Capture, + and −, and Back, Start, Guide and stick presses on other controllers). You can pick a specific button per controller.</li>
+        </ul>
+        <h3 className="mt-4 font-bold">Joy-Cons on an Apple TV with Steam Link</h3>
+        <ul className="list-disc space-y-1 pl-5 text-slate-700">
+          <li>Best: pair the Joy-Cons with the game computer itself (a small USB Bluetooth adapter is enough) — each Joy-Con is then its own buzzer with every button, Identify and vibration.</li>
+          <li>Through Steam Link the Apple TV joins a left and right Joy-Con into one controller; hold Capture + Home for a few seconds to split them. At most 4 controllers.</li>
+          <li>Start OfflineJeopardy from Steam (Add a Non-Steam Game) so Steam passes the controllers on; they then appear here as Xbox-compatible controllers (no Identify or vibration).</li>
         </ul>
       </Modal>
     </div>

@@ -102,7 +102,9 @@ export type ServerMessage =
   | { t: 'error'; message: string };
 
 /** Joy-Con buttons that never trigger a buzz under the default "any button" mapping. */
-export const NON_BUZZ_BUTTONS = new Set(['HOME', 'CAPTURE', 'PLUS', 'MINUS', 'LSTICK', 'RSTICK']);
+// Joy-Con menu buttons and, in the standard gamepad mapping, Back/View (B8), Start/Menu (B9),
+// stick presses (B10, B11) and Guide (B16) never buzz with "any button".
+export const NON_BUZZ_BUTTONS = new Set(['HOME', 'CAPTURE', 'PLUS', 'MINUS', 'LSTICK', 'RSTICK', 'B8', 'B9', 'B10', 'B11', 'B16']);
 
 export function isBuzzButton(buzzButtons: string, button: string): boolean {
   if (buzzButtons === 'any') return !NON_BUZZ_BUTTONS.has(button);

@@ -227,8 +227,11 @@ function pollPads() {
     const id = `gamepad:${gp.index}:${gp.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 30)}`;
     seen.add(id);
     const prev = padState.get(id);
-    const cur = gp.buttons.map((b) => b.pressed);
-    if (!prev) emit({ type: 'connected', controllerId: id, kind: 'gamepad', label: gp.id.slice(0, 40) || `Controller ${gp.index + 1}` });
+    // Analog triggers count from half-way (some drivers never set `pressed` on them).
+    const cur = gp.buttons.map((b) => b.pressed || b.value >= 0.5);
+    // XInput pads (also what Steam Link forwards) all have the same long name: number them instead.
+    const label = /xinput|xbox/i.test(gp.id) ? `Controller ${gp.index + 1} (Xbox-compatible)` : gp.id.slice(0, 40) || `Controller ${gp.index + 1}`;
+    if (!prev) emit({ type: 'connected', controllerId: id, kind: 'gamepad', label });
     cur.forEach((p, i) => {
       if (p !== (prev?.[i] ?? false)) emit({ type: 'button', controllerId: id, kind: 'gamepad', button: `B${i}`, pressed: p, ...(p ? stamp(gp.timestamp) : {}) });
     });

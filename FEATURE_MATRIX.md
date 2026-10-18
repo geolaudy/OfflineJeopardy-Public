@@ -337,4 +337,4 @@ Last run 2026-10-12: Vitest 58/58 (43 unit, 15 integration), Playwright 8/8.
 | R7-30.4 | Research sign-in-based AI connections | P3 | NOT STARTED |  |  |  |
 | R7-30.5 | AI clue from a prompt in the editor | P3 | NOT STARTED |  |  |  |
 | R7-31 | Developer tools + diagnostic export | P3 | NOT STARTED |  |  |  |
-| R7-32 | Joy-Cons via Apple TV + Steam Link research | P3 | NOT STARTED |  |  |  |
+| R7-32 | Joy-Cons via Apple TV + Steam Link: research (partially feasible) + every gamepad button selectable (shoulders/triggers), menu buttons never buzz, "Controller N (Xbox-compatible)" labels, analog triggers from half-way, Apple TV/Steam Link help | P3 | TESTED | docs/JOYCON_APPLETV_STEAMLINK.md, components/ControllersPanel.tsx, shared/protocol NON_BUZZ_BUTTONS, lib/inputBridge pollPads | U (round7, round7.labels.dom) | Not tested with Apple TV/Steam Link hardware (K39); per-controller split of a combined pair not built (proposal P5) |

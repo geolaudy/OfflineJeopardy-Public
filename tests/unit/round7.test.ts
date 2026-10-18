@@ -57,3 +57,16 @@ describe('score change cause (R7-11)', () => {
     for (const role of ['public', 'host', 'player'] as const) expect(projectState(s, role, {}).scoreCause?.quiet).toBe(true);
   });
 });
+
+describe('gamepads through Steam Link / Xbox-style pads (R7-32)', async () => {
+  const { isBuzzButton } = await import('../../src/shared/protocol');
+  it('"any button" ignores Back, Start, Guide and stick presses; shoulders and triggers buzz', () => {
+    for (const b of ['B8', 'B9', 'B10', 'B11', 'B16']) expect(isBuzzButton('any', b)).toBe(false);
+    for (const b of ['B0', 'B4', 'B5', 'B6', 'B7', 'B12']) expect(isBuzzButton('any', b)).toBe(true);
+    expect(isBuzzButton('B4,B6', 'B6')).toBe(true);
+    expect(isBuzzButton('B4,B6', 'B5')).toBe(false);
+    // Joy-Con rules unchanged.
+    expect(isBuzzButton('any', 'HOME')).toBe(false);
+    expect(isBuzzButton('any', 'SL')).toBe(true);
+  });
+});

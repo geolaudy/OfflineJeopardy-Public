@@ -139,3 +139,13 @@ with sharp at 5000 px and measured:
 
 Typeface: condensed heavy grotesque (Swiss 911 Compressed look); we keep the bundled OFL Anton
 (already used) — no commercial font is downloaded (spec §5.6).
+
+## Joy-Cons through Apple TV + Steam Link (R7-32, session 9)
+
+Full write-up with sources: docs/JOYCON_APPLETV_STEAMLINK.md. Verdict **partially feasible**: tvOS
+combines a left+right pair into one "Joy-Con (L/R)" controller (split with Capture + Home, per press
+reports); Steam Link forwards controllers only into a process Steam launched (Steam Input injects
+emulated Xbox pads; otherwise the Desktop Configuration turns presses into keys/mouse); Joy-Cons are
+not on Valve's supported list for Steam Link on tvOS. Our side: gamepad buttons B4–B7 (shoulders,
+triggers) are now selectable, menu buttons never buzz, XInput pads get numbered labels. Best
+practical option: Bluetooth adapter on the PC (existing WebHID path, verified K1).
