@@ -68,6 +68,19 @@ html:has(.app-screen) body {
 .safe-top {
   padding-top: env(safe-area-inset-top);
 }
+/* R11-7: one rule for the top safe area of the host's pages (status bar, the iPad's Liquid Glass):
+   narrow screens — their top bar takes it; wide screens (side navigation) — the page area and the
+   navigation take it, on every page alike. --safe-extra keeps the element's own top padding. */
+@media (max-width: 1023.98px) {
+  .safe-top-narrow {
+    padding-top: calc(env(safe-area-inset-top) + var(--safe-extra, 0px));
+  }
+}
+@media (min-width: 1024px) {
+  .safe-top-wide {
+    padding-top: calc(env(safe-area-inset-top) + var(--safe-extra, 0px));
+  }
+}
 .safe-bottom {
   padding-bottom: env(safe-area-inset-bottom);
 }

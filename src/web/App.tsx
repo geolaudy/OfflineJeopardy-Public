@@ -1,5 +1,5 @@
-import { lazy, Suspense } from 'react';
-import { BrowserRouter, Link, Navigate, Route, Routes } from 'react-router-dom';
+import { lazy, Suspense, useEffect } from 'react';
+import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { Toasts } from './components/ui';
 import { isDesktopApp } from './lib/desktop';
 import { Monitor, MonitorPlay, Smartphone, Tablet } from 'lucide-react';
@@ -37,9 +37,22 @@ function Launcher() {
   );
 }
 
+/** R11-7: the web-app manifest for the current part of the app (what "Add to Home Screen" opens). */
+function AppManifest() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    const join = pathname.startsWith('/join');
+    const link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
+    if (link) link.href = join ? '/join.webmanifest' : '/host.webmanifest';
+    document.querySelector('meta[name="apple-mobile-web-app-title"]')?.setAttribute('content', join ? 'OfflineJeopardy' : 'OJ Host');
+  }, [pathname]);
+  return null;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
+      <AppManifest />
       <Suspense fallback={<div className="flex h-full items-center justify-center text-slate-500">Loading…</div>}>
         <Routes>
           <Route path="/" element={<Launcher />} />

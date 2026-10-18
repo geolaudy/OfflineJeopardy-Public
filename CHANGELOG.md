@@ -15,6 +15,7 @@ their notes come from the matching section below (`scripts/release-notes.mjs`).
 - The iPad's TV preview no longer shows the "buzzed in" card over the top of the clue (the TV still does; the iPad names the player in its control band).
 
 ### Bug Fixes
+- iPad Home Screen app: every page now stays inside the app (no Safari bar on some pages), and the OfflineJeopardy title no longer sits under the status bar on the Boards page. Remove the old Home Screen icon and add it again once from the host page (Share → Add to Home Screen).
 - Buzzinga import: the text of a picture (or sound) clue now arrives as the clue's text, editable in the clue text box, instead of as the picture's caption.
 - TV: the "buzzers open" glow no longer draws a second faint line above the timer.
 

@@ -216,7 +216,8 @@ function HostHome() {
     <div className="flex h-full flex-col">
       {/* Before any game or lobby the setup page has its own title, so this bar would only repeat it. */}
       <header className={cx('shrink-0 border-b border-slate-200 bg-white', ready && !game && !lobby?.open && 'hidden')}>
-        <div className="safe-top flex min-h-14 items-center gap-2 px-2 py-1.5">
+        {/* R11-7: the page area already clears the status bar (AppShell). */}
+        <div className="flex min-h-14 items-center gap-2 px-2 py-1.5">
           {(game || lobby?.open) && (
             <button onClick={present.openNav} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-700 hover:bg-slate-100 lg:hidden" aria-label="Open navigation" data-testid="app-nav-toggle">
               <MenuIcon size={22} aria-hidden />

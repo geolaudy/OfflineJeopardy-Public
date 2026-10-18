@@ -254,3 +254,66 @@ for (const [label, browserName, ctxOpts] of [
     h.close();
   });
 }
+
+test('host web app: manifest keeps every page in the app; one header rule and safe-area top on every page (R11-7)', async () => {
+  test.setTimeout(150_000);
+  const { api, H } = await setup();
+  // The manifests: scope "/" (every page of the app stays in the installed app), standalone.
+  for (const [file, start] of [['host.webmanifest', '/host'], ['join.webmanifest', '/join']]) {
+    const r = await api.get(`/${file}`);
+    expect(r.status()).toBe(200);
+    const m = await r.json();
+    expect(m).toMatchObject({ scope: '/', start_url: start, display: 'standalone' });
+    for (const icon of m.icons) expect((await api.get(icon.src)).status()).toBe(200);
+  }
+  expect((await api.get('/apple-touch-icon.png')).status()).toBe(200);
+
+  const ctx = await cr.newContext({ viewport: { width: 1194, height: 834 }, hasTouch: true });
+  const pc = await ctx.newPage();
+  // A status bar 24 px tall (as on an iPad web app), where the browser can emulate it.
+  const cdp = await ctx.newCDPSession(pc);
+  const inset = await cdp
+    .send('Emulation.setSafeAreaInsetsOverride' as never, { insets: { top: 24, left: 0, bottom: 0, right: 0 } } as never)
+    .then(() => 24)
+    .catch(() => 0);
+  await pc.goto(`${BASE}/host`);
+  await expect(pc.locator('link[rel="manifest"]')).toHaveAttribute('href', '/host.webmanifest');
+  await expect(pc.locator('meta[name="apple-mobile-web-app-capable"]')).toHaveAttribute('content', 'yes');
+  const nav = pc.getByTestId('host-nav');
+  const title = nav.getByText('OfflineJeopardy', { exact: true });
+  const tops: Record<string, number> = {};
+  for (const [name, path] of [
+    ['Home', '/host'],
+    ['Boards', '/host/boards'],
+    ['Players', '/host/players'],
+    ['Teams', '/host/teams'],
+    ['Leaderboards', '/host/leaderboard'],
+    ['History', '/host/history'],
+    ['Settings', '/host/settings'],
+    ['Help', '/host/help'],
+  ] as const) {
+    await nav.getByRole('link', { name, exact: true }).click();
+    await expect(pc).toHaveURL(new RegExp(`${path.replace('/', '\\/')}$`));
+    expect(ctx.pages()).toHaveLength(1); // nothing opens in another window / browser context
+    await pc.waitForTimeout(200);
+    tops[name] = (await title.boundingBox())!.y;
+    // The page area clears the status bar on every page (Boards included).
+    expect(await pc.getByTestId('host-main').evaluate((e) => parseFloat(getComputedStyle(e).paddingTop))).toBeGreaterThanOrEqual(inset - 0.5);
+    if (name === 'Boards') await shot(pc, 'pwa-boards');
+  }
+  // The title sits in the same place on every page, below the status bar with a margin.
+  for (const [name, y] of Object.entries(tops)) expect(Math.abs(y - tops.Home), name).toBeLessThan(1);
+  expect(tops.Boards).toBeGreaterThanOrEqual(inset + 12 - 1);
+  // The board editor opens and closes inside the app.
+  await nav.getByRole('link', { name: 'Boards', exact: true }).click();
+  const boards = (await (await api.get('/api/boards', { headers: H })).json()) as { id: string; title: string }[];
+  await pc.goto(`${BASE}/host/boards/${boards[0].id}`);
+  await expect(title).toBeVisible();
+  expect(Math.abs((await title.boundingBox())!.y - tops.Home)).toBeLessThan(1);
+  await pc.goBack();
+  await expect(pc).toHaveURL(/\/host\/boards$/);
+  // The player pages bring their own manifest (a phone's Home Screen icon opens the portal).
+  await pc.goto(`${BASE}/join`);
+  await expect(pc.locator('link[rel="manifest"]')).toHaveAttribute('href', '/join.webmanifest');
+  await ctx.close();
+});

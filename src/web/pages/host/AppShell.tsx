@@ -1,7 +1,7 @@
 // Host app shell (R2-3, R2-7, R2-8, R2-11): the same navigation and look on the iPad and on the
 // game computer, a "Present on TV" switch that mirrors presentable pages on the TV (public data
 // only — the server builds it), and a way back to the start screen on the game computer.
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CircleHelp, Gamepad2, History as HistoryIcon, House, LayoutGrid, Medal, Trophy, Menu, Monitor, MonitorOff, Settings as SettingsIcon, Users, UsersRound, type LucideIcon } from 'lucide-react';
 import { present as sendPresent, useLive } from '../../lib/socket';
@@ -189,7 +189,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
             </button>
           )}
         </header>
-        <nav className="safe-top hidden w-60 shrink-0 flex-col gap-3 border-r border-slate-200 bg-white p-3 lg:flex" aria-label="Host navigation" style={{ paddingLeft: 'max(0.75rem, env(safe-area-inset-left))' }}>
+        {/* R11-7: the title clears the status bar by the same margin on every page. */}
+        <nav className="safe-top-wide hidden w-60 shrink-0 flex-col gap-3 border-r border-slate-200 bg-white p-3 lg:flex" aria-label="Host navigation" style={{ paddingLeft: 'max(0.75rem, env(safe-area-inset-left))', '--safe-extra': '0.75rem' } as CSSProperties} data-testid="host-nav">
           <div className="px-2">
             <div className="text-lg font-black">OfflineJeopardy</div>
             <div className="truncate text-xs text-slate-500" data-testid="lobby-status">
@@ -205,7 +206,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <div className="mt-auto">{footer}</div>
           </div>
         </Drawer>
-        <main ref={mainRef} className="scroll-area safe-x relative min-h-0 min-w-0 flex-1">{children}</main>
+        <main ref={mainRef} className={cx('scroll-area safe-x safe-top-wide relative min-h-0 min-w-0 flex-1', homeBar && 'safe-top-narrow')} data-testid="host-main">
+          {children}
+        </main>
       </div>
     </Ctx.Provider>
   );
