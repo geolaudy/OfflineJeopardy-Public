@@ -101,7 +101,8 @@ Rollback point: tag v0.11.0 (verified on GitHub). See USER_FEEDBACK.md "Round 7"
 - **0 — GitHub recovery:** v0.11.0 was already on origin (main 8c57d43, tag, release with 3 assets) — verified, nothing to push.
 - **A — Gameplay/UI bugs:** R7-7, R7-8, R7-9, R7-10, R7-11, R7-12, R7-19, R7-28, R7-29.
 - **B — TV presentation (shared gameplay theme tokens first):** R7-5, R7-15, R7-6, R7-13, R7-16, R7-14, R7-17.
-- **C — Lobby/menu layout:** R7-2, R7-3, R7-4, R7-17.
+- **A, B — done** (session 9, other computer: 41352f8, 5323344).
+- **C — Lobby/menu layout:** R7-2, R7-3, R7-4, R7-17. **Done** (session 10): one heading/content line on every TV page, stacked names that never clip, phone delay on lobby cards.
 - **D — iPad host:** R7-18, R7-20, R7-21, R7-22, R7-23, R7-24, R7-25, R7-26, R7-27 (R7-20/25 after B's tokens).
 - **E — Developer tools:** R7-31 (small: dev-only page, buzzer fairness test with simulated offsets, JSON export).
 - **F — AI/import (agent, worktree):** R7-30.1 … R7-30.5.

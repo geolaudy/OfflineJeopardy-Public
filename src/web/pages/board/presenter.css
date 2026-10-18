@@ -6,7 +6,12 @@
    of them (background, hairline border, radius, padding, soft shadow); cards inside a panel are
    flat tints (--tvp-item), never cards with their own frame. The full lobby has ONE right-hand
    panel (join QR + rules); everywhere else the compact lobby is ONE panel in the top-right corner
-   and pages keep their heading in the band beside it and their content in a full-width panel. */
+   and pages keep their heading in the band beside it and their content in a full-width panel.
+
+   R7-2: every page heading (lobby and menu pages) is the same height (--head) at the top of the
+   stage, so titles sit at one height and every content panel starts on one line. The compact
+   panel rises into the wordmark's corner (--lift) and its QR is sized so it always ends above
+   that line — it never pushes a page down. */
 .board-theme {
   --tvp-surface: rgba(0, 0, 0, 0.3);
   --tvp-surface-2: rgba(0, 0, 0, 0.45);
@@ -17,6 +22,8 @@
   --tvp-panel-shadow: inset 0 0 0 1px color-mix(in srgb, var(--b-fg, #ffffff) 10%, transparent), 0 1vh 3vh rgba(0, 0, 0, 0.22);
   --tvp-item: color-mix(in srgb, var(--b-fg, #ffffff) 7%, transparent);
   --tvp-item-2: color-mix(in srgb, var(--b-fg, #ffffff) 13%, transparent);
+  /* R7-3: the profile name under a nickname (gray in every theme). */
+  --tvp-real: color-mix(in srgb, var(--b-fg, #ffffff) 62%, transparent);
 }
 .board-theme[data-theme="modern"] {
   --tvp-surface: #ffffff;
@@ -42,6 +49,7 @@
   --tvp-panel-shadow: inset 0 0 0 0.2vh #ffffff;
   --tvp-item: #161616;
   --tvp-item-2: #2a2a2a;
+  --tvp-real: #d4d4d4;
 }
 
 .tvp {
@@ -54,6 +62,10 @@
   --gap-y: 2vh;
   /* Panel padding (one value for every panel). */
   --sp: min(2.4vh, 1.5vw);
+  /* R7-2: heading height on every page (the lobby's kicker + title + board line). */
+  --head: 17.2vh;
+  /* R7-2: the compact panel starts this far above the stage (2vh from the screen's top). */
+  --lift: calc(var(--top) - 2vh);
   /* Join QR height = width x k (QR tile + "Scan to join"; fixed proportions, laid out in cqw). */
   --qr-k: 1.13;
   --stage-h: calc(100vh - var(--top) - var(--pad-b));
@@ -63,7 +75,7 @@
   --side: max(28vw, calc(var(--qr-full) * 2 + 2 * var(--sp)));
   /* Compact lobby (R6-8): QR width, info column, panel width and height. The height is the band
      that presented pages keep their heading in. */
-  --cq: 18vh;
+  --cq: min(18vh, calc((var(--head) + var(--gap-y) + var(--lift) - 2 * var(--sp)) / var(--qr-k)));
   --cinfo: max(16vw, 28vh);
   --cw: calc(var(--cq) + var(--cinfo) + 3 * var(--sp));
   --band: calc(var(--cq) * var(--qr-k) + 2 * var(--sp));
@@ -71,10 +83,6 @@
   flex: 1;
   min-height: 0;
   color: var(--b-fg);
-}
-.tvp.has-code {
-  /* The compact panel also shows the room code. */
-  --cq: 19.5vh;
 }
 .tvp.no-join {
   --cq: 0px;
@@ -149,6 +157,11 @@
   font-size: 2.3vh;
   letter-spacing: 0.04em;
   opacity: 0.85;
+  transition: opacity 0.35s;
+}
+/* R7-2: the compact panel takes the wordmark's corner. */
+.tvp.is-compact .tvp-brand {
+  opacity: 0;
 }
 .tvp-brand span {
   color: var(--b-accent);
@@ -200,6 +213,7 @@
 }
 .tvp.is-compact .tvp-qr {
   --qr-w: var(--cq);
+  top: calc(var(--sp) - var(--lift));
 }
 /* Everything inside is in cqw (card width), so both sizes are exact scaled copies. */
 .tvp-qr-in {
@@ -303,14 +317,17 @@
   flex: none;
   min-width: 0;
 }
-/* Heading band of a presented page: beside the compact lobby panel, bottom-aligned so the title
-   sits right above the content panel. */
+.tvp-full-main > .tvp-head {
+  min-height: var(--head);
+}
+/* Heading band of a presented page (R7-2): beside the compact lobby panel, at the same height as
+   the lobby's heading; the content panel below it uses the full width. */
 .tvp-band {
   display: flex;
   min-width: 0;
-  min-height: var(--band);
+  min-height: var(--head);
   flex: none;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 2vw;
   margin: 0 calc(var(--cw) + var(--gap)) var(--gap-y) 0;
 }
@@ -505,16 +522,28 @@
   display: flex;
   min-width: 0;
   flex: 1;
+  align-self: stretch;
   flex-direction: column;
-  justify-content: center;
+}
+/* R7-3: the card's text block; --s shrinks it as a whole when a wrapped name would not fit. */
+.tvp-person-fit {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  justify-content: safe center;
   gap: 0.12em;
+  padding-block: 0.4vh;
+  overflow: hidden;
+  font-size: calc(1em * var(--s, 1));
+}
+/* Lines never squeeze each other: anything too tall overflows, and the fit scale shrinks it. */
+.tvp-person-fit > * {
+  flex: none;
 }
 .tvp-person-name {
-  overflow: hidden;
   font-weight: 800;
   line-height: 1.08;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .tvp-person .tvp-dev {
   font-size: 0.66em;
@@ -568,7 +597,7 @@
 }
 .tvp-team-members li {
   display: flex;
-  height: var(--line);
+  min-height: var(--line);
   align-items: center;
   gap: 0.8vw;
   font-size: max(1.9vh, calc(var(--line) * 0.5));
@@ -581,6 +610,9 @@
   justify-content: space-between;
   gap: 1vw;
   font-weight: 700;
+}
+.tvp-team-member > .tvp-names {
+  flex: 1;
 }
 .tvp-team-none {
   font-size: 2vh !important;
@@ -685,10 +717,31 @@
 .tvp-rules-sec dd {
   font-weight: 700;
 }
-.tvp-real {
-  margin-left: 0.4em;
-  font-weight: 400;
-  opacity: 0.55;
+/* R7-3: nickname over the profile name (smaller, gray, same family). The names' box is a size
+   container: a long name first shrinks to fit its line (down to 72 %), then wraps — never clipped. */
+.tvp-names {
+  display: flex;
+  width: 100%; /* a size container has no content width of its own (also inside row flexboxes) */
+  min-width: 0;
+  flex-direction: column;
+  container-type: inline-size;
+}
+.tvp-names.is-free {
+  width: auto;
+  container-type: normal;
+}
+.tvp-name-main {
+  font-size: max(0.72em, min(1em, calc(100cqw / (var(--len, 10) * 0.56))));
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+}
+.tvp-name-real {
+  margin-top: 0.1em;
+  font-size: max(0.48em, min(0.64em, calc(100cqw / (var(--len, 10) * 0.5))));
+  font-weight: 500;
+  line-height: 1.15;
+  color: var(--tvp-real);
+  overflow-wrap: anywhere;
 }
 .tvp-team-cap {
   margin-left: auto;
@@ -713,7 +766,7 @@
 /* ---------- Compact panel (R6-8): one panel in the top-right corner ---------- */
 .tvp-compact {
   position: absolute;
-  top: 0;
+  top: calc(-1 * var(--lift));
   right: 0;
   width: var(--cw);
   height: var(--band);
@@ -850,6 +903,17 @@
   min-width: 9.5vh;
   white-space: nowrap;
   font-size: 1.4vh;
+}
+.tvp-compact-code {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  align-self: center;
+  gap: 0.6vw;
+  margin-left: auto;
+}
+.tvp-compact-code .tvp-facts-k {
+  width: auto;
 }
 .tvp-compact .tvp-addr-room {
   padding-top: 0.1vh;
@@ -1079,15 +1143,13 @@
 .tvp-pcard-text {
   display: flex;
   min-width: 0;
+  flex: 1;
   flex-direction: column;
   gap: 0.2em;
 }
 .tvp-pcard-name {
-  overflow: hidden;
   font-weight: 800;
   line-height: 1.1;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .tvp-pcard-sub {
   font-size: 0.62em;

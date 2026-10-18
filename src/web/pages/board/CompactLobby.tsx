@@ -43,6 +43,13 @@ export function CompactLobby({ m, url, roomCode }: { m: LobbyModel; url: string 
               {m.practice ? ' · Practice' : ''}
               {m.mode === 'team' && m.waitingPeople.length > 0 ? ` · ${m.waitingPeople.length} without a team` : ''}
             </span>
+            {/* A required room code sits at the end of the count row (R7-2: the panel stays short). */}
+            {roomCode && (
+              <span className="tvp-compact-code" data-testid="tv-room-code">
+                <span className="tvp-facts-k">Room code</span>
+                <span className="tvp-addr-room">{roomCode}</span>
+              </span>
+            )}
           </Fade>
         )}
 
@@ -105,10 +112,10 @@ export function CompactLobby({ m, url, roomCode }: { m: LobbyModel; url: string 
             )}
           </Fade>
         )}
-        {!m.preparing && (
+        {/* With a room code the address is left out: the QR has it, the code matters more. */}
+        {!m.preparing && !roomCode && (
           <Fade className="tvp-compact-addr" delay={0.05}>
-            {/* A required room code matters more here than the address (the QR has it). */}
-            <JoinAddress url={roomCode ? null : url} roomCode={roomCode} />
+            <JoinAddress url={url} roomCode={null} />
           </Fade>
         )}
       </div>

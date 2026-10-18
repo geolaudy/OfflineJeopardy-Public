@@ -4,7 +4,7 @@ import { motion } from 'motion/react';
 import { Avatar, cx } from '../../components/ui';
 import { useBoard } from './common';
 import { EASE_MORPH_ARR, EASE_OUT_ARR, T } from './timing';
-import type { LobbyPerson } from './lobbyModel';
+import { deviceLine, type LobbyPerson } from './lobbyModel';
 
 /** Text / surfaces of the lobby that are not shared elements: fade in once the morph is under way,
  *  fade out quickly when leaving. */
@@ -75,14 +75,37 @@ export function SharedAvatar({ p, size, animateIn }: { p: LobbyPerson; size: num
   );
 }
 
-/** Subtle device label with a readiness dot ("Phone", "Joy-Con (L)"…) — never an id. */
-export function DeviceTag({ device, ready, className }: { device: string; ready: boolean; className?: string }) {
+/** Subtle device label with a readiness dot and, for a connected phone, its measured delay
+ *  ("Phone • 25 ms", "Joy-Con (L) • Bluetooth", R7-4) — never an id. */
+export function DeviceTag({ device, ready, latencyMs, prefix, className }: { device: string; ready: boolean; latencyMs?: number; prefix?: string; className?: string }) {
   if (!device) return null;
   return (
-    <span className={cx('tvp-dev', className)}>
+    <span className={cx('tvp-dev', className)} data-testid="tv-device">
       <i className={cx('tvp-dot', ready && 'is-ready')} aria-hidden />
-      {device === 'Computer' ? 'Computer player' : device}
-      <span className="sr-only">{ready ? ' (ready)' : ' (not connected)'}</span>
+      <span className="tvp-dev-text">
+        {prefix}
+        {deviceLine(device, ready, latencyMs)}
+      </span>
+      {ready && <span className="sr-only"> (ready)</span>}
+    </span>
+  );
+}
+
+/** R7-3: the lobby nickname as the main name with the profile name underneath (smaller, gray,
+ *  same family). Long names shrink with their box and then wrap — never cut off. `free`: the
+ *  box sizes to its content (inline chips) instead of its container. */
+export function StackedName({ name, realName, free, len, children }: { name: string; realName?: string; free?: boolean; len?: number; children?: ReactNode }) {
+  return (
+    <span className={cx('tvp-names', free && 'is-free')} data-testid="tv-name">
+      <span className="tvp-name-main" style={{ '--len': len ?? name.length } as CSSProperties}>
+        {name}
+        {children}
+      </span>
+      {realName && (
+        <span className="tvp-name-real" style={{ '--len': realName.length } as CSSProperties} data-testid="tv-real-name">
+          {realName}
+        </span>
+      )}
     </span>
   );
 }

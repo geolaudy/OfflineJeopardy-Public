@@ -8,7 +8,7 @@ import { Crown, Flame, Medal, Wifi, ScanLine, UserRound } from 'lucide-react';
 import { Avatar, cx } from '../../components/ui';
 import { avatarEmoji } from '../../lib/avatars';
 import { boardMeta, boardName, countLabel, modeLabel, summaryText, type LobbyModel, type LobbyPerson, type LobbyTeam } from './lobbyModel';
-import { DeviceTag, Fade, JoinAddress, SharedAvatar, fitCards, useBoxSize, useFitScale } from './presentKit';
+import { DeviceTag, Fade, JoinAddress, SharedAvatar, StackedName, fitCards, useBoxSize, useFitScale } from './presentKit';
 import { COMPACT_AVATARS } from './CompactLobby';
 import { useBoard, vhPx } from './common';
 import { EASE_OUT_ARR, T } from './timing';
@@ -107,8 +107,7 @@ export function LobbyFull({ m, morphIn, url, roomCode }: { m: LobbyModel; morphI
                 {m.waitingPeople.map((p, i) => (
                   <span key={`${p.name}:${i}`} className="tvp-waiting-person">
                     <Avatar profile={{ name: p.name, color: p.color, avatar: p.avatar, pictureUrl: p.pictureUrl }} size={vhPx(ctx, 3.4)} />
-                    {p.name}
-                    {p.realName && <span className="tvp-real">({p.realName})</span>}
+                    <StackedName name={p.name} realName={p.realName} free />
                   </span>
                 ))}
               </span>
@@ -174,7 +173,9 @@ function People({ people, known, morphIn, box }: { people: LobbyPerson[]; known:
   // sized from the space available, so 1 or 30 players fill it at any aspect ratio. Text keeps a
   // readable minimum instead of shrinking with the card.
   const gap = ctx.vh * 0.012;
-  const fit = fitCards(shown.length + (more ? 1 : 0), box, { gap, maxH: ctx.vh * 0.088, minRatio: 2.3, maxCols: 6, idealRatio: 3.4 });
+  // A profile name under a nickname (R7-3) needs a taller card when there is room for it.
+  const stacked = shown.some((p) => p.realName);
+  const fit = fitCards(shown.length + (more ? 1 : 0), box, { gap, maxH: ctx.vh * (stacked ? 0.105 : 0.088), minRatio: 2.3, maxCols: 6, idealRatio: 3.4 });
   const cardH = Math.max(ctx.vh * 0.055, fit.cardH);
   // Few players: cards keep their proportions instead of stretching across the screen.
   const maxW = Math.max(cardH * 3.6, ctx.vh * 0.3);
@@ -185,7 +186,7 @@ function People({ people, known, morphIn, box }: { people: LobbyPerson[]; known:
     <div className="tvp-people" style={{ gridTemplateColumns: `repeat(${fit.cols}, ${col})`, gridAutoRows: `${cardH}px`, gap: `${gap}px`, '--name': `${name}px` } as CSSProperties}>
       <AnimatePresence propagate>
         {shown.map((p, i) => (
-          <PersonCard key={p.key} p={p} av={cardH * 0.62} isNew={!known.has(p.key)} animateAvatar={morphIn && i >= COMPACT_AVATARS - 1 && known.has(p.key)} />
+          <PersonCard key={p.key} p={p} av={cardH * 0.62} size={`${Math.round(cardW)}x${Math.round(cardH)}`} isNew={!known.has(p.key)} animateAvatar={morphIn && i >= COMPACT_AVATARS - 1 && known.has(p.key)} />
         ))}
       </AnimatePresence>
       {more > 0 && <Fade className="tvp-person tvp-more">+{more} more</Fade>}
@@ -193,7 +194,11 @@ function People({ people, known, morphIn, box }: { people: LobbyPerson[]; known:
   );
 }
 
-function PersonCard({ p, av, isNew, animateAvatar }: { p: LobbyPerson; av: number; isNew: boolean; animateAvatar: boolean }) {
+function PersonCard({ p, av, size, isNew, animateAvatar }: { p: LobbyPerson; av: number; size: string; isNew: boolean; animateAvatar: boolean }) {
+  // R7-3: names are never cut off — they shrink and wrap, and the card's text shrinks as a whole
+  // when a wrapped name would not fit the card's height.
+  const textRef = useRef<HTMLDivElement>(null);
+  const fit = useFitScale(textRef, `${size}|${p.name}|${p.realName ?? ''}|${summaryText(p.summary) ?? ''}|${p.level ?? ''}|${p.device}|${p.ready}|${p.latencyMs ?? ''}`, 0.7);
   return (
     <motion.div
       layout="position"
@@ -211,20 +216,21 @@ function PersonCard({ p, av, isNew, animateAvatar }: { p: LobbyPerson; av: numbe
         <Marks p={p} />
       </span>
       <Fade className="tvp-person-text">
-        <span className="tvp-person-name">
-          <span className="tvp-person-name-text">{p.name}</span>
-          {p.realName && <span className="tvp-real">({p.realName})</span>}
-        </span>
-        {p.level ? (
-          <span className="tvp-person-stats">
-            <span className="tvp-bot-badge" data-testid="tv-bot-level">
-              {p.level}
-            </span>
+        <div ref={textRef} className="tvp-person-fit" style={{ '--s': fit } as CSSProperties}>
+          <span className="tvp-person-name">
+            <StackedName name={p.name} realName={p.realName} />
           </span>
-        ) : (
-          <Summary p={p} />
-        )}
-        <DeviceTag device={p.device} ready={p.ready} />
+          {p.level ? (
+            <span className="tvp-person-stats">
+              <span className="tvp-bot-badge" data-testid="tv-bot-level">
+                {p.level}
+              </span>
+            </span>
+          ) : (
+            <Summary p={p} />
+          )}
+          <DeviceTag device={p.device} ready={p.ready} latencyMs={p.latencyMs} />
+        </div>
       </Fade>
     </motion.div>
   );
@@ -272,9 +278,11 @@ function Teams({ teams, known, morphIn, box, maxPerTeam }: { teams: LobbyTeam[];
   const cols = Math.max(1, Math.min(teams.length <= 4 ? 2 : teams.length <= 6 ? 3 : 4, Math.floor(box.w / (ctx.vh * 0.3))));
   const most = Math.max(1, ...teams.map((t) => t.members.length));
   const rowsOfTeams = Math.ceil(teams.length / cols);
-  // Member line height from the space each team card gets (card chrome is about 9vh).
+  // Member line height from the space each team card gets (card chrome is about 9vh). A profile
+  // name under a nickname (R7-3) makes a member row taller.
+  const stacked = teams.some((t) => t.members.some((p) => p.realName));
   const perTeamVh = ((box.h / ctx.vh) * 100 - (rowsOfTeams - 1) * 1.6) / rowsOfTeams;
-  const lineVh = Math.max(2.4, Math.min(4.6, (perTeamVh - 9) / (most * 1.2)));
+  const lineVh = Math.max(2.4, Math.min(4.6, (perTeamVh - 9) / (most * (stacked ? 1.65 : 1.2))));
   let index = 0;
   return (
     <div className="tvp-teams" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
@@ -307,12 +315,18 @@ function Teams({ teams, known, morphIn, box, maxPerTeam }: { teams: LobbyTeam[];
                   {t.record.wins} {t.record.wins === 1 ? 'win' : 'wins'} · {t.record.games} {t.record.games === 1 ? 'game' : 'games'}
                 </span>
               )}
-              {t.shared && <DeviceTag device={t.shared.device === 'No team buzzer yet' ? 'Team buzzer not set' : `Team buzzer: ${t.shared.device}`} ready={t.shared.ready} />}
+              {t.shared &&
+                (t.shared.device === 'No team buzzer yet' ? (
+                  <DeviceTag device="Team buzzer not set" ready={false} />
+                ) : (
+                  <DeviceTag prefix="Team buzzer: " device={t.shared.device} ready={t.shared.ready} latencyMs={t.shared.latencyMs} />
+                ))}
             </Fade>
             <ul className="tvp-team-members" style={{ '--line': `${lineVh}vh` } as CSSProperties}>
               {t.members.length === 0 && <li className="tvp-team-none">No players yet</li>}
               {t.members.map((p) => {
                 const i = index++;
+                const wins = p.summary && !p.summary.private && p.summary.games > 0 ? `${p.summary.wins} ${p.summary.wins === 1 ? 'win' : 'wins'}` : null;
                 return (
                   <li key={p.key}>
                     <span className="tvp-av-wrap">
@@ -320,17 +334,10 @@ function Teams({ teams, known, morphIn, box, maxPerTeam }: { teams: LobbyTeam[];
                       <Marks p={p} />
                     </span>
                     <Fade className="tvp-team-member">
-                      <span className="min-w-0 truncate">
-                        {p.name}
-                        {p.realName && <span className="tvp-real"> ({p.realName})</span>}
-                        {p.summary && !p.summary.private && p.summary.games > 0 && (
-                          <span className="tvp-member-stats">
-                            {' '}
-                            · {p.summary.wins} {p.summary.wins === 1 ? 'win' : 'wins'}
-                          </span>
-                        )}
-                      </span>
-                      {!t.shared && <DeviceTag device={p.device} ready={p.ready} />}
+                      <StackedName name={p.name} realName={p.realName} len={p.name.length + (wins ? wins.length + 3 : 0)}>
+                        {wins && <span className="tvp-member-stats"> · {wins}</span>}
+                      </StackedName>
+                      {!t.shared && <DeviceTag device={p.device} ready={p.ready} latencyMs={p.latencyMs} />}
                     </Fade>
                   </li>
                 );

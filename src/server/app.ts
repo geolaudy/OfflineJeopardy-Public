@@ -120,7 +120,7 @@ export async function startServer(opts: ServerOptions) {
   games.onBuzzWinner = (w) => {
     if (w.sourceKind === 'joycon' && getSetting(db, 'joyconRumble', true)) hub.controllerFx(w.controllerId, 'buzzWin');
   };
-  const lobby = new LobbyManager(db, () => games.current, controllers, () => hub.onlineProfiles());
+  const lobby = new LobbyManager(db, () => games.current, controllers, () => hub.onlineProfiles(), (id) => hub.phoneLatency(id));
   // Optional AI answers for computer opponents (R3-14): only bots set to "AI" use it, and every
   // failure falls back to the offline answer generator (or a pass), so the game never waits.
   const ai = new AiService(db, dataDir, opts.secretCodec ?? null);

@@ -52,7 +52,7 @@ test('team lobby: phones pick teams, rename them and set nicknames; host drags p
   await pa.getByTestId('nickname-input').fill('QuizMaster');
   await pa.getByTestId('nickname-save').click();
   await expect(pa.getByTestId('player-lobby').getByTestId('person-name').first()).toContainText('QuizMaster');
-  await expect(pa.getByTestId('player-lobby').getByTestId('person-real-name').first()).toHaveText('(Annabelle R5)');
+  await expect(pa.getByTestId('player-lobby').getByTestId('person-real-name').first()).toHaveText('Annabelle R5');
 
   // Phones pick teams; Ann renames hers.
   await pa.getByTestId('phone-team').first().getByTestId('phone-join-team').click();
@@ -65,7 +65,8 @@ test('team lobby: phones pick teams, rename them and set nicknames; host drags p
   await expect(ipad.getByTestId('team-card').first()).toContainText('The Owls');
   await expect(tv.getByTestId('tv-lobby-full')).toContainText('The Owls');
   await expect(tv.getByTestId('tv-lobby-full')).toContainText('QuizMaster');
-  await expect(tv.getByTestId('tv-lobby-full')).toContainText('(Annabelle R5)');
+  // R7-3: the profile name sits under the nickname (no parentheses).
+  await expect(tv.getByTestId('tv-lobby-full').getByTestId('tv-real-name')).toHaveText('Annabelle R5');
   await shot(pa, 'phone-lobby');
   await shot(tv, 'tv-team-lobby');
 

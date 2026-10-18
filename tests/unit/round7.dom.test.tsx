@@ -127,7 +127,7 @@ describe('Board-control star and score-card colours (R7-6, R7-14)', async () => 
     render(<Scoreboard g={game({ phase: 'final', controlCompetitorId: 'b' })} />, { wrapper: withFx('picture') });
     expect(screen.queryByTestId('control-star')).toBeNull();
     cleanup();
-    render(<Scoreboard g={game({ phase: 'clue', controlCompetitorId: 'b', buzzer: { status: 'locked', winner: { competitorId: 'a', profileId: 'p-a', at: 1 }, early: [] } } as Partial<GameView>)} />, { wrapper: withFx('picture') });
+    render(<Scoreboard g={game({ phase: 'clue', controlCompetitorId: 'b', buzzer: { status: 'locked', winner: { competitorId: 'a', profileId: 'p-a', at: 1 }, early: [] } } as unknown as Partial<GameView>)} />, { wrapper: withFx('picture') });
     const boxes = screen.getAllByTestId('podium');
     expect(boxes[0].className).toContain('is-winner');
     expect(boxes[1].querySelector('[data-testid="control-star"]')).not.toBeNull();

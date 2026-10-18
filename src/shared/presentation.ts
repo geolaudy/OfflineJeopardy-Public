@@ -60,6 +60,9 @@ export interface RosterRow {
   /** Device type only ("Phone", "Joy-Con (L)", "Keyboard key", "Computer"…), never an id. */
   device: string;
   ready: boolean;
+  /** Connected phone: smoothed round trip shown in steps (R7-4; 5 = under 10 ms). Absent while
+   *  measuring and for other devices. Display only. */
+  latencyMs?: number;
   /** Computer opponent: its difficulty label ("Easy", "Hard"…). */
   bot?: string;
   /** Player profile (public id; links the row to its history summary). */

@@ -22,6 +22,8 @@ export interface LobbyPerson {
   /** Device type ("Phone", "Joy-Con (L)", …) or '' when unknown / shared with the team. */
   device: string;
   ready: boolean;
+  /** Connected phone's shown delay (R7-4). */
+  latencyMs?: number;
   bot: boolean;
   /** Computer opponent difficulty ("Easy", "Hard"…). */
   level?: string;
@@ -40,7 +42,7 @@ export interface LobbyTeam {
   avatar: string;
   members: LobbyPerson[];
   /** Shared team buzzer (null when every member has their own). */
-  shared: { device: string; ready: boolean } | null;
+  shared: { device: string; ready: boolean; latencyMs?: number } | null;
   /** Saved team's record in team games. */
   record?: { games: number; wins: number };
   crown?: boolean;
@@ -146,6 +148,7 @@ export function buildLobbyModel(g: GameView | null, lobby: PublicLobby | null, r
       pictureUrl: r.pictureUrl,
       device: r.device,
       ready: r.ready,
+      latencyMs: r.latencyMs,
       bot: r.device === 'Computer',
       level: r.bot,
       summary: r.profileId ? roster.people?.[r.profileId] : undefined,
@@ -186,7 +189,7 @@ export function buildLobbyModel(g: GameView | null, lobby: PublicLobby | null, r
           color: c.color,
           avatar: c.avatar ?? 'shield',
           members,
-          shared: shared ? { device: shared.device, ready: shared.ready } : null,
+          shared: shared ? { device: shared.device, ready: shared.ready, latencyMs: shared.latencyMs } : null,
           record: roster.teamRecords?.[c.name],
           crown: !!roster.reigningTeams?.includes(c.name),
         });
@@ -202,7 +205,7 @@ export function buildLobbyModel(g: GameView | null, lobby: PublicLobby | null, r
           color: r.teamColor ?? r.color,
           avatar: 'shield',
           members: rows.filter((x) => x.team === r.team && !sharedRow(x)).map(personFrom),
-          shared: shared ? { device: shared.device, ready: shared.ready } : null,
+          shared: shared ? { device: shared.device, ready: shared.ready, latencyMs: shared.latencyMs } : null,
         });
       }
       people = teams.flatMap((t) => t.members);
@@ -259,6 +262,19 @@ export function summaryText(s: PersonSummary | undefined): string | null {
   const team = s.teamWins ? (s.soloWins ? ` (${s.teamWins} team)` : ' (team)') : '';
   const pct = s.games >= 3 ? ` · ${Math.round((s.wins / s.games) * 100)}%` : '';
   return `${s.games} ${s.games === 1 ? 'game' : 'games'} · ${wins}${team}${pct}`;
+}
+
+/** R7-4: the device line of a lobby card — "Phone • 25 ms", "Joy-Con (L) • Bluetooth",
+ *  "Phone • not connected"… (device type only; a delay only when measured). */
+export function deviceLine(device: string, ready: boolean, latencyMs?: number): string {
+  if (device === 'Computer') return 'Computer player';
+  const joycon = device.startsWith('Joy-Con');
+  if (device !== 'Phone' && !joycon && device !== 'Keyboard key' && device !== 'Controller') return device;
+  if (!ready) return `${device} • ${device === 'Phone' ? 'not connected' : 'disconnected'}`;
+  if (device === 'Phone') return `Phone • ${latencyMs === undefined ? 'measuring…' : latencyMs < 10 ? '< 10 ms' : `${latencyMs} ms`}`;
+  if (joycon) return `${device} • Bluetooth`;
+  if (device === 'Keyboard key') return 'Keyboard key • this PC';
+  return `${device} • connected`;
 }
 
 export const modeLabel = (m: 'solo' | 'team' | null) => (m === 'team' ? 'Teams' : m === 'solo' ? 'Individuals' : '');

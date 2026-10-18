@@ -1,5 +1,24 @@
 # Progress
 
+## Session 10 — 2026-10-17 (second developer machine, mvanwitz; round 7 milestone C)
+
+- **Handoff recovery:** session 9 (other computer) hit the usage limit without updating PROGRESS / SESSION_HANDOFF. Reconstructed from git: everything was committed and pushed (main = origin/main at 5323344, clean tree, no stray branches or worktrees). Milestones A, B and the R7-32 research were done; C–F not started (FEATURE_MATRIX "User feedback round 7" was accurate).
+- **Baseline on this machine:** Node 24.22 / npm 11.19 (CI uses Node 24), dependencies already installed. Found one regression left by session 9: `tests/unit/round7.dom.test.tsx` failed `tsc` (a test cast; the commit message said "tsc clean") — fixed. Playwright needed both browsers installed (`npx playwright install chromium webkit`; the iPad/iPhone specs use WebKit). Baseline then: tsc clean, Vitest 287/287, Playwright 45/45.
+- **Milestone C (R7-2, R7-3, R7-4, part of R7-17):**
+  - R7-2: every TV page heading (lobby and menu pages) is the same height (`--head`) at the top; every content panel starts on one line and uses the full width; the compact lobby panel moved into the wordmark's corner (`--lift`, wordmark hidden on menu pages) with its QR sized from that line, so it can never push a page down. With a room code the code sits at the end of the compact panel's count row.
+  - R7-3: `StackedName` on the TV (nickname, profile name underneath in `--tvp-real` gray; long names shrink to 72 % and then wrap; lobby cards fit-scale their text block) — lobby cards, team rows, unassigned chips, Players page. `PersonName` (host + phones) stacked the same way, no parentheses.
+  - R7-4: `server/lobbyLatency.ts` smooths the clock-sync round trip per phone (EWMA, 5/10/100 ms steps, hysteresis); the hub re-reads it every 2 s and rebuilds the lobby only when a shown value changes; lobby cards show "Phone • 25 ms", "Phone • measuring…", "Phone • not connected", "Joy-Con (L) • Bluetooth", "Keyboard key • this PC". Display only.
+  - Decisions D71–D73, known issue K40.
+- Tests at the end of the milestone: tsc clean, **Vitest 293/293** (new round7c unit + integration), **Playwright 46 specs: 45 passed in the full run + `presentation.spec` "team buzz-in" failed once and passed 5/5 on re-runs** (intermittent under full-suite load; it passed in the baseline too). New: `tests/e2e/round7c-tv.spec.ts`.
+
+## Session 9 — 2026-10-17 (round 7, other computer — reconstructed from git in session 10)
+
+- Requirements recorded (4dc2c14): USER_FEEDBACK "Round 7" (R7-2 … R7-32), IMPLEMENTATION_PLAN milestone 21, FEATURE_MATRIX round 7, board reference measurements in RESEARCH_NOTES; `references/` git-ignored.
+- R7-32 research (330addf, merged 8b2b06f / 99516e1): Joy-Cons through Apple TV + Steam Link (docs/JOYCON_APPLETV_STEAMLINK.md); every gamepad button selectable, menu buttons never buzz, "Controller N (Xbox-compatible)" labels.
+- **Milestone A (41352f8):** Final judgment sounds once per judgment (incl. $0 wagers / bots), wager-only Final reveal with vector check/X, centred Final clue, silent manual score adjustments (D68), iPad Safari shell fix (D69), host sub-page Back, constant phone buzzer.
+- **Milestone B (5323344):** reference board colours/spacing/shadows as shared tokens (D70), board-control star, clue text visible through a slower zoom, centred clues stable on reveal, score-card colour setting.
+- Tests per the commit: Vitest 287/287, Playwright round7-tv + 14 regression specs. The session ended at the usage limit before PROGRESS / SESSION_HANDOFF were updated.
+
 ## Session 8 — 2026-10-17 (user feedback round 6, reviewing v0.10.0)
 
 - Requirements recorded as R6-2 … R6-24 (USER_FEEDBACK.md "Round 6"), plan in IMPLEMENTATION_PLAN milestone 20, statuses in FEATURE_MATRIX "User feedback round 6", decisions D64–D67, known issues K35–K37 (K16 resolved).

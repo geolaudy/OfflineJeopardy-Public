@@ -49,6 +49,8 @@ export class LobbyManager {
     private game: () => GameState | null,
     private controllers: ControllerRegistry,
     private online: () => string[],
+    /** R7-4: shown phone delay of a player (display only). */
+    private latency: (profileId: string) => number | undefined = () => undefined,
   ) {}
 
   create(name?: string) {
@@ -490,8 +492,13 @@ export class LobbyManager {
       return { device, ready: !!info?.connected };
     };
     // A phone binding is ready only while that phone's player has the game open.
-    const describeFor = (b: GameState['bindings'][number], memberIds: string[]) =>
-      b.kind === 'phone' ? { device: 'Phone', ready: memberIds.some((m) => online.has(m)) } : describe(b.controllerId, b.kind);
+    // A phone shows its measured delay (R7-4); a shared team phone the best of its members' phones.
+    const phone = (memberIds: string[]) => {
+      const here = memberIds.filter((m) => online.has(m));
+      const ms = here.map((m) => this.latency(m)).filter((v): v is number => v !== undefined);
+      return { device: 'Phone', ready: here.length > 0, ...(ms.length ? { latencyMs: Math.min(...ms) } : {}) };
+    };
+    const describeFor = (b: GameState['bindings'][number], memberIds: string[]) => (b.kind === 'phone' ? phone(memberIds) : describe(b.controllerId, b.kind));
     const rows: RosterRow[] = [];
     for (const c of s.competitors) {
       if (c.bot) {
@@ -508,7 +515,7 @@ export class LobbyManager {
       for (const m of c.memberIds) {
         const p = profiles[m];
         const b = s.bindings.find((x) => x.target.kind === 'profile' && x.target.profileId === m);
-        const d = b ? describeFor(b, [m]) : { device: 'Phone', ready: online.has(m) };
+        const d = b ? describeFor(b, [m]) : phone([m]);
         const nick = s.nicknames?.[m];
         rows.push({ name: nick || p?.name || 'Player', ...(nick && p ? { realName: p.name } : {}), color: s.playerColors?.[m] ?? p?.color ?? c.color, avatar: p?.avatar ?? 'fox', pictureUrl: p?.pictureUrl ?? null, team: c.kind === 'team' ? c.name : null, teamColor: c.kind === 'team' ? c.color : null, ...d, profileId: m, crown: !!this.reigning?.profileIds.includes(m) });
       }

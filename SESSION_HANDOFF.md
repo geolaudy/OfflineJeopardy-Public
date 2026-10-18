@@ -1,5 +1,24 @@
 # Session handoff
 
+Read this first, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 7".
+
+## Current state (session 10, 2026-10-17 — milestone C committed and pushed)
+
+- **Branch:** `main`, pushed to `origin/main` (https://github.com/geolaudy/OfflineJeopardy). Version in package.json: **0.11.0** (last release v0.11.0; no release for round 7 yet).
+- **Round 7 (IMPLEMENTATION_PLAN milestone 21):** A, B, G (R7-32 research) and **C done** and tested. **Not started: D (iPad host), E (developer tools), F (AI/import).**
+- **Tests (end of session 10):** tsc clean, Vitest 293/293, Playwright 46 specs (45 passed in the full run; `presentation.spec` "team buzz-in" is intermittent under full-suite load — it passed 5/5 on re-runs and in the baseline).
+
+### Single recommended next task
+
+**Milestone D, starting with R7-22 (iPad score editor, P1)** — replace `ScoreAdjust` in `src/web/pages/host/Live.tsx` with the editor in `references/host_score_adjust_screen*.png`: editable score field, − / + stepping by the round's lowest clue value, accumulated change shown green/red, Save / Cancel, "Latest score changes" with remove/reverse (needs an engine action to reverse a `score_adjust` event — check `src/server/engine/engine.ts` and the undo model first), Remove Player with confirmation. Manual changes stay silent/unanimated on the TV (D68). Then R7-24 (striped "CORRECT RESPONSE" band, `references/host_controller_layout.png`), R7-21 / R7-25 / R7-20 (preview fixed size, shared tokens), R7-18, R7-23, R7-26, R7-27. After D is tested: release **v0.12.0** (windows-release skill).
+
+### Two developers, two machines
+
+- Developers alternate sessions on the same repo: **geolaudy** (original machine) and **mvanwitz** (second machine, from session 10). Always `git pull` before starting and push before stopping; if both work at once, use a feature branch.
+- Git-ignored folders that must be copied by hand to each machine: `new_sfx/` (owner's sounds — personal use only, never commit or upload) and `references/` (owner's reference screenshots for round 7).
+- Second machine notes: no Python installed — use Node scripts for scripted edits (write the script with the Write tool into the scratchpad, not a bash heredoc, which mangles quotes); run `npx playwright install chromium webkit` once on a new machine.
+- The session-9 machine stopped at the usage limit without a handoff; nothing was lost (all its work was pushed). Commit + push after every milestone so this stays true.
+
 ## Session 8 (2026-10-17) — round 6, stopped at the usage limit
 
 - **All round-6 milestones (A–F) are done, merged and tested**; `main` pushed to origin. Version **0.11.0**, tag `v0.11.0` pushed (GitHub Actions publishes the release).
@@ -10,7 +29,7 @@
 - Read FEATURE_MATRIX "User feedback round 6" for per-item status.
 
 
-Read this first in a new session, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 4".
+(Older sections below are history.)
 
 ## Current state (updated 2026-10-15, session 7)
 

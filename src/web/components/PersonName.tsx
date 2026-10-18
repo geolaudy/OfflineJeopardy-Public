@@ -1,5 +1,6 @@
-// A player's name as games show it (R5-17.6): the lobby nickname prominently, the profile name
-// subtly after it in parentheses — or just the profile name when there is no nickname.
+// A player's name as games show it (R5-17.6, R7-3): the lobby nickname as the main name with the
+// profile name underneath — smaller, gray, same family — or just the profile name when there is
+// no nickname. Long names wrap instead of being cut off.
 import type { ProfilePublic } from '../../shared/views';
 import { cx } from './ui';
 
@@ -8,11 +9,11 @@ export function PersonName({ p, nick, name, className, realClassName }: { p?: Pi
   const real = (name ?? p?.name ?? '').trim() || 'Player';
   const shown = nickname || real;
   return (
-    <span className={cx('min-w-0', className)} data-testid="person-name">
-      <span className="truncate">{shown}</span>
+    <span className={cx('flex min-w-0 flex-col', className)} data-testid="person-name">
+      <span className="[overflow-wrap:anywhere]">{shown}</span>
       {nickname && nickname.toLowerCase() !== real.toLowerCase() && (
-        <span className={cx('ml-1 truncate font-normal text-slate-500/80', realClassName)} data-testid="person-real-name">
-          ({real})
+        <span className={cx(realClassName ?? 'text-[0.8em]', 'leading-tight font-normal text-slate-500 [overflow-wrap:anywhere]')} data-testid="person-real-name">
+          {real}
         </span>
       )}
     </span>

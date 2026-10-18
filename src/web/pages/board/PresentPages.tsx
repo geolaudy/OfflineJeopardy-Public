@@ -13,7 +13,7 @@ import { Avatar, cx } from '../../components/ui';
 import { avatarEmoji } from '../../lib/avatars';
 import { profileName } from '../../lib/view';
 import { useBoard, vhPx } from './common';
-import { fitCards, useBoxSize } from './presentKit';
+import { StackedName, fitCards, useBoxSize } from './presentKit';
 import { EASE_OUT_ARR, T } from './timing';
 import { RecapHead, RecapStandings } from './TvHome';
 
@@ -321,7 +321,9 @@ function PlayersPage({ d }: { d: NonNullable<PresentationState['players']> }) {
                   <motion.div key={p.id} className="tvp-card tvp-pcard" style={{ '--pc': p.color } as CSSProperties} {...item(i)}>
                     <Avatar profile={p} size={Math.round(cardH * 0.56)} />
                     <span className="tvp-pcard-text">
-                      <span className="tvp-pcard-name">{profileName(p)}</span>
+                      <span className="tvp-pcard-name">
+                        <StackedName name={profileName(p)} realName={p.nickname?.trim() && p.nickname.trim().toLowerCase() !== p.name.toLowerCase() ? p.name : undefined} />
+                      </span>
                       <span className="tvp-pcard-sub">{p.private ? 'Statistics private' : `${p.games} ${p.games === 1 ? 'game' : 'games'} · ${p.wins} ${p.wins === 1 ? 'win' : 'wins'}`}</span>
                     </span>
                   </motion.div>

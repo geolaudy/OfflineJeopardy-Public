@@ -17,6 +17,7 @@ import type { InputKind } from '../shared/game.js';
 import { performance } from 'node:perf_hooks';
 import { ClockSync } from './clockSync.js';
 import { correctPress, deviceCapMs } from './buzzTiming.js';
+import { LatencyDisplay } from './lobbyLatency.js';
 import type { BuzzDevice } from './gameManager.js';
 import type { BuzzFairness } from '../shared/buzzTiming.js';
 
@@ -26,6 +27,8 @@ const PROBE_BURST = 5;
 const PROBE_BURST_MS = 100;
 const PROBE_CLUE_MS = 500;
 const PROBE_IDLE_MS = 3000;
+/** R7-4: how often the lobby's phone delays are re-read (shown values change rarely). */
+const LATENCY_MS = 2000;
 
 interface Client {
   ws: WebSocket;
@@ -53,6 +56,8 @@ export class Hub {
   lobby: LobbyManager | null = null;
   readonly check = new BuzzCheck();
   private probeTimer: NodeJS.Timeout | null = null;
+  private latencyTimer: NodeJS.Timeout | null = null;
+  private latency = new LatencyDisplay();
   private lastClueKey = '';
 
   constructor(
@@ -72,6 +77,8 @@ export class Hub {
     games.buzzDevices = (mode) => this.buzzDevices(mode);
     this.probeTimer = setInterval(() => this.probe(), PROBE_BURST_MS);
     this.probeTimer.unref?.();
+    this.latencyTimer = setInterval(() => this.refreshLatency(), LATENCY_MS);
+    this.latencyTimer.unref?.();
     controllers.onChange = () => this.sendControllers();
     controllers.onInput = (controllerId, button, at) => this.toHosts({ t: 'controllerInput', controllerId, button, at });
     this.check.onChange = () => this.sendBuzzCheck();
@@ -121,6 +128,24 @@ export class Hub {
       }
     }
     return out;
+  }
+
+  /** R7-4: smoothed phone delay for the TV lobby cards (server-measured round trips only); the
+   *  lobby is rebuilt only when a shown value changes. */
+  private refreshLatency() {
+    const current = new Map<string, number | null>();
+    for (const c of this.clients) {
+      if (c.role !== 'player' || !c.profileId) continue;
+      const rtt = c.sync.rtt;
+      const prev = current.get(c.profileId);
+      current.set(c.profileId, prev == null ? rtt : rtt == null ? prev : Math.min(prev, rtt));
+    }
+    if (this.latency.update(current)) this.lobby?.refreshSoon();
+  }
+
+  /** Shown phone delay of a player (undefined while measuring or not connected). */
+  phoneLatency(profileId: string) {
+    return this.latency.get(profileId);
   }
 
   /** Phones connected right now with their delay (measured by the server when available). */
@@ -472,6 +497,7 @@ export class Hub {
     this.closed = true;
     this.check.dispose();
     if (this.probeTimer) clearInterval(this.probeTimer);
+    if (this.latencyTimer) clearInterval(this.latencyTimer);
     for (const c of this.clients) c.ws.close(1001, 'server-shutdown');
   }
 }
