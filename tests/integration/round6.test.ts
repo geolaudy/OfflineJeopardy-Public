@@ -77,7 +77,8 @@ describe('Final Jeopardy! waits for the host after the think time (R6-6)', () =>
     const tv = await client(s, 'public');
     const ids = profiles.map((p) => h.state!.competitors.find((c) => c.profileId === p.id)!.id);
     for (const id of ids) await h.act({ type: 'adjustScore', competitorId: id, delta: 500, note: 't' });
-    await h.act({ type: 'updateRules', rules: { ...h.state!.rules, timers: { ...h.state!.rules.timers, finalSeconds: 1 } } });
+    // (R11-9: answers close at time-up with the 'timer' rule; the default waits for the host.)
+    await h.act({ type: 'updateRules', rules: { ...h.state!.rules, finalClose: 'timer', timers: { ...h.state!.rules.timers, finalSeconds: 1 } } });
     await h.act({ type: 'startFinal' });
     await h.act({ type: 'finalNext' });
     for (const p of phones) p.send({ t: 'finalWager', amount: 100 });

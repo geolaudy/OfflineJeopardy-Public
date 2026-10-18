@@ -317,3 +317,67 @@ test('host web app: manifest keeps every page in the app; one header rule and sa
   await expect(pc.locator('link[rel="manifest"]')).toHaveAttribute('href', '/join.webmanifest');
   await ctx.close();
 });
+
+test('Final Jeopardy!: time up keeps answering open until the host closes it; phones say so (R11-9)', async () => {
+  test.setTimeout(150_000);
+  const { api, host, H } = await setup();
+  const boards = (await (await api.get('/api/boards', { headers: H })).json()) as { id: string; title: string }[];
+  await api.post('/api/lobby', { headers: H, data: { name: 'Final close night' } });
+  await api.post('/api/games', { headers: H, data: { boardId: boards.find((b) => b.title === 'Starter Trivia Night')!.id, mode: 'solo' } });
+  const h = await hostSocket(host);
+  await h.until((g) => !!g);
+  const ipad = await (await wk.newContext({ ...devices['iPad Pro 11 landscape'] })).newPage();
+  ipad.on('dialog', (d) => void d.accept());
+  await ipad.goto(`${BASE}/host`);
+  // The rules: "When I close them" is the default.
+  await ipad.getByTestId('nav-menu').click();
+  await ipad.getByRole('button', { name: /Rules & timers/ }).click();
+  await ipad.getByRole('button', { name: 'Advanced rules' }).click();
+  await expect(ipad.getByTestId('rule-final-close')).toHaveValue('host');
+  await ipad.getByRole('dialog', { name: 'Rules & timers' }).getByRole('button', { name: 'Close' }).click();
+  // Two phones join.
+  const phones: Page[] = [];
+  for (const name of ['Close Ann', 'Close Bo']) {
+    const me = (await (await api.post('/api/profiles', { data: { name, color: '#16a34a', avatar: 'owl', pin: '1357' } })).json()) as { token: string };
+    const p = await (await wk.newContext({ ...devices['iPhone 13'] })).newPage();
+    await p.addInitScript((t) => localStorage.setItem('oj.profileToken', t), me.token);
+    await p.goto(`${BASE}/join`);
+    await p.getByTestId('join-game').click();
+    await expect(p.getByTestId('lobby-joined')).toBeVisible();
+    phones.push(p);
+  }
+  const g = await h.until((x) => x.competitors.length === 2);
+  await h.act({ type: 'startGame' });
+  await h.act({ type: 'introSkip' });
+  for (const c of g.competitors) await h.act({ type: 'adjustScore', competitorId: c.id, delta: 500, note: 't' });
+  const rules = (await h.until(() => true)).rules;
+  await h.act({ type: 'updateRules', rules: { ...rules, timers: { ...rules.timers, finalSeconds: 3 } } });
+  await h.act({ type: 'startFinal' });
+  await h.act({ type: 'finalNext' });
+  for (const p of phones) {
+    await p.getByLabel('Your wager').fill('100');
+    await p.getByTestId('phone-final-wager-submit').click();
+    await expect(p.getByTestId('phone-final-wager-done')).toBeVisible();
+  }
+  await ipad.getByTestId('final-next').click(); // lock wagers & show the clue
+  await phones[0].getByTestId('phone-final-answer').fill('Budapest');
+  await phones[0].getByTestId('phone-final-answer-submit').click();
+  // Time runs out: answering stays open — the phones and the host say so.
+  for (const p of phones) await expect(p.getByTestId('phone-final-timeup')).toBeVisible({ timeout: 8000 });
+  await expect(phones[1].getByTestId('phone-final-timeup')).toContainText('waiting for the host to close answering');
+  await expect(ipad.getByTestId('final-bar')).toContainText("Time's up — answering stays open until you close it: 1 of 2 in.");
+  await expect(ipad.getByTestId('final-next')).toHaveText('Close Answer Submissions');
+  await shot(phones[1], 'final-timeup-phone');
+  await shot(ipad, 'final-timeup-ipad');
+  // A late answer from the second phone is taken.
+  await phones[1].getByTestId('phone-final-answer').fill('Vienna');
+  await phones[1].getByTestId('phone-final-answer-submit').click();
+  await expect(ipad.getByTestId('final-status').filter({ hasText: 'Answered ✓' })).toHaveCount(2);
+  // The host closes answering: every phone shows it closed, with its answer.
+  await ipad.getByTestId('final-next').click();
+  await expect(ipad.getByTestId('final-begin-reveal')).toBeVisible();
+  await expect(phones[0].getByTestId('phone-final-locked')).toContainText('Budapest');
+  await expect(phones[1].getByTestId('phone-final-locked')).toContainText('Vienna');
+  for (const p of phones) await expect(p.getByTestId('phone-final-answer')).toHaveCount(0);
+  h.close();
+});

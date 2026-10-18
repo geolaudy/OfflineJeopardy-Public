@@ -1172,15 +1172,18 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
     case 'timerExpire': {
       const t = s.timer;
       if (!t || !t.running || timerRemaining(t, now) > 25) return { ignored: true };
+      // R11-9: the Final's answering closes with the time only when the rules say so; by default the
+      // host closes it (phones may still answer after time is up).
+      const closeFinal = t.kind === 'final' && s.phase === 'final' && s.final?.stage === 'clue' && s.rules.finalClose === 'timer';
       // Answers closing is a step the host can undo (back to writing, with fresh think time).
-      if (t.kind === 'final' && s.phase === 'final' && s.final?.stage === 'clue') snapshot(s, 'Final answers closed');
+      if (closeFinal) snapshot(s, 'Final answers closed');
       t.remainingMs = 0;
       t.startedAt = null;
       t.running = false;
       t.expired = true;
-      // Final: answers close when the think time ends and the timer leaves the screens; nothing
-      // is revealed until the host begins the reveal (R6-6).
-      if (t.kind === 'final' && s.phase === 'final' && s.final?.stage === 'clue') closeFinalAnswers(tx);
+      // Final: the timer leaves the screens; answers close here only in 'timer' mode; nothing is
+      // revealed until the host begins the reveal (R6-6).
+      if (closeFinal) closeFinalAnswers(tx);
       if (t.kind === 'buzz' && s.buzzer.status === 'open') {
         s.buzzer.status = 'locked';
         // Time ran out with nobody buzzing: the answering period is over.

@@ -9,6 +9,8 @@ their notes come from the matching section below (`scripts/release-notes.mjs`).
 ### New Features
 - **Full screen on the host controller**: the new button at the right end of the control band fills the screen with the TV preview, the red answer band at the top and your controls at the bottom (Exit, or Esc, to go back). The game carries on untouched while you switch.
 
+- **Final Jeopardy!: you decide when answering ends.** When the think time runs out, players can still send in (or change) their answers until you tap **Close Answer Submissions**; their phones say "Time is up — waiting for the host to close answering". The old behaviour (answers close with the time) is still available under Rules & timers → Advanced rules.
+
 ### Improvements
 - The host preview now fits any screen shape: the TV picture keeps its exact proportions and is centred, with the TV's blue around it on wider screens; the red answer band sits above it and the controls below it, both as wide as the screen.
 - The iPad shows the timer again, as a thin line along the top of its control band (the TV preview stays as large as before), and the controls sit centred in that band.

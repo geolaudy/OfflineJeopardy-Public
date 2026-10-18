@@ -113,7 +113,7 @@ function FinalHead({ g }: { g: GameView }) {
       </div>
       {g.timer && (
         <span className="host-band-title shrink-0 text-lg tabular-nums" data-testid="final-timer">
-          {Math.ceil((remaining ?? 0) / 1000)}s
+          {g.timer.expired ? "Time's up" : `${Math.ceil((remaining ?? 0) / 1000)}s`}
         </span>
       )}
     </div>
@@ -232,9 +232,13 @@ function FinalBar({ g, run, who }: { g: GameView; run: Run; who: string | null }
       </ActionButton>
     );
   } else if (f.stage === 'clue') {
-    status = f.thinking
-      ? `Players are writing their answers: ${answered} of ${n} in. Answers stay hidden until the reveal.`
-      : "Play the clue's sound or video on the TV — the think time starts when it finishes (or start it now).";
+    // R11-9: in "host closes" mode the time running out leaves answering open until the host closes it.
+    const timeUp = g.timer?.kind === 'final' && g.timer.expired;
+    status = !f.thinking
+      ? "Play the clue's sound or video on the TV — the think time starts when it finishes (or start it now)."
+      : timeUp
+        ? `Time's up — answering stays open until you close it: ${answered} of ${n} in.`
+        : `Players are writing their answers: ${answered} of ${n} in. Answers stay hidden until the reveal.`;
     actions = (
       <>
         {!f.thinking && (
@@ -244,11 +248,11 @@ function FinalBar({ g, run, who }: { g: GameView; run: Run; who: string | null }
         )}
         <ActionButton
           size="lg"
-          variant={n - answered || !f.thinking ? 'secondary' : 'primary'}
-          onAction={() => (n - answered && !confirm(`${n - answered} answer(s) missing. Close the answers now?`) ? undefined : run({ type: 'finalNext' }))}
+          variant={(n - answered || !f.thinking) && !timeUp ? 'secondary' : 'primary'}
+          onAction={() => (n - answered && !confirm(`${n - answered} answer(s) missing. Close answer submissions now?`) ? undefined : run({ type: 'finalNext' }))}
           data-testid="final-next"
         >
-          {g.timer?.running ? 'Close answers early' : 'Close answers'}
+          {g.timer?.running ? 'Close Answers Early' : 'Close Answer Submissions'}
         </ActionButton>
       </>
     );

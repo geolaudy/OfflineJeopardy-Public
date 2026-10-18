@@ -105,6 +105,9 @@ export interface GameRules {
   buzzDebounceMs: number;
   dailyWagerMin: number;
   finalAllowNonPositive: boolean;
+  /** R11-9: how Final Jeopardy! answering ends — 'host': the host closes it (when the think time
+   *  runs out, phones can still answer until then); 'timer': it closes when the think time ends. */
+  finalClose: 'host' | 'timer';
   allowSelfJoin: boolean; // players joining from phones are added without host approval
   categoryIntro: boolean; // introduce the categories on the TV at the start of each round
   requireRoomCode: boolean; // phones must type the room code shown on the TV to join this game
@@ -133,6 +136,7 @@ export const DEFAULT_RULES: GameRules = {
   buzzDebounceMs: 120,
   dailyWagerMin: 5,
   finalAllowNonPositive: false,
+  finalClose: 'host',
   allowSelfJoin: true,
   categoryIntro: true,
   requireRoomCode: false,

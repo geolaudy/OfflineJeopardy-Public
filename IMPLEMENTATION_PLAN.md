@@ -140,4 +140,4 @@ Rollback point: tag v0.14.0. See USER_FEEDBACK.md "Round 11"; statuses in FEATUR
 - **A — Focused fixes:** R11-2, R11-5, R11-6, R11-3.7, R11-4. **Done.**
 - **B — Fullscreen host preview:** R11-3 (shared fitting for fullscreen and embedded). **Done** (D85).
 - **C — iPad web app:** R11-7. **Done** (D86).
-- **D — Final answer closing:** R11-9.
+- **D — Final answer closing:** R11-9. **Done** (D87).

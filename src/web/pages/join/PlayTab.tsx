@@ -325,6 +325,12 @@ function FinalForm({ me }: { me: Me }) {
           <p className="text-center text-lg">
             <RichText text={f.question} />
           </p>
+          {/* R11-9: the think time is over, but answering stays open until the host closes it. */}
+          {g.timer?.kind === 'final' && g.timer.expired && (
+            <p className="rounded-xl bg-amber-50 p-3 text-center font-semibold text-amber-900 ring-1 ring-amber-300" data-testid="phone-final-timeup">
+              Time is up — waiting for the host to close answering.{editing ? ' You can still submit.' : ' You can still change your answer.'}
+            </p>
+          )}
           {editing ? (
             <>
               <textarea className={inputCls} rows={2} value={answer} onChange={(e) => setAnswer(e.target.value)} aria-label="Your answer" placeholder="Your answer" maxLength={200} data-testid="phone-final-answer" data-draft-saved={!!answer.trim() && answer.trim() === (mine?.draft ?? '') ? 'true' : 'false'} />

@@ -243,7 +243,8 @@ describe('wagers', () => {
   });
 
   it('final: equal scores reveal in game order; missing wager counts 0; max wager; time up closes answers', () => {
-    let s = withRules(soloGame(['a', 'b', 'c']), { finalAllowNonPositive: true });
+    // (R11-9: automatic closing at time-up is the 'timer' rule; the default waits for the host.)
+    let s = withRules(soloGame(['a', 'b', 'c']), { finalAllowNonPositive: true, finalClose: 'timer' });
     s = run(s, { type: 'startGame' }, { type: 'introSkip' });
     s = run(s, { type: 'adjustScore', competitorId: cid(s, 'c'), delta: 400, note: 't' }, { type: 'startFinal' });
     const [a, b, c] = ['a', 'b', 'c'].map((p) => cid(s, p));

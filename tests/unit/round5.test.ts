@@ -94,7 +94,9 @@ describe('Final Jeopardy! answers: submitted, changing, locked (R5-19)', () => {
 
 describe('Undo back into Final Jeopardy! answering restarts the think time (R5-15)', () => {
   it('after the think time ran out: answers re-open with a full, running timer and kept answers', () => {
-    let s = run(toFinal(), { type: 'finalNext' });
+    // (R11-9: answers close at time-up only with the 'timer' rule.)
+    const t = toFinal();
+    let s = run({ ...t, rules: { ...t.rules, finalClose: 'timer' } }, { type: 'finalNext' });
     s = finalWager(s, 'alex', 100);
     s = finalWager(s, 'jordan', 100);
     s = run(s, { type: 'finalNext' });

@@ -104,6 +104,13 @@ export default function RulesEditor({
               onChange={(v) => setR({ ...r, teamRetry: v ? 'otherMembers' : 'none' })}
             />
             <Toggle label="Everyone plays Final Jeopardy! (even with zero or negative scores)" checked={r.finalAllowNonPositive} onChange={(v) => setR({ ...r, finalAllowNonPositive: v })} />
+            {/* R11-9: who ends Final Jeopardy! answering. */}
+            <Field label="Final Jeopardy! answers close" hint={r.finalClose === 'timer' ? 'No answers are taken once the think time is over.' : 'When the think time is over, players can still answer until you close answering.'}>
+              <select className={inputCls} value={r.finalClose ?? 'host'} onChange={(e) => setR({ ...r, finalClose: e.target.value as GameRules['finalClose'] })} data-testid="rule-final-close">
+                <option value="host">When I close them (default)</option>
+                <option value="timer">Automatically when the think time ends</option>
+              </select>
+            </Field>
             {/* R6-22: how network delay is handled when deciding who buzzed first. */}
             <Field label="Who buzzed first" hint={BUZZ_FAIRNESS_OPTIONS[r.buzzFairness ?? 'standard'].description}>
               <select className={inputCls} value={r.buzzFairness ?? 'standard'} onChange={(e) => setR({ ...r, buzzFairness: e.target.value as BuzzFairness })} data-testid="rule-buzz-fairness">
