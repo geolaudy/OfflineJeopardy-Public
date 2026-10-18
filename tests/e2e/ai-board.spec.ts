@@ -61,13 +61,13 @@ test('create a board with AI from the library (local AI server)', async () => {
     await pc.getByTestId('ai-write-clue').click();
     await expect(pc.getByTestId('ai-clue-suggestion')).toContainText('4.2 light-years');
     await pc.getByTestId('ai-clue-use').click();
-    await expect(pc.getByLabel('Question (shown on the board)')).toHaveValue('This star is about 4.2 light-years away.');
+    await expect(pc.getByLabel('Question (shown on the board)')).toHaveText('This star is about 4.2 light-years away.');
     // R7-30.5: write a clue + answer from a short idea; it never replaces silently.
     await pc.getByTestId('ai-idea').fill('the nearest star after the Sun');
     await pc.getByTestId('ai-idea-write').click();
     await expect(pc.getByTestId('ai-clue-suggestion')).toContainText('Proxima Centauri');
     await expect(pc.getByTestId('ai-clue-use')).toHaveText('Replace the clue and answer');
-    await expect(pc.getByLabel('Question (shown on the board)')).toHaveValue('This star is about 4.2 light-years away.'); // untouched until accepted
+    await expect(pc.getByLabel('Question (shown on the board)')).toHaveText('This star is about 4.2 light-years away.'); // untouched until accepted
     await api.delete(`/api/boards/${pc.url().split('/').pop()}`, { headers: H }); // keep the library as other tests expect it
   } finally {
     await api.put('/api/ai', { headers: H, data: { config: before } });

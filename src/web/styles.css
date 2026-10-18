@@ -297,3 +297,19 @@ button {
 .fade-in {
   animation: fade-in 0.18s ease-out;
 }
+
+/* R10-11: the visual clue / answer editor (components/RichEditor.tsx) inside an input-styled box. */
+.rich-editor {
+  padding: 0.625rem 0.75rem;
+  line-height: 1.6;
+  outline: none;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.rich-editor strong {
+  font-weight: 700;
+}
+.rich-editor-box:focus-within {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px #bfdbfe;
+}

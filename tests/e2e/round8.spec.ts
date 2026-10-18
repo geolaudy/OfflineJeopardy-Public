@@ -200,13 +200,17 @@ test('rich clue text and a category subheading: editor, TV and iPad (R8-7, R8-8,
   await answer.fill('Rome');
   await answer.press('Control+a');
   await pc.getByTestId('clue-answer-input-b').click();
-  await expect(answer).toHaveValue('[b]Rome[/b]');
+  // R10-11: the editor shows the formatting itself; the board stores the same tags as before.
+  await expect(answer).toHaveAttribute('data-value', '[b]Rome[/b]');
+  await expect(answer.locator('strong')).toHaveText('Rome');
   await answer.press('End');
+  await pc.waitForTimeout(150); // the editor picks up the moved cursor from the browser's selection event
   await answer.press('Shift+Enter');
-  await answer.type('Italy');
-  await expect(answer).toHaveValue('[b]Rome[/b]\nItaly');
-  await expect(pc.getByTestId('clue-answer-input-preview').locator('strong')).toHaveText('Rome');
-  await expect(pc.getByTestId('clue-answer-input-preview').locator('br')).toHaveCount(1);
+  await answer.press('Control+b');
+  await answer.pressSequentially('Italy');
+  await expect(answer).toHaveAttribute('data-value', '[b]Rome[/b]\nItaly');
+  await expect(answer.locator('br')).toHaveCount(1);
+  await expect(answer).not.toContainText('[b]');
   await shot(pc, 'editor-rich');
 
   // Play the board: subheading on the TV and the iPad board; formatted clue and answer.

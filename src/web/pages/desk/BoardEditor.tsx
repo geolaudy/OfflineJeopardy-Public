@@ -9,8 +9,9 @@ import { boardContentSchema } from '../../../shared/boardIO';
 import type { BoardContent, Category, Clue, ClueLayout, ClueUnlock, MediaRef, Round } from '../../../shared/game';
 import { Eye, Star, ArrowLeft, Image, Music, Film, OctagonAlert, TriangleAlert, ChevronLeft, ChevronRight, X, Download, Sparkles, Bold, Italic, Underline } from 'lucide-react';
 import { acceptFor, formatList, MEDIA_FORMATS, type MediaKind } from '../../../shared/mediaTypes';
-import { isRich, plainText, toggleTag } from '../../../shared/richText';
-import { RichText } from '../../components/RichText';
+import { plainText } from '../../../shared/richText';
+import { RichEditorContent, useRichEditor } from '../../components/RichEditor';
+import { FinalPreviewButtons } from './FinalPreview';
 
 // ---------- types & helpers ----------
 
@@ -718,7 +719,8 @@ export default function BoardEditor() {
             />
           </Field>
           {round.categories[0]?.clues[0] ? (
-            <div className="mt-3">
+            <div className="mt-3 space-y-3">
+              <FinalPreviewButtons category={round.categories[0]} clue={round.categories[0].clues[0]} />
               <ClueFields clue={round.categories[0].clues[0]} final category={round.categories[0].name} onChange={(p) => updateClue(ri, 0, 0, p)} />
             </div>
           ) : null}
@@ -1433,28 +1435,23 @@ function VersionsModal({
 
 /**
  * Clue / answer text with line breaks (Enter or Shift+Enter) and bold, italics, underline
- * (R8-7, R8-8): the buttons and Ctrl+B / I / U wrap the selection in [b] [i] [u] tags, which the TV,
- * the host and phones render (RichText). A preview appears once formatting or a line break is used.
+ * (R8-7, R8-8). R10-11: edited visually — the text shows its formatting, never [b] tags; the
+ * buttons and Ctrl+B / I / U toggle a style on the selection (or for what is typed next), Ctrl+Z /
+ * Ctrl+Y undo and redo. The board still stores the same text format (RichText renders it).
  */
 function RichField({ value, onChange, rows, maxLength, label, fieldLabel, hint, testId }: { value: string; onChange: (v: string) => void; rows: number; maxLength: number; label: string; fieldLabel: string; hint?: string; testId: string }) {
-  const ref = useRef<HTMLTextAreaElement>(null);
   const labelId = `${testId}-label`;
-  const apply = (tag: 'b' | 'i' | 'u') => {
-    const el = ref.current;
-    if (!el) return;
-    const r = toggleTag(value, el.selectionStart, el.selectionEnd, tag);
-    if (r.text.length > maxLength) return;
-    onChange(r.text);
-    requestAnimationFrame(() => {
-      el.focus();
-      el.setSelectionRange(r.start, r.end);
-    });
-  };
-  const tools: { tag: 'b' | 'i' | 'u'; name: string; Icon: typeof Bold }[] = [
-    { tag: 'b', name: 'Bold', Icon: Bold },
-    { tag: 'i', name: 'Italic', Icon: Italic },
-    { tag: 'u', name: 'Underline', Icon: Underline },
+  const editor = useRichEditor({ value, onChange, maxLength, labelledBy: labelId, testId, rows });
+  const tools: { tag: 'b' | 'i' | 'u'; mark: 'bold' | 'italic' | 'underline'; name: string; Icon: typeof Bold }[] = [
+    { tag: 'b', mark: 'bold', name: 'Bold', Icon: Bold },
+    { tag: 'i', mark: 'italic', name: 'Italic', Icon: Italic },
+    { tag: 'u', mark: 'underline', name: 'Underline', Icon: Underline },
   ];
+  const toggle = (mark: 'bold' | 'italic' | 'underline') => {
+    const c = editor?.chain().focus();
+    if (!c) return;
+    (mark === 'bold' ? c.toggleBold() : mark === 'italic' ? c.toggleItalic() : c.toggleUnderline()).run();
+  };
   // The visible label names only the text box (not the toolbar), like the other fields.
   return (
     <div className="space-y-1">
@@ -1462,46 +1459,30 @@ function RichField({ value, onChange, rows, maxLength, label, fieldLabel, hint, 
         {fieldLabel}
       </span>
       <div className="flex flex-wrap items-center gap-1" role="toolbar" aria-label={`${label} formatting`}>
-        {tools.map(({ tag, name, Icon }) => (
-          <button
-            key={tag}
-            type="button"
-            className="flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
-            onMouseDown={(e) => e.preventDefault()} // keep the selection in the text box
-            onClick={() => apply(tag)}
-            aria-label={`${name} (${label.toLowerCase()})`}
-            title={`${name} (Ctrl+${tag.toUpperCase()})`}
-            data-testid={`${testId}-${tag}`}
-          >
-            <Icon size={18} aria-hidden />
-          </button>
-        ))}
+        {tools.map(({ tag, mark, name, Icon }) => {
+          const on = !!editor?.isActive(mark);
+          return (
+            <button
+              key={tag}
+              type="button"
+              className={cx('flex h-11 w-11 items-center justify-center rounded-lg border', on ? 'border-blue-600 bg-blue-50 text-blue-800' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100')}
+              onMouseDown={(e) => e.preventDefault()} // keep the selection in the text box
+              onClick={() => toggle(mark)}
+              aria-label={`${name} (${label.toLowerCase()})`}
+              aria-pressed={on}
+              title={`${name} (Ctrl+${tag.toUpperCase()})`}
+              data-testid={`${testId}-${tag}`}
+            >
+              <Icon size={18} aria-hidden />
+            </button>
+          );
+        })}
         <span className="ml-auto text-xs text-slate-500">Enter or Shift+Enter starts a new line</span>
       </div>
-      <textarea
-        ref={ref}
-        className={inputCls}
-        rows={rows}
-        maxLength={maxLength}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={(e) => {
-          const k = e.key.toLowerCase();
-          if ((e.ctrlKey || e.metaKey) && !e.altKey && (k === 'b' || k === 'i' || k === 'u')) {
-            e.preventDefault();
-            apply(k);
-          }
-        }}
-        aria-labelledby={labelId}
-        data-testid={testId}
-      />
+      <div className={cx(inputCls, 'rich-editor-box')} style={{ padding: 0 }}>
+        <RichEditorContent editor={editor} />
+      </div>
       {hint ? <span className="block text-xs text-slate-500">{hint}</span> : null}
-      {isRich(value) && (
-        <div className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-800" data-testid={`${testId}-preview`}>
-          <span className="mr-1 text-xs font-semibold text-slate-500">As shown:</span>
-          <RichText text={value} />
-        </div>
-      )}
     </div>
   );
 }

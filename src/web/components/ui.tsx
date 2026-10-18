@@ -234,7 +234,7 @@ function useKeepFocusVisible(ref: RefObject<HTMLElement | null>, active: boolean
   }, [ref, active, dep]);
 }
 
-export function Modal({ open, onClose, title, children, wide, vars }: { open: boolean; onClose: () => void; title: string; children: ReactNode; wide?: boolean; vars?: CSSProperties }) {
+export function Modal({ open, onClose, title, children, wide, xl, vars }: { open: boolean; onClose: () => void; title: string; children: ReactNode; wide?: boolean; xl?: boolean; vars?: CSSProperties }) {
   const ref = useRef<HTMLDivElement>(null);
   const close = useLatest(onClose);
   useScrollLock(open);
@@ -272,7 +272,7 @@ export function Modal({ open, onClose, title, children, wide, vars }: { open: bo
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={cx('safe-x flex max-h-[calc(100dvh-max(env(safe-area-inset-top),12px))] w-full flex-col rounded-t-2xl bg-white shadow-xl outline-none sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl', wide ? 'sm:max-w-3xl' : 'sm:max-w-md')}
+        className={cx('safe-x flex max-h-[calc(100dvh-max(env(safe-area-inset-top),12px))] w-full flex-col rounded-t-2xl bg-white shadow-xl outline-none sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl', xl ? 'sm:max-w-6xl' : wide ? 'sm:max-w-3xl' : 'sm:max-w-md')}
         style={kb ? { maxHeight: `calc(${kb.height}px - max(env(safe-area-inset-top), 12px))` } : undefined}
       >
         <div className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-100 px-5 py-3">

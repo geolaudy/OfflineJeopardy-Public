@@ -9,6 +9,10 @@ their notes come from the matching section below (`scripts/release-notes.mjs`).
 ### New Features
 - **Pictures and sounds in Final Jeopardy!**: a Final clue can be a picture, a sound or both, with or without text, and the correct response can have its own picture and sound. The TV shows the clue's picture large; you play its sound from the iPad (play, pause, resume, restart). The think time and think music start when the sound has finished (or when you tap Start think time). The correct response's picture and sound appear only after the answer reveals; on the iPad you can look at (and listen to) them privately before that.
 
+### New Features
+- **Board editor: see your formatting.** Bold, italics and underline now show as bold, italic and underlined text while you edit (no more [b] tags); undo / redo and copy / paste work as in any editor. Existing boards open with their formatting and keep working.
+- **Board editor: preview Final Jeopardy!** — Category, Preview Clue and Preview Answer show exactly what the TV will show (picture, text, sound — with Play, Pause and Restart), using your unsaved changes; no game needed.
+
 ### Improvements
 - **Much larger TV preview on the iPad**: the preview now fills the game area as the TV's whole 16:9 screen, and the host's buttons sit where the TV shows the scores, so the preview never moves or changes size. The clue's category and value are on the red answer band; the iPad no longer draws a timer bar (the TV still does).
 - The iPad's answer band: the answer and notes use the same lettering as the "Correct response" label, use the full width, and a long answer or note opens in full with **All**. "Only you" is gone; the stripes run the other way.

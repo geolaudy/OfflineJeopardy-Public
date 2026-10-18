@@ -320,3 +320,152 @@ test('iPad: large fixed 16:9 preview, controls in the score-strip band, answer b
   }
   h.close();
 });
+
+/** 16-bit mono PCM WAV with a quiet tone. */
+function wav(seconds: number) {
+  const rate = 8000;
+  const n = rate * seconds;
+  const b = Buffer.alloc(44 + n * 2);
+  b.write('RIFF', 0);
+  b.writeUInt32LE(36 + n * 2, 4);
+  b.write('WAVEfmt ', 8);
+  b.writeUInt32LE(16, 16);
+  b.writeUInt16LE(1, 20);
+  b.writeUInt16LE(1, 22);
+  b.writeUInt32LE(rate, 24);
+  b.writeUInt32LE(rate * 2, 28);
+  b.writeUInt16LE(2, 32);
+  b.writeUInt16LE(16, 34);
+  b.write('data', 36);
+  b.writeUInt32LE(n * 2, 40);
+  for (let i = 0; i < n; i++) b.writeInt16LE(Math.round(Math.sin((i / rate) * 2 * Math.PI * 440) * 800), 44 + i * 2);
+  return b;
+}
+
+test('board editor: visual bold / italic / underline, undo, paste, save + reload; Final category / clue / answer previews with sound (R10-2, R10-11)', async () => {
+  test.setTimeout(150_000);
+  const { api, H } = await setup();
+  const up = async (name: string, mimeType: string, buffer: Buffer) => (await (await api.post('/api/media', { headers: H, multipart: { file: { name, mimeType, buffer } } })).json()) as { url: string };
+  const map = await up('r10-map.png', 'image/png', await sharp({ create: { width: 1600, height: 900, channels: 3, background: '#334155' } }).png().toBuffer());
+  const city = await up('r10-city.png', 'image/png', await sharp({ create: { width: 1200, height: 900, channels: 3, background: '#f59e0b' } }).png().toBuffer());
+  const tone = await up('r10-tone.wav', 'audio/wav', wav(3));
+  const content = smallBoard();
+  content.rounds[0].categories[0].clues[0].question = '[b]Old[/b] board with [i]markup[/i]\non two lines';
+  Object.assign(content.rounds[2].categories[0].clues[0], { media: [{ kind: 'image', url: map.url }, { kind: 'audio', url: tone.url }], answerMedia: [{ kind: 'image', url: city.url }, { kind: 'audio', url: tone.url }] });
+  const board = (await (await api.post('/api/boards', { headers: H, data: { title: 'Rich Editor Ten', description: '', tags: [], content } })).json()) as { id: string };
+  const stored = async () => (await (await api.get(`/api/boards/${board.id}`, { headers: H })).json()).content as BoardContent;
+
+  const ctx = await cr.newContext({ viewport: { width: 1366, height: 900 }, permissions: ['clipboard-read', 'clipboard-write'] });
+  const pc = await ctx.newPage();
+  await pc.goto(`${BASE}/host/boards/${board.id}`);
+
+  // An existing board's markup shows as formatting, never as tags; opening it changes nothing.
+  await pc.getByRole('button', { name: /^Edit Ancient Empires 200/ }).click();
+  const q = pc.getByTestId('clue-question');
+  await expect(q.locator('strong')).toHaveText('Old');
+  await expect(q.locator('em')).toHaveText('markup');
+  await expect(q.locator('br')).toHaveCount(1);
+  await expect(q).not.toContainText('[b]');
+  await pc.waitForTimeout(1500);
+  expect((await stored()).rounds[0].categories[0].clues[0].question).toBe('[b]Old[/b] board with [i]markup[/i]\non two lines');
+
+  // Bold, italic, underline on a selection; the buttons show what is on.
+  const a = pc.getByTestId('clue-answer-input');
+  await a.fill('Person');
+  await a.press('Control+a');
+  await pc.getByTestId('clue-answer-input-b').click();
+  await pc.getByTestId('clue-answer-input-i').click();
+  await a.press('Control+u');
+  await expect(a).toHaveAttribute('data-value', '[b][i][u]Person[/u][/i][/b]');
+  await expect(a.locator('strong em u')).toHaveText('Person');
+  await expect(pc.getByTestId('clue-answer-input-b')).toHaveAttribute('aria-pressed', 'true');
+  await expect(a).not.toContainText('[');
+  // Undo / redo.
+  await a.press('Control+z');
+  await expect(a).toHaveAttribute('data-value', '[b][i]Person[/i][/b]');
+  await a.press('Control+y');
+  await expect(a).toHaveAttribute('data-value', '[b][i][u]Person[/u][/i][/b]');
+  // Copy and paste inside the editor keeps the formatting.
+  await a.press('Control+a');
+  await a.press('Control+c');
+  await a.press('End');
+  await expect.poll(() => pc.evaluate(() => navigator.clipboard.readText())).toBe('Person'); // the copy has landed
+  await a.press('Control+v');
+  await expect(a).toHaveAttribute('data-value', '[b][i][u]PersonPerson[/u][/i][/b]');
+  // Pasted web content: bold kept, colours / links / scripts dropped, paragraphs → lines.
+  await a.press('Control+a');
+  await a.press('Delete');
+  await a.evaluate((el) => {
+    const dt = new DataTransfer();
+    dt.setData('text/html', '<p><b>Bold</b> <span style="color:red">red</span> <a href="http://x">link</a><script>alert(1)</script></p><p>Second &amp; last</p>');
+    dt.setData('text/plain', 'Bold red link\nSecond & last');
+    el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+  });
+  await expect(a).toHaveAttribute('data-value', '[b]Bold[/b] red link\nSecond & last');
+  await expect(a.locator('a, script, span[style]')).toHaveCount(0);
+  // Special characters and a line break; then it is saved in the board's format.
+  await a.press('End');
+  await a.press('Shift+Enter');
+  await a.pressSequentially('Ü & <ok> "1/2"');
+  const want = '[b]Bold[/b] red link\nSecond & last\nÜ & <ok> "1/2"';
+  await expect(a).toHaveAttribute('data-value', want);
+  await expect.poll(async () => (await stored()).rounds[0].categories[0].clues[0].answer, { timeout: 8000 }).toBe(want);
+  await shot(pc, 'editor-visual');
+  // Reload: the formatting is shown again.
+  await pc.reload();
+  await pc.getByRole('button', { name: /^Edit Ancient Empires 200/ }).click();
+  await expect(pc.getByTestId('clue-answer-input').locator('strong')).toHaveText('Bold');
+  await expect(pc.getByTestId('clue-answer-input')).toHaveAttribute('data-value', want);
+  // Empty field.
+  await pc.getByTestId('clue-answer-input').fill('');
+  await expect.poll(async () => (await stored()).rounds[0].categories[0].clues[0].answer, { timeout: 8000 }).toBe('');
+
+  // Final previews from the editor, with unsaved values, no game.
+  await pc.goto(`${BASE}/host/boards/${board.id}`);
+  await pc.getByRole('tab', { name: /Final/ }).click();
+  await pc.getByTestId('clue-question').fill('Name this city on the river.');
+  await pc.getByTestId('final-preview-category').click();
+  const dlg = pc.getByTestId('final-preview-dialog');
+  const tvBox = (await pc.getByTestId('final-preview-tv').boundingBox())!;
+  expect(Math.abs(tvBox.width / tvBox.height - 16 / 9)).toBeLessThan(0.01);
+  const frame = pc.frameLocator('[data-testid="final-preview-frame"] iframe');
+  await expect(frame.getByTestId('final-subheading')).toHaveText('On the Danube');
+  await expect(frame.locator('.bt-intro-cat').first()).toContainText('World Capitals');
+  await expect(dlg.getByTestId('final-preview-sound')).toHaveCount(0);
+  await shot(pc, 'final-preview-category');
+
+  await dlg.getByTestId('final-preview-tab-clue').click();
+  await expect(frame.getByTestId('tv-final-clue').getByTestId('clue-text')).toHaveText('Name this city on the river.');
+  await expect(frame.getByTestId('tv-final-clue').locator(`img[src="${map.url}"]`)).toBeVisible();
+  await expect(frame.locator(`img[src="${city.url}"]`)).toHaveCount(0);
+  const audio = pc.getByTestId('final-preview-audio');
+  await expect(audio).toHaveCount(1);
+  await dlg.getByTestId('final-preview-play').click();
+  await expect.poll(() => audio.evaluate((el: HTMLAudioElement) => !el.paused && el.currentTime > 0)).toBe(true);
+  await expect(frame.getByTestId('clue-audio')).toHaveAttribute('data-playing', 'true');
+  await dlg.getByTestId('final-preview-pause').click();
+  await expect.poll(() => audio.evaluate((el: HTMLAudioElement) => el.paused)).toBe(true);
+  const at = await audio.evaluate((el: HTMLAudioElement) => el.currentTime);
+  await dlg.getByTestId('final-preview-restart').click();
+  await expect.poll(() => audio.evaluate((el: HTMLAudioElement) => !el.paused)).toBe(true);
+  expect(await audio.evaluate((el: HTMLAudioElement) => el.currentTime)).toBeLessThan(Math.max(at, 0.5));
+  // One copy playing (the editor's media list players are idle; the preview's own is muted).
+  expect(await pc.locator('audio').evaluateAll((els) => els.filter((e) => !(e as HTMLAudioElement).paused).length)).toBe(1);
+  await shot(pc, 'final-preview-clue');
+
+  // The correct response: its picture, its own sound; the clue's sound has stopped.
+  await dlg.getByTestId('final-preview-tab-done').click();
+  await expect(frame.getByTestId('tv-final-correct').locator(`img[src="${city.url}"]`)).toBeVisible();
+  await expect(frame.getByTestId('tv-final-correct')).toContainText('Correct response');
+  await expect(frame.getByTestId('tv-final-correct')).toContainText('Budapest');
+  expect(await pc.locator('audio').evaluateAll((els) => els.filter((e) => !(e as HTMLAudioElement).paused).length)).toBe(0);
+  await expect(dlg.getByTestId('final-preview-sound')).toContainText("Correct response's sound");
+  await dlg.getByTestId('final-preview-play').click();
+  await expect.poll(() => pc.getByTestId('final-preview-audio').evaluate((el: HTMLAudioElement) => !el.paused)).toBe(true);
+  await shot(pc, 'final-preview-answer');
+  // Closing stops the sound.
+  await pc.getByRole('button', { name: 'Close' }).click();
+  await expect(dlg).toHaveCount(0);
+  expect(await pc.locator('audio').evaluateAll((els) => els.filter((e) => !(e as HTMLAudioElement).paused).length)).toBe(0);
+  await ctx.close();
+});
