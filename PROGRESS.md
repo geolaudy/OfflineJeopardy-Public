@@ -6,6 +6,8 @@
 - New test: round7d-host "game preview" (intro, board, clue, buzzed, judged, Daily Double! — same box ±1 px in landscape and portrait; bar content fits).
 - Fixed a test race in lobby.spec (read the pairing code before it loaded).
 - Tests: tsc clean, Vitest 297/297, Playwright full run 47/48 (the lobby race, then fixed: 2/2 passing).
+- **Release v0.12.0** (round 7 A–D + R7-32): version bump + CHANGELOG section, `release:local` passed (verify-dist 17/17), tag v0.12.0 pushed → GitHub Actions run 39102878564 succeeded → https://github.com/geolaudy/OfflineJeopardy/releases/tag/v0.12.0 with OfflineJeopardy-Setup-0.12.0.exe, OfflineJeopardy-Portable-0.12.0.exe, SHA256SUMS.txt (verified via the GitHub API).
+- **Next:** round 7 milestone E (R7-31 developer tools), then F (R7-30.x) — see SESSION_HANDOFF.md.
 
 ## Session 10 — 2026-10-17 (second developer machine, mvanwitz; round 7 milestone C)
 

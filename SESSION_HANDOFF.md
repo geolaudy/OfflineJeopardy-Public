@@ -2,17 +2,17 @@
 
 Read this first, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 7".
 
-## Current state (session 10, 2026-10-17 — milestone C and part of D committed and pushed)
+## Current state (session 11, 2026-10-18 — round 7 A–D released as v0.12.0)
 
-- **Branch:** `main`, pushed to `origin/main` (https://github.com/geolaudy/OfflineJeopardy). Version in package.json: **0.11.0** (last release v0.11.0; no release for round 7 yet).
-- **Round 7 (IMPLEMENTATION_PLAN milestone 21):** A, B, G (R7-32 research) and **C done** and tested. **D done** (R7-20/21/22/24/25/27 tested; R7-18/23/26 visual). Not started: E (developer tools), F (AI/import).
-- **Tests (end of session 10):** tsc clean, Vitest 297/297, Playwright 47/47 in the last full run (`presentation.spec` "team buzz-in" failed once in an earlier full run and passed on every re-run — intermittent under load).
-
-- **Local build (end of session 10, second machine, commit e4d27b6):** `npm run release:local` passed (tsc, Vitest, packaging, verify-dist **17/17**). Artifacts on the mvanwitz machine (not uploaded; they contain the owner's personal sounds): `release/OfflineJeopardy-Setup-0.11.0.exe`, `release/OfflineJeopardy-Portable-0.11.0.exe`, `release/win-unpacked/`. They are labelled 0.11.0 but contain round 7 A–C and part of D (no version bump until the v0.12.0 release).
+- **Branch:** `main`, pushed to `origin/main` (https://github.com/geolaudy/OfflineJeopardy). Version **0.12.0**; tag `v0.12.0` pushed; GitHub Actions run 39102878564 **succeeded** and published https://github.com/geolaudy/OfflineJeopardy/releases/tag/v0.12.0 with OfflineJeopardy-Setup-0.12.0.exe, OfflineJeopardy-Portable-0.12.0.exe and SHA256SUMS.txt (checked through the GitHub API with the stored git credential; the repo is private, so the unauthenticated API returns Not Found).
+- **Round 7 (IMPLEMENTATION_PLAN milestone 21):** A, B, C, D and G (R7-32 research) done and released. **Not started: E (R7-31 developer tools) and F (R7-30.1–30.5 AI/import).**
+- **Tests (session 11):** tsc clean, Vitest 297/297, Playwright 47/48 in the last full run (lobby.spec pairing-code race, fixed and passing). Intermittent under full-suite load, passed on every re-run: presentation "team buzz-in" (session 10).
+- **Local build (session 11, mvanwitz machine, release commit 88584d2):** `npm run release:local` passed, verify-dist **17/17**: `release/OfflineJeopardy-Setup-0.12.0.exe`, `release/OfflineJeopardy-Portable-0.12.0.exe`, `release/win-unpacked/` — these contain the owner's personal sounds (personal use only, never upload); the public GitHub build has none.
+- **Owner to check on real devices:** the new iPad frame and score editor on the real iPad (K38), the lobby phone delays with real phones (K40), the TV menu/lobby layout on the TV.
 
 ### Single recommended next task
 
-**Finish milestone D: R7-21 + R7-25 + R7-20 (the iPad game preview — one fixed size/aspect/position in every state, controls and the bot's answer in compact overlays/reserved bars, the same board/clue theme tokens and proportions as the TV; see `host/TvMirror.tsx` `TvPreview`/`FitBox`, `host/host-tv.css`, `board/board.css`).** After D is tested: release **v0.12.0** (windows-release skill).
+**Round 7 milestone E — R7-31 developer tools** (USER_FEEDBACK "Round 7": not in normal releases; buzzer fairness test with known simulated offsets, latency/sync/performance diagnostics, exportable JSON report without secrets). Reuse `server/clockSync.ts`, `server/buzzTiming.ts`, the buzz-check (`server/buzzCheck.ts`) and `tests/unit/buzzFairness.sim.test.ts`'s simulation; gate the page behind a developer setting so normal users never see it. Then milestone F (R7-30.x; can run in a worktree). Small leftovers: Final Jeopardy! on the iPad still has its own layout (R7-21 limitation); the iPad buzzed-in line still shows "Nickname (Name)" inline (kept so the reserved bar's height holds).
 
 ### Two developers, two machines
 
