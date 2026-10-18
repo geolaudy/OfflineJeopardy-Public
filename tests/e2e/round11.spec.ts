@@ -337,7 +337,7 @@ test('Final Jeopardy!: time up keeps answering open until the host closes it; ph
   await ipad.getByRole('dialog', { name: 'Rules & timers' }).getByRole('button', { name: 'Close' }).click();
   // Two phones join.
   const phones: Page[] = [];
-  for (const name of ['Close Ann', 'Close Bo']) {
+  for (const name of ['Finale Ann', 'Finale Bo']) {
     const me = (await (await api.post('/api/profiles', { data: { name, color: '#16a34a', avatar: 'owl', pin: '1357' } })).json()) as { token: string };
     const p = await (await wk.newContext({ ...devices['iPhone 13'] })).newPage();
     await p.addInitScript((t) => localStorage.setItem('oj.profileToken', t), me.token);
