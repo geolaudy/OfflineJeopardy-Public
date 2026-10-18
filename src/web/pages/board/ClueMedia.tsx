@@ -6,6 +6,7 @@ import { Music } from 'lucide-react';
 import type { ClueView, GameView } from '../../../shared/views';
 import { mediaPosition, type ClueLayout, type MediaPlayback, type MediaRef } from '../../../shared/game';
 import { serverNow } from '../../lib/socket';
+import { cx } from '../../components/ui';
 import { FitText, useBoard } from './common';
 import { EASE_OUT_ARR, T } from './timing';
 
@@ -69,14 +70,14 @@ function useShownSide(clue: ClueView): Side {
   return shown;
 }
 
-export function QuestionCard({ g }: { g: GameView }) {
+export function QuestionCard({ g, still }: { g: GameView; still?: boolean }) {
   const clue = g.clue!;
   const side = useShownSide(clue);
   const classic = clue.media.length === 0 && clue.answerMedia.length === 0;
   const areaRef = useRef<HTMLDivElement>(null);
   const area = useBoxSize(areaRef);
   return (
-    <div className="bt-stage flex min-h-0 flex-1 flex-col items-center px-[4vw] pt-[5.5vh] pb-[7.5vh]">
+    <div className={cx('bt-stage flex min-h-0 flex-1 flex-col items-center px-[4vw] pt-[5.5vh] pb-[7.5vh]', still && 'is-still')} data-testid="tv-stage">
       {/* R7-16: plain text clues mirror the answer slot above the text, so the clue is centred on
           the screen and the answer appearing below never moves it. */}
       {classic && <div className="bt-answer-mirror" aria-hidden />}

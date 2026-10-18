@@ -121,6 +121,7 @@ test('menu headings at the lobby height, full-width content, stacked names, phon
     ['leaderboard', { page: 'leaderboard', view: 'solo' }],
     ['rules', { page: 'rules' }],
   ];
+  const menuLine: Record<string, number> = {};
   for (const [name, req] of pages) {
     present(req);
     await expect(tv.locator(`[data-testid=tv-present-page][data-page=${name}]`)).toBeVisible();
@@ -128,20 +129,28 @@ test('menu headings at the lobby height, full-width content, stacked names, phon
       await tv.setViewportSize(s);
       await tv.waitForTimeout(900);
       const page = '[data-testid=tv-present-page]';
-      // R7-2: the heading is where the lobby's is; the content panel starts on the lobby's line.
+      // R7-2: the heading is where the lobby's is. R8-6.2: menu pages' content rises to just under
+      // their (shorter) heading — above the lobby's content line, at one line on every menu page.
       const head = await box(tv, `${page} .tvp-kicker`);
       expect(Math.abs(head.y - ref[s.name].head)).toBeLessThanOrEqual(2);
       const content = await box(tv, `${page} .tvp-panel`);
-      expect(Math.abs(content.y - ref[s.name].panel)).toBeLessThanOrEqual(2);
-      // The compact panel ends above the content and never covers it; the content uses the width.
+      expect(content.y).toBeLessThan(ref[s.name].panel);
+      menuLine[s.name] ??= content.y;
+      expect(Math.abs(content.y - menuLine[s.name]), `${name} ${s.name} head ${JSON.stringify(await box(tv, `${page} .tvp-band`))}`).toBeLessThanOrEqual(2);
+      // R8-6.1: the compact panel ends a real gap above the content and never covers it; the
+      // content uses the width.
       const compact = await box(tv, '[data-testid=tv-lobby-compact]');
-      expect(compact.y + compact.height).toBeLessThanOrEqual(content.y + 1);
+      expect(content.y - (compact.y + compact.height)).toBeGreaterThanOrEqual(s.height * 0.015);
       expect(overlaps(compact, content)).toBe(false);
       expect(content.x + content.width).toBeGreaterThan(compact.x + compact.width - 2);
       expect(await tv.locator('.tvp-compact-inner').evaluate((e) => e.scrollHeight <= e.clientHeight + 1)).toBe(true);
       const qr = await box(tv, '[data-testid=tv-join-card]');
       expect(overlaps(qr, content)).toBe(false);
       expect(qr.y).toBeGreaterThanOrEqual(compact.y);
+      // R8-6.3: no caption; the QR fills the panel's height (minus its small inset).
+      await expect(tv.locator('.tvp-qr-cta')).toHaveCSS('opacity', '0');
+      expect(qr.height).toBeGreaterThan(compact.height * 0.8);
+      expect(qr.y + qr.height).toBeLessThanOrEqual(compact.y + compact.height + 1);
       await shot(tv, `${name}-${s.name}`);
     }
   }

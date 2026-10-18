@@ -343,14 +343,14 @@ Last run 2026-10-12: Vitest 58/58 (43 unit, 15 integration), Playwright 8/8.
 
 | ID | Feature | Pri | Status | Source | Tests | Limitations |
 |---|---|---|---|---|---|---|
-| R8-2 | Clue text does not flicker when a clue opens | P1 | NOT STARTED |  |  |  |
-| R8-3 | Host board preview matches the TV board styling | P1 | NOT STARTED |  |  |  |
-| R8-4 | Board fill flows into the category introduction without a pause | P2 | NOT STARTED |  |  |  |
-| R8-5 | Final Jeopardy! answer text fits its fixed box | P1 | NOT STARTED |  |  |  |
-| R8-6.1 | Minimized lobby shorter, padded from the main container | P2 | NOT STARTED |  |  |  |
-| R8-6.2 | Menu-page main container under the header padding; lobby panel fits | P2 | NOT STARTED |  |  |  |
-| R8-6.3 | Minimized lobby: no "Scan to join", larger QR | P2 | NOT STARTED |  |  |  |
-| R8-6.4 | Minimized lobby page-change animation | P3 | NOT STARTED |  |  |  |
+| R8-2 | Clue text does not flicker when a clue opens | P1 | TESTED | board/ClueZoom.tsx (the stage that zooms in is `is-still`), ClueMedia QuestionCard `still`, board.css `.bt-stage.is-still` | E (round8: per-frame opacity of the clue from its first frame ≥ 0.95, no dip) | Root cause: the stage fade-in started when the zoom ended (class removal) |
+| R8-3 | Host board preview matches the TV board styling | P1 | TESTED | host/host-tv.css classic block (gaps per tile 6 %/10 %, padding, category separation, hard value shadow) | E (round8: gap/tile ratios and value shadow equal on the iPad and the TV) | Classic theme tuned; other themes keep their earlier mapping |
+| R8-4 | Board fill flows into the category introduction without a pause | P2 | TESTED | board/fx.tsx revealPlan (tiles → category row → title, keyed off the last tile), Intro.tsx | U (round8: no gap, inside the sound’s timeline, 3 lengths) | Not judged by ear on the TV (K23) |
+| R8-5 | Final Jeopardy! answer text fits its fixed box | P1 | TESTED | board/FinalScreen.tsx (FitText in the answer card), board.css .bt-final-answer-card fixed height | E (round8: long answer — card height and name position unchanged, category above the name, text fits) | — |
+| R8-6.1 | Minimized lobby shorter, padded from the main container | P2 | TESTED | board/presenter.css (--band = --mhead + --lift, --qpad), CompactLobby (no address line) | E (round7c-tv: gap ≥ 1.5 % of the height; round6-tv-layout: team panel with room code fits) | The address is only on the full lobby (the QR has it) |
+| R8-6.2 | Menu-page main container under the header padding; lobby panel fits | P2 | TESTED | presenter.css --mhead (15vh) for .tvp-band; full lobby keeps --head | E (round7c-tv: one content line on 5 menu pages × 3 sizes, above the lobby’s) | — |
+| R8-6.3 | Minimized lobby: no "Scan to join", larger QR | P2 | TESTED | presenter.css (square QR card; caption under it on the full lobby only, hidden when minimized), --cq = panel height − inset | E (round7c-tv: caption opacity 0, QR > 80 % of the panel height) | — |
+| R8-6.4 | Minimized lobby page-change animation | P3 | TESTED | board/Presenter.tsx (WAAPI `translate`/opacity on the panel and QR when one menu page replaces another) | E (round8: animations run on a menu change, end at opacity 1) | Not on the full ↔ minimized morph (that has its own) |
 | R8-7 | Shift+Enter line breaks in clues/answers on host and TV | P1 | NOT STARTED |  |  |  |
 | R8-8 | Bold / italic / underline in clues and answers | P2 | NOT STARTED |  |  |  |
 | R8-9 | Category subheading | P2 | NOT STARTED |  |  |  |

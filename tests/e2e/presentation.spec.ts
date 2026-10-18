@@ -200,6 +200,7 @@ test('team buzz-in: team name large, "Buzzed by" the nickname; shared buzzer sho
   await h.act({ type: 'selectClue', clueId: 'hist_3' });
   await expect(tv.getByTestId('clue-text')).toBeVisible();
   await h.act({ type: 'unlockBuzzers' });
+  await expect(phone.getByTestId('buzzer')).toHaveAttribute('data-state', 'open'); // wait for the phone to show it
   await phone.getByTestId('buzzer').dispatchEvent('pointerdown');
   const banner = tv.getByTestId('buzz-winner');
   await expect(banner).toHaveAttribute('data-kind', 'team');

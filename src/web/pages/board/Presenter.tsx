@@ -46,11 +46,34 @@ export function Presenter({
   const switched = useRef(false);
   if (compact !== startCompact) switched.current = true;
 
+  // R8-6.4: when one menu page replaces another, the compact panel and its QR leave and arrive
+  // with the page (the same quick slide/fade), instead of standing still. Not on the full ↔
+  // compact morph. `translate` (not `transform`) so it never fights the QR's layout animation.
+  const stageRef = useRef<HTMLDivElement>(null);
+  const shownPage = compact && presentation ? pageKey(presentation) : null;
+  const lastPage = useRef(shownPage);
+  const { reduced } = useBoard();
+  useEffect(() => {
+    const prev = lastPage.current;
+    lastPage.current = shownPage;
+    if (!prev || !shownPage || prev === shownPage) return;
+    const els = stageRef.current?.querySelectorAll<HTMLElement>('[data-testid="tv-lobby-compact"], [data-testid="tv-join-card"]') ?? [];
+    const frames: Keyframe[] = reduced
+      ? [{ opacity: 1 }, { opacity: 0, offset: 0.4 }, { opacity: 1 }]
+      : [
+          { opacity: 1, translate: '0 0' },
+          { opacity: 0, translate: '-1.5vw 0', offset: 0.35 },
+          { opacity: 0, translate: '2.5vw 0', offset: 0.45 },
+          { opacity: 1, translate: '0 0' },
+        ];
+    els.forEach((el) => el.animate(frames, { duration: T.page * 1.25 * 1000, easing: 'ease-out' }));
+  }, [shownPage, reduced]);
+
   return (
     <div className={cx('tvp', compact ? 'is-compact' : 'is-full', roomCode && 'has-code', preparing && 'no-join')} data-testid="tv-presenter">
       <NavRail page={page} />
       <Wordmark />
-      <div className="tvp-stage">
+      <div className="tvp-stage" ref={stageRef}>
         <LayoutGroup>
           <AnimatePresence>
             {compact && presentation && (
@@ -69,7 +92,7 @@ export function Presenter({
           </AnimatePresence>
           <AnimatePresence initial={false}>
             {compact ? (
-              <CompactLobby key="compact" m={model} url={joinUrl} roomCode={roomCode} />
+              <CompactLobby key="compact" m={model} roomCode={roomCode} />
             ) : (
               <LobbyFull key="full" m={model} morphIn={switched.current} url={joinUrl} roomCode={roomCode} />
             )}

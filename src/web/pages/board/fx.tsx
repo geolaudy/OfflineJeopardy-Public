@@ -22,6 +22,32 @@ export function revealTimeline(fx: TvFx, audioSec: number | null) {
 }
 
 /**
+ * R8-4: when each part of the board reveal happens, so it flows without dead time: the value tiles
+ * light up across most of the timeline, the category row lights as the last tiles finish, and the
+ * board dims under the round title as the category row finishes. `d` is one tile's fade.
+ * (Before, the tiles were done at about half the timeline, the categories waited until 80 % and the
+ * title until 90 %: a second or more with nothing moving.)
+ */
+export interface RevealPlan {
+  /** One tile's fade (s). */
+  d: number;
+  /** Start delay of every value tile (row-major). */
+  delays: number[];
+  catStart: number;
+  title: number;
+}
+export function revealPlan(fx: TvFx, total: number, cols: number, rows: number): RevealPlan {
+  const d = T.fillTile * 1.4 * SPEED_FACTOR[fx.introSpeed];
+  // checkerDelays() starts every tile within 0.72 × its spread: aim the last ones at 80 % of the
+  // timeline, then key the category row off the tile that actually starts last (the order is
+  // random), half a fade before it finishes.
+  const delays = checkerDelays(cols, rows, Math.max(0.1, (total * 0.8 - d) / 0.72));
+  const catStart = Math.max(...delays, 0) + d * 0.5;
+  const catEnd = catStart + 0.04 * Math.max(0, cols - 1) + d;
+  return { d, delays, catStart, title: Math.max(0, catEnd - d * 0.5) };
+}
+
+/**
  * Checker-pattern reveal order: the "even" squares light up first, then the "odd" ones, each wave
  * with a little jitter so it feels alive but never flashes. Returns a delay (s) per cell.
  */
@@ -38,21 +64,22 @@ export function checkerDelays(cols: number, rows: number, total: number): number
 }
 
 /** The classic board intro: blank screens light up in a checker pattern (shown before the round title). */
-export function BoardReveal({ g, total: totalSec }: { g: GameView; total?: number }) {
+export function BoardReveal({ g, total: totalSec, plan: given }: { g: GameView; total?: number; plan?: RevealPlan }) {
   const fx = useFx();
   const round = g.rounds[g.intro?.roundIndex ?? g.roundIndex];
   const cols = round?.categories.length ?? 0;
   const rows = round ? Math.max(0, ...round.categories.map((c) => c.clues.length)) : 0;
   const total = totalSec ?? revealSeconds(fx);
-  const delays = useMemo(() => checkerDelays(cols, rows, total * 0.75), [cols, rows, total]);
+  const own = useMemo(() => revealPlan(fx, total, cols, rows), [fx, total, cols, rows]);
+  const plan = given ?? own;
   if (!round) return null;
-  const cell = (delay: number): CSSProperties => ({ animationDelay: `${delay.toFixed(3)}s`, '--bt-reveal-dur': `${(T.fillTile * 1.4 * SPEED_FACTOR[fx.introSpeed]).toFixed(3)}s` }) as CSSProperties;
+  const cell = (delay: number): CSSProperties => ({ animationDelay: `${delay.toFixed(3)}s`, '--bt-reveal-dur': `${plan.d.toFixed(3)}s` }) as CSSProperties;
   return (
     <div className="bt-grid bt-reveal-grid" data-testid="tv-board-reveal" aria-hidden style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gridTemplateRows: `1.3fr repeat(${rows}, minmax(0, 1fr))` }}>
       {round.categories.map((c, ci) => (
-        <div key={c.id} className="bt-cell bt-cat bt-reveal" style={cell(total * 0.8 + ci * 0.04)} />
+        <div key={c.id} className="bt-cell bt-cat bt-reveal" style={cell(plan.catStart + ci * 0.04)} />
       ))}
-      {Array.from({ length: rows }).map((_, r) => round.categories.map((c, ci) => <div key={`${c.id}-${r}`} className="bt-cell bt-tile bt-reveal" style={cell(delays[r * cols + ci])} />))}
+      {Array.from({ length: rows }).map((_, r) => round.categories.map((c, ci) => <div key={`${c.id}-${r}`} className="bt-cell bt-tile bt-reveal" style={cell(plan.delays[r * cols + ci] ?? 0)} />))}
     </div>
   );
 }

@@ -160,6 +160,7 @@ test('full game: iPad host pairing, phone profiles + buzzing, private answers, l
   // Incorrect answer → negative score; then undo
   await ipad.getByRole('button', { name: 'Geography for 400' }).click();
   await ipad.getByTestId('unlock').click();
+  await expect(iphone.getByTestId('buzzer')).toHaveAttribute('data-state', 'open'); // wait for the phone to show it
   await iphone.getByTestId('buzzer').dispatchEvent('pointerdown');
   await expect(ipad.getByTestId('host-winner')).toHaveText('Alex');
   await ipad.getByTestId('incorrect').click();

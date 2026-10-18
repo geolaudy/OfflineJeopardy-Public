@@ -14,15 +14,20 @@
   --bt-text-shadow: none;
   --bt-value-shadow: none;
 }
+/* R8-3: the classic board as the TV shows it (R7-5): columns 6 % of a tile's width apart, rows
+   10 % of a tile's height, black gutters, the category row a little further away, and the same
+   hard shadows (in em, so they already scale). In this 16:9 box that is 0.95 % of the width and
+   about 1.5 % of the height (6 rows: h = H / 6.78). */
 .host-tv.board-theme[data-theme="classic"] {
-  --bt-gap: 0.6cqh;
-  --bt-pad: 0.6cqh;
-  --bt-cat-sep: 0.9cqh;
-  --bt-text-shadow: 0.35cqh 0.35cqh 0 #000, 0 0 1cqh rgba(0, 0, 0, 0.35);
-  --bt-value-shadow: 3.2cqh 3.2cqh 0 #000, 1.4cqh 1.4cqh 5cqh rgba(0, 0, 0, 0.6);
+  --bt-col-gap: 0.95cqw;
+  --bt-row-gap: 1.49cqh;
+  --bt-pad: 1.49cqh 0.95cqw;
+  --bt-cat-sep: 1.03cqh;
+  --bt-text-shadow: 0.34cqh 0.34cqh 0 #000, 0 0 0.9cqh rgba(0, 0, 0, 0.35);
+  --bt-value-shadow: var(--bt-hard-shadow);
 }
 .host-tv .bt-cat {
-  padding: 1cqh 0.7cqw;
+  padding: 0.9cqh 0.7cqw;
 }
 .host-tv .host-tile {
   border: 0;

@@ -1,19 +1,19 @@
-// Compact lobby panel (R2-9, R6-8): ONE panel in the top-right corner beside any presented page so
-// joining stays possible — the join QR (the same element as on the full lobby, owned by Presenter,
-// sitting in this panel's right-hand corner), the player count, who is here, the board, buzzer
-// readiness, the address and the room code. Presented pages leave this corner free.
+// Compact lobby panel (R2-9, R6-8, R8-6): ONE panel in the top-right corner beside any presented
+// page so joining stays possible — the join QR (the same element as on the full lobby, owned by
+// Presenter, filling this panel's right-hand side), the player count, who is here, the board,
+// buzzer readiness and a required room code. Presented pages leave this corner free.
 import { useRef, type CSSProperties } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { cx } from '../../components/ui';
 import { boardName, type LobbyModel } from './lobbyModel';
-import { Fade, JoinAddress, SharedAvatar } from './presentKit';
+import { Fade, SharedAvatar } from './presentKit';
 import { useBoard, vhPx } from './common';
 import { EASE_OUT_ARR, T } from './timing';
 
 export const COMPACT_AVATARS = 6;
 const COMPACT_TEAMS = 4;
 
-export function CompactLobby({ m, url, roomCode }: { m: LobbyModel; url: string | null; roomCode: string | null }) {
+export function CompactLobby({ m, roomCode }: { m: LobbyModel; roomCode: string | null }) {
   const ctx = useBoard();
   const known = useRef<Set<string> | null>(null);
   if (!known.current) known.current = new Set(m.people.map((p) => p.key));
@@ -112,12 +112,8 @@ export function CompactLobby({ m, url, roomCode }: { m: LobbyModel; url: string 
             )}
           </Fade>
         )}
-        {/* With a room code the address is left out: the QR has it, the code matters more. */}
-        {!m.preparing && !roomCode && (
-          <Fade className="tvp-compact-addr" delay={0.05}>
-            <JoinAddress url={url} roomCode={null} />
-          </Fade>
-        )}
+        {/* R8-6.1: no address line here (the QR has it, the full lobby shows it); a required room
+            code is in the count row. */}
       </div>
     </div>
   );

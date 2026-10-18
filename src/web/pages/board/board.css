@@ -378,8 +378,9 @@
 .bt-stage {
   animation: bt-fadein var(--bt-fade, 0.35s) ease-out both;
 }
-/* R7-13: the clue is readable on the tile while it zooms to full screen. */
-.is-zooming .bt-stage {
+/* R7-13 / R8-2: the stage that zooms in with its tile is on screen from the first frame and never
+   fades in afterwards (a fade starting when the zoom ended made the clue text flicker). */
+.bt-stage.is-still {
   animation: none;
 }
 
@@ -864,9 +865,11 @@
   background: var(--pc, #64748b);
   box-shadow: 0 0.6vh 2vh rgba(0, 0, 0, 0.45);
 }
+/* R8-5: a fixed height — a long answer shrinks inside it (FitText) instead of growing the card and
+   pushing the name and "Before Final Jeopardy!" over the category above. */
 .bt-final-answer-card {
   display: flex;
-  min-height: 22vh;
+  height: 22vh;
   align-items: center;
   justify-content: center;
   padding: 3vh 3vw;
@@ -876,9 +879,7 @@
   perspective: 120vh;
 }
 .bt-final-answer-text {
-  font-size: min(8vh, 5vw);
   line-height: 1.15;
-  overflow-wrap: anywhere;
 }
 .bt-final-answer-hidden {
   font-family: var(--b-font);

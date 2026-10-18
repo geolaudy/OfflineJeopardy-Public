@@ -133,10 +133,11 @@ function Spotlight({ g }: { g: GameView }) {
                 initial={{ rotateX: -90, opacity: 0 }}
                 animate={{ rotateX: 0, opacity: 1 }}
                 transition={{ duration: T.reveal, ease: EASE_OUT_ARR }}
-                className="bt-question bt-final-answer-text"
+                className="flex h-full w-full"
                 data-testid={tid('tv-final-answer')}
               >
-                {e.answer?.trim() ? e.answer : 'No answer'}
+                {/* R8-5: the card keeps its size; a long answer shrinks to fit it. */}
+                <FitText text={e.answer?.trim() ? e.answer : 'No answer'} max={8} min={2.6} className="bt-question bt-final-answer-text" boxClassName="h-full" />
               </motion.div>
             ) : (
               <motion.div key="hidden" exit={{ rotateX: 90, opacity: 0 }} transition={{ duration: T.reveal / 2 }} className="bt-final-answer-hidden" aria-hidden>

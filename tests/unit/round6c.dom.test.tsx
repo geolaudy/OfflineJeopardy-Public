@@ -98,16 +98,15 @@ describe('active lobby on the TV (R6-10, R6-11)', () => {
 });
 
 describe('compact corner panel (R6-8)', () => {
-  it('count, board and buzzer readiness, the address; a required room code replaces the address', () => {
-    const { unmount } = render(<CompactLobby m={model()} url="http://10.0.0.2:3210/join" roomCode={null} />, { wrapper: Wrap });
+  it('count, board and buzzer readiness, a required room code — no address line (R8-6.1: the QR has it)', () => {
+    const { unmount } = render(<CompactLobby m={model()} roomCode={null} />, { wrapper: Wrap });
     const panel = screen.getByTestId('tv-lobby-compact');
     expect(panel.textContent).toContain('players joined');
     expect(panel.textContent).toContain('Starter Trivia Night');
     expect(panel.textContent).toContain('1 of 2 ready');
-    expect(panel.textContent).toContain('http://10.0.0.2:3210/join');
+    expect(panel.textContent).not.toContain('/join');
     unmount();
-    render(<CompactLobby m={model()} url="http://10.0.0.2:3210/join" roomCode="QXZW" />, { wrapper: Wrap });
+    render(<CompactLobby m={model()} roomCode="QXZW" />, { wrapper: Wrap });
     expect(screen.getByTestId('tv-room-code').textContent).toContain('QXZW');
-    expect(screen.getByTestId('tv-lobby-compact').textContent).not.toContain('http://10.0.0.2:3210/join');
   });
 });

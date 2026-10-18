@@ -11,7 +11,7 @@ import type { GameView } from '../../../shared/views';
 import { cx } from '../../components/ui';
 import { FitText, useBoard } from './common';
 import { EASE_OUT_ARR, T } from './timing';
-import { BoardReveal, revealTimeline, useFx } from './fx';
+import { BoardReveal, revealPlan, revealTimeline, useFx } from './fx';
 
 export function Intro({ g }: { g: GameView }) {
   const { reduced } = useBoard();
@@ -26,6 +26,10 @@ export function Intro({ g }: { g: GameView }) {
   // board fill and its sound play — together, from one timeline (R4-19).
   const [fresh] = useState(() => step < 0 && (intro.at == null || serverNow() - intro.at < 2500));
   const [total] = useState(() => revealTimeline(fx, cueDuration('boardIntro')));
+  // R8-4: one plan for the tiles, the category row and the title (the board dims and the title
+  // comes in as the category row finishes lighting).
+  const [plan] = useState(() => revealPlan(fx, total, n, Math.max(0, ...round.categories.map((c) => c.clues.length))));
+  const titleAt = plan.title;
   useEffect(() => {
     if (fresh) playCue('boardIntro');
   }, [fresh]);
@@ -67,15 +71,15 @@ export function Intro({ g }: { g: GameView }) {
             // Classic board intro (R2-23): the blank screens light up in a checker pattern, then the
             // board dims and the round title appears over it.
             <>
-              <motion.div className="absolute inset-0" style={{ willChange: 'opacity' }} animate={{ opacity: 0.22 }} transition={{ delay: total, duration: T.fade * 1.5 }}>
-                <BoardReveal g={g} total={total} />
+              <motion.div className="absolute inset-0" style={{ willChange: 'opacity' }} animate={{ opacity: 0.22 }} transition={{ delay: titleAt, duration: T.fade * 1.5 }}>
+                <BoardReveal g={g} total={total} plan={plan} />
               </motion.div>
               <motion.div
                 className="bt-intro-card"
                 style={{ willChange: 'transform, opacity' }}
                 initial={{ opacity: 0, transform: `scale(${reduced ? 1 : 0.94})` }}
                 animate={{ opacity: 1, transform: 'scale(1)' }}
-                transition={{ delay: total * 0.9, duration: T.fade * 1.4, ease: EASE_OUT_ARR }}
+                transition={{ delay: titleAt, duration: T.fade * 1.4, ease: EASE_OUT_ARR }}
               >
                 <FitText text={round.name} max={16} min={6} className="bt-round-title" boxClassName="max-h-[40vh] flex-1 min-h-0" />
                 <div className="bt-rule" aria-hidden />

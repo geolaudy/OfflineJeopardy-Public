@@ -81,12 +81,14 @@ test('play-test: a full evening on an iPad in portrait, a 4:3 TV and three phone
   // Clue 1: Ivy is wrong, the buzzers re-open by themselves, Jon gets it.
   await ipad.getByRole('button', { name: 'History for 200' }).click();
   await ipad.getByTestId('unlock').click();
+  await expect(pi.getByTestId('buzzer')).toHaveAttribute('data-state', 'open'); // wait for the phone to show it
   await pi.getByTestId('buzzer').dispatchEvent('pointerdown');
   await expect(ipad.getByTestId('host-winner')).toHaveText('Ivy Play');
   await shot(ipad, 'ipad-portrait-buzzed');
   await ipad.getByTestId('incorrect').click();
   await expect(ipad.getByTestId('buzzers-open')).toBeVisible();
   await expect(pi.getByTestId('buzzer')).not.toHaveAttribute('data-state', 'open'); // Ivy already tried
+  await expect(pj.getByTestId('buzzer')).toHaveAttribute('data-state', 'open'); // wait for the phone to show it
   await pj.getByTestId('buzzer').dispatchEvent('pointerdown');
   await ipad.getByTestId('correct').click();
   await expect(tv.getByTestId('clue-answer')).toBeVisible();
@@ -95,6 +97,7 @@ test('play-test: a full evening on an iPad in portrait, a 4:3 TV and three phone
   // Clue 2: Kai answers right.
   await ipad.getByRole('button', { name: 'Geography for 400' }).click();
   await ipad.getByTestId('unlock').click();
+  await expect(pk.getByTestId('buzzer')).toHaveAttribute('data-state', 'open'); // wait for the phone to show it
   await pk.getByTestId('buzzer').dispatchEvent('pointerdown');
   await ipad.getByTestId('correct').click();
   await ipad.getByTestId('back-to-board').click();

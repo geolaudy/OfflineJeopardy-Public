@@ -62,23 +62,29 @@
   --gap-y: 2vh;
   /* Panel padding (one value for every panel). */
   --sp: min(2.4vh, 1.5vw);
-  /* R7-2: heading height on every page (the lobby's kicker + title + board line). */
+  /* R7-2: the full lobby's heading height (kicker + title + board line). */
   --head: 17.2vh;
-  /* R7-2: the compact panel starts this far above the stage (2vh from the screen's top). */
-  --lift: calc(var(--top) - 2vh);
-  /* Join QR height = width x k (QR tile + "Scan to join"; fixed proportions, laid out in cqw). */
+  /* R8-6.2: menu pages' heading height (kicker + title + one line): their content panel starts
+     right under it, at the same height on every menu page. */
+  --mhead: 15vh;
+  /* R8-6.1: the compact panel starts this far above the stage (1.2vh from the screen's top, in the
+     wordmark's corner) and ends one --gap-y above the menu pages' content panel. */
+  --lift: calc(var(--top) - 1.2vh);
+  /* The join QR card is square (QR tile laid out in cqw); on the full lobby "Scan to join" sits
+     under it, which the right-hand panel leaves room for (--qr-k). */
   --qr-k: 1.13;
   --stage-h: calc(100vh - var(--top) - var(--pad-b));
   /* R5-3.2: the join QR on the full lobby. */
   --qr-full: min(calc(var(--stage-h) * 0.36 / var(--qr-k)), 13.8vw);
   /* Full lobby: the right-hand panel (join steps beside the QR, rules below). */
   --side: max(28vw, calc(var(--qr-full) * 2 + 2 * var(--sp)));
-  /* Compact lobby (R6-8): QR width, info column, panel width and height. The height is the band
-     that presented pages keep their heading in. */
-  --cq: min(18vh, calc((var(--head) + var(--gap-y) + var(--lift) - 2 * var(--sp)) / var(--qr-k)));
+  /* Compact lobby (R6-8, R8-6): panel height, the QR (as tall as the panel allows, inset by
+     --qpad), info column and panel width. */
+  --band: calc(var(--mhead) + var(--lift));
+  --qpad: 1.2vh;
+  --cq: calc(var(--band) - 2 * var(--qpad));
   --cinfo: max(16vw, 28vh);
-  --cw: calc(var(--cq) + var(--cinfo) + 3 * var(--sp));
-  --band: calc(var(--cq) * var(--qr-k) + 2 * var(--sp));
+  --cw: calc(2 * var(--sp) + var(--cinfo) + var(--cq) + var(--qpad));
   position: relative;
   flex: 1;
   min-height: 0;
@@ -87,7 +93,6 @@
 .tvp.no-join {
   --cq: 0px;
   --cw: calc(var(--cinfo) + 2 * var(--sp));
-  --band: 18vh;
 }
 .tvp-stage {
   position: absolute;
@@ -208,12 +213,13 @@
   right: var(--sp);
   z-index: 3;
   width: var(--qr-w);
-  height: calc(var(--qr-w) * var(--qr-k));
+  height: var(--qr-w);
   container-type: inline-size;
 }
 .tvp.is-compact .tvp-qr {
   --qr-w: var(--cq);
-  top: calc(var(--sp) - var(--lift));
+  top: calc(var(--qpad) - var(--lift));
+  right: var(--qpad);
 }
 /* Everything inside is in cqw (card width), so both sizes are exact scaled copies. */
 .tvp-qr-in {
@@ -233,13 +239,24 @@
   background: #ffffff;
   box-shadow: 0 0 0 0.6cqw color-mix(in srgb, var(--b-fg, #ffffff) 12%, transparent);
 }
+/* Under the square card on the full lobby only (R8-6.3: the minimized QR has no caption, so the
+   code can be as large as the panel). */
 .tvp-qr-cta {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  transition: opacity 0.2s;
   margin-top: 3cqw;
   font-size: 9cqw;
   font-weight: 800;
   line-height: 1.1;
   letter-spacing: -0.01em;
   white-space: nowrap;
+}
+
+.tvp.is-compact .tvp-qr-cta {
+  opacity: 0;
 }
 
 /* Join address and room code (panel text). */
@@ -325,7 +342,7 @@
 .tvp-band {
   display: flex;
   min-width: 0;
-  min-height: var(--head);
+  min-height: var(--mhead);
   flex: none;
   align-items: flex-start;
   gap: 2vw;
@@ -779,7 +796,7 @@
   justify-content: space-between;
   gap: 0.6vh;
   /* The QR takes the right-hand corner. No clipping: avatars fly in from the full lobby. */
-  padding: var(--sp) calc(2 * var(--sp) + var(--cq)) var(--sp) var(--sp);
+  padding: 1.5vh calc(var(--sp) + var(--cq) + var(--qpad)) 1.5vh var(--sp);
 }
 .tvp.no-join .tvp-compact-inner {
   justify-content: flex-start;

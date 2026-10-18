@@ -46,8 +46,12 @@ export function CluePanel({ g, closing, zoomIn, onClosed }: { g: GameView; closi
   const openAnim = useRef<Animation | null>(null);
   // A zooming clue shows its content from the first frame (R7-13); fades start hidden.
   const [expanded, setExpanded] = useState(() => zoomIn && !reduced);
-  // While the tile grows its content is shown as it is (no fade-in of its own).
-  const [zooming, setZooming] = useState(() => zoomIn && !reduced);
+  // R8-2: the stage that zoomed in with the tile is already on screen, so it never runs the
+  // stage fade-in. (Removing a "zooming" class when the zoom ended used to start that fade then:
+  // the clue text blinked out and faded back in — the flicker.) A later stage (Daily Double!
+  // wager → question) still fades in.
+  const stageKey = clue.isDailyWager && clue.stage === 'wager' ? 'wager' : 'question';
+  const [stillStage] = useState(() => (zoomIn && !reduced ? stageKey : null));
   const onClosedRef = useRef(onClosed);
   onClosedRef.current = onClosed;
 
@@ -68,7 +72,6 @@ export function CluePanel({ g, closing, zoomIn, onClosed }: { g: GameView; closi
       setExpanded(true);
       const from = tileTransform(panel, clue.clueId) ?? centreTransform(panel);
       a = panel.animate([{ transform: from }, { transform: 'none' }], { duration: T.zoom * 1000, easing: EASE_OUT });
-      a.onfinish = () => setZooming(false);
     }
     openAnim.current = a;
     return () => a.cancel();
@@ -113,8 +116,8 @@ export function CluePanel({ g, closing, zoomIn, onClosed }: { g: GameView; closi
 
   return (
     <div ref={panelRef} className="bt-panel" style={{ '--bt-fade': `${T.fade}s` } as CSSProperties} aria-live="polite" data-testid="tv-clue-panel">
-      <div ref={contentRef} className={cx('bt-content', expanded && 'is-in', zooming && 'is-zooming')}>
-        {clue.isDailyWager && clue.stage === 'wager' ? <DailyWagerCard key="wager" g={g} /> : <QuestionCard key="question" g={g} />}
+      <div ref={contentRef} className={cx('bt-content', expanded && 'is-in')}>
+        {stageKey === 'wager' ? <DailyWagerCard key="wager" g={g} still={stillStage === 'wager'} /> : <QuestionCard key="question" g={g} still={stillStage === 'question'} />}
         <UnlockIndicator open={g.buzzer.status === 'open' && !closing} />
         <BuzzWinner g={g} />
         <TimerBar timer={g.timer} />
@@ -123,11 +126,11 @@ export function CluePanel({ g, closing, zoomIn, onClosed }: { g: GameView; closi
   );
 }
 
-function DailyWagerCard({ g }: { g: GameView }) {
+function DailyWagerCard({ g, still }: { g: GameView; still?: boolean }) {
   const clue = g.clue!;
   const controller = findCompetitor(g, g.controlCompetitorId);
   return (
-    <div className="bt-stage flex min-h-0 flex-1 flex-col items-center justify-center gap-[3.5vh] px-[6vw] pb-[8vh] text-center">
+    <div className={cx('bt-stage flex min-h-0 flex-1 flex-col items-center justify-center gap-[3.5vh] px-[6vw] pb-[8vh] text-center', still && 'is-still')} data-testid="tv-stage">
       <p className="bt-dw-title">DAILY DOUBLE!</p>
       <p className="bt-dw-cat">{clue.categoryName}</p>
       {controller && (

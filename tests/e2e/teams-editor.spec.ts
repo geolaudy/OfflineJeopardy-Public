@@ -132,6 +132,7 @@ test('import + edit a board, then a mixed-mode team game through the Final', asy
   await expect(taylorPhone.getByTestId('buzz-status')).toHaveText('Your team uses a shared buzzer');
   await ipad.getByRole('button', { name: 'Food for 400' }).click();
   await ipad.getByTestId('unlock').click();
+  await expect(alexPhone.getByTestId('buzzer')).toHaveAttribute('data-state', 'open'); // wait for the phone to show it
   await alexPhone.getByTestId('buzzer').dispatchEvent('pointerdown');
   await expect(ipad.getByTestId('host-winner')).toHaveText('Wizards');
   await expect(ipad.getByRole('radio', { name: 'TAlex' })).toBeChecked(); // identified buzzer

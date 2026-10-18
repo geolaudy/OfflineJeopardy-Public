@@ -1,5 +1,13 @@
 # Progress
 
+## Session 12 — 2026-10-18 (second machine, mvanwitz; round 8)
+
+- Round-8 requirements recorded (USER_FEEDBACK "Round 8", plan milestone 22, FEATURE_MATRIX). Milestone E (developer tools) verified: full Playwright **49/49**.
+- **Milestone A:** R8-2 clue flicker — root cause: the clue stage's CSS fade-in was suppressed only while the tile zoomed; removing the `is-zooming` class at the end of the zoom started the fade, so the text blinked out and faded back in. The stage that zoomed in is now `is-still` for good (a later Daily Double! stage still fades in). R8-3 — the iPad replica's classic tokens predated R7-5 (old gap, no column/row gaps, big offset+blur value shadow); now the TV's proportions per tile and its hard shadow. R8-4 — `revealPlan`: the category row lights as the last tile finishes and the title follows it (no dead time). R8-5 — Final answer card has a fixed height; the answer shrinks to fit (FitText).
+- **Milestone B (minimized lobby, R8-6.1–6.4):** menu headings 15vh (`--mhead`) with content right under them; the minimized panel ends a gap above the content; square QR filling the panel without its caption; the panel and QR slide/fade with menu page changes.
+- Test-race fix found on the way: e2e specs pressed a phone's buzzer before the phone showed the buzzers open (the press was ignored) — the "intermittent" team buzz-in failure. Six presses now wait for `data-state="open"`.
+- Tests: tsc clean, Vitest 304/304; Playwright: round8 (3), round7c-tv, round6-tv-layout, presentation, host-ipad, teams-editor, playtest, game, round7d-host, round7-tv, lobby-stats, round5-lobby passing.
+
 ## Session 11 — 2026-10-18 (second machine, mvanwitz; round 7 milestone D finished)
 
 - Resumed from SESSION_HANDOFF (nothing new on origin). **R7-21 / R7-25 / R7-20:** `host/GameFrame.tsx` — every live state (board, introduction, clue) has a fixed header line, one 16:9 preview and a reserved control bar, so the preview keeps the same size and position (D75). The clue preview is now the TV page itself (iframe), with the answer band over its top and the Daily Double! wager (plus the clue text for the host), the bot's answer and media controls in a compact panel inside it. The old host-only clue card is gone. The TV preview stays black until ready (no "Loading…" flash). Found while testing: the bar must not clip the clue's More menu (fixed).

@@ -180,6 +180,7 @@ test('board replica and the clue footer flow on the iPad (R5-13, R5-14)', async 
   await unlock.click();
   await expect(ipad.getByTestId('buzzers-open')).toBeVisible();
   await expect(ipad.getByTestId('host-timer')).toContainText('s');
+  await expect(phone.getByTestId('buzzer')).toHaveAttribute('data-state', 'open'); // wait for the phone to show it
   await phone.getByTestId('buzzer').dispatchEvent('pointerdown');
   await expect(ipad.getByTestId('host-winner')).toHaveText('Wizards');
   await expect(ipad.getByTestId('host-winner-member')).toHaveText('— Wiz Alex');
