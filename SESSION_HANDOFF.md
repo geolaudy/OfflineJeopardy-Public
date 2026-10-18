@@ -8,6 +8,8 @@ Read this first, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "U
 - **Round 7 (IMPLEMENTATION_PLAN milestone 21):** A, B, G (R7-32 research) and **C done** and tested. **D in progress: R7-22, R7-24, R7-27 tested; R7-18, R7-23, R7-26 implemented (visual); R7-20, R7-21, R7-25 open.** Not started: E (developer tools), F (AI/import).
 - **Tests (end of session 10):** tsc clean, Vitest 297/297, Playwright 47/47 in the last full run (`presentation.spec` "team buzz-in" failed once in an earlier full run and passed on every re-run — intermittent under load).
 
+- **Local build (end of session 10, second machine, commit e4d27b6):** `npm run release:local` passed (tsc, Vitest, packaging, verify-dist **17/17**). Artifacts on the mvanwitz machine (not uploaded; they contain the owner's personal sounds): `release/OfflineJeopardy-Setup-0.11.0.exe`, `release/OfflineJeopardy-Portable-0.11.0.exe`, `release/win-unpacked/`. They are labelled 0.11.0 but contain round 7 A–C and part of D (no version bump until the v0.12.0 release).
+
 ### Single recommended next task
 
 **Finish milestone D: R7-21 + R7-25 + R7-20 (the iPad game preview — one fixed size/aspect/position in every state, controls and the bot's answer in compact overlays/reserved bars, the same board/clue theme tokens and proportions as the TV; see `host/TvMirror.tsx` `TvPreview`/`FitBox`, `host/host-tv.css`, `board/board.css`).** After D is tested: release **v0.12.0** (windows-release skill).
