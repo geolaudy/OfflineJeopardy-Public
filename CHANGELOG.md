@@ -4,6 +4,37 @@ All notable changes to OfflineJeopardy. Versions follow [semantic versioning](ht
 GitHub Releases (with the Windows installer and portable exe) are published for major milestones;
 their notes come from the matching section below (`scripts/release-notes.mjs`).
 
+## [0.12.0] — 2026-10-18
+
+### New Features
+- **New score editor on the iPad**: tap a score to edit it directly, step it up or down by the round's smallest clue value, and see the change in green or red before you press Save. "Latest score changes" lists recent changes for that player or team; take one back with one tap (it can be undone). Remove Player asks first.
+- **The iPad shows the real TV picture**: the board, the category introduction and the clue now sit in one preview of the same size and place, so nothing jumps around. The open clue is shown exactly as the TV shows it (same fonts, sizes and pictures), with the correct response in a red striped band across the top — only you see it. The Daily Double! wager, a computer player's answer and media controls appear in a small panel inside the preview.
+- **TV lobby shows each phone's connection**: "Phone • 25 ms", "Joy-Con (L) • Bluetooth" or "Phone • not connected", updated calmly so the numbers don't flicker.
+- **Board-control star**: a gold star on the score card of the player who picks next. A setting chooses whether a player's colour shows as the picture's border, the name, or both.
+- **Joy-Cons through an Apple TV with Steam Link** (research): every button of an Xbox-style controller can be chosen as the buzzer and menu buttons never buzz; the in-app help explains this route and its limits.
+
+### Improvements
+- The board, categories, values and shadows are measured from the classic show's board, and the clue text now stays visible while the clue zooms in (a little slower).
+- Clues sit in the middle of the TV and no longer move when the answer is revealed; Final Jeopardy! is centred too.
+- TV menu pages put their title at the same height as the lobby's and use the full width; the small lobby panel moved into the top-right corner.
+- Long names are never cut off on the TV. A nickname shows the real name underneath in smaller grey letters — on the TV, the iPad and phones.
+- Final Jeopardy! reveals show only the wager, with a clear check or X, and every judgment plays its sound once (computer players and $0 wagers too).
+- Manual score changes are silent on the TV (no sound, no animation).
+- iPad Safari and Home-Screen mode: nothing is cut off or pushed off screen; every sub-page has a way back. The phone buzzer keeps the same size in every state.
+- The board editor has proper margins, and boards written by AI no longer get "(AI)" in their title (the AI-generated tag still marks them).
+
+### Bug Fixes
+- Undo now fully reverses a refunded early-buzz penalty or a change of who answered.
+- A number typed quickly into Settings (e.g. leaderboard minimums) is no longer lost when the previous change is saved.
+- Short names on the iPad lobby no longer break in the middle of a word.
+
+### Known Issues
+- The iPad layouts, the connection numbers on the lobby and the new buzzer behaviour were tested in browser emulation, not yet on a real iPad, real phones or your Wi-Fi.
+- When a clue opens, the TV picture on the iPad takes a moment to appear.
+- Final Jeopardy! on the iPad keeps its own layout.
+- Remove Player in the score editor works only before a player has points in the game.
+- Joy-Cons through Apple TV + Steam Link are a research result — not tested with that hardware.
+
 ## [0.11.0] — 2026-10-17
 
 ### New Features
