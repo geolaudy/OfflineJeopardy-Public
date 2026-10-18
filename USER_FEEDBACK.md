@@ -295,3 +295,25 @@ Statuses: FEATURE_MATRIX.md → "User feedback round 7".
 | R7-30.5 | AI clue from a prompt in the editor (clue + answer, editable, no silent overwrite) | F |
 | R7-31 | Developer tools (not in normal releases): buzzer fairness test with known offsets, latency, sync/perf diagnostics, exportable JSON report without secrets | E |
 | R7-32 | Research Joy-Cons through Apple TV + Steam Link (separate controllers? buttons?); implement what is feasible, document limits and alternatives | G |
+
+# User Feedback — Round 8 (received 2026-10-18, session 12, reviewing v0.12.0)
+
+Rollback point: tag **v0.12.0** (published, 3 assets). IDs follow the request's sections. Also continue the
+unfinished round-7 milestone F (R7-30.x). Statuses: FEATURE_MATRIX.md → "User feedback round 8".
+Session rules for this round: commit + push after every stable sub-task; at every handoff update
+SESSION_HANDOFF.md, PROGRESS.md and the two prompt files CONTINUE_PROMPT_SAME_COMPUTER.txt /
+CONTINUE_PROMPT_OTHER_COMPUTER.txt (branch, latest commit, exact next task, open issues).
+
+| ID | Requirement (summary) | Milestone |
+|---|---|---|
+| R8-2 | Clue text must not flicker when a clue opens: find and fix the root cause (re-renders, font loading, transitions, state updates, layout); keep the reveal animation and timing | A |
+| R8-3 | Host controller board preview matches the TV board's current styling (colours, borders, fonts, spacing, tiles); same aspect and layout; TV unchanged | A |
+| R8-4 | Opening board fill: no dead pause at the end; the hand-off into the category reveal / introduction is continuous; sounds and timing intent kept | A |
+| R8-5 | Final Jeopardy! answer text sized to fit its fixed box (shrinks, stays readable); never pushes the player name or "before Final Jeopardy!" over the category | A |
+| R8-6.1 | Minimized lobby: shorter, with padding between it and the menu page's main container | B |
+| R8-6.2 | Menu pages (not the lobby): main container rises to the padding under the page header; the minimized lobby fits that height on every page | B |
+| R8-6.3 | Minimized lobby: no "Scan to join" text; the QR grows as large as the card allows (quiet zone kept, scannable) | B |
+| R8-6.4 | Minimized lobby gets the same quick swipe/fade page-change animation as the other page elements | B |
+| R8-7 | Shift+Enter line breaks in clues and answers kept and shown on host and TV (board editor and gameplay) | C |
+| R8-8 | Bold / italic / underline in clues and answers (board editor), rendered on host and TV; sizing and readability kept | C |
+| R8-9 | Category subheading (smaller second line under the category name): editable in the board editor, shown on the TV board and the host; long names handled | C |

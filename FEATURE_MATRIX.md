@@ -338,3 +338,19 @@ Last run 2026-10-12: Vitest 58/58 (43 unit, 15 integration), Playwright 8/8.
 | R7-30.5 | AI clue from a prompt in the editor | P3 | NOT STARTED |  |  |  |
 | R7-31 | Developer tools + diagnostic export | P3 | TESTED | server/devTools.ts (routes only with --dev-tools / unpackaged app / OJ_DEV_TOOLS=1; host only), server/fairnessSim.ts (simulation shared with the R6-24 tests; runFairnessTest), hub.diagnostics (numbered connections, clock sync), desk/DevTools.tsx (/host/dev, linked from Settings → Advanced only when on) | I (devtools: absent by default, host only, no secrets/names/addresses in the report, deterministic fairness test, refused during a clue), U (buzzFairness.sim via the shared module), E (devtools.spec: diagnostics, test, JSON export) | Event-loop numbers on Windows include the ~15 ms timer granularity; the simulation runs on the server thread (refused while a clue / Final is played) |
 | R7-32 | Joy-Cons via Apple TV + Steam Link: research (partially feasible) + every gamepad button selectable (shoulders/triggers), menu buttons never buzz, "Controller N (Xbox-compatible)" labels, analog triggers from half-way, Apple TV/Steam Link help | P3 | TESTED | docs/JOYCON_APPLETV_STEAMLINK.md, components/ControllersPanel.tsx, shared/protocol NON_BUZZ_BUTTONS, lib/inputBridge pollPads | U (round7, round7.labels.dom) | Not tested with Apple TV/Steam Link hardware (K39); per-controller split of a combined pair not built (proposal P5) |
+
+## User feedback round 8 (2026-10-18) — see USER_FEEDBACK.md "Round 8"
+
+| ID | Feature | Pri | Status | Source | Tests | Limitations |
+|---|---|---|---|---|---|---|
+| R8-2 | Clue text does not flicker when a clue opens | P1 | NOT STARTED |  |  |  |
+| R8-3 | Host board preview matches the TV board styling | P1 | NOT STARTED |  |  |  |
+| R8-4 | Board fill flows into the category introduction without a pause | P2 | NOT STARTED |  |  |  |
+| R8-5 | Final Jeopardy! answer text fits its fixed box | P1 | NOT STARTED |  |  |  |
+| R8-6.1 | Minimized lobby shorter, padded from the main container | P2 | NOT STARTED |  |  |  |
+| R8-6.2 | Menu-page main container under the header padding; lobby panel fits | P2 | NOT STARTED |  |  |  |
+| R8-6.3 | Minimized lobby: no "Scan to join", larger QR | P2 | NOT STARTED |  |  |  |
+| R8-6.4 | Minimized lobby page-change animation | P3 | NOT STARTED |  |  |  |
+| R8-7 | Shift+Enter line breaks in clues/answers on host and TV | P1 | NOT STARTED |  |  |  |
+| R8-8 | Bold / italic / underline in clues and answers | P2 | NOT STARTED |  |  |  |
+| R8-9 | Category subheading | P2 | NOT STARTED |  |  |  |
