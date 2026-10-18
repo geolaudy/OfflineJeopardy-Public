@@ -2,17 +2,18 @@
 
 Read this first, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 8". Ready-to-paste resume prompts: `CONTINUE_PROMPT_SAME_COMPUTER.txt` / `CONTINUE_PROMPT_OTHER_COMPUTER.txt`.
 
-## Current state (session 12, 2026-10-18 — round 8 milestones A, B, C committed and pushed)
+## Current state (session 12, 2026-10-18 — round 8 A–C and round 7 F done; v0.13.0 not yet released)
 
-- **Branch:** `main`, pushed to `origin/main` (https://github.com/geolaudy/OfflineJeopardy). Version **0.12.0** (released, tag v0.12.0, 3 assets). Everything after it is in `main` only: round 7 milestone E (developer tools) and round 8 A–C.
-- **Round 8 (IMPLEMENTATION_PLAN milestone 22, USER_FEEDBACK "Round 8"):** A (R8-2 clue flicker, R8-3 iPad board styling, R8-4 board fill → intro, R8-5 Final answer sizing), B (R8-6.1–6.4 minimized lobby) and C (R8-7 line breaks, R8-8 bold/italic/underline, R8-9 category subheadings) **done and tested**.
-- **Round 7:** A–E and G done. **F (R7-30.1–30.5, AI / Buzzinga import) not started.**
-- **Tests:** tsc clean, Vitest 304+ (see PROGRESS), Playwright full run 49/49 after milestone E; round-8 specs and every affected spec passing (a full run after milestone C is recorded in PROGRESS when it finishes).
-- **Owner to check on real devices:** the round-7/8 iPad screens on the real iPad (K38), lobby phone delays with real phones (K40), the TV layouts on the TV, the board-fill timing with the real sound pack.
+- **Branch:** `main` = `origin/main`, clean, latest code commit **ca9e9e4** (plus this handoff commit). Version in package.json **0.12.0** (released). CHANGELOG has a ready **[0.13.0]** section (round 8 A–C, developer tools, round 7 F).
+- **Done and tested:** round 8 A (R8-2 flicker, R8-3 iPad board styling, R8-4 board fill → intro, R8-5 Final answer sizing), B (R8-6.1–6.4 minimized lobby), C (R8-7 line breaks, R8-8 bold/italic/underline, R8-9 category subheadings); round 7 E (developer tools) and F (R7-30.1 Buzzinga media, 30.2 Gemini retries + AI answer counts, 30.3 two-round AI boards, 30.4 sign-in research, 30.5 AI clue from an idea). Round 7 is complete.
+- **Tests:** tsc clean, **Vitest 316/316**. Playwright: full run after milestone C 51/53 (2 label failures, fixed and re-run passing); every affected spec passing after F. **The last full run (on ca9e9e4) was stopped by Claude Code because this PC ran low on memory**: 47/53 passed, the last 6 died with "Target crashed" / worker exit 0xC0000142 (out of memory, not test failures).
+- **Owner to check on real devices:** iPad screens (K38), lobby phone delays (K40), TV layouts, the board-fill timing with the real sound pack, Buzzinga import with a real share link, Gemini with a real key (K31).
 
 ### Single recommended next task
 
-**Release v0.13.0** (round 8 A–C + developer tools) with the windows-release skill once a full Playwright run is green: version bump, CHANGELOG section, `npm run release:local`, commit, push, tag `v0.13.0`, verify the GitHub release (API with the stored git credential — the repo is private). **Then round 7 milestone F — R7-30.1 … R7-30.5 (AI / import):** 30.1 Buzzinga imports bring their images/audio/video (`server/importers/sources` + `importers/media.ts`; graceful failures); 30.2 verify bot AI answers are really used and add bounded retries with backoff for Gemini 503 (`aiProviders/gemini.ts`); 30.3 AI boards default to 2 rounds + Final, validated, never saved as complete when incomplete; 30.4 research sign-in-based AI connections (official methods only, RESEARCH_NOTES); 30.5 AI clue from a prompt in the board editor (clue + answer, editable, no silent overwrite).
+1. **Run the full Playwright suite once with nothing else open** (`npm run build` then `npx playwright test`). If green: **release v0.13.0** with the windows-release skill (bump package.json to 0.13.0 with `npm version 0.13.0 --no-git-tag-version`, CHANGELOG section is ready, `npm run release:local`, commit, push, `git tag -a v0.13.0`, push the tag, verify the release + 3 assets via the GitHub API with the stored git credential).
+2. Then: **put the iPad Final Jeopardy! screen into the shared game frame** (the last R7-21 gap): header "Final Jeopardy! · category" + stage chips + timer; preview = TvPreview with the correct-response band; overlay = who has wagered/answered (`final-status`) + recovery (`final-recovery`); bar = next-step buttons and, in the reveal, contestant line, team credit, Correct/Incorrect/Next. Keep every `final-*` test id (presentation, playtest, teams-editor, practice specs use them).
+3. Smaller leftovers: category subheadings in CSV import/export; the iPad buzzed-in line still shows "Nickname (Name)" inline.
 
 ### Two developers, two machines
 

@@ -6,13 +6,13 @@ Continue the existing OfflineJeopardy project in this repository. Do not restart
 2. Run: git fetch origin && git status -sb && git log --oneline -5
    - Branch: main (tracks origin/main). Expect a clean tree at the latest commit listed in SESSION_HANDOFF.md.
    - If origin/main is ahead (the other computer pushed), pull first (git pull --ff-only) and re-read the handoff.
-3. Current state: version 0.12.0 is released on GitHub. Round 8 (USER_FEEDBACK.md "Round 8",
-   IMPLEMENTATION_PLAN milestone 22, FEATURE_MATRIX "User feedback round 8") milestones A, B and C
-   are done and pushed: no clue flicker, iPad board like the TV, seamless board fill, Final answers
-   fit, minimized lobby padding / QR / animation, Shift+Enter line breaks, bold / italic / underline,
-   category subheadings.
-4. Exact next task: see "Single recommended next task" in SESSION_HANDOFF.md (release v0.13.0 with the
-   windows-release skill once the full test run is green, then round 7 milestone F: R7-30.1 … R7-30.5).
+3. Current state: version 0.12.0 is released on GitHub. Round 8 (USER_FEEDBACK.md "Round 8") A, B, C
+   and round 7 milestone F (R7-30.x) are done and pushed (latest code commit ca9e9e4). The CHANGELOG
+   [0.13.0] section is ready but v0.13.0 is NOT released: the last full Playwright run was stopped
+   because this PC ran low on memory (47/53 passed before the crash; no test failures).
+4. Exact next task (SESSION_HANDOFF.md "Single recommended next task"): close other programs, run
+   npm run build && npx playwright test once; if green, release v0.13.0 with the windows-release skill.
+   Then move the iPad Final Jeopardy! screen into the shared game frame (keep the final-* test ids).
 5. This machine: no Python (write Node edit scripts with the Write tool, not bash heredocs);
    Playwright needs chromium + webkit (already installed here); new_sfx/ and references/ are
    git-ignored and present. If a full Playwright run is stopped for low memory, close other programs

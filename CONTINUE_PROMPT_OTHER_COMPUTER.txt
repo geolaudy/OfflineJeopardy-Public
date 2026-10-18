@@ -8,10 +8,13 @@ Continue the existing OfflineJeopardy project. The last sessions ran on the seco
 2. Read CLAUDE.md, SESSION_HANDOFF.md (top section), PROGRESS.md (top section), KNOWN_ISSUES.md.
 3. Run npm install (dependencies may have changed), then npx tsc -p . and npx vitest run to get a
    baseline. Playwright needs chromium and webkit (npx playwright install chromium webkit).
-4. Current state: v0.12.0 is released. Round 8 milestones A, B and C are done (see USER_FEEDBACK.md
-   "Round 8" and FEATURE_MATRIX "User feedback round 8"). Round 7 milestone F (R7-30.1 … 30.5,
-   AI / Buzzinga import) is still open.
-5. Exact next task: "Single recommended next task" in SESSION_HANDOFF.md.
+4. Current state: v0.12.0 is released. Round 8 milestones A, B, C and round 7 milestone F are done
+   (latest code commit ca9e9e4). The CHANGELOG [0.13.0] section is ready; v0.13.0 is NOT released
+   yet because the second computer could not finish a full Playwright run (low memory).
+5. Exact next task: "Single recommended next task" in SESSION_HANDOFF.md — a full Playwright run
+   (npm run build && npx playwright test); if green, release v0.13.0 (windows-release skill; your
+   local build includes your new_sfx sounds — never upload those files); then the iPad Final screen
+   in the shared game frame.
 6. Your new_sfx/ (personal sounds, never commit or upload) and references/ folders are git-ignored
    and stay on your machine.
 7. Commit and push after each stable sub-task. At the end of the session update SESSION_HANDOFF.md,
