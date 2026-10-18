@@ -3,7 +3,7 @@
 import { useMemo, type CSSProperties } from 'react';
 import type { GameView } from '../../../shared/views';
 import { cx } from '../../components/ui';
-import { CATEGORY_TEXT_SHARE, FitText, money, useBoard } from './common';
+import { CATEGORY_TEXT_SHARE, FitText, tileMoney, useBoard } from './common';
 import { T } from './timing';
 import { checkerDelays, useFx } from './fx';
 import { SPEED_FACTOR } from '../../../shared/tvFx';
@@ -36,7 +36,7 @@ export function Grid({ g, activeId, activeOpen, fillIn }: { g: GameView; activeI
     fillIn ? ({ animationDelay: `${delays[r * cols + c].toFixed(3)}s`, '--bt-fill-dur': `${T.fillTile}s` } as CSSProperties) : undefined;
 
   return (
-    <div className="bt-grid" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gridTemplateRows: `1.3fr repeat(${rows}, minmax(0, 1fr))` }}>
+    <div className="bt-grid" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gridTemplateRows: `var(--bt-cat-row, 1.3fr) repeat(${rows}, minmax(0, 1fr))` }}>
       {round.categories.map((c) => (
         <div key={c.id} className="bt-cell bt-cat" data-testid="board-category">
           <FitText text={c.name} max={4.4 * scale.category} maxBox={CATEGORY_TEXT_SHARE * scale.category} min={1.5 * scale.category} className="bt-cat-text" />
@@ -57,7 +57,7 @@ export function Grid({ g, activeId, activeOpen, fillIn }: { g: GameView; activeI
               style={fillStyle(r, ci)}
               data-testid={!q.used && !active ? 'board-tile' : undefined}
             >
-              {showValue && <span className="bt-value">{money(prefix, q.value)}</span>}
+              {showValue && <span className="bt-value">{tileMoney(prefix, q.value)}</span>}
             </div>
           );
         }),

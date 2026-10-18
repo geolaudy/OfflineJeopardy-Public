@@ -1,8 +1,8 @@
 // One place for every TV-board animation timing (seconds), so the presentation feels cohesive.
 // Animations are purely presentational: they never delay or gate authoritative game state.
 export const T = {
-  /** Tile → full-screen clue expansion. */
-  zoom: 0.62,
+  /** Tile → full-screen clue expansion (R7-13: 85 % of the former speed, 0.62 s → 0.73 s). */
+  zoom: 0.73,
   /** Full-screen clue → tile shrink on return to the board. */
   unzoom: 0.5,
   /** Generic fades (question text after the zoom, indicators, reduced-motion cross-fades). */

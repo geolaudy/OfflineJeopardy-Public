@@ -77,6 +77,9 @@ export function QuestionCard({ g }: { g: GameView }) {
   const area = useBoxSize(areaRef);
   return (
     <div className="bt-stage flex min-h-0 flex-1 flex-col items-center px-[4vw] pt-[5.5vh] pb-[7.5vh]">
+      {/* R7-16: plain text clues mirror the answer slot above the text, so the clue is centred on
+          the screen and the answer appearing below never moves it. */}
+      {classic && <div className="bt-answer-mirror" aria-hidden />}
       {/* Both sides share one grid cell, so the reveal cross-fades without moving anything. */}
       <div ref={areaRef} className="bt-xfade min-h-0 w-full flex-1">
         <AnimatePresence initial={false}>

@@ -58,6 +58,11 @@ export function money(prefix: string, v: number) {
   return `${sign}${prefix}${s}`;
 }
 
+/** A clue value on a board tile: no thousands separator, like the reference board ("$1000"). */
+export function tileMoney(prefix: string, v: number) {
+  return `${v < 0 ? '−' : ''}${prefix}${Math.abs(v)}`;
+}
+
 /** A score change as shown on the TV (R5-7): "+$400" / "−$400" (U+2212), theme prefix like the
  *  board values. */
 export function deltaText(prefix: string, delta: number) {
@@ -105,7 +110,7 @@ export function usePrefersReducedMotion() {
 
 /** R6-2.4: a category name may be at most this share of its cell's text box height (one line) —
  *  the proportion the iPad replica already had; long names still shrink to fit. */
-export const CATEGORY_TEXT_SHARE = 0.42;
+export const CATEGORY_TEXT_SHARE = 0.34; // R7-5: capitals ≈ 25 % of the tile height, as on the reference board
 
 /**
  * Text that shrinks (between `min` and `max`, in vh) until it fits its box — long category names

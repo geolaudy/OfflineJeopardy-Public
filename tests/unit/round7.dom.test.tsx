@@ -102,3 +102,53 @@ describe('Final clue layout (R7-7)', () => {
     expect(screen.getByTestId('tv-final-status').className).toContain('mt-auto');
   });
 });
+
+describe('Board-control star and score-card colours (R7-6, R7-14)', async () => {
+  const { FxCtx } = await import('../../src/web/pages/board/fx');
+  const { DEFAULT_TV_FX } = await import('../../src/shared/tvFx');
+  const withFx = (scoreColor: 'picture' | 'name' | 'both') =>
+    function Wrap({ children }: { children: ReactNode }) {
+      const W = wrap();
+      return (
+        <W>
+          <FxCtx.Provider value={{ ...DEFAULT_TV_FX, scoreColor }}>{children}</FxCtx.Provider>
+        </W>
+      );
+    };
+  it('one star for the player in control; every box keeps a star slot, so nothing moves', () => {
+    render(<Scoreboard g={game({ controlCompetitorId: 'b' })} />, { wrapper: withFx('picture') });
+    expect(screen.getAllByTestId('control-star')).toHaveLength(1);
+    const boxes = screen.getAllByTestId('podium');
+    expect(boxes[1].dataset.control).toBe('true');
+    for (const b of boxes) expect(b.querySelectorAll('.bt-star-slot')).toHaveLength(2); // star + mirror
+    expect(boxes[1].className).not.toContain('is-control'); // no second outline
+  });
+  it('no star in the Final; the buzz-in highlight is separate from the star', () => {
+    render(<Scoreboard g={game({ phase: 'final', controlCompetitorId: 'b' })} />, { wrapper: withFx('picture') });
+    expect(screen.queryByTestId('control-star')).toBeNull();
+    cleanup();
+    render(<Scoreboard g={game({ phase: 'clue', controlCompetitorId: 'b', buzzer: { status: 'locked', winner: { competitorId: 'a', profileId: 'p-a', at: 1 }, early: [] } } as Partial<GameView>)} />, { wrapper: withFx('picture') });
+    const boxes = screen.getAllByTestId('podium');
+    expect(boxes[0].className).toContain('is-winner');
+    expect(boxes[1].querySelector('[data-testid="control-star"]')).not.toBeNull();
+  });
+  it('picture border (default), name colour, or both', () => {
+    const view = render(<Scoreboard g={game()} />, { wrapper: withFx('picture') });
+    expect(screen.getAllByTestId('podium-avatar')[0].className).toContain('is-ring');
+    expect(screen.getAllByTestId('podium-name')[0].style.color).toBe('');
+    view.unmount();
+    render(<Scoreboard g={game()} />, { wrapper: withFx('name') });
+    expect(screen.getAllByTestId('podium-avatar')[0].className).not.toContain('is-ring');
+    expect(screen.getAllByTestId('podium-name')[0].style.color).not.toBe('');
+    cleanup();
+    render(<Scoreboard g={game()} />, { wrapper: withFx('both') });
+    expect(screen.getAllByTestId('podium-avatar')[0].className).toContain('is-ring');
+    expect(screen.getAllByTestId('podium-name')[0].style.color).not.toBe('');
+  });
+  it('a dark lobby colour is lightened for a readable name on the board blue', async () => {
+    const { readableTextOn, contrastRatio } = await import('../../src/web/lib/avatars');
+    const c = readableTextOn('#1d4ed8', '#071277');
+    expect(contrastRatio(c, '#071277')).toBeGreaterThanOrEqual(3);
+    expect(readableTextOn('#fde047', '#071277')).toBe('#fde047'); // already readable: unchanged
+  });
+});

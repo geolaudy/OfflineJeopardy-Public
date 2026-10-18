@@ -49,16 +49,21 @@
 
 /* ---------- Classic: deep blue tiles on a black grid, gold values, serif clues ---------- */
 .board-theme[data-theme="classic"] {
+  /* R7-5: colours sampled from the reference board (RESEARCH_NOTES "Board reference"). The gold
+     is the one game-show yellow (dollar values, stars, round titles, highlights); the board blue
+     is shared by tiles, categories and score cards. */
+  --b-gold: #d69f4c;
+  --b-board-blue: #071277;
   --b-bg: #0a14d8;
   --b-bg2: #01033a;
-  --b-tile: #060ce9;
-  --b-cat: #060ce9;
-  --b-used: #060ce9;
+  --b-tile: var(--b-board-blue);
+  --b-cat: var(--b-board-blue);
+  --b-used: var(--b-board-blue);
   --b-line: #000000;
-  --b-tile-fg: #ffcc00;
+  --b-tile-fg: var(--b-gold);
   --b-cat-fg: #ffffff;
   --b-fg: #ffffff;
-  --b-accent: #ffcc00;
+  --b-accent: var(--b-gold);
   --b-font: Impact, Haettenschweiler, "Arial Narrow Bold", "Franklin Gothic Heavy", "Arial Black", sans-serif;
   /* R4-17: Korinna-style clues, Swiss 911 Compressed-style categories and values (fonts.css). */
   --b-clue-font: "OJ User Clue", "OJ Korinna", "Merriweather", Georgia, "Times New Roman", serif;
@@ -66,12 +71,20 @@
   --b-value-font: "OJ User Value", "OJ User Category", "OJ Swiss Compressed", "Anton", Impact, Haettenschweiler, sans-serif;
   --b-radius: 0px;
   --b-shadow: none;
-  --bt-gap: 0.5vh;
-  --bt-pad: 0.5vh;
+  /* Reference spacing: columns 6 % of a tile's width apart, rows 10 % of a tile's height, the
+     category row a little further from the values; black gutters. */
+  --bt-col-gap: 0.95vw;
+  --bt-row-gap: 1.3vh;
+  --bt-pad: 1.3vh 0.95vw;
   --bt-grid-bg: #000000;
-  --bt-cat-sep: 0.7vh;
+  --bt-cat-sep: 0.9vh;
+  --bt-cat-row: 1fr;
   --bt-heavy: 400; /* Impact has a single heavy weight; avoid faux bold */
-  --bt-tile-bg: radial-gradient(ellipse 85% 85% at 50% 42%, #1520ff 0%, #060ce9 58%, #0409c4 100%);
+  --bt-tile-bg: var(--b-board-blue);
+  /* Hard drop shadows down and to the right, no blur, in em so they keep their proportion at any
+     size. Dollar values and clue text share one shadow (R7-15); categories a subtler one. */
+  --bt-hard-shadow: 0.048em 0.044em 0 #000;
+  --bt-cat-shadow: 0.032em 0.034em 0 #000;
   --bt-panel: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.55 0 0 0 0 0.6 0 0 0 0 1 0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
     radial-gradient(ellipse 38% 46% at 74% 34%, rgba(16, 30, 145, 0.85), transparent 70%),
     radial-gradient(ellipse 34% 40% at 22% 70%, rgba(14, 27, 140, 0.7), transparent 70%),
@@ -80,11 +93,11 @@
     linear-gradient(160deg, #04117f 0%, #071483 45%, #061280 100%);
   --bt-panel-color: #061383;
   --bt-text-shadow: 0.3vh 0.3vh 0 #000, 0 0 0.8vh rgba(0, 0, 0, 0.35);
-  --bt-value-shadow: 0.45vh 0.45vh 0 #000, 0.2vh 0.2vh 0.8vh rgba(0, 0, 0, 0.6);
-  --bt-clue-shadow: 0.3vh 0.3vh 0 #000, 0 0 1vh rgba(0, 0, 0, 0.35);
+  --bt-value-shadow: var(--bt-hard-shadow);
+  --bt-clue-shadow: var(--bt-hard-shadow);
   --bt-score-bg: #000000;
-  --bt-podium: linear-gradient(#0b16f0, #050ab8);
-  --bt-podium-score: #03067a;
+  --bt-podium: linear-gradient(#0a1a96, var(--b-board-blue));
+  --bt-podium-score: #040b4f;
   --bt-clue-weight: 700;
 }
 
@@ -109,7 +122,8 @@
 .bt-grid {
   display: grid;
   height: 100%;
-  gap: var(--bt-gap);
+  column-gap: var(--bt-col-gap, var(--bt-gap));
+  row-gap: var(--bt-row-gap, var(--bt-gap));
   padding: var(--bt-pad);
   background: var(--bt-grid-bg);
   box-sizing: border-box;
@@ -133,9 +147,11 @@
 .board-theme:not([data-theme="classic"]) .bt-cat {
   background: var(--b-cat);
 }
+/* R7-5: reference categories — white, tightly spaced, with a slight hard shadow. */
 .board-theme[data-theme="classic"] .bt-cat-text {
-  text-shadow: none;
-  letter-spacing: 0.03em;
+  text-shadow: var(--bt-cat-shadow);
+  letter-spacing: 0.02em;
+  line-height: 1.08;
 }
 .bt-cat-text {
   font-family: var(--b-cat-font, var(--b-font));
@@ -161,7 +177,8 @@
 .bt-value {
   font-family: var(--b-value-font, var(--b-font));
   font-weight: var(--bt-heavy);
-  font-size: calc(min(60cqh, 25cqw) * var(--bt-value-scale, 1));
+  /* R7-5: glyphs ("$" included) about 53 % of the tile's height, like the reference board. */
+  font-size: calc(min(58cqh, 30cqw) * var(--bt-value-scale, 1));
   line-height: 1;
   letter-spacing: 0.01em;
   text-shadow: var(--bt-value-shadow);
@@ -218,6 +235,11 @@
   flex-shrink: 0;
   align-items: flex-start;
   justify-content: center;
+}
+/* Answer slot (15vh) + its top padding (2vh) + the panel's extra bottom padding (2vh). */
+.bt-answer-mirror {
+  height: 19vh;
+  flex-shrink: 0;
 }
 .bt-answer {
   max-width: 88%;
@@ -355,6 +377,10 @@
 }
 .bt-stage {
   animation: bt-fadein var(--bt-fade, 0.35s) ease-out both;
+}
+/* R7-13: the clue is readable on the tile while it zooms to full screen. */
+.is-zooming .bt-stage {
+  animation: none;
 }
 
 /* Buzzers-open indicator: thin static light strips on the side edges + a small corner label. */
@@ -520,7 +546,6 @@
   transition: outline-color 0.4s ease, box-shadow 0.4s ease;
   outline: 0.5vh solid transparent;
   outline-offset: 0.25vh;
-  border-top: 0.55vh solid var(--pc, #64748b);
   border-radius: var(--b-radius);
   background: var(--bt-podium);
   color: var(--b-fg);
@@ -529,13 +554,8 @@
 .board-theme:not([data-theme="classic"]) .bt-podium {
   border-radius: 1.2vh;
 }
-/* One mustard highlight per box (R6-3). Picking the next clue (R4-14): the round-title mustard
-   ring with a soft glow, no animation loop. Buzzed in: the same ring, a stronger glow and a warm
-   tint — it replaces the picker ring (never stacked on it). */
-.bt-podium.is-control {
-  outline-color: var(--b-accent);
-  box-shadow: 0 0 1.6vh 0.2vh color-mix(in srgb, var(--b-accent) 45%, transparent);
-}
+/* Buzzed in (the player answering): the gold ring with a glow and a warm tint. Board control is the
+   star in the name row (R7-6), never a second outline. */
 .bt-podium.is-winner {
   outline-color: var(--b-accent);
   background: color-mix(in srgb, var(--b-accent) 16%, var(--bt-podium));
@@ -555,6 +575,41 @@
   letter-spacing: 0.03em;
   text-transform: uppercase;
   text-shadow: var(--bt-text-shadow);
+}
+/* R7-6: board-control star. Its slot (and a mirrored empty slot after the name) is always there, so
+   the picture and the name never move when control changes. */
+.bt-star-slot {
+  display: inline-flex;
+  width: 1.15em;
+  height: 1em;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+}
+.bt-star {
+  width: 1.1em;
+  height: 1.1em;
+  fill: var(--b-accent);
+  stroke: none;
+  visibility: hidden;
+  /* The name's hard shadow (direction and strength). */
+  filter: drop-shadow(0.3vh 0.3vh 0 #000);
+}
+.board-theme:not([data-theme="classic"]) .bt-star {
+  filter: drop-shadow(0 0.2vh 0.3vh rgba(0, 0, 0, 0.45));
+}
+.bt-star.is-on {
+  visibility: visible;
+}
+/* R7-14: the lobby colour as a ring around the picture (setting: picture / both). */
+.bt-podium-ava {
+  display: inline-flex;
+  flex-shrink: 0;
+  border-radius: 999px;
+  padding: 0.3vh;
+}
+.bt-podium-ava.is-ring {
+  background: var(--pc, #64748b);
 }
 .bt-podium-members {
   padding: 0 1vh;

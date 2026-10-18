@@ -12,7 +12,7 @@ import type { PublicSettings } from '../board/BoardPage';
 import { api } from '../../lib/api';
 import { useLive } from '../../lib/socket';
 import { cx } from '../../components/ui';
-import { CATEGORY_TEXT_SHARE, FitText, money, presentationFor, themeRoot } from '../board/common';
+import { CATEGORY_TEXT_SHARE, FitText, money, presentationFor, themeRoot, tileMoney } from '../board/common';
 import '../board/fonts.css';
 import '../board/board.css';
 import './host-tv.css';
@@ -138,7 +138,7 @@ export function HostBoardGrid({ g, onTile }: { g: GameView; onTile: (clueId: str
   const rows = Math.max(0, ...round.categories.map((c) => c.clues.length));
   return (
     <div className="board-theme host-tv absolute inset-0 overflow-hidden rounded-xl shadow-sm" data-theme={root.dataTheme} style={root.style} data-testid="host-board">
-      <div className="bt-grid" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gridTemplateRows: `1.3fr repeat(${rows}, minmax(0, 1fr))` }}>
+      <div className="bt-grid" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gridTemplateRows: `var(--bt-cat-row, 1.3fr) repeat(${rows}, minmax(0, 1fr))` }}>
         {round.categories.map((c) => (
           <div key={c.id} className="bt-cell bt-cat" data-testid="host-category">
             <FitText text={c.name} max={4.4 * scale.category} maxBox={CATEGORY_TEXT_SHARE * scale.category} min={1.2 * scale.category} className="bt-cat-text" />
@@ -158,7 +158,7 @@ export function HostBoardGrid({ g, onTile }: { g: GameView; onTile: (clueId: str
                 aria-label={`${c.name} for ${q.value}${q.used ? ' (played)' : ''}${q.dailyWager ? ' — Daily Double!' : ''}`}
                 data-testid="host-tile"
               >
-                {!q.used && <span className="bt-value">{money(prefix, q.value)}</span>}
+                {!q.used && <span className="bt-value">{tileMoney(prefix, q.value)}</span>}
                 {q.dailyWager && !q.used && (
                   <span className="host-dd-mark" title="Daily Double! (only you see this)" aria-hidden>
                     <Dices size={14} />

@@ -48,6 +48,9 @@ export type UnlockStyle = keyof typeof UNLOCK_STYLES;
 
 export const INTRO_SPEEDS = { slow: 'Slow', normal: 'Normal', fast: 'Fast' } as const;
 export type IntroSpeed = keyof typeof INTRO_SPEEDS;
+/** R7-14: where a player's lobby colour shows on the TV score cards. */
+export const SCORE_COLOR_STYLES = { picture: 'Picture border', name: 'Name', both: 'Name + picture border' } as const;
+export type ScoreColorStyle = keyof typeof SCORE_COLOR_STYLES;
 /** Multiplier for board-intro timings and the automatic category-introduction pace. */
 export const SPEED_FACTOR: Record<IntroSpeed, number> = { slow: 1.5, normal: 1, fast: 0.6 };
 export const INTRO_STEP_MS = (s: IntroSpeed) => Math.round(3500 * SPEED_FACTOR[s]);
@@ -58,6 +61,7 @@ const soundUrl = z.string().regex(/^\/media\/sounds\/[A-Za-z0-9._-]{1,120}$/);
 export const tvFxSchema = z.object({
   boardIntro: z.boolean(),
   introSpeed: z.enum(['slow', 'normal', 'fast']),
+  scoreColor: z.enum(['picture', 'name', 'both']),
   unlock: z.object({
     style: z.enum(['edges', 'top', 'bottom', 'dot', 'pulse', 'none']),
     /** '' = the theme's own accent colour. */
@@ -82,6 +86,7 @@ export type TvFx = z.infer<typeof tvFxSchema>;
 export const DEFAULT_TV_FX: TvFx = {
   boardIntro: true,
   introSpeed: 'normal',
+  scoreColor: 'picture',
   // Bottom glow in the theme accent (the mustard yellow of the round titles), slightly thick (R4-6).
   unlock: { style: 'bottom', color: '', intensity: 'medium', durationMs: 1200, persist: true, label: true },
   soundPack: 'buzzinga',

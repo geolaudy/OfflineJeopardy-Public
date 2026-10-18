@@ -44,7 +44,10 @@ export function CluePanel({ g, closing, zoomIn, onClosed }: { g: GameView; closi
   const panelRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const openAnim = useRef<Animation | null>(null);
-  const [expanded, setExpanded] = useState(false);
+  // A zooming clue shows its content from the first frame (R7-13); fades start hidden.
+  const [expanded, setExpanded] = useState(() => zoomIn && !reduced);
+  // While the tile grows its content is shown as it is (no fade-in of its own).
+  const [zooming, setZooming] = useState(() => zoomIn && !reduced);
   const onClosedRef = useRef(onClosed);
   onClosedRef.current = onClosed;
 
@@ -60,9 +63,12 @@ export function CluePanel({ g, closing, zoomIn, onClosed }: { g: GameView; closi
       setExpanded(true);
       a = panel.animate([{ opacity: 0 }, { opacity: 1 }], { duration: T.fade * 1000, easing: 'linear' });
     } else {
+      // R7-13: the clue text is already on the tile and grows with it (the panel is laid out at
+      // full size and only scaled, so the text never re-flows during the zoom).
+      setExpanded(true);
       const from = tileTransform(panel, clue.clueId) ?? centreTransform(panel);
       a = panel.animate([{ transform: from }, { transform: 'none' }], { duration: T.zoom * 1000, easing: EASE_OUT });
-      a.onfinish = () => setExpanded(true);
+      a.onfinish = () => setZooming(false);
     }
     openAnim.current = a;
     return () => a.cancel();
@@ -107,7 +113,7 @@ export function CluePanel({ g, closing, zoomIn, onClosed }: { g: GameView; closi
 
   return (
     <div ref={panelRef} className="bt-panel" style={{ '--bt-fade': `${T.fade}s` } as CSSProperties} aria-live="polite" data-testid="tv-clue-panel">
-      <div ref={contentRef} className={cx('bt-content', expanded && 'is-in')}>
+      <div ref={contentRef} className={cx('bt-content', expanded && 'is-in', zooming && 'is-zooming')}>
         {clue.isDailyWager && clue.stage === 'wager' ? <DailyWagerCard key="wager" g={g} /> : <QuestionCard key="question" g={g} />}
         <UnlockIndicator open={g.buzzer.status === 'open' && !closing} />
         <BuzzWinner g={g} />

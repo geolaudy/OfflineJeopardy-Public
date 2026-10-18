@@ -306,19 +306,19 @@ Last run 2026-10-12: Vitest 58/58 (43 unit, 15 integration), Playwright 8/8.
 | R7-2 | TV menu pages: header/subheader at the Lobby page height; minimized lobby does not push content down | P2 | NOT STARTED |  |  |  |
 | R7-3 | Long names not clipped; nickname over a smaller gray profile name everywhere | P2 | NOT STARTED |  |  |  |
 | R7-4 | Lobby cards: controller + smoothed latency (reusing clock sync) | P2 | NOT STARTED |  |  |  |
-| R7-5 | Board colours/typography/spacing/shadows from the reference SVG via shared tokens | P1 | NOT STARTED |  |  |  |
-| R7-6 | Board-control star (sharp, gold, reserved space) distinct from the buzz-in highlight | P1 | NOT STARTED |  |  |  |
+| R7-5 | Board colours/typography/spacing/shadows from the reference SVG via shared tokens | P1 | TESTED | board.css classic tokens (--b-gold #d69f4c, --b-board-blue #071277, gaps, --bt-hard-shadow / --bt-cat-shadow), common CATEGORY_TEXT_SHARE 0.34 + tileMoney, Grid, TvMirror | E (round7-tv: colours, gaps 6.1 %/10.1 %, hard shadows); pixel measurement: values 52.9 % (ref 53.3 %), category caps 25.0 % (ref 25 %) | OFL Anton instead of Swiss 911 (licensing); tiles wider than the reference on 16:9 (responsive) |
+| R7-6 | Board-control star (sharp, gold, reserved space) distinct from the buzz-in highlight | P1 | TESTED | board/ControlStar.tsx, Scoreboard (reserved + mirrored slot), board.css .bt-star | DOM (round7.dom), E (round7-tv: name does not move) | — |
 | R7-7 | Final Jeopardy! clue vertically centred | P1 | TESTED | board/FinalScreen.tsx (.bt-final-q), board.css | DOM (round7.dom) | Visual centring checked by screenshot |
 | R7-8 | Correct/incorrect sounds for every Final judgment (bots too), once | P1 | TESTED | board/soundCues.ts (finalJudgments) | DOM (round7.dom: $0 wager, once) | Root cause: cues followed score deltas; bots often wager $0. Not judged by ear (K23) |
 | R7-9 | Final reveal shows the wager only; one score-change animation (score card) | P1 | TESTED | board/FinalScreen.tsx (verdict box removed) | DOM (round6.dom, presentation.dom), E (presentation, teams-editor) | — |
 | R7-10 | Final category typography identical on both screens | P1 | IMPLEMENTED | board.css .bt-intro-cat (shadow in em) | Screenshots | Visual |
 | R7-11 | Manual score adjustments silent and unanimated | P1 | TESTED | engine/projection scoreCauseOf, views scoreCause, soundCues, ScoreDelta/useScoreChange quiet, Scoreboard | U (round7), DOM (round7.dom), E (presentation) | Undo is quiet too (D68) |
 | R7-12 | Final verdict: vector check / X in the score-change colours | P2 | TESTED | board/VerdictMark.tsx, FinalScreen RevealProgress, board.css .bt-verdict | DOM (presentation.dom), E (presentation) | — |
-| R7-13 | Clue zoom shows the clue text throughout; ~1/0.85 × duration | P2 | NOT STARTED |  |  |  |
-| R7-14 | Setting: player colour on score cards (border / name / both) | P2 | NOT STARTED |  |  |  |
-| R7-15 | Clue text shadow = value shadow (token) | P2 | NOT STARTED |  |  |  |
-| R7-16 | Clues vertically centred, stable on answer reveal, long clues fit | P1 | NOT STARTED |  |  |  |
-| R7-17 | Consistent gameplay and menu styling systems (tokens) | P2 | NOT STARTED |  |  |  |
+| R7-13 | Clue zoom shows the clue text throughout; ~1/0.85 × duration | P2 | TESTED | board/ClueZoom.tsx (content shown from the first frame, is-zooming), timing.ts zoom 0.62 → 0.73 s | E (round7-tv: content opaque mid-zoom) | Frame rate not re-measured on the TV PC (K36) |
+| R7-14 | Setting: player colour on score cards (border / name / both) | P2 | TESTED | shared/tvFx scoreColor, desk/PresentationSettings, Scoreboard, lib/avatars readableTextOn, Avatar ring option | DOM (round7.dom) | — |
+| R7-15 | Clue text shadow = value shadow (token) | P2 | TESTED | board.css --bt-clue-shadow = --bt-hard-shadow | E (round7-tv) | — |
+| R7-16 | Clues vertically centred, stable on answer reveal, long clues fit | P1 | TESTED | board/ClueMedia.tsx (.bt-answer-mirror), board.css | E (round7-tv: centred ±4 %, reveal moves the clue < 1.5 px) | Media clues keep their media-first layout |
+| R7-17 | Consistent gameplay and menu styling systems (tokens) | P2 | IN PROGRESS | Gameplay: shared tokens (gold, board blue, hard shadows) in board.css; menus/lobby: milestone C | E (round7-tv) | — |
 | R7-18 | iPad home nickname/profile-name alignment | P2 | NOT STARTED |  |  |  |
 | R7-19 | iPad Safari / web-app layout: nothing clipped or off-screen (Boards, Present on TV) | P1 | IMPLEMENTED | styles.css .app-screen (position: fixed, html:has), lib/viewport.ts, host/AppShell (scroll reset) | E (round7-host: 10 pages × 6 Safari/web-app sizes, toolbar resize) | Emulation has no Safari toolbars — real iPad needed (K38) |
 | R7-20 | iPad uses the shared gameplay theme | P2 | NOT STARTED |  |  |  |

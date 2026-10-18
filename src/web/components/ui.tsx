@@ -113,12 +113,12 @@ export function Field({ label, hint, children, group }: { label: string; hint?: 
 export const inputCls =
   'w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base text-slate-900 placeholder:text-slate-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-200';
 
-export function Avatar({ profile, size = 40, className }: { profile?: Pick<ProfilePublic, 'name' | 'color' | 'avatar' | 'pictureUrl'> | null; size?: number; className?: string }) {
+export function Avatar({ profile, size = 40, className, ring = true }: { profile?: Pick<ProfilePublic, 'name' | 'color' | 'avatar' | 'pictureUrl'> | null; size?: number; className?: string; ring?: boolean }) {
   const color = profile?.color ?? '#64748b';
   return (
     <span
       className={cx('inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full', className)}
-      style={{ width: size, height: size, background: color, boxShadow: `0 0 0 ${Math.max(2, size / 16)}px ${color}` }}
+      style={{ width: size, height: size, background: color, boxShadow: ring ? `0 0 0 ${Math.max(2, size / 16)}px ${color}` : undefined }}
       aria-hidden
     >
       {profile?.pictureUrl ? (

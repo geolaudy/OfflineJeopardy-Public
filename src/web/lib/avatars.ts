@@ -66,3 +66,17 @@ export function contrastRatio(a: string, b: string): number {
   const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p);
   return (x + 0.05) / (y + 0.05);
 }
+
+/** A colour lightened (mixed with white) just enough to reach `min` contrast on `bg` — for coloured
+ *  text such as a player's name on the board blue (R7-14). Returns the colour itself when it is
+ *  already readable, or unchanged when it is not a 6-digit hex colour. */
+export function readableTextOn(hex: string, bg: string, min = 3): string {
+  if (!/^#[0-9a-f]{6}$/i.test(hex) || !/^#[0-9a-f]{6}$/i.test(bg)) return hex;
+  const n = parseInt(hex.slice(1), 16);
+  const rgb = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  for (let t = 0; t <= 1.0001; t += 0.05) {
+    const c = '#' + rgb.map((v) => Math.round(v + (255 - v) * t).toString(16).padStart(2, '0')).join('');
+    if (contrastRatio(c, bg) >= min) return c;
+  }
+  return '#ffffff';
+}

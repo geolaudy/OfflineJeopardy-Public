@@ -6,7 +6,7 @@ import { hostApi } from '../../lib/api';
 import { attempt } from '../../lib/hooks';
 import { configureSound, playCue, unlockAudio } from '../../lib/sound';
 import { Button, Field, cx, inputCls, toast } from '../../components/ui';
-import { CUE_LABELS, INTRO_SPEEDS, SOUND_CUES, UNLOCK_STYLES, type SoundCue, type TvFx, type UnlockStyle } from '../../../shared/tvFx';
+import { CUE_LABELS, INTRO_SPEEDS, SCORE_COLOR_STYLES, SOUND_CUES, UNLOCK_STYLES, type SoundCue, type TvFx, type UnlockStyle } from '../../../shared/tvFx';
 import { SoundPackPicker } from './SoundPackPicker';
 
 function Segmented<K extends string>({ value, options, onChange, label }: { value: K; options: Record<K, string>; onChange: (k: K) => void; label: string }) {
@@ -128,6 +128,15 @@ export function PresentationSettings({ fx: saved, sound, onSave }: { fx: TvFx; s
         />
         <Field label="Intro speed" hint="Also sets the pace of automatic category introductions." group>
           <Segmented label="Intro speed" value={fx.introSpeed} options={INTRO_SPEEDS} onChange={(k) => save({ introSpeed: k })} />
+        </Field>
+      </section>
+
+      <section className="space-y-3" aria-labelledby="fx-scores">
+        <h3 id="fx-scores" className="font-bold">
+          Score cards
+        </h3>
+        <Field label="Player colour on score cards" hint="Each player's lobby colour on the score cards along the bottom of the TV." group>
+          <Segmented label="Player colour on score cards" value={fx.scoreColor} options={SCORE_COLOR_STYLES} onChange={(k) => save({ scoreColor: k })} />
         </Field>
       </section>
 
