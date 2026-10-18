@@ -133,3 +133,11 @@ Rollback point: tag v0.13.0. See USER_FEEDBACK.md "Round 10"; statuses in FEATUR
 - **B — iPad preview:** R10-6, R10-9. **Done** (D83).
 - **C — Host answer banner:** R10-7. **Done.**
 - **D — Board editor:** R10-2 (Final previews), R10-11 (visual rich text). **Done** (D84).
+
+## Milestone 25 — User feedback round 11 (started 2026-10-18, session 14)
+
+Rollback point: tag v0.14.0. See USER_FEEDBACK.md "Round 11"; statuses in FEATURE_MATRIX.md.
+- **A — Focused fixes:** R11-2, R11-5, R11-6, R11-3.7, R11-4. **Done.**
+- **B — Fullscreen host preview:** R11-3 (shared fitting for fullscreen and embedded).
+- **C — iPad web app:** R11-7.
+- **D — Final answer closing:** R11-9.

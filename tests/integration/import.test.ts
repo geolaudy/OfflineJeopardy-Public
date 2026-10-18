@@ -150,7 +150,9 @@ describe('import routes', () => {
     expect(saved.description).toMatch(/play\.buzzinga\.io\/share\/good/);
     expect(boardContentSchema.safeParse(saved.content).success).toBe(true);
     const space = saved.content.rounds[0].categories[0];
-    expect(space.clues[1].media).toEqual([{ kind: 'image', url: expect.stringMatching(/^\/media\/clues\/m\d+\.webp$/), caption: 'Photo: NASA' }]);
+    // R11-2: the text Buzzinga shows with the picture is the clue text (editable as such), not a caption.
+    expect(space.clues[1].media).toEqual([{ kind: 'image', url: expect.stringMatching(/^\/media\/clues\/m\d+\.webp$/) }]);
+    expect(space.clues[1].question).toBe('Name this planet\nPhoto: NASA');
     expect(space.clues[1].dailyWager).toBe(true);
     expect(saved.content.rounds[0].categories[1].clues[1].media?.[0].kind).toBe('audio');
     expect(h.media.size).toBe(2);

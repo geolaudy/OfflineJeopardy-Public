@@ -72,6 +72,7 @@ export function ClueStage({ g, run }: { g: GameView; run: Run }) {
   return (
     <>
       <GameFrame
+        timer={g.timer}
         testId="clue-panel"
         boxTestId="clue-preview-box"
         preview={(size) => (

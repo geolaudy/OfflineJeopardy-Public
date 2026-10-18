@@ -6,9 +6,10 @@
 // When the controls need more room than the band they grow downward into free space below the
 // preview (portrait), else upward over the clue area — never sideways.
 import type { CSSProperties, ReactNode } from 'react';
-import { cx } from '../../components/ui';
 import { HOST_BAND, themeRoot } from '../board/common';
 import { FitBox, useBoardLook } from './TvMirror';
+import { TimerLine } from '../board/TimerBar';
+import type { TimerState } from '../../../shared/game';
 
 /** Room (px) under the preview from which the controls grow downward instead of upward. */
 const ROOM_BELOW = 96;
@@ -19,6 +20,7 @@ export function GameFrame({
   bar,
   boxTestId,
   testId,
+  timer,
 }: {
   /** The TV preview, sized `w` × `h`; `stage` = the height above the control band. */
   preview: (size: { w: number; h: number; stage: number }) => ReactNode;
@@ -28,6 +30,8 @@ export function GameFrame({
   /** Test id of the 16:9 preview box (the same box in every state). */
   boxTestId: string;
   testId?: string;
+  /** R11-4: the game timer, shown as a thin line along the top of the control band. */
+  timer?: TimerState | null;
 }) {
   // The TV's theme variables (fonts, colours) for the band — never a custom background picture.
   const look = useBoardLook();
@@ -46,11 +50,13 @@ export function GameFrame({
               <div className="host-band-ground absolute inset-x-0 bottom-0" style={{ height: band }} aria-hidden />
               {overlay}
               <div
-                className={cx('host-band absolute inset-x-0 z-20 flex', down ? 'items-start' : 'items-end')}
+                // R11-3.7: the controls are centred vertically in the band (it grows when they need more).
+                className="host-band absolute inset-x-0 z-20 flex items-center"
                 style={down ? { top: h - band, minHeight: band } : { bottom: 0, minHeight: band }}
                 data-testid="game-bar"
                 data-grow={down ? 'down' : 'up'}
               >
+                <TimerLine timer={timer ?? null} />
                 <div className="w-full min-w-0">{bar}</div>
               </div>
             </div>

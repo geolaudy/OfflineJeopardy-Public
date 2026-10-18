@@ -1249,12 +1249,22 @@
   background: linear-gradient(to bottom, var(--bt-ind-glow), transparent);
   border-top: 0.45vh solid var(--bt-ind-c);
 }
+/* R11-6: one glow — the line along the bottom edge. (A shadow around the whole 7vh box drew a
+   second, faint line across the stage just above the timer.) */
 .bt-ind-bottom {
   bottom: 0;
   height: 7vh;
   background: linear-gradient(to top, var(--bt-ind-glow), transparent);
-  border-bottom: 0.8vh solid var(--bt-ind-c);
+}
+.bt-ind-bottom::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 0.8vh;
+  background: var(--bt-ind-c);
   box-shadow: 0 0 2.2vh 0.4vh var(--bt-ind-glow);
+  content: '';
 }
 .bt-ind-dot {
   position: absolute;
@@ -1323,5 +1333,10 @@
   background: var(--bt-score-bg);
 }
 .is-host-preview .bt-timer {
+  display: none;
+}
+/* R11-5: the host sees who buzzed in on the control band; the TV's "buzzed in" card stays off the
+   host's preview (it covered the top of the clue). */
+.is-host-preview .bt-winner {
   display: none;
 }

@@ -6,6 +6,14 @@ their notes come from the matching section below (`scripts/release-notes.mjs`).
 
 ## [Unreleased]
 
+### Improvements
+- The iPad shows the timer again, as a thin line along the top of its control band (the TV preview stays as large as before), and the controls sit centred in that band.
+- The iPad's TV preview no longer shows the "buzzed in" card over the top of the clue (the TV still does; the iPad names the player in its control band).
+
+### Bug Fixes
+- Buzzinga import: the text of a picture (or sound) clue now arrives as the clue's text, editable in the clue text box, instead of as the picture's caption.
+- TV: the "buzzers open" glow no longer draws a second faint line above the timer.
+
 ## [0.14.0] — 2026-10-18
 
 ### New Features

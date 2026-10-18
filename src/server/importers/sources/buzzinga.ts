@@ -83,15 +83,14 @@ function kindOf(t: unknown): MediaKind | null {
 
 const isYouTube = (s: string) => /^https?:\/\/([a-z0-9-]+\.)?(youtube\.com|youtu\.be|youtube-nocookie\.com)\//i.test(s.trim());
 
-function mediaFrom(ref: string, kind: MediaKind, caption: string): NormalizedMedia {
+function mediaFrom(ref: string, kind: MediaKind): NormalizedMedia {
   const r = ref.trim();
-  const cap = caption || undefined;
-  if (!r) return { url: null, ref: '(empty)', kindHint: kind, caption: cap, unavailable: 'The media link is empty.' };
+  if (!r) return { url: null, ref: '(empty)', kindHint: kind, unavailable: 'The media link is empty.' };
   if (kind === 'video' || isYouTube(r))
-    return { url: null, ref: r, kindHint: kind, caption: cap, unavailable: 'YouTube videos cannot be downloaded; the link is kept in the host notes.' };
+    return { url: null, ref: r, kindHint: kind, unavailable: 'YouTube videos cannot be downloaded; the link is kept in the host notes.' };
   const url = buzzingaMediaUrl(r);
-  if (!url) return { url: null, ref: r, kindHint: kind, caption: cap, unavailable: 'Not a downloadable web link.' };
-  return { url, ref: r, kindHint: kind, caption: cap };
+  if (!url) return { url: null, ref: r, kindHint: kind, unavailable: 'Not a downloadable web link.' };
+  return { url, ref: r, kindHint: kind };
 }
 
 function joinCaps(...c: unknown[]) {
@@ -110,14 +109,20 @@ function clueFrom(c: BzClue, value: number, categoryNote: string): NormalizedClu
   let answer = str(c.answer).trim();
   const qKind = kindOf(c.type);
   if (qKind) {
-    const m = mediaFrom(question, qKind, str(c.bottomCaption).trim());
+    // R11-2: Buzzinga has no clue-text field for a picture / sound clue — the text it shows with the
+    // media (above and below) is the clue. It becomes the clue text, never the picture's caption.
+    const m = mediaFrom(question, qKind);
     media.push(m);
     if (m.unavailable && m.ref !== '(empty)') notes.push(`Original ${qKind}: ${m.ref}`);
-    question = str(c.topCaption).trim();
+    question = [c.topCaption, c.bottomCaption]
+      .map((x) => str(x).trim())
+      .filter(Boolean)
+      .join('\n');
   }
   const aKind = kindOf(c.answerType);
   if (aKind) {
-    const m = mediaFrom(answer, aKind, str(c.answerBottomCaption).trim());
+    // Likewise the answer's captions are the correct response's text (below), not a caption.
+    const m = mediaFrom(answer, aKind);
     answerMedia.push(m);
     if (m.unavailable && m.ref !== '(empty)') notes.push(`Original answer ${aKind}: ${m.ref}`);
     answer = joinCaps(c.answerTopCaption, c.answerBottomCaption) || `(answer shown as ${aKind})`;

@@ -353,3 +353,18 @@ The owner tested the local build (0.13.0 + round 9) on real hardware: **Final Je
 | R10-9 | iPad: category and value compact inside the preview in the gameplay style (not added to the TV clue) | B |
 | R10-10 | After a round's last clue, "Start Round 2" / "Start Final Jeopardy!" (or the end of the game) replaces Return to Board; no automatic advance; any round structure | A |
 | R10-11 | Board editor: visual bold / italic / underline (no visible markup) for clues and answers (regular and Final); existing [b]/[i]/[u] boards keep working; safe; undo, paste, shortcuts; tests | D |
+
+# User Feedback — Round 11 (received 2026-10-18, session 14, after v0.14.0)
+
+Rollback point: tag **v0.14.0** (published, 3 assets). Statuses: FEATURE_MATRIX.md → "User feedback round 11".
+
+| ID | Requirement (summary) | Milestone |
+|---|---|---|
+| R11-2 | Buzzinga import: a picture clue's accompanying text goes into the clue text field (not the image caption); image-only / text-only / audio / answer media / existing boards unchanged; tests incl. editor field and gameplay | A |
+| R11-3 | Fullscreen host preview (Fullscreen API where available, a fullscreen-style layout otherwise; Exit, Esc): the blue presentation fits between the red answer band and the bottom controls at its own proportions (wider screens: more blue at the sides; narrower: scale uniformly, never crop); band and controls span the width; same fitting rules for the embedded preview; no state change when switching | B |
+| R11-3.7 | Host controls vertically centred in the bottom band (fullscreen and normal) | A |
+| R11-4 | Host sliding timer back, inside the bottom control band (synced with the TV; the TV timer unchanged; nothing moves) | A |
+| R11-5 | No "buzzed in" card at the top of the host preview (the TV keeps it); the host still sees who buzzed | A |
+| R11-6 | Only one buzz glow: remove the extra glow line above the timer (TV and host preview) | A |
+| R11-7 | iPad web app: consistent app-like pages (no page opening a Safari context), standalone display mode, safe-area-correct header; the OfflineJeopardy title not under the status bar / Liquid Glass on Boards; one shared header | C |
+| R11-9 | Final Jeopardy!: a setting for how answering closes — host closes answering (default) or automatically when the timer ends; Close Answer Submissions for the host; after time's up in manual mode submissions stay open; late submissions rejected after closing; status on phones and host; reveal flow unchanged | D |

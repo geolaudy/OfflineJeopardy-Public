@@ -37,6 +37,7 @@ export default function FinalControl({ g, run }: { g: GameView; run: Run }) {
   return (
     <>
       <GameFrame
+        timer={g.timer}
         testId="final-control"
         boxTestId="final-preview-box"
         preview={(size) => (

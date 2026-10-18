@@ -2,7 +2,7 @@
 // state change, so React only re-renders when the displayed whole second changes.
 // R6-12: no label (the countdown speaks for itself) and nothing at zero — an expired timer leaves
 // the TV instead of standing at 0; what happens next is the server's (or the host's) decision.
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { timerRemaining, type TimerState } from '../../../shared/game';
 import { serverNow } from '../../lib/socket';
 import { cx } from '../../components/ui';
@@ -17,8 +17,8 @@ export function TimerBar({ timer }: { timer: TimerState | null }) {
   return <Countdown timer={timer} />;
 }
 
-function Countdown({ timer }: { timer: TimerState }) {
-  const barRef = useRef<HTMLDivElement>(null);
+/** The whole-second readout, re-rendering only when it changes. */
+function useReadout(timer: TimerState) {
   const [view, setView] = useState(() => readout(timer));
 
   // Whole-second readout: polled cheaply; state only changes when the shown value changes.
@@ -33,7 +33,11 @@ function Countdown({ timer }: { timer: TimerState }) {
     const id = setInterval(update, 200);
     return () => clearInterval(id);
   }, [timer]);
+  return view;
+}
 
+/** Drives a bar's scaleX from the timer state with one Web Animation per state change. */
+function useBarAnimation(barRef: RefObject<HTMLDivElement | null>, timer: TimerState) {
   useLayoutEffect(() => {
     const el = barRef.current;
     if (!el) return;
@@ -50,6 +54,12 @@ function Countdown({ timer }: { timer: TimerState }) {
         : el.animate([{ transform: `scaleX(${frac})` }, { transform: `scaleX(${frac})` }], { duration: 1, fill: 'forwards' });
     return () => a.cancel();
   }, [timer.startedAt, timer.running, timer.remainingMs, timer.durationMs, timer.expired]);
+}
+
+function Countdown({ timer }: { timer: TimerState }) {
+  const barRef = useRef<HTMLDivElement>(null);
+  const view = useReadout(timer);
+  useBarAnimation(barRef, timer);
 
   // Reached zero locally: gone at once, before the server's expiry arrives.
   if (view.secs <= 0) return null;
@@ -59,6 +69,27 @@ function Countdown({ timer }: { timer: TimerState }) {
         <div ref={barRef} className="bt-timer-fill" />
       </div>
       <span className="bt-timer-secs">{view.secs}</span>
+    </div>
+  );
+}
+
+/**
+ * R11-4: the host's timer — a thin line along the top edge of the iPad's control band, driven by
+ * the same game timer as the TV's bar (it never takes room from the preview or moves a button).
+ */
+export function TimerLine({ timer }: { timer: TimerState | null }) {
+  if (!timer || timer.expired) return null;
+  return <Line timer={timer} />;
+}
+
+function Line({ timer }: { timer: TimerState }) {
+  const barRef = useRef<HTMLDivElement>(null);
+  const view = useReadout(timer);
+  useBarAnimation(barRef, timer);
+  if (view.secs <= 0) return null;
+  return (
+    <div className={cx('host-timer-line', view.low && 'is-low')} role="timer" aria-label={`${view.secs} seconds left`} data-testid="host-timer-line" data-kind={timer.kind}>
+      <div ref={barRef} className="host-timer-line-fill" />
     </div>
   );
 }

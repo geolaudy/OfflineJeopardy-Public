@@ -74,8 +74,10 @@ describe('Buzzinga plugin', () => {
     expect(space.clues[0].notes).toContain('Everything above the clouds');
     const pic = space.clues[1];
     expect(pic.dailyWager).toBe(true);
-    expect(pic.question).toBe('Name this planet');
-    expect(pic.media[0]).toMatchObject({ url: 'https://uploads.example.test/pic.png', kindHint: 'image', caption: 'Photo: NASA' });
+    // R11-2: both lines Buzzinga shows with the picture are the clue text; no caption.
+    expect(pic.question).toBe('Name this planet\nPhoto: NASA');
+    expect(pic.media[0]).toMatchObject({ url: 'https://uploads.example.test/pic.png', kindHint: 'image' });
+    expect(pic.media[0].caption).toBeUndefined();
     const video = space.clues[2];
     expect(video.media[0].url).toBeNull();
     expect(video.media[0].unavailable).toMatch(/YouTube/);

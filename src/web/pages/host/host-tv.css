@@ -117,3 +117,23 @@
   background: none;
   color: inherit;
 }
+/* R11-4: the host's timer line along the top edge of the band (absolute: it moves nothing). */
+.host-timer-line {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 5px;
+  overflow: hidden;
+  background: rgb(255 255 255 / 0.1);
+}
+.host-timer-line-fill {
+  position: absolute;
+  inset: 0;
+  background: var(--b-accent, #e8b64c);
+  transform-origin: left center;
+  transition: background-color 0.3s;
+}
+.host-timer-line.is-low .host-timer-line-fill {
+  background: #ff4b3a;
+}
