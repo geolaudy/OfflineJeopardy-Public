@@ -1,5 +1,12 @@
 # Progress
 
+## Session 11 — 2026-10-18 (second machine, mvanwitz; round 7 milestone D finished)
+
+- Resumed from SESSION_HANDOFF (nothing new on origin). **R7-21 / R7-25 / R7-20:** `host/GameFrame.tsx` — every live state (board, introduction, clue) has a fixed header line, one 16:9 preview and a reserved control bar, so the preview keeps the same size and position (D75). The clue preview is now the TV page itself (iframe), with the answer band over its top and the Daily Double! wager (plus the clue text for the host), the bot's answer and media controls in a compact panel inside it. The old host-only clue card is gone. The TV preview stays black until ready (no "Loading…" flash). Found while testing: the bar must not clip the clue's More menu (fixed).
+- New test: round7d-host "game preview" (intro, board, clue, buzzed, judged, Daily Double! — same box ±1 px in landscape and portrait; bar content fits).
+- Fixed a test race in lobby.spec (read the pairing code before it loaded).
+- Tests: tsc clean, Vitest 297/297, Playwright full run 47/48 (the lobby race, then fixed: 2/2 passing).
+
 ## Session 10 — 2026-10-17 (second developer machine, mvanwitz; round 7 milestone C)
 
 - **Handoff recovery:** session 9 (other computer) hit the usage limit without updating PROGRESS / SESSION_HANDOFF. Reconstructed from git: everything was committed and pushed (main = origin/main at 5323344, clean tree, no stray branches or worktrees). Milestones A, B and the R7-32 research were done; C–F not started (FEATURE_MATRIX "User feedback round 7" was accurate).

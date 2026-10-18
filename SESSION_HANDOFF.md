@@ -5,7 +5,7 @@ Read this first, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "U
 ## Current state (session 10, 2026-10-17 — milestone C and part of D committed and pushed)
 
 - **Branch:** `main`, pushed to `origin/main` (https://github.com/geolaudy/OfflineJeopardy). Version in package.json: **0.11.0** (last release v0.11.0; no release for round 7 yet).
-- **Round 7 (IMPLEMENTATION_PLAN milestone 21):** A, B, G (R7-32 research) and **C done** and tested. **D in progress: R7-22, R7-24, R7-27 tested; R7-18, R7-23, R7-26 implemented (visual); R7-20, R7-21, R7-25 open.** Not started: E (developer tools), F (AI/import).
+- **Round 7 (IMPLEMENTATION_PLAN milestone 21):** A, B, G (R7-32 research) and **C done** and tested. **D done** (R7-20/21/22/24/25/27 tested; R7-18/23/26 visual). Not started: E (developer tools), F (AI/import).
 - **Tests (end of session 10):** tsc clean, Vitest 297/297, Playwright 47/47 in the last full run (`presentation.spec` "team buzz-in" failed once in an earlier full run and passed on every re-run — intermittent under load).
 
 - **Local build (end of session 10, second machine, commit e4d27b6):** `npm run release:local` passed (tsc, Vitest, packaging, verify-dist **17/17**). Artifacts on the mvanwitz machine (not uploaded; they contain the owner's personal sounds): `release/OfflineJeopardy-Setup-0.11.0.exe`, `release/OfflineJeopardy-Portable-0.11.0.exe`, `release/win-unpacked/`. They are labelled 0.11.0 but contain round 7 A–C and part of D (no version bump until the v0.12.0 release).

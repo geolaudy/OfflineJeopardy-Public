@@ -41,6 +41,8 @@ test('start screen → create lobby → one-step iPad pairing → present on TV 
   await pc.getByTestId('create-lobby').click();
   await expect(pc.getByTestId('lobby-open')).toBeVisible();
   await expect(pc.getByTestId('host-status')).toHaveText(/Waiting for the host/);
+  // The code arrives a moment after the screen (a "······" placeholder until then).
+  await expect(pc.getByTestId('pairing-code')).toHaveText(/^\s*\d{6}\s*$/);
   const code = (await pc.getByTestId('pairing-code').textContent())!.trim();
   expect(code).toMatch(/^\d{6}$/);
   await expect(pc.locator('[aria-label="QR code for hostPair page"] svg')).toBeVisible();

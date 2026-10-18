@@ -122,7 +122,8 @@ export function TvPreview({ game, scoreboard, title, size, testId }: { game: Gam
         tabIndex={-1}
         aria-hidden
         className="pointer-events-none absolute top-0 left-0 origin-top-left border-0"
-        style={{ width: W, height: H, transform: `scale(${scale})` }}
+        // Hidden until the TV page is ready (no light "Loading…" flash inside the black frame).
+        style={{ width: W, height: H, transform: `scale(${scale})`, opacity: ready ? 1 : 0, transition: 'opacity 0.15s' }}
       />
     </div>
   );

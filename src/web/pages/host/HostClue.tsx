@@ -1,12 +1,14 @@
-// The open clue on the host's iPad (R5-14), in three regions:
-//  1. a compact red answer banner (private; answer picture opens a private lightbox),
-//  2. the clue itself, large, styled like the TV (text + media, media controls beside it),
-//  3. a compact footer: status on the left (timer, or who buzzed in), the next step on the right
+// The open clue on the host's iPad (R5-14, R7-21/R7-25), in the shared game frame:
+//  1. the TV itself in the 16:9 preview (the real TV components, so fonts, sizes, shadows and
+//     media match exactly), with the private answer band over its top edge (R7-24) and, when
+//     needed, a compact panel inside it (Daily Double! wager, the computer player's answer, media
+//     controls) — the preview never changes size or position,
+//  2. the reserved bar: status on the left (timer, or who buzzed in), the next step on the right
 //     (Unlock Buzzers → Correct / Incorrect → Reveal Answer → Return to Board). Everything that is
 //     needed rarely lives in "More".
 // Every control follows the server state (answeringEnded, answerRevealed, resolved, buzzer…).
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ArrowLeft, BellRing, Check, ChevronRight, Dices, Eye, EyeOff, Image as ImageIcon, Lock, LockOpen, Music, NotebookPen, Pause, Play, RotateCcw, Timer, Video, Wrench, X, Zap } from 'lucide-react';
+import { ArrowLeft, BellRing, Check, ChevronRight, Dices, Eye, EyeOff, Image as ImageIcon, Lock, LockOpen, NotebookPen, Pause, Play, RotateCcw, Timer, Video, Wrench, X, Zap } from 'lucide-react';
 import type { CompetitorView, GameView } from '../../../shared/views';
 import type { HostAction } from '../../../shared/actions';
 import { BOT_LEVELS } from '../../../shared/game';
@@ -16,7 +18,8 @@ import { EarlyBuzzQuick } from './EarlyBuzzRule';
 import { MediaControls } from './MediaControls';
 import { AnswerBanner } from './AnswerBanner';
 import { FitBox, TvPreview, useBoardLook } from './TvMirror';
-import { FitText, themeRoot } from '../board/common';
+import { themeRoot } from '../board/common';
+import { GameFrame } from './GameFrame';
 
 type Run = (a: HostAction) => Promise<{ ok: boolean }>;
 
@@ -44,26 +47,89 @@ export function ClueStage({ g, run }: { g: GameView; run: Run }) {
   const botPanel = responder?.bot && !clue.resolved ? <BotAnswer g={g} c={responder} /> : null;
   const media = !wagerStage && <MediaControls g={g} run={run} />;
   const hasMediaControls = !wagerStage && [...clue.media, ...(clue.answerRevealed ? clue.answerMedia : [])].some((m) => m.kind !== 'image');
-  const side: ReactNode = wagerStage ? <DailyWagerForm g={g} run={run} /> : botPanel || hasMediaControls ? (
+  const side: ReactNode = wagerStage ? (
+    <>
+      <DailyWagerForm g={g} run={run} />
+      {/* The TV shows the Daily Double! splash until the wager is locked; the host may read ahead. */}
+      {clue.question && (
+        <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-700" data-testid="host-dd-clue">
+          <b>The clue (only you):</b> {clue.question}
+        </p>
+      )}
+    </>
+  ) : botPanel || hasMediaControls ? (
     <>
       {botPanel}
       {media}
     </>
   ) : null;
+  const look = useBoardLook();
+  const root = themeRoot(look.theme, look.custom);
 
   return (
-    <div className="flex h-full min-h-[420px] flex-col gap-2" data-testid="clue-panel">
-      <div className="flex min-h-0 flex-1 flex-col gap-2 landscape:flex-row">
-        <ClueCard g={g} answer={<HostAnswer g={g} onPicture={() => setLightbox(true)} />} />
-        {side && <div className="scroll-area flex shrink-0 flex-col gap-2 portrait:max-h-[50%] landscape:w-[min(24rem,40%)]">{side}</div>}
-      </div>
-      <ClueFooter g={g} run={run} responder={responder} who={who} setWho={setWho} />
+    <>
+      <GameFrame
+        testId="clue-panel"
+        boxTestId="clue-preview-box"
+        head={<ClueHead g={g} />}
+        preview={(size) => (
+          <div className="absolute inset-0" data-testid="host-clue">
+            <TvPreview game={g} scoreboard={false} title="TV preview" size={size} testId="clue-preview" />
+            {/* The preview is hidden from screen readers; the clue text is here for them. */}
+            {clue.question && (
+              <p className="sr-only" data-testid="host-clue-text">
+                {clue.question}
+              </p>
+            )}
+            <div className="board-theme absolute inset-x-0 top-0 z-10" data-theme={root.dataTheme} style={root.style}>
+              <HostAnswer g={g} onPicture={() => setLightbox(true)} />
+            </div>
+          </div>
+        )}
+        overlay={
+          side && (
+            <div
+              className={cx(
+                'scroll-area absolute right-2 bottom-2 z-20 flex max-h-[calc(100%-5.5rem)] flex-col gap-2 overflow-y-auto rounded-xl bg-white/95 p-1 shadow-lg ring-1 ring-black/10',
+                wagerStage ? 'w-[min(26rem,calc(100%-1rem))]' : 'w-[min(24rem,calc(100%-1rem))]',
+              )}
+              data-testid="clue-overlay"
+            >
+              {side}
+            </div>
+          )
+        }
+        bar={<ClueFooter g={g} run={run} responder={responder} who={who} setWho={setWho} />}
+      />
       {lightbox && <AnswerLightbox g={g} onClose={() => setLightbox(false)} />}
+    </>
+  );
+}
+
+/** Header line: category and value (Daily Double!: the wager once locked). */
+function ClueHead({ g }: { g: GameView }) {
+  const clue = g.clue!;
+  return (
+    <div className="min-w-0 flex-1" data-testid="clue-head">
+      <p className="truncate text-xs font-bold tracking-wide text-slate-500 uppercase">
+        {clue.isDailyWager ? (
+          <>
+            <Dices size={13} className="mr-1 inline align-[-2px]" aria-hidden />
+            Daily Double!{clue.wager ? ` · wager ${fmtScore(clue.wager.amount)}` : ''}
+          </>
+        ) : (
+          'Clue'
+        )}
+      </p>
+      <p className="flex min-w-0 items-baseline gap-3">
+        <span className="min-w-0 truncate text-2xl font-black">{clue.categoryName}</span>
+        <span className="shrink-0 text-lg font-bold text-slate-600 tabular-nums">{clue.value}</span>
+      </p>
     </div>
   );
 }
 
-/** The private answer as a red striped band across the top of the clue card (R4-5, R7-24). In practice
+/** The private answer as a red striped band over the top of the TV preview (R4-5, R7-24). In practice
  *  games the host is usually playing too, so it stays hidden until revealed (one tap to peek). */
 function HostAnswer({ g, onPicture }: { g: GameView; onPicture: () => void }) {
   const clue = g.clue!;
@@ -98,61 +164,6 @@ function HostAnswer({ g, onPicture }: { g: GameView; onPicture: () => void }) {
         </div>
       )}
     </AnswerBanner>
-  );
-}
-
-/** The clue, large, in the TV's colours and clue font; the private answer band on top (R7-24). */
-function ClueCard({ g, answer }: { g: GameView; answer?: ReactNode }) {
-  const clue = g.clue!;
-  const look = useBoardLook();
-  const root = themeRoot(look.theme, look.custom);
-  const visual = clue.media.filter((m) => m.kind === 'image' || m.kind === 'video');
-  const sound = clue.media.filter((m) => m.kind === 'audio');
-  const text = clue.question?.trim();
-  const wagerStage = clue.isDailyWager && clue.stage === 'wager';
-  return (
-    <div className="board-theme host-clue relative flex min-h-[180px] min-w-0 flex-1 flex-col overflow-hidden rounded-xl shadow-sm" data-theme={root.dataTheme} style={root.style} data-testid="host-clue">
-      {answer}
-      <div className="flex shrink-0 items-center gap-2 px-4 pt-2 text-sm font-bold tracking-wide uppercase opacity-90">
-        <span className="min-w-0 flex-1 truncate">{clue.categoryName}</span>
-        <span className="rounded-md bg-black/30 px-2 py-0.5 tabular-nums">
-          {clue.isDailyWager ? (
-            <>
-              <Dices size={14} className="mr-1 inline align-[-2px]" aria-hidden />
-              Daily Double!{clue.wager ? ` · ${fmtScore(clue.wager.amount)}` : ''}
-            </>
-          ) : (
-            clue.value
-          )}
-        </span>
-      </div>
-      {wagerStage && <p className="mx-4 mt-1 shrink-0 rounded-md bg-black/30 px-2 py-1 text-center text-xs font-semibold">The TV hides the clue until the wager is locked.</p>}
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 px-4 pt-1 pb-3">
-        {visual.length > 0 && (
-          <div className={cx('flex min-h-0 w-full items-center justify-center gap-3', text ? 'h-[52%]' : 'h-[85%]')}>
-            {visual.map((m, i) =>
-              m.kind === 'image' ? (
-                <img key={i} src={m.url} alt={m.caption ?? ''} className="h-full min-w-0 rounded-md object-contain" draggable={false} data-testid="host-clue-image" />
-              ) : (
-                <span key={i} className="flex h-full max-h-40 min-w-32 flex-col items-center justify-center gap-1 rounded-md bg-black/30 px-3 text-sm font-semibold">
-                  <Video size={36} aria-hidden /> {m.caption || 'Video'}
-                </span>
-              ),
-            )}
-          </div>
-        )}
-        {sound.length > 0 && (
-          <p className="flex shrink-0 items-center gap-2 text-sm font-semibold opacity-90">
-            <Music size={18} aria-hidden /> {sound.map((m) => m.caption || 'Audio').join(' · ')}
-          </p>
-        )}
-        {text ? (
-          <FitText text={clue.question ?? ''} max={visual.length ? 4.2 : 6.5} min={1.8} className="bt-question" boxClassName="min-h-0 w-full flex-1" testId="host-clue-text" />
-        ) : (
-          !visual.length && !sound.length && <p className="text-lg italic opacity-80">Media-only clue (no text)</p>
-        )}
-      </div>
-    </div>
   );
 }
 
@@ -226,8 +237,8 @@ function ClueFooter({ g, run, responder, who, setWho }: { g: GameView; run: Run;
 
   return (
     // Narrow footers (portrait, iPad mini) put the status on its own row above the actions.
-    <div className="@container shrink-0 rounded-2xl bg-white p-2 shadow-sm" data-testid="clue-footer">
-      <div className="flex flex-wrap items-center gap-2 @4xl:flex-nowrap">
+    <div className="@container flex h-full items-center rounded-2xl bg-white p-2 shadow-sm" data-testid="clue-footer">
+      <div className="flex w-full flex-wrap items-center gap-2 @4xl:flex-nowrap">
       <div className="min-w-0 basis-full px-1 @4xl:flex-1 @4xl:basis-auto">{status}</div>
       <div className="ml-auto flex shrink-0 items-center gap-2">
         <More g={g} run={run} showReveal={!revealInFooter && !clue.answerRevealed && !wagerStage} pendingJudgement={pendingJudgement} practiceBuzz={practiceBuzz} />

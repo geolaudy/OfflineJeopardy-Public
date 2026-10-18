@@ -12,8 +12,9 @@ import { HOST_SHORTCUTS, useHostShortcuts } from './shortcuts';
 import { Undo2, Gamepad2, Play, ChevronLeft, ChevronRight, ChevronsRight, Square, SlidersHorizontal, QrCode, Flag } from 'lucide-react';
 import { AnswerBanner } from './AnswerBanner';
 import { ClueStage } from './HostClue';
-import { FitBox, HostBoardGrid, TvPreview } from './TvMirror';
+import { HostBoardGrid, TvPreview } from './TvMirror';
 import ScoreEditor from './ScoreEditor';
+import { GameFrame } from './GameFrame';
 
 type Run = (a: HostAction) => Promise<{ ok: boolean }>;
 
@@ -89,32 +90,38 @@ function BoardStage({ g, run, onDevices }: { g: GameView; run: Run; onDevices: (
   if (!round || round.kind !== 'standard') return null;
   const q = played ? round.categories.flatMap((c) => c.clues).find((x) => x.id === played) : null;
   return (
-    <div className="flex h-full min-h-[300px] flex-col gap-2">
-      <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2">
-        <div className="min-w-0 flex-1">
-          <h2 className="truncate text-2xl font-black" data-testid="choosing">
-            {remaining === 0 ? 'This round is complete' : picker ? `${competitorName(picker, g)} is choosing a clue` : 'Choose a clue'}
-          </h2>
-          <p className="text-sm text-slate-500">
-            {round.name} · {remaining} {remaining === 1 ? 'clue' : 'clues'} left{picker?.bot && remaining > 0 ? ' · picks by itself' : ''}
-          </p>
-        </div>
-        {/* The next step appears only when the round is finished; earlier it lives in Options. */}
-        {remaining === 0 && next && (
-          <ActionButton size="lg" onAction={() => run({ type: 'setRound', roundIndex: next.i })} data-testid="next-round">
-            Next: {next.name} <ChevronRight size={20} aria-hidden />
-          </ActionButton>
-        )}
-        {remaining === 0 && !next && hasFinal && (
-          <ActionButton size="lg" onAction={() => run({ type: 'startFinal' })} data-testid="start-final">
-            <Flag size={20} aria-hidden /> Start Final Jeopardy!
-          </ActionButton>
-        )}
-        <GameOptions g={g} run={run} onDevices={onDevices} remaining={remaining} next={next} standard={standard} hasFinal={hasFinal} />
-      </div>
-      <FitBox align="start" testId="host-board-box">
-        {() => <HostBoardGrid g={g} onTile={(id, used) => (used ? setPlayed(id) : run({ type: 'selectClue', clueId: id }))} />}
-      </FitBox>
+    <>
+      <GameFrame
+        boxTestId="host-board-box"
+        head={
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-2xl font-black" data-testid="choosing">
+              {remaining === 0 ? 'This round is complete' : picker ? `${competitorName(picker, g)} is choosing a clue` : 'Choose a clue'}
+            </h2>
+            <p className="truncate text-sm text-slate-500">
+              {round.name} · {remaining} {remaining === 1 ? 'clue' : 'clues'} left{picker?.bot && remaining > 0 ? ' · picks by itself' : ''}
+            </p>
+          </div>
+        }
+        preview={() => <HostBoardGrid g={g} onTile={(id, used) => (used ? setPlayed(id) : run({ type: 'selectClue', clueId: id }))} />}
+        bar={
+          <div className="flex flex-wrap items-center gap-2 py-1">
+            <p className="min-w-0 flex-1 px-1 text-slate-600">{remaining === 0 ? 'Every clue in this round has been played.' : null}</p>
+            {/* The next step appears only when the round is finished; earlier it lives in Options. */}
+            {remaining === 0 && next && (
+              <ActionButton size="xl" onAction={() => run({ type: 'setRound', roundIndex: next.i })} data-testid="next-round">
+                Next: {next.name} <ChevronRight size={20} aria-hidden />
+              </ActionButton>
+            )}
+            {remaining === 0 && !next && hasFinal && (
+              <ActionButton size="xl" onAction={() => run({ type: 'startFinal' })} data-testid="start-final">
+                <Flag size={20} aria-hidden /> Start Final Jeopardy!
+              </ActionButton>
+            )}
+            <GameOptions g={g} run={run} onDevices={onDevices} remaining={remaining} next={next} standard={standard} hasFinal={hasFinal} />
+          </div>
+        }
+      />
       {played && (
         <Modal open onClose={() => setPlayed(null)} title="Played clue">
           <div className="space-y-3">
@@ -133,7 +140,7 @@ function BoardStage({ g, run, onDevices }: { g: GameView; run: Run; onDevices: (
           </div>
         </Modal>
       )}
-    </div>
+    </>
   );
 }
 
@@ -270,13 +277,32 @@ function IntroStage({ g, run }: { g: GameView; run: Run }) {
   const nextLabel = intro.step < 0 ? 'Show the first category' : intro.step >= n - 1 ? 'Done — show the board' : 'Next Category';
   const current = intro.step < 0 ? round.name : round.categories[intro.step]?.name || `Category ${intro.step + 1}`;
   return (
-    <div className="@container flex h-full min-h-[420px] flex-col gap-2" data-testid="intro-controls">
-      <div className="flex shrink-0 flex-wrap items-baseline gap-x-3" data-testid="intro-now">
-        <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">Introduce the categories{intro.auto ? ' · automatic' : ''}</p>
-        <p className="min-w-0 truncate text-2xl font-black">{current}</p>
-        <p className="text-slate-600">{intro.step < 0 ? 'The round title is on the TV.' : `Category ${intro.step + 1} of ${n}`}</p>
-      </div>
-      <ol className={cx('grid shrink-0 grid-cols-3 gap-2', n <= 6 ? '@3xl:grid-cols-6' : '@3xl:grid-cols-4 @5xl:grid-cols-6')} aria-label="Categories — tap one to show it on the TV">
+    <GameFrame
+      testId="intro-controls"
+      boxTestId="intro-preview-box"
+      head={
+        <div className="flex min-w-0 flex-1 flex-col" data-testid="intro-now">
+          <p className="truncate text-xs font-bold tracking-wide text-slate-500 uppercase">Introduce the categories{intro.auto ? ' · automatic' : ''}</p>
+          <p className="flex min-w-0 items-baseline gap-3">
+            <span className="min-w-0 truncate text-2xl font-black">{current}</span>
+            <span className="shrink-0 text-slate-600">{intro.step < 0 ? 'The round title is on the TV.' : `Category ${intro.step + 1} of ${n}`}</span>
+          </p>
+        </div>
+      }
+      // R6-2.1: the presentation only — the scores are in the iPad's own bar below.
+      preview={(size) => <TvPreview game={g} scoreboard={false} title="TV preview" size={size} testId="intro-preview" />}
+      bar={<IntroBar g={g} run={run} n={n} nextLabel={nextLabel} />}
+    />
+  );
+}
+
+/** The introduction's controls: tap a category to show it, then Previous | Next, Auto, Skip. */
+function IntroBar({ g, run, n, nextLabel }: { g: GameView; run: Run; n: number; nextLabel: string }) {
+  const intro = g.intro!;
+  const round = g.rounds[intro.roundIndex]!;
+  return (
+    <div className="flex flex-col gap-2">
+      <ol className={cx('grid shrink-0 gap-2', n <= 6 ? 'grid-cols-6' : 'grid-cols-4 @5xl:grid-cols-6')} aria-label="Categories — tap one to show it on the TV">
         {round.categories.map((c, i) => (
           <li key={c.id} className="min-w-0">
             <button
@@ -284,7 +310,7 @@ function IntroStage({ g, run }: { g: GameView; run: Run }) {
               aria-current={i === intro.step ? 'step' : undefined}
               aria-label={`Show ${c.name || `Category ${i + 1}`} on the TV`}
               className={cx(
-                'flex min-h-14 w-full items-center justify-center rounded-xl px-2 py-1 text-center text-sm leading-tight font-bold uppercase',
+                'flex min-h-11 w-full items-center justify-center rounded-xl px-2 py-1 text-center text-sm leading-tight font-bold uppercase',
                 i === intro.step ? 'bg-amber-300 text-black ring-2 ring-amber-500' : i < intro.step ? 'bg-blue-800 text-white active:bg-blue-900' : 'bg-white text-slate-600 shadow-sm ring-1 ring-slate-200 active:bg-slate-100',
               )}
               data-testid="intro-cat"
@@ -294,26 +320,24 @@ function IntroStage({ g, run }: { g: GameView; run: Run }) {
           </li>
         ))}
       </ol>
-      {/* R6-2.1: the presentation only — the scores are in the iPad's own bar below. */}
-      <FitBox align="start" testId="intro-preview-box">{(size) => <TvPreview game={g} scoreboard={false} title="TV preview" size={size} testId="intro-preview" />}</FitBox>
       {/* R6-2.3: Previous Category | Next Category. */}
-      <div className="grid shrink-0 grid-cols-2 gap-2 @3xl:grid-cols-[1.5fr_2fr_1fr_1fr]">
-        <ActionButton size="xl" variant="secondary" className="px-3 text-lg @3xl:text-xl" disabled={intro.step < 0} onAction={() => run({ type: 'introPrev' })} data-testid="intro-prev">
+      <div className="grid shrink-0 grid-cols-[1.5fr_2fr_1fr_1fr] gap-2">
+        <ActionButton size="lg" variant="secondary" className="px-3 text-lg" disabled={intro.step < 0} onAction={() => run({ type: 'introPrev' })} data-testid="intro-prev">
           <ChevronLeft size={22} aria-hidden /> Previous Category
         </ActionButton>
-        <ActionButton size="xl" className="px-3 text-lg @3xl:text-xl" onAction={() => run({ type: 'introNext' })} data-testid="intro-next">
+        <ActionButton size="lg" className="px-3 text-lg" onAction={() => run({ type: 'introNext' })} data-testid="intro-next">
           {nextLabel} <ChevronRight size={22} aria-hidden />
         </ActionButton>
         {!intro.auto ? (
-          <Button size="xl" variant="secondary" className="px-3 text-lg @3xl:text-xl" onClick={() => run({ type: 'startIntro', auto: true })} title="Play the introduction automatically" data-testid="intro-auto">
+          <Button size="lg" variant="secondary" className="px-3 text-lg" onClick={() => run({ type: 'startIntro', auto: true })} title="Play the introduction automatically" data-testid="intro-auto">
             Auto <ChevronsRight size={20} aria-hidden />
           </Button>
         ) : (
-          <ActionButton size="xl" variant="warning" className="px-3 text-lg @3xl:text-xl" onAction={() => run({ type: 'introStopAuto' })} data-testid="intro-stop-auto">
+          <ActionButton size="lg" variant="warning" className="px-3 text-lg" onAction={() => run({ type: 'introStopAuto' })} data-testid="intro-stop-auto">
             <Square size={18} aria-hidden /> Stop Auto
           </ActionButton>
         )}
-        <ActionButton size="xl" variant="ghost" className="px-3 text-lg @3xl:text-xl" onAction={() => run({ type: 'introSkip' })} data-testid="intro-skip">
+        <ActionButton size="lg" variant="ghost" className="px-3 text-lg" onAction={() => run({ type: 'introSkip' })} data-testid="intro-skip">
           Skip
         </ActionButton>
       </div>
