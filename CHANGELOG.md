@@ -6,10 +6,10 @@ their notes come from the matching section below (`scripts/release-notes.mjs`).
 
 ## [Unreleased]
 
-### New Features
-- **Pictures and sounds in Final Jeopardy!**: a Final clue can be a picture, a sound or both, with or without text, and the correct response can have its own picture and sound. The TV shows the clue's picture large; you play its sound from the iPad (play, pause, resume, restart). The think time and think music start when the sound has finished (or when you tap Start think time). The correct response's picture and sound appear only after the answer reveals; on the iPad you can look at (and listen to) them privately before that.
+## [0.14.0] — 2026-10-18
 
 ### New Features
+- **Pictures and sounds in Final Jeopardy!**: a Final clue can be a picture, a sound or both, with or without text, and the correct response can have its own picture and sound. The TV shows the clue's picture large; you play its sound from the iPad (play, pause, resume, restart). The think time and think music start when the sound has finished (or when you tap Start think time). The correct response's picture and sound appear only after the answer reveals; on the iPad you can look at (and listen to) them privately before that.
 - **Board editor: see your formatting.** Bold, italics and underline now show as bold, italic and underlined text while you edit (no more [b] tags); undo / redo and copy / paste work as in any editor. Existing boards open with their formatting and keep working.
 - **Board editor: preview Final Jeopardy!** — Category, Preview Clue and Preview Answer show exactly what the TV will show (picture, text, sound — with Play, Pause and Restart), using your unsaved changes; no game needed.
 
@@ -31,6 +31,11 @@ their notes come from the matching section below (`scripts/release-notes.mjs`).
 - The iPad shows a player's real name next to their nickname without brackets when they buzz in, as the TV does.
 - Phones: the nickname box no longer disappears under the on-screen keyboard; it has a Cancel button and Enter saves.
 - A clue closed by moving to the next round (or the Final, or the end) counts as answered / unanswered in the statistics, not as skipped.
+
+### Known Issues
+- The new iPad layout, the answer band and the phone keyboard fix were tested in browser emulation (iPad, iPhone, Android sizes), not yet on your iPad and phones.
+- The board editor's new text box: typing the characters "[b]" yourself still turns on bold (as before).
+- The server learns how long a clue's sound is from the host's browser; if that reading is short, the think time (or "unlock after the sound") can start a little early — the sound itself always plays to the end.
 
 ## [0.13.0] — 2026-10-18
 
