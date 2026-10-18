@@ -4,6 +4,19 @@ All notable changes to OfflineJeopardy. Versions follow [semantic versioning](ht
 GitHub Releases (with the Windows installer and portable exe) are published for major milestones;
 their notes come from the matching section below (`scripts/release-notes.mjs`).
 
+## [Unreleased]
+
+### New Features
+- **Pictures and sounds in Final Jeopardy!**: a Final clue can be a picture, a sound or both, with or without text, and the correct response can have its own picture and sound. The TV shows the clue's picture large; you play its sound from the iPad (play, pause, resume, restart). The think time and think music start when the sound has finished (or when you tap Start think time). The correct response's picture and sound appear only after the answer reveals; on the iPad you can look at (and listen to) them privately before that.
+
+### Improvements
+- The iPad's Final Jeopardy! screen uses the same layout as the rest of the game: the TV preview stays in one place, with the next step in the bar underneath.
+
+### Bug Fixes
+- Pictures and sounds attached to the Final Jeopardy! clue or answer in the board editor now show and play during the game (before, the TV showed only the text, and a picture-only clue showed nothing).
+- Board editor: adding two pictures or sounds in quick succession keeps both.
+- A clue whose answer is only a picture no longer counts as "missing answer".
+
 ## [0.13.0] — 2026-10-18
 
 ### New Features

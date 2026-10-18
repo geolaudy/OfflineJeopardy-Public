@@ -14,6 +14,16 @@ import { RichText } from '../../components/RichText';
 type Side = 'clue' | 'answer';
 type Indexed = { m: MediaRef; i: number };
 
+/** What a media composition needs: an open clue (ClueView) or the Final clue (R9-6). */
+export interface MediaClue {
+  clueId: string;
+  question: string | null;
+  answer: string | null;
+  media: MediaRef[];
+  answerMedia: MediaRef[];
+  layout: ClueLayout;
+}
+
 /** Share of the clue area given to media vs. text for each layout. */
 const SHARES: Record<Exclude<ClueLayout, 'auto'>, { media: number; text: number }> = {
   media: { media: 0.78, text: 0.17 },
@@ -94,7 +104,7 @@ export function QuestionCard({ g, still }: { g: GameView; still?: boolean }) {
             transition={{ duration: T.reveal, ease: EASE_OUT_ARR }}
             data-testid={side === 'answer' ? 'answer-side' : 'clue-side'}
           >
-            {area.h > 0 && <Composition g={g} side={side} area={area} />}
+            {area.h > 0 && <Composition g={g} mc={clue} side={side} area={area} />}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -122,10 +132,23 @@ export function QuestionCard({ g, still }: { g: GameView; still?: boolean }) {
   );
 }
 
+/** A media composition filling the space it is given (Final Jeopardy!, R9-6): measured, then laid
+ *  out like an open clue's — except that a sound with a picture is a badge on the picture's corner
+ *  instead of its own line, so the picture can be larger in the Final's smaller area. */
+export function MediaStage({ g, mc, side, testId }: { g: GameView; mc: MediaClue; side: Side; testId?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const area = useBoxSize(ref);
+  return (
+    <div ref={ref} className="flex min-h-0 w-full flex-1 flex-col items-center justify-center" data-testid={testId}>
+      {area.h > 0 && <Composition g={g} mc={mc} side={side} area={area} inlineAudio />}
+    </div>
+  );
+}
+
 /** Media first (upper area) with the text beneath; the pair is centred as one composition. */
-function Composition({ g, side, area }: { g: GameView; side: Side; area: { w: number; h: number } }) {
-  const { scale } = useBoard();
-  const clue = g.clue!;
+function Composition({ g, mc: clue, side, area, inlineAudio }: { g: GameView; mc: MediaClue; side: Side; area: { w: number; h: number }; inlineAudio?: boolean }) {
+  const { scale, vh } = useBoard();
+  const id = clue.clueId;
   // Answer side: answer media if the clue has some, otherwise keep the clue media on screen.
   const ownAnswerMedia = side === 'answer' && clue.answerMedia.length > 0;
   const media = ownAnswerMedia ? clue.answerMedia : clue.media;
@@ -138,12 +161,23 @@ function Composition({ g, side, area }: { g: GameView; side: Side; area: { w: nu
   const layout = resolveLayout(clue.layout, media.length > 0);
   const share = SHARES[layout];
   const textH = hasText ? (visual.length ? share.text : 1) * area.h : 0;
-  const audioH = audio.length ? (visual.length || hasText ? 0.12 : 0.6) * area.h : 0;
+  const beside = !!inlineAudio && audio.length > 0 && visual.length > 0;
+  const audioH = audio.length && !beside ? (visual.length || hasText ? 0.12 : 0.6) * area.h : 0;
   const mediaH = visual.length ? Math.max(80, (hasText ? share.media : 0.95) * area.h - audioH) : 0;
+  const row = visual.length > 0 && <MediaRow items={visual} g={g} clueId={id} side={mediaSide} maxW={area.w * 0.94} maxH={mediaH} />;
   return (
     <>
-      {visual.length > 0 && <MediaRow items={visual} g={g} side={mediaSide} maxW={area.w * 0.94} maxH={mediaH} />}
-      {audio.length > 0 && <AudioCue items={audio} g={g} side={mediaSide} height={audioH} big={!visual.length && !hasText} />}
+      {beside ? (
+        <div className="relative shrink-0 self-center">
+          {row}
+          <div className="absolute top-[1.2vh] right-[1.2vh]">
+            <AudioCue items={audio} g={g} clueId={id} side={mediaSide} height={vh * 0.08} big={false} />
+          </div>
+        </div>
+      ) : (
+        row
+      )}
+      {audio.length > 0 && !beside && <AudioCue items={audio} g={g} clueId={id} side={mediaSide} height={audioH} big={!visual.length && !hasText} />}
       {hasText && (
         <FitText
           text={text ?? ''}
@@ -161,16 +195,18 @@ function Composition({ g, side, area }: { g: GameView; side: Side; area: { w: nu
 
 /** Images/videos sized from their real aspect ratio: as large as the space allows, never cropped
  *  or stretched; invisible until loaded so the composition never jumps. */
-function MediaRow({ items, g, side, maxW, maxH }: { items: Indexed[]; g: GameView; side: Side; maxW: number; maxH: number }) {
+function MediaRow({ items, g, clueId, side, maxW, maxH }: { items: Indexed[]; g: GameView; clueId: string; side: Side; maxW: number; maxH: number }) {
+  const { vh } = useBoard();
   const gap = 24;
   const each = (maxW - gap * (items.length - 1)) / items.length;
   const captioned = items.some(({ m }) => m.caption);
-  const capH = captioned ? Math.min(70, maxH * 0.12) : 0;
+  // Room for one caption line even in a small area (the Final's, R9-6).
+  const capH = captioned ? Math.max(vh * 0.05, Math.min(70, maxH * 0.12)) : 0;
   return (
     <div className="flex shrink-0 items-start justify-center" style={{ gap }}>
       {items.map(({ m, i }) => (
         <figure key={`${side}:${i}:${m.url}`} className="flex flex-col items-center">
-          <SizedMedia m={m} maxW={each} maxH={maxH - capH} g={g} side={side} index={i} />
+          <SizedMedia m={m} maxW={each} maxH={maxH - capH} g={g} clueId={clueId} side={side} index={i} />
           {m.caption ? (
             <figcaption className="bt-caption" style={{ maxWidth: each, height: capH }} data-testid="clue-caption">
               {m.caption}
@@ -184,7 +220,7 @@ function MediaRow({ items, g, side, maxW, maxH }: { items: Indexed[]; g: GameVie
   );
 }
 
-function SizedMedia({ m, maxW, maxH, g, side, index }: { m: MediaRef; maxW: number; maxH: number; g: GameView; side: Side; index: number }) {
+function SizedMedia({ m, maxW, maxH, g, clueId, side, index }: { m: MediaRef; maxW: number; maxH: number; g: GameView; clueId: string; side: Side; index: number }) {
   const [aspect, setAspect] = useState<number | null>(null);
   const [failed, setFailed] = useState(false);
   let w = maxW;
@@ -200,7 +236,7 @@ function SizedMedia({ m, maxW, maxH, g, side, index }: { m: MediaRef; maxW: numb
         Media not available
       </div>
     );
-  if (m.kind === 'video') return <SyncedVideo m={m} style={style} g={g} side={side} index={index} onAspect={setAspect} onError={() => setFailed(true)} />;
+  if (m.kind === 'video') return <SyncedVideo m={m} style={style} g={g} clueId={clueId} side={side} index={index} onAspect={setAspect} onError={() => setFailed(true)} />;
   return (
     <img
       src={m.url}
@@ -215,9 +251,9 @@ function SizedMedia({ m, maxW, maxH, g, side, index }: { m: MediaRef; maxW: numb
   );
 }
 
-function SyncedVideo({ m, style, g, side, index, onAspect, onError }: { m: MediaRef; style: CSSProperties; g: GameView; side: Side; index: number; onAspect: (a: number) => void; onError: () => void }) {
+function SyncedVideo({ m, style, g, clueId, side, index, onAspect, onError }: { m: MediaRef; style: CSSProperties; g: GameView; clueId: string; side: Side; index: number; onAspect: (a: number) => void; onError: () => void }) {
   const ref = useRef<HTMLVideoElement>(null);
-  useMediaSync(ref, g, side, index);
+  useMediaSync(ref, g, clueId, side, index);
   return (
     <video
       ref={ref}
@@ -234,19 +270,19 @@ function SyncedVideo({ m, style, g, side, index, onAspect, onError }: { m: Media
 }
 
 /** Audio has no picture: a calm indicator (large when the sound is the whole clue). */
-function AudioCue({ items, g, side, height, big }: { items: Indexed[]; g: GameView; side: Side; height: number; big: boolean }) {
+function AudioCue({ items, g, clueId, side, height, big }: { items: Indexed[]; g: GameView; clueId: string; side: Side; height: number; big: boolean }) {
   return (
     <div className="flex shrink-0 items-center justify-center gap-[3vw]" style={{ height }}>
       {items.map(({ m, i }) => (
-        <AudioItem key={`${side}:${i}:${m.url}`} m={m} g={g} side={side} index={i} big={big} />
+        <AudioItem key={`${side}:${i}:${m.url}`} m={m} g={g} clueId={clueId} side={side} index={i} big={big} />
       ))}
     </div>
   );
 }
 
-function AudioItem({ m, g, side, index, big }: { m: MediaRef; g: GameView; side: Side; index: number; big: boolean }) {
+function AudioItem({ m, g, clueId, side, index, big }: { m: MediaRef; g: GameView; clueId: string; side: Side; index: number; big: boolean }) {
   const ref = useRef<HTMLAudioElement>(null);
-  const playing = useMediaSync(ref, g, side, index);
+  const playing = useMediaSync(ref, g, clueId, side, index);
   return (
     <div className="flex flex-col items-center gap-[1vh]" data-testid="clue-audio" data-playing={playing ? 'true' : 'false'}>
       <audio ref={ref} src={m.url} preload="auto" />
@@ -260,12 +296,12 @@ function AudioItem({ m, g, side, index, big }: { m: MediaRef; g: GameView; side:
 
 /**
  * Keeps an <audio>/<video> element in step with the server's playback state for this item
- * (`index` = position in that side's media list): plays/pauses, seeks when it drifts > 0.4 s,
+ * (`index` = position in that side's media list of clue `clueId`): plays/pauses, seeks when it drifts > 0.4 s,
  * mutes. Returns whether it is playing.
  */
-export function useMediaSync(ref: RefObject<HTMLMediaElement | null>, g: GameView, side: Side, index: number) {
+export function useMediaSync(ref: RefObject<HTMLMediaElement | null>, g: GameView, clueId: string, side: Side, index: number) {
   const pb = g.media;
-  const mine: MediaPlayback | null = pb && pb.clueId === g.clue?.clueId && pb.side === side && pb.index === index ? pb : null;
+  const mine: MediaPlayback | null = pb && pb.clueId === clueId && pb.side === side && pb.index === index ? pb : null;
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;

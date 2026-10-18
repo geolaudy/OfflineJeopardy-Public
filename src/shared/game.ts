@@ -459,8 +459,27 @@ export interface FinalState {
   cursor: number;
   /** What is public for that contestant: who they are → their wager → their answer. */
   step: FinalRevealStep;
+  /** Think time has begun (timer + think music). A clue with sound or video shows first and the
+   *  think time starts when it finishes or the host starts it (R9-6.4); other clues start at once. */
+  thinking: boolean;
 }
 export type FinalRevealStep = 'contestant' | 'wager' | 'answer';
+
+/** The Final round's one clue. */
+export function finalClueOf(board: BoardContent, roundIndex: number): Clue | undefined {
+  return board.rounds[roundIndex]?.categories[0]?.clues[0];
+}
+
+/** Audio or video the host can play (images only show). */
+export function hasPlayable(list: MediaRef[] | undefined): boolean {
+  return (list ?? []).some((m) => m.kind === 'audio' || m.kind === 'video');
+}
+
+/** When Final Jeopardy! media is on the TV (R9-6): the clue's while the clue is shown, the correct
+ *  response's only once the host has finished the reveals and the correct response is up. */
+export function finalMediaLive(stage: FinalState['stage'], side: 'clue' | 'answer'): boolean {
+  return side === 'clue' ? stage === 'clue' || stage === 'closed' : stage === 'done';
+}
 
 /** Reveal order for the Final: ascending score, ties in competitor order. */
 export function finalRevealOrder(ids: Id[], scores: Record<Id, number>, competitorOrder: Id[]): Id[] {

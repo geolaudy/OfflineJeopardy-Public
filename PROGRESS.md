@@ -1,5 +1,13 @@
 # Progress
 
+## Session 13 — 2026-10-18 (second machine, mvanwitz; v0.13.0 + round 9)
+
+- **Release v0.13.0:** full Playwright run on dab0740 **53/53** (enough free memory this time), then `release:local` (Vitest 316/316, verify-dist 17/17) → f219f51, tag v0.13.0 → GitHub Actions "Windows build v0.13.0" succeeded → https://github.com/geolaudy/OfflineJeopardy/releases/tag/v0.13.0 with OfflineJeopardy-Setup-0.13.0.exe, OfflineJeopardy-Portable-0.13.0.exe, SHA256SUMS.txt (verified via the GitHub API).
+- **Round 9 (USER_FEEDBACK "Round 9", milestone 23):** Final Jeopardy! media bug — root cause: the board saved the Final's media, but the Final's game view carried only its text, the TV's Final screen rendered only text (a picture-only clue rendered nothing) and media playback accepted only an open regular clue. Fixed in one path with the regular media system (D82): FinalView media/answerMedia/layout/thinking, projection rules, engine playback target, think time after a sound clue, playback cleanup (`settleMedia`), TV composition reused (`MediaStage`, sound badge on the picture), think music never over the clue's sound, iPad preview muted.
+- **R9-5:** the iPad Final in `GameFrame` (preview fixed in every stage, every `final-*` id kept), private correct-response band with a Picture / Sound sheet.
+- Found on the way: two quick uploads to one editor media list replaced each other (fixed); a picture-only answer counted as "missing answer" (fixed).
+- Tests: tsc clean, **Vitest 330/330** (new unit round9: 14), Playwright round9 (2, new) + presentation, playtest, teams-editor, practice, media, round7d-host, round7-tv, round8, round6-host, host-ipad, editor, bots, survival — **25/25**.
+
 ## Session 12 — 2026-10-18 (second machine, mvanwitz; round 8)
 
 - Round-8 requirements recorded (USER_FEEDBACK "Round 8", plan milestone 22, FEATURE_MATRIX). Milestone E (developer tools) verified: full Playwright **49/49**.

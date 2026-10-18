@@ -1095,7 +1095,7 @@ function ClueFields({ clue, onChange, final, category = '' }: { clue: Clue; onCh
         <RichField value={clue.answer} onChange={(answer) => onChange({ answer })} rows={2} maxLength={1000} label="Answer" fieldLabel="Answer (host only until revealed)" testId="clue-answer-input" />
         <MediaList
           label="Answer media (optional)"
-          hint="Shown instead of the clue media when you reveal the answer — e.g. the uncovered picture."
+          hint={final ? 'Shown with the correct response after the answer reveals — never earlier.' : 'Shown instead of the clue media when you reveal the answer — e.g. the uncovered picture.'}
           items={answerMedia}
           onItems={(next) => onChange({ answerMedia: next.length ? next : undefined })}
           testId="answer-media"
@@ -1103,7 +1103,7 @@ function ClueFields({ clue, onChange, final, category = '' }: { clue: Clue; onCh
       </section>
 
       <details className="rounded-xl border border-slate-200 p-3" open={hasMedia || !!clue.unlock}>
-        <summary className="cursor-pointer font-bold">Layout & buzzers</summary>
+        <summary className="cursor-pointer font-bold">{final ? 'Layout' : 'Layout & buzzers'}</summary>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <Field label="Layout on the TV">
             <select className={inputCls} value={clue.layout ?? 'auto'} onChange={(e) => onChange({ layout: e.target.value === 'auto' ? undefined : (e.target.value as ClueLayout) })} aria-label="Layout on the TV">
@@ -1113,6 +1113,8 @@ function ClueFields({ clue, onChange, final, category = '' }: { clue: Clue; onCh
               <option value="text">Text emphasized</option>
             </select>
           </Field>
+          {/* Final Jeopardy! has no buzzers: a sound or video clue plays first, then the think time. */}
+          {!final && (
           <Field label="Buzzer unlock" hint="Used when the game's automatic unlock setting is not Off.">
             <select className={inputCls} value={clue.unlock ?? 'default'} onChange={(e) => onChange({ unlock: e.target.value === 'default' ? undefined : (e.target.value as ClueUnlock) })} aria-label="Buzzer unlock">
               <option value="default">Use the game setting</option>
@@ -1122,6 +1124,7 @@ function ClueFields({ clue, onChange, final, category = '' }: { clue: Clue; onCh
               <option value="mediaEnd">Unlock when the media finishes</option>
             </select>
           </Field>
+          )}
         </div>
       </details>
 
@@ -1136,6 +1139,9 @@ function ClueFields({ clue, onChange, final, category = '' }: { clue: Clue; onCh
 function MediaList({ label, hint, items, onItems, testId }: { label: string; hint: string; items: MediaRef[]; onItems: (m: MediaRef[]) => void; testId: string }) {
   const fileRefs = useRef<Partial<Record<MediaKind, HTMLInputElement | null>>>({});
   const [uploading, setUploading] = useState<MediaKind | null>(null);
+  // Uploads finish later: add to the latest list, so two quick uploads both stay (R9-6.9).
+  const latest = useRef(items);
+  latest.current = items;
   const upload = async (e: ChangeEvent<HTMLInputElement>, kind: MediaKind) => {
     const f = e.target.files?.[0];
     e.target.value = '';
@@ -1146,7 +1152,10 @@ function MediaList({ label, hint, items, onItems, testId }: { label: string; hin
     setUploading(kind);
     const r = await attempt(() => hostApi<{ id: string; kind: MediaRef['kind']; url: string }>('POST', `/api/media?kind=${kind}`, undefined, fd), `${MEDIA_FORMATS[kind].label} added`);
     setUploading(null);
-    if (r) onItems([...items, { kind: r.kind, url: r.url }]);
+    if (!r) return;
+    const next = [...latest.current, { kind: r.kind, url: r.url }];
+    latest.current = next;
+    onItems(next);
   };
   const kindIcon = { image: Image, audio: Music, video: Film } as const;
   return (

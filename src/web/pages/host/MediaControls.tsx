@@ -1,10 +1,10 @@
 // Host controls for clue audio/video. The TV plays the media; this panel only sends commands.
 // The host device loads metadata (for the duration) but never plays the sound itself.
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Music, Pause, Play, RotateCcw, Square, Video, Volume2, VolumeX, Image as ImageIcon } from 'lucide-react';
 import type { GameView } from '../../../shared/views';
 import type { HostAction } from '../../../shared/actions';
-import { mediaPosition, type MediaRef } from '../../../shared/game';
+import { finalMediaLive, mediaPosition, type MediaRef } from '../../../shared/game';
 import { serverNow } from '../../lib/socket';
 import { Button, cx } from '../../components/ui';
 
@@ -45,34 +45,60 @@ function useTick(active: boolean) {
   }, [active]);
 }
 
+type Sides = { side: 'clue' | 'answer'; list: MediaRef[] }[];
+
 export function MediaControls({ g, run }: { g: GameView; run: Run }) {
   const clue = g.clue!;
-  const sides: { side: 'clue' | 'answer'; list: MediaRef[] }[] = [{ side: 'clue', list: clue.media }];
+  const sides: Sides = [{ side: 'clue', list: clue.media }];
   if (clue.answerRevealed && clue.answerMedia.length) sides.push({ side: 'answer', list: clue.answerMedia });
+  return (
+    <MediaPanel g={g} run={run} clueId={clue.clueId} sides={sides}>
+      {clue.unlockMode === 'mediaStart' && g.buzzer.openedAt == null && <p className="px-1 text-xs text-slate-500">Buzzers open automatically when the media starts.</p>}
+      {clue.unlockMode === 'mediaEnd' && g.buzzer.openedAt == null && <p className="px-1 text-xs text-slate-500">Buzzers open automatically when the media finishes.</p>}
+    </MediaPanel>
+  );
+}
+
+/** R9-6.4: Final Jeopardy! sound and video — the clue's while the clue is on the TV, the correct
+ *  response's once it is shown (never earlier, so nothing is revealed by accident). */
+export function FinalMediaControls({ g, run }: { g: GameView; run: Run }) {
+  const f = g.final!;
+  const sides: Sides = [];
+  if (finalMediaLive(f.stage, 'clue')) sides.push({ side: 'clue', list: f.media });
+  if (finalMediaLive(f.stage, 'answer')) sides.push({ side: 'answer', list: f.answerMedia });
+  return (
+    <MediaPanel g={g} run={run} clueId={f.clueId} sides={sides}>
+      {f.stage === 'clue' && !f.thinking && <p className="px-1 text-xs text-slate-500">The think time starts when the clue's sound or video finishes.</p>}
+    </MediaPanel>
+  );
+}
+
+/** Whether a side list has anything to play (images only show). */
+export const playableIn = (sides: Sides) => sides.some(({ list }) => list.some((m) => m.kind !== 'image'));
+
+function MediaPanel({ g, run, clueId, sides, children }: { g: GameView; run: Run; clueId: string; sides: Sides; children?: ReactNode }) {
   const playable = sides.flatMap(({ side, list }) => list.map((m, index) => ({ side, m, index })).filter(({ m }) => m.kind !== 'image'));
   if (!playable.length) return null;
   return (
     <div className="space-y-2 rounded-xl bg-slate-50 p-2" data-testid="media-controls">
       {playable.map(({ side, m, index }) => (
-        <MediaRow key={`${side}:${index}`} g={g} run={run} side={side} m={m} index={index} />
+        <MediaRow key={`${side}:${index}`} g={g} run={run} clueId={clueId} side={side} m={m} index={index} />
       ))}
-      {clue.unlockMode === 'mediaStart' && g.buzzer.openedAt == null && <p className="px-1 text-xs text-slate-500">Buzzers open automatically when the media starts.</p>}
-      {clue.unlockMode === 'mediaEnd' && g.buzzer.openedAt == null && <p className="px-1 text-xs text-slate-500">Buzzers open automatically when the media finishes.</p>}
+      {children}
     </div>
   );
 }
 
-function MediaRow({ g, run, side, m, index }: { g: GameView; run: Run; side: 'clue' | 'answer'; m: MediaRef; index: number }) {
-  const clue = g.clue!;
+function MediaRow({ g, run, clueId, side, m, index }: { g: GameView; run: Run; clueId: string; side: 'clue' | 'answer'; m: MediaRef; index: number }) {
   const duration = useDuration(m);
-  const pb = g.media && g.media.clueId === clue.clueId && g.media.side === side && g.media.index === index ? g.media : null;
+  const pb = g.media && g.media.clueId === clueId && g.media.side === side && g.media.index === index ? g.media : null;
   const playing = pb?.status === 'playing';
   useTick(playing);
   const pos = pb ? mediaPosition(pb, serverNow()) : 0;
   const total = pb?.durationMs ?? duration;
   const label = m.caption || (m.kind === 'video' ? 'Video' : 'Audio');
   const Icon = m.kind === 'video' ? Video : Music;
-  const play = () => run({ type: 'mediaPlay', clueId: clue.clueId, side, index, durationMs: duration });
+  const play = () => run({ type: 'mediaPlay', clueId, side, index, durationMs: duration });
   return (
     <div className="flex flex-wrap items-center gap-2" data-testid="media-row">
       <span className="flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold">

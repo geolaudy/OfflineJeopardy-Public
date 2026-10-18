@@ -48,7 +48,7 @@ function game(over: Partial<GameView> = {}): GameView {
 }
 const entry = (id: string, judged: boolean, correct: boolean | null, wager = 0) => ({ competitorId: id, hasWager: true, hasAnswer: true, submitted: true, wager, answer: 'x', judged, correct, profileId: `p-${id}` });
 const final = (entries: FinalView['entries'], over: Partial<FinalView> = {}) =>
-  ({ stage: 'reveal', category: 'Capitals', question: 'Q', answer: null, order: ['a', 'b'], preScores: { a: 200, b: 600 }, cursor: 0, step: 'answer', entries, ...over }) as FinalView;
+  ({ stage: 'reveal', category: 'Capitals', question: 'Q', answer: null, clueId: 'fq', media: [], answerMedia: [], layout: 'auto', thinking: true, order: ['a', 'b'], preScores: { a: 200, b: 600 }, cursor: 0, step: 'answer', entries, ...over }) as FinalView;
 
 describe('Final judgment sounds (R7-8)', () => {
   it('a $0 wager judged correct / incorrect still plays the cue, once', () => {

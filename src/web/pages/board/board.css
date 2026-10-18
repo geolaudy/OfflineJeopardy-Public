@@ -981,6 +981,11 @@
   padding: var(--bt-final-band, 21vh) 5vw;
   pointer-events: none;
 }
+/* R9-6.2: a picture clue uses the room from under the (smaller) category down to the answer
+   chips (no mirrored band below). */
+.bt-final-q.has-media {
+  padding: 18vh 4vw 16.5vh;
+}
 /* R7-12: judged answers — sharp vector check / cross in the score-change colours. */
 .bt-verdict {
   width: 1em;

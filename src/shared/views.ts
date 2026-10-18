@@ -103,6 +103,15 @@ export interface FinalView {
   categorySubheading: string;
   question: string | null;
   answer: string | null;
+  /** The Final clue's id (media playback refers to it). */
+  clueId: Id;
+  /** Clue media (R9-6): visible like the question. */
+  media: MediaRef[];
+  /** Correct-response media: host always; others only once the correct response is shown. */
+  answerMedia: MediaRef[];
+  layout: ClueLayout;
+  /** Think time has begun (see FinalState.thinking). */
+  thinking: boolean;
   /** Reveal order, lowest → highest pre-Final score (R4-2). */
   order: Id[];
   preScores: Record<Id, number>;

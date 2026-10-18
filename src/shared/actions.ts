@@ -140,6 +140,8 @@ export const hostActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('finalNext') }),
   /** Final reveal (R4-2): contestant → wager → answer → (judge) → next contestant. */
   z.object({ type: z.literal('finalReveal') }),
+  /** R9-6.4: start the think time of a Final clue with sound or video before it has finished. */
+  z.object({ type: z.literal('finalStartThink') }),
   /** A player's lobby colour (R4-13). */
   z.object({ type: z.literal('setPlayerColor'), profileId: id, color: z.string().regex(/^#[0-9a-fA-F]{6}$/) }),
   z.object({ type: z.literal('setFinalWager'), competitorId: id, amount: int }),

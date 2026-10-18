@@ -118,3 +118,10 @@ Rollback point: tag v0.12.0 (published). See USER_FEEDBACK.md "Round 8"; statuse
 - **C — Rich clue text:** R8-7 (line breaks), R8-8 (bold/italic/underline), R8-9 (category subheading). **Done.** One shared text format for board content (stored with the board, rendered by one component on TV, host and phones; plain-text fallbacks for search, history and AI).
 - **F (round 7):** R7-30.1 … R7-30.5 after A–C. **Done** (session 12, D81).
 - Commit + push after every stable sub-task; release v0.13.0 when A–C are done and tested.
+
+## Milestone 23 — User feedback round 9 (started 2026-10-18, session 13)
+
+Rollback point: tag v0.13.0 (published). See USER_FEEDBACK.md "Round 9"; statuses in FEATURE_MATRIX.md.
+- **0 — Release v0.13.0:** full Playwright run 53/53, then the release. **Done.**
+- **A — Final Jeopardy! media + iPad Final in the game frame:** R9-5, R9-6.1 … R9-6.10. **Done** (D82).
+- Next: smaller leftovers (category subheadings in CSV, the iPad buzzed-in line's inline "Nickname (Name)").

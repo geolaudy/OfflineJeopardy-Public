@@ -56,9 +56,14 @@ export function clueHasPrompt(q: Pick<Clue, 'question' | 'media'>): boolean {
   return !!q.question?.trim() || hasClueMedia(q);
 }
 
-/** Ready to play: a prompt (text or media) and an answer. */
-export function clueComplete(q: Pick<Clue, 'question' | 'answer' | 'media'>): boolean {
-  return clueHasPrompt(q) && !!q.answer?.trim();
+/** An answer to reveal: text, or answer media (a picture answer, R9-6.3). */
+export function clueHasAnswer(q: Pick<Clue, 'answer' | 'answerMedia'>): boolean {
+  return !!q.answer?.trim() || hasClueMedia({ media: q.answerMedia });
+}
+
+/** Ready to play: a prompt (text or media) and an answer (text or media). */
+export function clueComplete(q: Pick<Clue, 'question' | 'answer' | 'media' | 'answerMedia'>): boolean {
+  return clueHasPrompt(q) && clueHasAnswer(q);
 }
 
 export interface BoardIssue {
@@ -80,8 +85,8 @@ export function validateBoard(content: BoardContent): BoardIssue[] {
       c.clues.forEach((q) => {
         if (ids.has(q.id)) issues.push({ level: 'error', message: `Duplicate clue id ${q.id}.` });
         ids.add(q.id);
-        if (!clueHasPrompt(q) || !q.answer.trim())
-          issues.push({ level: 'warning', message: `${r.name} / ${c.name || `Category ${ci + 1}`} / ${q.value}: ${clueHasPrompt(q) ? 'missing answer' : q.answer.trim() ? 'missing clue text or media' : 'missing clue and answer'}.` });
+        if (!clueHasPrompt(q) || !clueHasAnswer(q))
+          issues.push({ level: 'warning', message: `${r.name} / ${c.name || `Category ${ci + 1}`} / ${q.value}: ${clueHasPrompt(q) ? 'missing answer' : clueHasAnswer(q) ? 'missing clue text or media' : 'missing clue and answer'}.` });
       });
     });
   });

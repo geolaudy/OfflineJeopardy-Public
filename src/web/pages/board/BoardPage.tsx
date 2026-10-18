@@ -265,12 +265,14 @@ function useSounds(g: GameView | null, lobby: PublicLobby | null) {
     if (!g || !p || p.id !== g.id) return;
     for (const cue of transitionCues(p, g)) playCue(cue);
     // Final Jeopardy! think music (R4-3): starts when the clue is shown for writing, fades out when
-    // answers close. Pausing fades it; resuming continues where the timer is.
-    const writing = (v: GameView) => v.phase === 'final' && v.final?.stage === 'clue' && !v.paused;
+    // answers close. Pausing fades it; resuming continues where the timer is. R9-6.4: a clue with
+    // sound or video plays first (think time not begun), and the music never plays over it.
+    const writing = (v: GameView) =>
+      v.phase === 'final' && v.final?.stage === 'clue' && v.final.thinking !== false && !v.paused && !(v.media?.status === 'playing' && v.media.clueId === v.final.clueId);
     if (writing(g) && !writing(p)) {
       const t = g.timer;
       const elapsed = t?.kind === 'final' ? (t.durationMs - timerRemaining(t, serverNow())) / 1000 : 0;
-      playCue('finalThink', { offsetSec: p.paused ? elapsed : 0 });
+      playCue('finalThink', { offsetSec: elapsed > 0.5 ? elapsed : 0 });
     } else if (!writing(g) && writing(p)) stopCue('finalThink', g.paused ? 300 : 800);
   }, [g]);
 }

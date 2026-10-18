@@ -3,9 +3,11 @@
 // contestant → wager → answer → host's judgment (score updates) → next.
 // R5-6: the move from answer writing to the reveal, and from one contestant to the next, is the
 // category-introduction swipe (with its sound), once per host action.
+// R9-6: the clue's pictures and sounds show with the clue, laid out like an open clue's; the
+// correct response's pictures and sounds only with the correct response after the reveals.
 import { AnimatePresence, motion } from 'motion/react';
 import type { CSSProperties } from 'react';
-import type { GameView } from '../../../shared/views';
+import type { FinalView, GameView } from '../../../shared/views';
 import { finalEntryReveal } from '../../../shared/game';
 import { Avatar, cx } from '../../components/ui';
 import { playCue } from '../../lib/sound';
@@ -17,6 +19,14 @@ import { SwipeStage, useSwipe, useTestId } from './Swipe';
 import { finalScreenKey, finalTransition } from './finalSwipe';
 import { EASE_OUT_ARR, T } from './timing';
 import { RichText } from '../../components/RichText';
+import { MediaStage, type MediaClue } from './ClueMedia';
+
+/** The Final clue as a media composition: the clue side, or the correct response alone. */
+function finalMedia(f: FinalView, side: 'clue' | 'answer'): MediaClue {
+  return side === 'clue'
+    ? { clueId: f.clueId, question: f.question, answer: null, media: f.media, answerMedia: [], layout: f.layout }
+    : { clueId: f.clueId, question: null, answer: f.answer, media: [], answerMedia: f.answerMedia, layout: f.layout };
+}
 
 const swipeSound = () => playCue('categoryIntro');
 
@@ -46,15 +56,17 @@ function FinalContent({ g }: { g: GameView }) {
   const f = g.final!;
   const early = f.stage === 'category' || f.stage === 'wagers';
   const revealing = f.stage === 'reveal' || f.stage === 'done';
+  // R9-6.2: a picture or sound clue gets a smaller category line, so the picture can be larger.
+  const mediaClue = (f.stage === 'clue' || f.stage === 'closed') && f.media.length > 0;
   return (
     <>
       <p className="bt-kicker shrink-0">Final Jeopardy!</p>
       <FitText
         text={f.category}
-        max={early ? 13 : revealing ? 3.6 : 5}
+        max={early ? 13 : revealing || mediaClue ? 3.6 : 5}
         min={early ? 4 : 2.2}
         className="bt-intro-cat"
-        boxClassName={early ? 'min-h-0 flex-1' : revealing ? 'h-[6vh] shrink-0' : 'h-[9vh] shrink-0'}
+        boxClassName={early ? 'min-h-0 flex-1' : revealing || mediaClue ? 'h-[6vh] shrink-0' : 'h-[9vh] shrink-0'}
       />
       {f.categorySubheading && (
         <p className={cx('bt-intro-sub shrink-0', !early && 'is-small')} data-testid="final-subheading">
@@ -62,11 +74,16 @@ function FinalContent({ g }: { g: GameView }) {
         </p>
       )}
       {f.stage === 'wagers' && <SubmissionChips g={g} kind="wager" />}
-      {(f.stage === 'clue' || f.stage === 'closed') && f.question && (
+      {(f.stage === 'clue' || f.stage === 'closed') && (f.question?.trim() || f.media.length > 0) && (
         // R7-7: centred in the whole stage, not in the space left under the category; the header
-        // band is mirrored at the bottom so long clues never run into it.
-        <motion.div className="bt-final-q" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: T.reveal }}>
-          <FitText text={f.question} max={7} min={2.2} className="bt-question" boxClassName="min-h-0 flex-1" />
+        // band is mirrored at the bottom so long clues never run into it. With media (R9-6) the
+        // picture gets the room down to the answer chips.
+        <motion.div className={cx('bt-final-q', f.media.length > 0 && 'has-media')} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: T.reveal }} data-testid="tv-final-clue">
+          {f.media.length > 0 ? (
+            <MediaStage g={g} mc={finalMedia(f, 'clue')} side="clue" />
+          ) : (
+            <FitText text={f.question ?? ''} max={7} min={2.2} className="bt-question" boxClassName="min-h-0 flex-1" />
+          )}
         </motion.div>
       )}
       {(f.stage === 'clue' || f.stage === 'closed') && <SubmissionChips g={g} kind="answer" bottom />}
@@ -198,13 +215,21 @@ function Summary({ g }: { g: GameView }) {
   const { prefix } = useBoard();
   return (
     <>
-      {f.answer && (
-        <motion.div className="flex shrink-0 flex-col items-center gap-[0.8vh]" initial={{ opacity: 0, y: '3vh' }} animate={{ opacity: 1, y: 0 }} transition={{ duration: T.reveal, ease: EASE_OUT_ARR }}>
-          <span className="bt-final-label text-[2.4vh]">Correct response</span>
-          <p className="bt-answer">
-            <RichText text={f.answer} />
-          </p>
+      {f.answerMedia.length > 0 ? (
+        // R9-6.3: a picture (or sound) correct response gets the room above the result cards.
+        <motion.div className="flex min-h-0 w-full flex-1 flex-col items-center gap-[0.8vh]" initial={{ opacity: 0, y: '3vh' }} animate={{ opacity: 1, y: 0 }} transition={{ duration: T.reveal, ease: EASE_OUT_ARR }} data-testid="tv-final-correct">
+          <span className="bt-final-label shrink-0 text-[2.4vh]">Correct response</span>
+          <MediaStage g={g} mc={finalMedia(f, 'answer')} side="answer" />
         </motion.div>
+      ) : (
+        f.answer && (
+          <motion.div className="flex shrink-0 flex-col items-center gap-[0.8vh]" initial={{ opacity: 0, y: '3vh' }} animate={{ opacity: 1, y: 0 }} transition={{ duration: T.reveal, ease: EASE_OUT_ARR }} data-testid="tv-final-correct">
+            <span className="bt-final-label text-[2.4vh]">Correct response</span>
+            <p className="bt-answer">
+              <RichText text={f.answer} />
+            </p>
+          </motion.div>
+        )
       )}
       <div className="grid w-full max-w-[88vw] shrink-0 gap-[1.4vh]" style={{ gridTemplateColumns: `repeat(${Math.min(4, Math.max(1, f.order.length))}, minmax(0, 1fr))` }}>
         {f.order.map((id) => {

@@ -77,12 +77,14 @@ export function FitBox({ ratio = 16 / 9, className, boxClassName, children, test
   );
 }
 
-/** Strips what a TV mirror never needs (event log, undo, host-only clue text on the board). */
+/** Strips what a TV mirror never needs (event log, undo, host-only clue text on the board). Media
+ *  follows the TV's playback but always muted: only the TV plays the sound. */
 function forMirror(g: GameView): GameView {
   return {
     ...g,
     events: undefined,
     undoLabel: undefined,
+    media: g.media ? { ...g.media, muted: true } : null,
     rounds: g.rounds.map((r) => ({ ...r, categories: r.categories.map((c) => ({ ...c, clues: c.clues.map((q) => ({ id: q.id, value: q.value, used: q.used })) })) })),
   };
 }

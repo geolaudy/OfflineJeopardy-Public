@@ -3,7 +3,7 @@
 // so the preview always matches what the TV will show.
 // With ?live=1 the host controller embeds it instead (R5-12 / R5-14) and sends a game view: the
 // current category introduction (with the TV's swipes) or a revealed answer, exactly as the TV
-// formats it. Nothing here connects to the server or plays sound.
+// formats it, and Final Jeopardy! (R9-6). Nothing here connects to the server or plays sound.
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, MotionConfig } from 'motion/react';
 import type { GameView } from '../../../shared/views';
@@ -15,6 +15,7 @@ import { Grid } from './Grid';
 import { Scoreboard } from './Scoreboard';
 import { CluePanel } from './ClueZoom';
 import { Intro } from './Intro';
+import { FinalScreen } from './FinalScreen';
 import { ThemeLogo, UserFonts, type PublicSettings } from './BoardPage';
 import { FxCtx } from './fx';
 import { DEFAULT_TV_FX, normalizeTvFx } from '../../../shared/tvFx';
@@ -123,6 +124,7 @@ function LivePreview() {
             <div className="relative min-h-0 flex-1">
               <AnimatePresence>{g.phase === 'board' && g.intro && <Intro key="intro" g={g} />}</AnimatePresence>
               {g.phase === 'clue' && g.clue && <CluePanel key={g.clue.clueId} g={g} closing={false} zoomIn={false} onClosed={() => {}} />}
+              {g.phase === 'final' && g.final && <FinalScreen g={g} />}
             </div>
             {msg.scoreboard && <Scoreboard g={g} />}
           </div>

@@ -81,12 +81,20 @@ export function projectState(s: GameState, role: ViewRole, rawProfiles: Record<I
     const fc = round.categories[0];
     const fq = fc?.clues[0];
     const st = s.final.stage;
+    const clueShown = host || st === 'clue' || st === 'closed' || st === 'reveal' || st === 'done';
+    const answerShown = host || st === 'done';
     final = {
       stage: st,
       category: fc?.name ?? '',
       categorySubheading: fc?.subheading?.trim() ?? '',
-      question: host || st === 'clue' || st === 'closed' || st === 'reveal' || st === 'done' ? (fq?.question ?? '') : null,
-      answer: host || st === 'done' ? (fq?.answer ?? '') : null,
+      question: clueShown ? (fq?.question ?? '') : null,
+      answer: answerShown ? (fq?.answer ?? '') : null,
+      // R9-6: pictures and sounds follow their text — the correct response's only once it is shown.
+      clueId: fq?.id ?? '',
+      media: clueShown ? (fq?.media ?? []) : [],
+      answerMedia: answerShown ? (fq?.answerMedia ?? []) : [],
+      layout: fq?.layout ?? 'auto',
+      thinking: s.final.thinking,
       order: s.final.order,
       preScores: s.final.preScores,
       cursor: s.final.cursor,
@@ -132,7 +140,7 @@ export function projectState(s: GameState, role: ViewRole, rawProfiles: Record<I
     final,
     timer: s.timer,
     intro: s.intro,
-    media: s.media && s.clue && s.media.clueId === s.clue.clueId && (s.media.side === 'clue' || s.clue.answerRevealed || host) ? s.media : null,
+    media: mediaView(s, host),
     practice: s.practice,
     roomCode: role === 'player' ? null : s.roomCode,
     showJoinQr: s.showJoinQr,
@@ -160,6 +168,15 @@ export function projectState(s: GameState, role: ViewRole, rawProfiles: Record<I
     view.contributions = contrib;
   }
   return view;
+}
+
+/** Playback of the open clue's (or the Final clue's) media; answer-side playback only once revealed. */
+function mediaView(s: GameState, host: boolean): GameView['media'] {
+  const m = s.media;
+  if (!m) return null;
+  if (s.clue) return m.clueId === s.clue.clueId && (m.side === 'clue' || s.clue.answerRevealed || host) ? m : null;
+  if (s.phase === 'final' && s.final) return m.side === 'clue' || s.final.stage === 'done' || host ? m : null;
+  return null;
 }
 
 /** R6-23: the presses of the current opening in press order, with each one's gap to the winner. */

@@ -11,11 +11,15 @@ import {
   type GameRules,
   type GameState,
   type BoardContent,
+  type Clue,
   type Id,
   type TimerState,
   CLUE_LOCKOUT,
   findClue,
+  finalClueOf,
+  finalMediaLive,
   finalRevealOrder,
+  hasPlayable,
   firstFreeColor,
   livesOf,
   mediaPosition,
@@ -106,6 +110,8 @@ export function normalizeState(s: GameState): GameState {
   if (!s.playerColors) s.playerColors = {};
   if (!Array.isArray(s.colorPrompts)) s.colorPrompts = [];
   if (s.final) for (const e of s.final.entries) if (typeof e.submitted !== 'boolean') e.submitted = !!e.answer;
+  // Saved before R9-6: the think time always began with the clue.
+  if (s.final && typeof s.final.thinking !== 'boolean') s.final.thinking = true;
   if (!s.nicknames) s.nicknames = {};
   if (s.final && !Array.isArray(s.final.order)) {
     // Saved before the one-at-a-time reveal (R4-2): rebuild the order from pre-Final scores.
@@ -346,6 +352,7 @@ export function applyAction(prev: GameState, action: EngineAction, ctx: EngineCt
     const playerInput = PLAYER_INPUTS.has(action.type) && !!ctx.actor && ctx.actor !== 'host';
     if (UNDOABLE.has(action.type) && !playerInput) snapshot(s, undoLabel(action.type));
     const res = reduce(tx, action);
+    settleMedia(s);
     syncPlayerColors(s, ctx);
     return { ok: true, state: s, touchedEvents: [...tx.touched.values()], ...(res ?? {}) };
   } catch (e) {
@@ -657,18 +664,19 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       return;
     }
     case 'mediaPlay': {
-      const clue = activeClue(s);
-      if (a.clueId !== clue.clueId) return { ignored: true, info: 'stale' };
-      if (a.side === 'answer' && !clue.answerRevealed) fail('Reveal the answer first');
-      const found = findClue(s.board, clue.clueId);
-      const list = (a.side === 'answer' ? found?.clue.answerMedia : found?.clue.media) ?? [];
+      const target = mediaTarget(s);
+      if (a.clueId !== target.clueId) return { ignored: true, info: 'stale' };
+      const clue = target.active;
+      if (a.side === 'answer' && clue && !clue.answerRevealed) fail('Reveal the answer first');
+      if (s.final && !clue && !finalMediaLive(s.final.stage, a.side)) fail(a.side === 'answer' ? 'Show the correct response first' : 'Show the Final Jeopardy! clue first');
+      const list = (a.side === 'answer' ? target.clue?.answerMedia : target.clue?.media) ?? [];
       const item = list[a.index];
       if (!item || (item.kind !== 'audio' && item.kind !== 'video')) fail('Nothing to play');
-      const same = s.media && s.media.clueId === clue.clueId && s.media.side === a.side && s.media.index === a.index;
+      const same = s.media && s.media.clueId === target.clueId && s.media.side === a.side && s.media.index === a.index;
       const prev = same ? s.media! : null;
       const resume = prev && (prev.status === 'paused' || prev.status === 'playing');
       s.media = {
-        clueId: clue.clueId,
+        clueId: target.clueId,
         side: a.side,
         index: a.index,
         status: 'playing',
@@ -678,7 +686,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
         muted: prev?.muted ?? false,
         started: true,
       };
-      if (a.side === 'clue' && clue.unlockMode === 'mediaStart') maybeAutoOpen(s, clue, now);
+      if (clue && a.side === 'clue' && clue.unlockMode === 'mediaStart') maybeAutoOpen(s, clue, now);
       return;
     }
     case 'mediaPause': {
@@ -720,6 +728,8 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       if (!m || m.clueId !== a.clueId || m.status !== 'playing' || m.durationMs == null || mediaPosition(m, now) < m.durationMs - 50) return { ignored: true };
       s.media = { ...m, status: 'ended', positionMs: m.durationMs, startedAt: null };
       if (m.side === 'clue' && s.clue?.clueId === m.clueId && s.clue.unlockMode === 'mediaEnd') maybeAutoOpen(s, s.clue, now);
+      // R9-6.4: a Final clue's sound or video has played to the end: the think time begins.
+      if (m.side === 'clue' && s.phase === 'final' && s.final?.stage === 'clue' && !s.final.thinking) startThinking(s, now);
       return;
     }
     case 'showJoinQr': {
@@ -1204,8 +1214,10 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
         preScores,
         cursor: 0,
         step: 'contestant',
+        thinking: false,
       };
       s.timer = null;
+      s.media = null;
       emit(tx, { type: 'round_change', roundIndex: idx, result: 'final' });
       return;
     }
@@ -1221,7 +1233,10 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
           emit(tx, { type: 'wager', result: 'final', clueId: clue.id, roundIndex: f.roundIndex, competitorId: e.competitorId, profileId: e.profileId, wager: e.wager });
         }
         f.stage = 'clue';
-        maybeAutoTimer(s, 'final', now);
+        // R9-6.4: with sound or video the clue plays first; the think time follows it.
+        f.thinking = false;
+        s.timer = null;
+        if (!hasPlayable(clue.media)) startThinking(s, now);
       } else if (f.stage === 'clue') {
         closeFinalAnswers(tx);
       } else if (f.stage === 'closed') {
@@ -1253,6 +1268,13 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
           f.step = 'contestant';
         } else f.stage = 'done';
       }
+      return;
+    }
+    case 'finalStartThink': {
+      const f = finalState(s);
+      if (f.stage !== 'clue') fail('The Final Jeopardy! clue is not showing');
+      if (f.thinking) return { ignored: true };
+      startThinking(s, now);
       return;
     }
     case 'setFinalWager': {
@@ -1493,6 +1515,33 @@ function syncPlayerColors(s: GameState, ctx: EngineCtx) {
   s.playerColors = colors;
   s.colorPrompts = prompts;
   for (const c of s.competitors) if (c.kind === 'player' && !c.bot && c.profileId && colors[c.profileId]) c.color = colors[c.profileId];
+}
+
+/** Think time begins (R9-6.4): the Final timer starts (when timers start by themselves). */
+function startThinking(s: GameState, now: number) {
+  s.final!.thinking = true;
+  maybeAutoTimer(s, 'final', now);
+}
+
+/** The clue whose media the host can play now: the open clue, or the Final clue. */
+function mediaTarget(s: GameState): { clueId: Id; clue: Clue | undefined; active: ActiveClue | null } {
+  if (s.phase === 'final' && s.final) {
+    const clue = finalClueOf(s.board, s.final.roundIndex);
+    if (!clue) fail('The Final round has no clue');
+    return { clueId: clue!.id, clue, active: null };
+  }
+  const active = activeClue(s);
+  return { clueId: active.clueId, clue: findClue(s.board, active.clueId)?.clue, active };
+}
+
+/** Playback never outlives what is on the TV (R9-6.4): a clue that closed, a Final clue once the
+ *  reveals begin, the correct response before it is shown (also after Undo). */
+function settleMedia(s: GameState) {
+  const m = s.media;
+  if (!m) return;
+  const keep =
+    s.phase === 'clue' ? s.clue?.clueId === m.clueId : s.phase === 'final' && !!s.final ? finalClueOf(s.board, s.final.roundIndex)?.id === m.clueId && finalMediaLive(s.final.stage, m.side) : false;
+  if (!keep) s.media = null;
 }
 
 function finalState(s: GameState) {

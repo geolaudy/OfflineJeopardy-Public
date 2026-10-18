@@ -317,3 +317,22 @@ CONTINUE_PROMPT_OTHER_COMPUTER.txt (branch, latest commit, exact next task, open
 | R8-7 | Shift+Enter line breaks in clues and answers kept and shown on host and TV (board editor and gameplay) | C |
 | R8-8 | Bold / italic / underline in clues and answers (board editor), rendered on host and TV; sizing and readability kept | C |
 | R8-9 | Category subheading (smaller second line under the category name): editable in the board editor, shown on the TV board and the host; long names handled | C |
+
+# User Feedback — Round 9 (received 2026-10-18, session 13, after v0.13.0)
+
+Release v0.13.0 first (full Playwright run), then the iPad Final Jeopardy! screen in the shared game frame, then a functional bug: Final Jeopardy! pictures and sounds.
+
+| ID | Requirement | Milestone |
+|---|---|---|
+| R9-1 | Release v0.13.0 after one complete, green Playwright run (installer + portable, verified) | — |
+| R9-5 | iPad Final Jeopardy! screen in the shared game frame; keep every `final-*` test id and the host workflow | A |
+| R9-6.1 | Investigate why Final media does not show (saving, game state, projection, rendering, playback, sync) and fix the cause | A |
+| R9-6.2 | Final clue pictures on the TV: image only, text only, image + text; large, aspect kept, balanced | A |
+| R9-6.3 | Final correct-response pictures: image only, text only, image + text; hidden until the correct-response reveal; never shown as a contestant's answer | A |
+| R9-6.4 | Final clue sound: audio only / + text / + image; host Play, Pause, Resume, Restart; works with the timer and think music; no restart on re-render, no overlapping copies, cleanup when the clue leaves | A |
+| R9-6.5 | Final correct-response sound: silent and hidden until the correct-response reveal, then available (never automatic) | A |
+| R9-6.6 | iPad: clue pictures in the preview, clue sound controls, the correct response's media privately, fixed preview, no layout shifts | A |
+| R9-6.7 | TV: sizes, readable text, no overflow, balanced, smooth, nothing early | A |
+| R9-6.8 | Keep wagers, timer, think music, answers, reveal order, judging, scores, bots, teams, results working | A |
+| R9-6.9 | Board editor saves, reloads, edits and removes Final media; existing boards keep working | A |
+| R9-6.10 | Regression tests (15 cases listed in the request) | A |
