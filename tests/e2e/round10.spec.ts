@@ -236,3 +236,87 @@ for (const [label, device, kbH] of [
     await expect(p.getByTestId('nickname-open')).not.toHaveText(/Add/);
   });
 }
+
+test('iPad: large fixed 16:9 preview, controls in the score-strip band, answer banner with category, value and the whole answer on demand (R10-6, R10-7, R10-9)', async () => {
+  test.setTimeout(150_000);
+  const { api, host, H } = await setup();
+  const content = smallBoard();
+  const long = 'The Eastern Roman Empire, also called the Byzantine Empire, which ruled the eastern half of the Roman world from Constantinople (today Istanbul) for more than a thousand years, from the fourth century until 1453';
+  Object.assign(content.rounds[0].categories[0].clues[1], { answer: long, notes: 'Accept Eastern Roman Empire or Byzantium. Do not accept Ottoman Empire, which conquered the city in 1453 and ruled it for centuries afterwards — that is a different empire entirely.' });
+  const { h } = await startGame(api, host, H, content, 'Round Ten B');
+  const tv = await (await cr.newContext({ viewport: { width: 1920, height: 1080 } })).newPage();
+  await tv.goto(`${BASE}/board`);
+  for (const [orientation, device] of [
+    ['landscape', devices['iPad Pro 11 landscape']],
+    ['portrait', devices['iPad Pro 11']],
+  ] as const) {
+    const ipad = await (await wk.newContext({ ...device })).newPage();
+    await ipad.goto(`${BASE}/host`);
+    const g0 = await h.until((g) => !!g);
+    if (g0.intro) await h.act({ type: 'introSkip' });
+    if (g0.phase === 'clue') await h.act({ type: 'closeClue' });
+    if (orientation === 'portrait') await h.act({ type: 'restoreClue', clueId: 'q2' }).catch(() => undefined);
+    const boxes: Record<string, { x: number; y: number; width: number; height: number }> = {};
+    const measure = async (state: string, id: string) => {
+      await expect(ipad.getByTestId(id)).toBeVisible();
+      await ipad.waitForTimeout(250);
+      const b = (boxes[state] = (await ipad.getByTestId(id).boundingBox())!);
+      expect(Math.abs(b.width / b.height - 16 / 9), `${state}: 16:9`).toBeLessThan(0.01);
+      // The controls stay inside the preview's left and right edges.
+      const bar = (await ipad.getByTestId('game-bar').boundingBox())!;
+      expect(bar.x).toBeGreaterThanOrEqual(b.x - 1);
+      expect(bar.x + bar.width).toBeLessThanOrEqual(b.x + b.width + 1);
+      expect(await ipad.getByTestId('game-bar').evaluate((e) => e.scrollWidth <= e.clientWidth + 1), `${state}: no horizontal overflow`).toBe(true);
+      await shot(ipad, `ipad-${orientation}-${state}`);
+    };
+    const vw = ipad.viewportSize()!;
+    await measure('board', 'host-board-box');
+    // Much larger than before (R7-21 frame: ~710 × 400 in landscape): the preview uses the area's width.
+    expect(boxes.board.width).toBeGreaterThan(vw.width * (orientation === 'landscape' ? 0.74 : 0.95));
+
+    await h.act({ type: 'selectClue', clueId: 'q2' });
+    await measure('clue', 'clue-preview-box');
+    const banner = ipad.getByTestId('answer-banner');
+    await expect(banner).toContainText('Correct response');
+    await expect(banner).not.toContainText(/only you/i);
+    await expect(ipad.getByTestId('host-clue-category')).toHaveText('Ancient Empires');
+    await expect(ipad.getByTestId('host-clue-value')).toHaveText('$400');
+    await expect(ipad.getByTestId('clue-head')).toHaveCount(0); // no header line above the preview
+    // The banner overlays the preview (inside its box), its stripes run the other way (45°).
+    const bb = (await banner.boundingBox())!;
+    expect(bb.y).toBeGreaterThanOrEqual(boxes.clue.y - 1);
+    expect(bb.height).toBeLessThan(boxes.clue.height * 0.25);
+    expect(await banner.evaluate((e) => getComputedStyle(e).backgroundImage)).toContain('45deg');
+    // One typography: the answer and notes use the label's font and shadow.
+    // (The shadow is in em, so its pixel size follows the text size; its colour is the same.)
+    const style = (sel: string) => ipad.locator(sel).first().evaluate((e) => [getComputedStyle(e).fontFamily, getComputedStyle(e).fontWeight, getComputedStyle(e).textShadow.startsWith('rgb(0, 0, 0)')]);
+    const label = await style('.host-answer-band-label');
+    expect(await style('.host-answer-band-text')).toEqual(label);
+    expect((await style('.host-answer-band-notes'))[0]).toBe(label[0]);
+    // A long answer stays compact; the whole answer and notes open in a sheet and close again.
+    await expect(ipad.getByTestId('answer-expand')).toBeVisible();
+    await ipad.getByTestId('answer-expand').click();
+    await expect(ipad.getByTestId('answer-full')).toContainText('until 1453');
+    await expect(ipad.getByTestId('answer-full')).toContainText('a different empire entirely');
+    await shot(ipad, `ipad-${orientation}-answer-sheet`);
+    await ipad.getByRole('button', { name: 'Close' }).click();
+    await expect(ipad.getByTestId('answer-full')).toHaveCount(0);
+    await expect(tv.getByText(/until 1453/)).toHaveCount(0); // private
+
+    // Buzzers + timer: the TV shows its timer bar, the iPad's preview does not; nothing moves.
+    await ipad.getByTestId('unlock').click();
+    await h.act({ type: 'timerStart', kind: 'buzz', seconds: 30 });
+    await expect(tv.getByTestId('tv-timer')).toBeVisible();
+    const frame = ipad.frameLocator('[data-testid="clue-preview"] iframe');
+    await expect(frame.getByTestId('tv-timer')).toHaveCount(1);
+    await expect(frame.getByTestId('tv-timer')).toBeHidden();
+    await measure('buzzers-open', 'clue-preview-box');
+    await h.act({ type: 'revealAnswer' });
+    await measure('revealed', 'clue-preview-box');
+    for (const s of ['clue', 'buzzers-open', 'revealed']) expect(boxes[s], s).toEqual(boxes.clue);
+    expect(boxes.clue).toEqual(boxes.board);
+    await h.act({ type: 'closeClue' });
+    await ipad.context().close();
+  }
+  h.close();
+});

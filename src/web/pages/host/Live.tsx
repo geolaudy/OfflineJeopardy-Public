@@ -94,28 +94,31 @@ function BoardStage({ g, run, onDevices }: { g: GameView; run: Run; onDevices: (
     <>
       <GameFrame
         boxTestId="host-board-box"
-        head={
-          <div className="min-w-0 flex-1">
-            <h2 className="truncate text-2xl font-black" data-testid="choosing">
-              {remaining === 0 ? 'This round is complete' : picker ? `${competitorName(picker, g)} is choosing a clue` : 'Choose a clue'}
-            </h2>
-            <p className="truncate text-sm text-slate-500">
-              {round.name} · {remaining} {remaining === 1 ? 'clue' : 'clues'} left{picker?.bot && remaining > 0 ? ' · picks by itself' : ''}
-            </p>
+        // R10-6: the board where the TV has it (above the score strip's place).
+        preview={(size) => (
+          <div className="absolute inset-x-0 top-0" style={{ height: size.stage }}>
+            <HostBoardGrid g={g} onTile={(id, used) => (used ? setPlayed(id) : run({ type: 'selectClue', clueId: id }))} />
           </div>
-        }
-        preview={() => <HostBoardGrid g={g} onTile={(id, used) => (used ? setPlayed(id) : run({ type: 'selectClue', clueId: id }))} />}
+        )}
         bar={
-          <div className="flex flex-wrap items-center gap-2 py-1">
-            <p className="min-w-0 flex-1 px-1 text-slate-600">{remaining === 0 ? 'Every clue in this round has been played.' : null}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="min-w-0 flex-1 px-1">
+              <h2 className="host-band-title truncate text-xl" data-testid="choosing">
+                {remaining === 0 ? 'This round is complete' : picker ? `${competitorName(picker, g)} is choosing a clue` : 'Choose a clue'}
+              </h2>
+              <p className="truncate text-sm text-slate-500">
+                {round.name} · {remaining === 0 ? 'every clue has been played' : `${remaining} ${remaining === 1 ? 'clue' : 'clues'} left`}
+                {picker?.bot && remaining > 0 ? ' · picks by itself' : ''}
+              </p>
+            </div>
             {/* The next step appears only when the round is finished; earlier it lives in Options. */}
             {remaining === 0 && next && (
-              <ActionButton size="xl" onAction={() => run({ type: 'setRound', roundIndex: next.i })} data-testid="next-round">
+              <ActionButton size="lg" onAction={() => run({ type: 'setRound', roundIndex: next.i })} data-testid="next-round">
                 Next: {next.name} <ChevronRight size={20} aria-hidden />
               </ActionButton>
             )}
             {remaining === 0 && !next && hasFinal && (
-              <ActionButton size="xl" onAction={() => run({ type: 'startFinal' })} data-testid="start-final">
+              <ActionButton size="lg" onAction={() => run({ type: 'startFinal' })} data-testid="start-final">
                 <Flag size={20} aria-hidden /> Start Final Jeopardy!
               </ActionButton>
             )}
@@ -283,18 +286,18 @@ function IntroStage({ g, run }: { g: GameView; run: Run }) {
     <GameFrame
       testId="intro-controls"
       boxTestId="intro-preview-box"
-      head={
-        <div className="flex min-w-0 flex-1 flex-col" data-testid="intro-now">
-          <p className="truncate text-xs font-bold tracking-wide text-slate-500 uppercase">Introduce the categories{intro.auto ? ' · automatic' : ''}</p>
-          <p className="flex min-w-0 items-baseline gap-3">
-            <span className="min-w-0 truncate text-2xl font-black">{current}</span>
-            <span className="shrink-0 text-slate-600">{intro.step < 0 ? 'The round title is on the TV.' : `Category ${intro.step + 1} of ${n}`}</span>
+      // R6-2.1 / R10-6: the presentation; the host's controls where the TV has its scores.
+      preview={(size) => <TvPreview game={g} scoreboard={false} band title="TV preview" size={size} testId="intro-preview" />}
+      bar={
+        <div className="flex flex-col gap-1.5">
+          <p className="flex min-w-0 items-baseline gap-3 px-1" data-testid="intro-now">
+            <span className="shrink-0 text-xs font-bold tracking-wide text-slate-500 uppercase">Introduce the categories{intro.auto ? ' · automatic' : ''}</span>
+            <span className="host-band-title min-w-0 truncate text-lg">{current}</span>
+            <span className="ml-auto shrink-0 text-sm text-slate-600">{intro.step < 0 ? 'The round title is on the TV.' : `Category ${intro.step + 1} of ${n}`}</span>
           </p>
+          <IntroBar g={g} run={run} n={n} nextLabel={nextLabel} />
         </div>
       }
-      // R6-2.1: the presentation only — the scores are in the iPad's own bar below.
-      preview={(size) => <TvPreview game={g} scoreboard={false} title="TV preview" size={size} testId="intro-preview" />}
-      bar={<IntroBar g={g} run={run} n={n} nextLabel={nextLabel} />}
     />
   );
 }
@@ -313,7 +316,7 @@ function IntroBar({ g, run, n, nextLabel }: { g: GameView; run: Run; n: number; 
               aria-current={i === intro.step ? 'step' : undefined}
               aria-label={`Show ${c.name || `Category ${i + 1}`} on the TV`}
               className={cx(
-                'flex min-h-11 w-full items-center justify-center rounded-xl px-2 py-1 text-center text-sm leading-tight font-bold uppercase',
+                'flex min-h-10 w-full items-center justify-center rounded-xl px-2 py-1 text-center text-sm leading-tight font-bold uppercase',
                 i === intro.step ? 'bg-amber-300 text-black ring-2 ring-amber-500' : i < intro.step ? 'bg-blue-800 text-white active:bg-blue-900' : 'bg-white text-slate-600 shadow-sm ring-1 ring-slate-200 active:bg-slate-100',
               )}
               data-testid="intro-cat"

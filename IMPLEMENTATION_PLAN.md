@@ -130,6 +130,6 @@ Rollback point: tag v0.13.0 (published). See USER_FEEDBACK.md "Round 9"; statuse
 
 Rollback point: tag v0.13.0. See USER_FEEDBACK.md "Round 10"; statuses in FEATURE_MATRIX.md. The owner verified Final media on real hardware.
 - **A — Small gameplay and presentation fixes:** R10-3, R10-5, R10-8, R10-4, R10-10. **Done.**
-- **B — iPad preview:** R10-6, R10-9 (highest priority after A).
-- **C — Host answer banner:** R10-7.
+- **B — iPad preview:** R10-6, R10-9. **Done** (D83).
+- **C — Host answer banner:** R10-7. **Done.**
 - **D — Board editor:** R10-2 (Final previews), R10-11 (visual rich text).

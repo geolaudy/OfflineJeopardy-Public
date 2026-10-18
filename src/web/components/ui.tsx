@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode, type RefObject } from 'react';
+import { useEffect, useRef, useState, type ButtonHTMLAttributes, type CSSProperties, type ReactNode, type RefObject } from 'react';
+import { createPortal } from 'react-dom';
 import { create } from 'zustand';
 import { avatarEmoji, PLAYER_COLORS, readableOn, contrastRatio } from '../lib/avatars';
 import type { ProfilePublic } from '../../shared/views';
@@ -233,7 +234,7 @@ function useKeepFocusVisible(ref: RefObject<HTMLElement | null>, active: boolean
   }, [ref, active, dep]);
 }
 
-export function Modal({ open, onClose, title, children, wide }: { open: boolean; onClose: () => void; title: string; children: ReactNode; wide?: boolean }) {
+export function Modal({ open, onClose, title, children, wide, vars }: { open: boolean; onClose: () => void; title: string; children: ReactNode; wide?: boolean; vars?: CSSProperties }) {
   const ref = useRef<HTMLDivElement>(null);
   const close = useLatest(onClose);
   useScrollLock(open);
@@ -252,12 +253,14 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
     return () => window.removeEventListener('keydown', onKey);
   }, [open, close]);
   if (!open) return null;
-  return (
+  // Rendered at the end of the page (R10-6): a dialog opened from inside the game preview is never
+  // confined to it or stacked under its controls. `vars` carries theme variables along.
+  return createPortal(
     <div
       className="fade-in fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 sm:items-center sm:p-4"
       // R10-4: with the keyboard open the overlay covers only the visible part of the screen, so
       // the sheet (and its Save / Cancel) sits right above the keyboard.
-      style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)', ...(kb ? { top: kb.top, bottom: 'auto', height: kb.height } : {}) }}
+      style={{ ...vars, paddingTop: 'max(env(safe-area-inset-top), 12px)', ...(kb ? { top: kb.top, bottom: 'auto', height: kb.height } : {}) }}
       data-keyboard={kb ? 'open' : undefined}
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
@@ -280,7 +283,8 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
         </div>
         <div className="scroll-area min-h-0 flex-1 px-5 pt-4 pb-[max(env(safe-area-inset-bottom),20px)]">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

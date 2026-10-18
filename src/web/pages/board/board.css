@@ -1315,3 +1315,13 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* R10-6: the host's preview of the TV — the score strip's place (host controls go over it) and no
+   timer bar (the host has the seconds in the control band); the TV itself is unchanged. */
+.bt-host-band-slot {
+  flex: none;
+  background: var(--bt-score-bg);
+}
+.is-host-preview .bt-timer {
+  display: none;
+}

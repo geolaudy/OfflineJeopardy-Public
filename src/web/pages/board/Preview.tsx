@@ -10,7 +10,7 @@ import type { GameView } from '../../../shared/views';
 import { DEFAULT_RULES } from '../../../shared/game';
 import { SAMPLE_BOARD } from '../../../shared/sampleBoards';
 import type { CustomThemeData } from '../../../shared/themes';
-import { BoardCtx, presentationFor, themeRoot, useViewportHeight } from './common';
+import { BoardCtx, HOST_BAND, presentationFor, themeRoot, useViewportHeight } from './common';
 import { Grid } from './Grid';
 import { Scoreboard } from './Scoreboard';
 import { CluePanel } from './ClueZoom';
@@ -86,6 +86,9 @@ export interface LivePreviewMessage {
   offset: number;
   game: GameView;
   scoreboard: boolean;
+  /** R10-6: the host's preview — the score strip's place is kept empty for the host's controls
+   *  and the timer bar is not drawn (the TV itself is unchanged). */
+  band?: boolean;
 }
 
 export default function BoardPreview() {
@@ -120,13 +123,13 @@ function LivePreview() {
       <FxCtx.Provider value={fx}>
         <UserFonts fonts={look?.fonts} />
         <MotionConfig reducedMotion={reduced ? 'always' : 'never'}>
-          <div className="board-theme relative flex h-screen w-screen flex-col overflow-hidden select-none" data-theme={root.dataTheme} style={root.style} data-testid="live-preview-root">
+          <div className={`board-theme relative flex h-screen w-screen flex-col overflow-hidden select-none${msg.band ? ' is-host-preview' : ''}`} data-theme={root.dataTheme} style={root.style} data-testid="live-preview-root">
             <div className="relative min-h-0 flex-1">
               <AnimatePresence>{g.phase === 'board' && g.intro && <Intro key="intro" g={g} />}</AnimatePresence>
               {g.phase === 'clue' && g.clue && <CluePanel key={g.clue.clueId} g={g} closing={false} zoomIn={false} onClosed={() => {}} />}
               {g.phase === 'final' && g.final && <FinalScreen g={g} />}
             </div>
-            {msg.scoreboard && <Scoreboard g={g} />}
+            {msg.band ? <div className="bt-host-band-slot" style={{ height: `${HOST_BAND * 100}vh` }} aria-hidden /> : msg.scoreboard && <Scoreboard g={g} />}
           </div>
         </MotionConfig>
       </FxCtx.Provider>

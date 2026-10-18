@@ -1,14 +1,15 @@
-// The open clue on the host's iPad (R5-14, R7-21/R7-25), in the shared game frame:
+// The open clue on the host's iPad (R5-14, R7-21/R7-25, R10-6), in the shared game frame:
 //  1. the TV itself in the 16:9 preview (the real TV components, so fonts, sizes, shadows and
-//     media match exactly), with the private answer band over its top edge (R7-24) and, when
-//     needed, a compact panel inside it (Daily Double! wager, the computer player's answer, media
-//     controls) — the preview never changes size or position,
-//  2. the reserved bar: status on the left (timer, or who buzzed in), the next step on the right
-//     (Unlock Buzzers → Correct / Incorrect → Reveal Answer → Return to Board). Everything that is
-//     needed rarely lives in "More".
+//     media match exactly), with the private answer band over its top edge (R7-24) — category,
+//     value and correct response (R10-7, R10-9) — and, when needed, a compact panel inside it
+//     (Daily Double! wager, the computer player's answer, media controls) — the preview never
+//     changes size or position,
+//  2. the control band where the TV has its score strip: status on the left (timer, or who buzzed
+//     in), the next step on the right (Unlock Buzzers → Correct / Incorrect → Reveal Answer →
+//     Return to Board). Everything that is needed rarely lives in "More".
 // Every control follows the server state (answeringEnded, answerRevealed, resolved, buzzer…).
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ArrowLeft, BellRing, Check, ChevronRight, Dices, Eye, EyeOff, Flag, Image as ImageIcon, Lock, LockOpen, NotebookPen, Pause, Play, RotateCcw, Timer, Video, Wrench, X, Zap } from 'lucide-react';
+import { ArrowLeft, BellRing, Check, ChevronRight, Dices, Eye, EyeOff, Flag, Image as ImageIcon, Lock, LockOpen, Pause, Play, RotateCcw, Timer, Video, Wrench, X, Zap } from 'lucide-react';
 import type { CompetitorView, GameView } from '../../../shared/views';
 import type { HostAction } from '../../../shared/actions';
 import { BOT_LEVELS } from '../../../shared/game';
@@ -18,7 +19,7 @@ import { EarlyBuzzQuick } from './EarlyBuzzRule';
 import { MediaControls } from './MediaControls';
 import { AnswerBanner } from './AnswerBanner';
 import { FitBox, TvPreview, useBoardLook } from './TvMirror';
-import { themeRoot } from '../board/common';
+import { presentationFor, themeRoot, tileMoney } from '../board/common';
 import { GameFrame } from './GameFrame';
 import { RichText } from '../../components/RichText';
 import { plainText } from '../../../shared/richText';
@@ -73,10 +74,9 @@ export function ClueStage({ g, run }: { g: GameView; run: Run }) {
       <GameFrame
         testId="clue-panel"
         boxTestId="clue-preview-box"
-        head={<ClueHead g={g} />}
         preview={(size) => (
           <div className="absolute inset-0" data-testid="host-clue">
-            <TvPreview game={g} scoreboard={false} title="TV preview" size={size} testId="clue-preview" />
+            <TvPreview game={g} scoreboard={false} band title="TV preview" size={size} testId="clue-preview" />
             {/* The preview is hidden from screen readers; the clue text is here for them. */}
             {clue.question && (
               <p className="sr-only" data-testid="host-clue-text">
@@ -84,7 +84,7 @@ export function ClueStage({ g, run }: { g: GameView; run: Run }) {
               </p>
             )}
             <div className="board-theme absolute inset-x-0 top-0 z-10" data-theme={root.dataTheme} style={root.style}>
-              <HostAnswer g={g} onPicture={() => setLightbox(true)} />
+              <HostAnswer g={g} prefix={presentationFor(look.theme, look.custom, true, 0).prefix} onPicture={() => setLightbox(true)} />
             </div>
           </div>
         )}
@@ -92,7 +92,7 @@ export function ClueStage({ g, run }: { g: GameView; run: Run }) {
           side && (
             <div
               className={cx(
-                'scroll-area absolute right-2 bottom-2 z-20 flex max-h-[calc(100%-5.5rem)] flex-col gap-2 overflow-y-auto rounded-xl bg-white/95 p-1 shadow-lg ring-1 ring-black/10',
+                'scroll-area absolute right-2 bottom-[calc(var(--band)+0.5rem)] z-20 flex max-h-[calc(100%-var(--band)-6rem)] flex-col gap-2 overflow-y-auto rounded-xl bg-white/95 p-1 shadow-lg ring-1 ring-black/10',
                 wagerStage ? 'w-[min(26rem,calc(100%-1rem))]' : 'w-[min(24rem,calc(100%-1rem))]',
               )}
               data-testid="clue-overlay"
@@ -108,45 +108,34 @@ export function ClueStage({ g, run }: { g: GameView; run: Run }) {
   );
 }
 
-/** Header line: category and value (Daily Double!: the wager once locked). */
-function ClueHead({ g }: { g: GameView }) {
-  const clue = g.clue!;
-  return (
-    <div className="min-w-0 flex-1" data-testid="clue-head">
-      <p className="truncate text-xs font-bold tracking-wide text-slate-500 uppercase">
-        {clue.isDailyWager ? (
-          <>
-            <Dices size={13} className="mr-1 inline align-[-2px]" aria-hidden />
-            Daily Double!{clue.wager ? ` · wager ${fmtScore(clue.wager.amount)}` : ''}
-          </>
-        ) : (
-          'Clue'
-        )}
-      </p>
-      <p className="flex min-w-0 items-baseline gap-3">
-        <span className="min-w-0 truncate text-2xl font-black">{clue.categoryName}</span>
-        <span className="shrink-0 text-lg font-bold text-slate-600 tabular-nums">{clue.value}</span>
-      </p>
-    </div>
-  );
-}
-
 /** The private answer as a red striped band over the top of the TV preview (R4-5, R7-24). In practice
  *  games the host is usually playing too, so it stays hidden until revealed (one tap to peek). */
-function HostAnswer({ g, onPicture }: { g: GameView; onPicture: () => void }) {
+function HostAnswer({ g, prefix, onPicture }: { g: GameView; prefix: string; onPicture: () => void }) {
   const clue = g.clue!;
   const [peek, setPeek] = useState(false);
   useEffect(() => setPeek(false), [clue.clueId]);
   const hidden = g.practice && !clue.answerRevealed && !peek;
   const pictures = clue.answerMedia.length > 0 && !hidden;
+  // R10-9: the category and value (Daily Double!: the wager once locked) on the banner's label line.
+  const value = clue.isDailyWager ? (
+    <>
+      <Dices size={13} className="mr-1 inline align-[-2px]" aria-hidden />
+      Daily Double!{clue.wager ? ` ${tileMoney(prefix, clue.wager.amount)}` : ''}
+    </>
+  ) : (
+    tileMoney(prefix, clue.value)
+  );
   return (
     <AnswerBanner
       answer={hidden ? undefined : <RichText text={clue.answer} />}
-      label={g.practice ? 'Correct response' : 'Correct response · only you'}
+      label="Correct response"
+      left={clue.categoryName}
+      right={value}
+      notes={clue.notes && !hidden ? clue.notes : undefined}
       band
       aside={
         pictures ? (
-          <button className="flex min-h-11 items-center gap-1.5 rounded-lg bg-white/15 px-3 text-sm font-semibold text-white ring-1 ring-white/40 active:bg-white/25" onClick={onPicture} aria-label="Show the answer picture (only you)" data-testid="answer-image">
+          <button className="host-answer-band-btn" onClick={onPicture} aria-label="Show the answer picture (only you)" data-testid="answer-image">
             {clue.answerMedia.some((m) => m.kind === 'image') ? <ImageIcon size={18} aria-hidden /> : <Video size={18} aria-hidden />}
             <span className="hidden sm:inline">Picture</span>
           </button>
@@ -159,12 +148,6 @@ function HostAnswer({ g, onPicture }: { g: GameView; onPicture: () => void }) {
           Hidden while you play — tap to peek
         </button>
       )}
-      {clue.notes && !hidden && (
-        <div className="text-sm text-red-100">
-          <NotebookPen size={14} className="mr-1 inline align-[-2px]" aria-hidden />
-          {clue.notes}
-        </div>
-      )}
     </AnswerBanner>
   );
 }
@@ -175,18 +158,18 @@ function NextStageButton({ g, run }: { g: GameView; run: Run }) {
   const next = nextStage(g);
   if (next.kind === 'round')
     return (
-      <ActionButton size="xl" variant="primary" onAction={() => run({ type: 'setRound', roundIndex: next.index })} data-testid="clue-next-round">
+      <ActionButton size="lg" variant="primary" onAction={() => run({ type: 'setRound', roundIndex: next.index })} data-testid="clue-next-round">
         Start {next.name} <ChevronRight size={22} aria-hidden />
       </ActionButton>
     );
   if (next.kind === 'final')
     return (
-      <ActionButton size="xl" variant="primary" onAction={() => run({ type: 'startFinal' })} data-testid="clue-start-final">
+      <ActionButton size="lg" variant="primary" onAction={() => run({ type: 'startFinal' })} data-testid="clue-start-final">
         <Flag size={22} aria-hidden /> Start Final Jeopardy!
       </ActionButton>
     );
   return (
-    <ActionButton size="xl" variant="success" onAction={() => run({ type: 'endGame' })} data-testid="clue-end-game">
+    <ActionButton size="lg" variant="success" onAction={() => run({ type: 'endGame' })} data-testid="clue-end-game">
       <Flag size={22} aria-hidden /> End Game &amp; Show Results
     </ActionButton>
   );
@@ -233,30 +216,30 @@ function ClueFooter({ g, run, responder, who, setWho }: { g: GameView; run: Run;
   if (clue.answerRevealed && cluesLeft(g) === 0) primary = <NextStageButton g={g} run={run} />;
   else if (clue.answerRevealed)
     primary = (
-      <ActionButton size="xl" variant="primary" onAction={() => run({ type: 'closeClue', clueId: id })} data-testid="back-to-board">
+      <ActionButton size="lg" variant="primary" onAction={() => run({ type: 'closeClue', clueId: id })} data-testid="back-to-board">
         <ArrowLeft size={22} aria-hidden /> Return to Board
       </ActionButton>
     );
   else if (judging)
     primary = (
       <div className="grid grid-cols-2 gap-2">
-        <ActionButton size="xl" variant="success" className="min-w-36" onAction={() => judge('correct')} data-testid="correct">
+        <ActionButton size="lg" variant="success" className="min-w-36" onAction={() => judge('correct')} data-testid="correct">
           <Check size={24} aria-hidden /> Correct
         </ActionButton>
-        <ActionButton size="xl" variant="danger" className="min-w-36" onAction={() => judge('incorrect')} data-testid="incorrect">
+        <ActionButton size="lg" variant="danger" className="min-w-36" onAction={() => judge('incorrect')} data-testid="incorrect">
           <X size={24} aria-hidden /> Incorrect
         </ActionButton>
       </div>
     );
   else if (canUnlock)
     primary = (
-      <ActionButton size="xl" variant="success" onAction={() => run({ type: 'unlockBuzzers' })} data-testid="unlock">
+      <ActionButton size="lg" variant="success" onAction={() => run({ type: 'unlockBuzzers' })} data-testid="unlock">
         <LockOpen size={22} aria-hidden /> Unlock Buzzers
       </ActionButton>
     );
   else if (revealInFooter)
     primary = (
-      <ActionButton size="xl" variant="primary" onAction={() => run({ type: 'revealAnswer', clueId: id })} data-testid="reveal-answer">
+      <ActionButton size="lg" variant="primary" onAction={() => run({ type: 'revealAnswer', clueId: id })} data-testid="reveal-answer">
         <Eye size={22} aria-hidden /> Reveal Answer
       </ActionButton>
     );
@@ -264,7 +247,7 @@ function ClueFooter({ g, run, responder, who, setWho }: { g: GameView; run: Run;
 
   return (
     // Narrow footers (portrait, iPad mini) put the status on its own row above the actions.
-    <div className="@container flex h-full items-center rounded-2xl bg-white p-2 shadow-sm" data-testid="clue-footer">
+    <div className="@container flex items-center" data-testid="clue-footer">
       <div className="flex w-full flex-wrap items-center gap-2 @4xl:flex-nowrap">
       <div className="min-w-0 basis-full px-1 @4xl:flex-1 @4xl:basis-auto">{status}</div>
       <div className="ml-auto flex shrink-0 items-center gap-2">
@@ -291,10 +274,10 @@ function Answering({ g, c, who, setWho }: { g: GameView; c: CompetitorView; who:
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
       <div className="flex min-w-0 items-center gap-3">
-        <Avatar profile={c.kind === 'team' ? competitorAvatar(c, g) : winner?.profileId ? g.profiles[winner.profileId] : competitorAvatar(c, g)} size={44} />
+        <Avatar profile={c.kind === 'team' ? competitorAvatar(c, g) : winner?.profileId ? g.profiles[winner.profileId] : competitorAvatar(c, g)} size={36} />
         <div className="min-w-0">
           <div className="flex min-w-0 items-baseline gap-2">
-            <span className="truncate text-2xl font-black" data-testid="host-winner">
+            <span className="host-band-title truncate text-xl" data-testid="host-winner">
               {competitorName(c, g)}
             </span>
             {member && (
@@ -349,7 +332,6 @@ function BuzzersOpen({ g }: { g: GameView }) {
   const t = g.timer;
   const ms = useTimer(t);
   const secs = ms != null ? Math.ceil(ms / 1000) : null;
-  const pct = t && ms != null ? Math.max(0, Math.min(100, (ms / t.durationMs) * 100)) : null;
   return (
     <div className="flex min-w-0 items-center gap-3" role="status" data-testid="buzzers-open">
       <span className="relative flex h-3 w-3 shrink-0" aria-hidden>
@@ -357,15 +339,11 @@ function BuzzersOpen({ g }: { g: GameView }) {
         <span className="relative inline-flex h-3 w-3 rounded-full bg-green-600" />
       </span>
       <span className="shrink-0 text-lg font-bold text-green-900">Buzzers open</span>
-      {t && pct != null && (
-        <>
-          <span className="h-3 min-w-16 flex-1 overflow-hidden rounded-full bg-slate-200" aria-hidden>
-            <span className="block h-full rounded-full bg-green-600" style={{ width: `${pct}%`, transition: t.running ? 'width 0.1s linear' : undefined }} />
-          </span>
-          <span className="w-14 shrink-0 text-right text-lg font-black tabular-nums" role="timer" data-testid="host-timer">
-            {t.expired ? "Time's up" : `${secs}s`}
-          </span>
-        </>
+      {/* R10-6.5: the seconds only — no timer bar on the iPad (the TV keeps its own). */}
+      {t && ms != null && (
+        <span className="host-band-title shrink-0 text-lg tabular-nums" role="timer" data-testid="host-timer">
+          {t.expired ? "Time's up" : `${secs}s`}
+        </span>
       )}
     </div>
   );
@@ -410,7 +388,7 @@ function More({ g, run, showReveal, pendingJudgement, practiceBuzz }: { g: GameV
           </span>
         )}
       </summary>
-      <div className="scroll-area absolute right-0 bottom-full z-30 mb-2 max-h-[min(70vh,34rem)] w-[min(30rem,calc(100vw-1.5rem))] space-y-3 rounded-2xl bg-white p-3 text-sm shadow-2xl ring-1 ring-slate-200">
+      <div className="host-light scroll-area absolute right-0 bottom-full z-30 mb-2 max-h-[min(70vh,34rem)] w-[min(30rem,calc(100vw-1.5rem))] space-y-3 rounded-2xl bg-white p-3 text-sm shadow-2xl ring-1 ring-slate-200">
         {showReveal && (
           <ActionButton size="lg" variant="secondary" className="w-full" disabled={pendingJudgement} onAction={() => run({ type: 'revealAnswer', clueId: id })} data-testid="reveal-answer" title={pendingJudgement ? 'Judge the answer first' : undefined}>
             <Eye size={20} aria-hidden /> Reveal Answer now
@@ -489,7 +467,7 @@ function BuzzFor({ g, run, big }: { g: GameView; run: Run; big?: boolean }) {
   return (
     <div className="flex flex-wrap gap-2">
       {humans.map((c) => (
-        <ActionButton key={c.id} size={big ? 'xl' : 'md'} variant={big ? 'danger' : 'secondary'} onAction={() => run({ type: 'hostBuzz', competitorId: c.id })} data-testid="buzz-for">
+        <ActionButton key={c.id} size={big ? 'lg' : 'md'} variant={big ? 'danger' : 'secondary'} onAction={() => run({ type: 'hostBuzz', competitorId: c.id })} data-testid="buzz-for">
           <BellRing size={18} aria-hidden /> {big ? `Buzz — ${competitorName(c, g)}` : `Buzz for ${competitorName(c, g)}`}
         </ActionButton>
       ))}

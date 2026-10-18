@@ -54,8 +54,9 @@ export function useSize(ref: RefObject<HTMLElement | null>) {
   return size;
 }
 
-/** Fills its parent (flex-1) and centres the largest `ratio` box that fits by width and height. */
-export function FitBox({ ratio = 16 / 9, className, boxClassName, children, testId, align = 'center' }: { ratio?: number; className?: string; boxClassName?: string; children: (size: { w: number; h: number }) => ReactNode; testId?: string; align?: 'center' | 'start' }) {
+/** Fills its parent (flex-1) and centres the largest `ratio` box that fits by width and height.
+ *  `children` also get the space available (`aw` × `ah`). */
+export function FitBox({ ratio = 16 / 9, className, boxClassName, children, testId, align = 'center' }: { ratio?: number; className?: string; boxClassName?: string; children: (size: { w: number; h: number; aw: number; ah: number }) => ReactNode; testId?: string; align?: 'center' | 'start' }) {
   const ref = useRef<HTMLDivElement>(null);
   const { w: aw, h: ah } = useSize(ref);
   let w = aw;
@@ -70,7 +71,7 @@ export function FitBox({ ratio = 16 / 9, className, boxClassName, children, test
     <div ref={ref} className={cx('relative flex min-h-0 min-w-0 flex-1 justify-center', align === 'center' ? 'items-center' : 'items-start', className)}>
       {w > 0 && h > 0 && (
         <div className={cx('relative shrink-0', boxClassName)} style={{ width: w, height: h }} data-testid={testId}>
-          {children({ w, h })}
+          {children({ w, h, aw, ah })}
         </div>
       )}
     </div>
@@ -96,7 +97,7 @@ const H = 720;
  * The TV presentation of `game`, scaled into its parent box (which must have a 16:9 size).
  * `scoreboard` adds the TV's score strip, as on the real screen.
  */
-export function TvPreview({ game, scoreboard, title, size, testId }: { game: GameView; scoreboard: boolean; title: string; size: { w: number; h: number }; testId?: string }) {
+export function TvPreview({ game, scoreboard, band, title, size, testId }: { game: GameView; scoreboard: boolean; band?: boolean; title: string; size: { w: number; h: number }; testId?: string }) {
   const ref = useRef<HTMLIFrameElement>(null);
   const [ready, setReady] = useState(false);
   const look = useBoardLook();
@@ -111,9 +112,9 @@ export function TvPreview({ game, scoreboard, title, size, testId }: { game: Gam
   const mirror = useMemo(() => forMirror(game), [game]);
   useEffect(() => {
     if (!ready) return;
-    const m: LivePreviewMessage = { type: 'oj-live-preview', look, offset, game: mirror, scoreboard };
+    const m: LivePreviewMessage = { type: 'oj-live-preview', look, offset, game: mirror, scoreboard, band };
     ref.current?.contentWindow?.postMessage(m, location.origin);
-  }, [ready, look, offset, mirror, scoreboard]);
+  }, [ready, look, offset, mirror, scoreboard, band]);
   const scale = size.w / W;
   return (
     <div className="absolute inset-0 overflow-hidden bg-black shadow-sm ring-1 ring-black/10" data-testid={testId} data-ready={ready ? 'true' : 'false'}>

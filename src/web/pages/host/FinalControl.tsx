@@ -1,9 +1,9 @@
 // Host control for Final Jeopardy! (R4-2). Players submit their own wagers and answers on their
 // phones; the host sees only who has submitted. The reveal goes one contestant at a time, lowest →
 // highest score before the Final: contestant → wager → answer → Correct / Incorrect → next.
-// R7-21 / R9-5: the same frame as the rest of the live game — header line, the TV preview with the
-// private correct response across its top, compact overlays (who has submitted, sound controls,
-// recovery) and a fixed control bar with the next step.
+// R7-21 / R9-5 / R10-6: the same frame as the rest of the live game — the TV preview with the
+// private correct response (and the category) across its top, compact overlays (who has
+// submitted, sound controls, recovery) and the control band with the stage and the next step.
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import type { GameView } from '../../../shared/views';
 import type { HostAction } from '../../../shared/actions';
@@ -39,10 +39,9 @@ export default function FinalControl({ g, run }: { g: GameView; run: Run }) {
       <GameFrame
         testId="final-control"
         boxTestId="final-preview-box"
-        head={<FinalHead g={g} />}
         preview={(size) => (
           <div className="absolute inset-0" data-testid="host-final">
-            <TvPreview game={g} scoreboard={false} title="TV preview" size={size} testId="final-preview" />
+            <TvPreview game={g} scoreboard={false} band title="TV preview" size={size} testId="final-preview" />
             {/* The preview is hidden from screen readers; the clue text is here for them. */}
             {f.question && (
               <p className="sr-only" data-testid="host-final-text">
@@ -53,12 +52,14 @@ export default function FinalControl({ g, run }: { g: GameView; run: Run }) {
               <div className="board-theme absolute inset-x-0 top-0 z-10" data-theme={root.dataTheme} style={root.style}>
                 <AnswerBanner
                   answer={f.answer?.trim() ? <RichText text={f.answer} /> : undefined}
-                  label={f.stage === 'done' ? 'Correct response · on the TV' : 'Correct response · only you'}
+                  label="Correct response"
+                  left={<RichText text={f.category} />}
+                  right="Final Jeopardy!"
                   band
                   aside={
                     f.answerMedia.length > 0 ? (
                       <button
-                        className="flex min-h-11 items-center gap-1.5 rounded-lg bg-white/15 px-3 text-sm font-semibold text-white ring-1 ring-white/40 active:bg-white/25"
+                        className="host-answer-band-btn"
                         onClick={() => setMediaOpen(true)}
                         aria-label="Show the correct response's picture or sound (only you)"
                         data-testid="final-answer-media"
@@ -74,38 +75,43 @@ export default function FinalControl({ g, run }: { g: GameView; run: Run }) {
           </div>
         )}
         overlay={<FinalOverlay g={g} run={run} who={who} setWho={setWho} />}
-        bar={<FinalBar g={g} run={run} who={who} />}
+        bar={
+          <div className="flex flex-col gap-1">
+            <FinalHead g={g} />
+            <FinalBar g={g} run={run} who={who} />
+          </div>
+        }
       />
       {mediaOpen && <AnswerMediaSheet g={g} onClose={() => setMediaOpen(false)} />}
     </>
   );
 }
 
-/** Header line: Final Jeopardy! · category, the stage, the timer. */
+/** The band's top line: Final Jeopardy! · category, the stage, the timer (R10-6: was the header). */
 function FinalHead({ g }: { g: GameView }) {
   const f = g.final!;
   const remaining = useTimer(g.timer);
   return (
-    <>
-      <div className="min-w-0 flex-1" data-testid="final-head">
-        <p className="truncate text-xs font-bold tracking-wide text-slate-500 uppercase">Final Jeopardy!</p>
-        <p className="truncate text-2xl font-black">
+    <div className="flex min-w-0 items-center gap-3 px-1" data-testid="final-head">
+      <p className="min-w-0 flex-1 truncate">
+        <span className="host-band-title mr-2 text-sm text-amber-300">Final Jeopardy!</span>
+        <span className="host-band-title text-base">
           <RichText text={f.category} />
-        </p>
-      </div>
+        </span>
+      </p>
       <div className="hidden shrink-0 items-center gap-1 text-xs font-semibold @3xl:flex" data-testid="final-stages">
         {STAGES.map((s) => (
-          <span key={s} className={cx('rounded-full px-2.5 py-1', f.stage === s ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-500')} aria-current={f.stage === s ? 'step' : undefined}>
+          <span key={s} className={cx('rounded-full px-2.5 py-0.5', f.stage === s ? 'bg-blue-600 text-white' : 'bg-white/10 text-white/60')} aria-current={f.stage === s ? 'step' : undefined}>
             {STAGE_LABEL[s]}
           </span>
         ))}
       </div>
       {g.timer && (
-        <span className="shrink-0 text-xl font-black tabular-nums" data-testid="final-timer">
+        <span className="host-band-title shrink-0 text-lg tabular-nums" data-testid="final-timer">
           {Math.ceil((remaining ?? 0) / 1000)}s
         </span>
       )}
-    </>
+    </div>
   );
 }
 
@@ -124,7 +130,7 @@ function FinalOverlay({ g, run, who, setWho }: { g: GameView; run: Run; who: str
   if (!status && !playable && !credit && !preview) return null;
   return (
     <div
-      className="scroll-area absolute right-2 bottom-2 z-20 flex max-h-[calc(100%-5.5rem)] w-[min(24rem,calc(100%-1rem))] flex-col gap-2 overflow-y-auto rounded-xl bg-white/95 p-1 shadow-lg ring-1 ring-black/10"
+      className="scroll-area absolute right-2 bottom-[calc(var(--band)+0.5rem)] z-20 flex max-h-[calc(100%-var(--band)-6rem)] w-[min(24rem,calc(100%-1rem))] flex-col gap-2 overflow-y-auto rounded-xl bg-white/95 p-1 shadow-lg ring-1 ring-black/10"
       data-testid="final-overlay"
     >
       {preview && (
@@ -198,14 +204,14 @@ function FinalBar({ g, run, who }: { g: GameView; run: Run; who: string | null }
     // Nobody qualified: there is nothing to wager or reveal, so go straight to the winner.
     if (f.stage !== 'done')
       actions = (
-        <ActionButton size="xl" variant="success" onAction={() => run({ type: 'endGame' })} data-testid="end-game">
+        <ActionButton size="lg" variant="success" onAction={() => run({ type: 'endGame' })} data-testid="end-game">
           <Trophy size={20} aria-hidden /> Show the winner
         </ActionButton>
       );
   } else if (f.stage === 'category') {
     status = 'Players wager on their own phones (teams: any member) once you open wagering. Wagers stay hidden — from you too — until the reveal.';
     actions = (
-      <ActionButton size="xl" onAction={() => run({ type: 'finalNext' })} data-testid="final-next">
+      <ActionButton size="lg" onAction={() => run({ type: 'finalNext' })} data-testid="final-next">
         Open wagers on the phones
       </ActionButton>
     );
@@ -213,7 +219,7 @@ function FinalBar({ g, run, who }: { g: GameView; run: Run; who: string | null }
     status = `Waiting for wagers: ${wagered} of ${n} in. Only whether each player has wagered is shown.`;
     actions = (
       <ActionButton
-        size="xl"
+        size="lg"
         onAction={() => (n - wagered && !confirm(`${n - wagered} wager(s) missing — they will count as 0. Continue?`) ? undefined : run({ type: 'finalNext' }))}
         data-testid="final-next"
       >
@@ -227,12 +233,12 @@ function FinalBar({ g, run, who }: { g: GameView; run: Run; who: string | null }
     actions = (
       <>
         {!f.thinking && (
-          <ActionButton size="xl" variant="secondary" onAction={() => run({ type: 'finalStartThink' })} data-testid="final-start-think">
+          <ActionButton size="lg" variant="secondary" onAction={() => run({ type: 'finalStartThink' })} data-testid="final-start-think">
             <Timer size={20} aria-hidden /> Start think time
           </ActionButton>
         )}
         <ActionButton
-          size="xl"
+          size="lg"
           variant={n - answered || !f.thinking ? 'secondary' : 'primary'}
           onAction={() => (n - answered && !confirm(`${n - answered} answer(s) missing. Close the answers now?`) ? undefined : run({ type: 'finalNext' }))}
           data-testid="final-next"
@@ -244,20 +250,20 @@ function FinalBar({ g, run, who }: { g: GameView; run: Run; who: string | null }
   } else if (f.stage === 'closed') {
     status = 'Answers are closed. Nothing is shown until you begin the reveal (lowest score first).';
     actions = (
-      <ActionButton size="xl" onAction={() => run({ type: 'finalNext' })} data-testid="final-begin-reveal">
+      <ActionButton size="lg" onAction={() => run({ type: 'finalNext' })} data-testid="final-begin-reveal">
         Begin Answer Reveals <ChevronRight size={20} aria-hidden />
       </ActionButton>
     );
   } else {
     status = 'Every answer is judged. The correct response and the results are on the TV.';
     actions = (
-      <ActionButton size="xl" variant="success" onAction={() => run({ type: 'endGame' })} data-testid="end-game">
+      <ActionButton size="lg" variant="success" onAction={() => run({ type: 'endGame' })} data-testid="end-game">
         <Trophy size={20} aria-hidden /> Show the winner
       </ActionButton>
     );
   }
   return (
-    <div className="@container flex h-full items-center rounded-2xl bg-white p-2 shadow-sm" data-testid="final-bar">
+    <div className="@container flex items-center" data-testid="final-bar">
       <div className="flex w-full flex-wrap items-center gap-2 @4xl:flex-nowrap">
         <p className="min-w-0 basis-full px-1 text-slate-600 @4xl:flex-1 @4xl:basis-auto">{status}</p>
         <div className="ml-auto flex shrink-0 items-center gap-2">{actions}</div>
@@ -287,13 +293,13 @@ function RevealBar({ g, run, who }: { g: GameView; run: Run; who: string | null 
   const pre = f.preScores[id] ?? 0;
   const judge = (correct: boolean) => run({ type: 'judgeFinal', competitorId: c.id, correct, profileId: c.kind === 'team' ? who : undefined });
   return (
-    <div className="@container flex h-full touch-pan-y items-center rounded-2xl bg-white p-2 shadow-sm" onPointerDown={onDown} onPointerUp={onUp} data-testid="final-reveal">
+    <div className="@container flex touch-pan-y items-center" onPointerDown={onDown} onPointerUp={onUp} data-testid="final-reveal">
       <div className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 @4xl:flex-nowrap">
         <div className="flex min-w-0 basis-full items-center gap-3 @4xl:flex-1 @4xl:basis-auto">
-          <Avatar profile={competitorAvatar(c, g)} size={44} />
+          <Avatar profile={competitorAvatar(c, g)} size={36} />
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-baseline gap-2">
-              <span className="truncate text-2xl font-black" data-testid="final-reveal-name">
+              <span className="host-band-title truncate text-xl" data-testid="final-reveal-name">
                 {competitorName(c, g)}
               </span>
               <span className="shrink-0 text-sm text-slate-500">
@@ -324,16 +330,16 @@ function RevealBar({ g, run, who }: { g: GameView; run: Run; who: string | null 
           )}
           {shown === 'answer' && !e.judged && (
             <>
-              <ActionButton size="xl" variant="success" onAction={() => judge(true)} data-testid="final-correct">
+              <ActionButton size="lg" variant="success" onAction={() => judge(true)} data-testid="final-correct">
                 <Check size={22} aria-hidden /> Correct
               </ActionButton>
-              <ActionButton size="xl" variant="danger" onAction={() => judge(false)} data-testid="final-incorrect">
+              <ActionButton size="lg" variant="danger" onAction={() => judge(false)} data-testid="final-incorrect">
                 <X size={22} aria-hidden /> Incorrect
               </ActionButton>
             </>
           )}
           {canAdvance && (
-            <ActionButton size="xl" onAction={advance} data-testid="final-reveal-next">
+            <ActionButton size="lg" onAction={advance} data-testid="final-reveal-next">
               {nextLabel} <ChevronRight size={20} aria-hidden />
             </ActionButton>
           )}

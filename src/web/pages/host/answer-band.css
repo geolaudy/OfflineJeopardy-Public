@@ -1,44 +1,132 @@
-/* R7-24: the host's private answer as a red striped band across the top of the clue card
-   (references/host_controller_layout.png). Inside .board-theme, so the clue font and the hard
-   shadow come from the same tokens as the TV (board.css). */
+/* R7-24: the host's private answer as a red striped band across the top of the TV preview
+   (references/host_controller_layout.png). Inside .board-theme, so the fonts and the hard shadow
+   come from the same tokens as the TV (board.css). R10-7: the label, the answer and the notes share
+   one typography (the label's: the board font, heavy, white, hard shadow) at different sizes; the
+   category and value sit on the label line (R10-9); the stripes run the other way. */
 .host-answer-band {
   position: relative;
   display: flex;
   flex: none;
+  flex-direction: column;
+  padding: 0.3rem 0.75rem 0.4rem;
+  color: #ffffff;
+  background: repeating-linear-gradient(45deg, #b01f1f 0 3px, #981a1a 3px 6px);
+  box-shadow: inset 0 -2px 0 rgb(0 0 0 / 0.25);
+}
+.host-answer-band-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0.75rem;
+}
+.host-answer-band-body {
+  display: flex;
+  min-width: 0;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.35rem 0.75rem 0.45rem;
-  color: #ffffff;
-  background: repeating-linear-gradient(135deg, #b01f1f 0 3px, #981a1a 3px 6px);
-  box-shadow: inset 0 -2px 0 rgb(0 0 0 / 0.25);
 }
 .host-answer-band-in {
   min-width: 0;
   flex: 1;
   text-align: center;
 }
-.host-answer-band-label {
+.host-answer-band-label,
+.host-answer-band-cat,
+.host-answer-band-value,
+.host-answer-band-text,
+.host-answer-band-notes {
   font-family: var(--b-font, inherit);
-  font-size: 0.7rem;
   font-weight: 900;
-  letter-spacing: 0.14em;
   line-height: 1.2;
-  text-transform: uppercase;
   text-shadow: 0.08em 0.08em 0 #000000;
 }
-.host-answer-band-text {
-  font-family: var(--b-clue-font, inherit);
-  font-size: 1.4rem;
-  font-weight: 700;
-  line-height: 1.15;
-  letter-spacing: 0.02em;
+.host-answer-band-label,
+.host-answer-band-cat,
+.host-answer-band-value {
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  text-shadow: var(--bt-hard-shadow, 0.05em 0.05em 0 #000000);
+}
+.host-answer-band-cat {
+  overflow: hidden;
+  color: var(--b-cat-fg, #ffffff);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.host-answer-band-value {
+  overflow: hidden;
+  color: var(--b-tile-fg, #e8b64c);
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The answer: the label's typography, larger; up to two lines across the band's whole width. */
+.host-answer-band-text {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 1.3rem;
+  letter-spacing: 0.05em;
+  line-height: 1.12;
+  text-transform: uppercase;
   overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+.host-answer-band-notes {
+  display: -webkit-box;
+  overflow: hidden;
+  margin-top: 0.1rem;
+  color: #fde2e2;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
 }
 .host-answer-band-aside {
   display: flex;
   flex: none;
   align-items: center;
   gap: 0.5rem;
+}
+.host-answer-band-btn {
+  display: flex;
+  min-height: 2.5rem;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 0.5rem;
+  background: rgb(255 255 255 / 0.15);
+  padding: 0 0.75rem;
+  color: #ffffff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.4);
+}
+.host-answer-band-btn:active {
+  background: rgb(255 255 255 / 0.25);
+}
+/* The whole correct response (long answers / notes), in a sheet. */
+.host-answer-full {
+  border-radius: 0.75rem;
+  padding: 1rem;
+}
+.host-answer-full .host-answer-band-text,
+.host-answer-full .host-answer-band-notes {
+  display: block;
+  overflow: visible;
+  -webkit-line-clamp: unset;
+  line-clamp: none;
+}
+.host-answer-full .host-answer-band-text {
+  margin-block: 0.5rem;
+  font-size: 1.6rem;
+}
+.host-answer-full .host-answer-band-notes {
+  font-size: 1rem;
 }

@@ -109,6 +109,10 @@ export function usePrefersReducedMotion() {
   return reduce;
 }
 
+/** R10-6: share of the iPad's 16:9 TV preview kept for the host's controls — where the TV has its
+ *  score strip (about 14 % of the screen), so the clue area keeps the TV's proportions. */
+export const HOST_BAND = 0.14;
+
 /** R6-2.4: a category name may be at most this share of its cell's text box height (one line) —
  *  the proportion the iPad replica already had; long names still shrink to fit. */
 export const CATEGORY_TEXT_SHARE = 0.34;
