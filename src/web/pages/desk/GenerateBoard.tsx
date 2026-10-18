@@ -16,10 +16,11 @@ export function GenerateBoardModal({ open, onClose, onCreated }: { open: boolean
   const [rows, setRows] = useState(5);
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [final, setFinal] = useState(true);
+  const [rounds, setRounds] = useState(2);
   const ready = !!st.data && (!st.data.keyRequired || st.data.keySaved);
   const local = st.data?.config.provider === 'openai';
   const create = async () => {
-    const r = await attempt(() => hostApi<{ id: string; filled: number; total: number }>('POST', '/api/ai/generate-board', { topic: topic.trim(), categories, rows, difficulty, final }));
+    const r = await attempt(() => hostApi<{ id: string; filled: number; total: number }>('POST', '/api/ai/generate-board', { topic: topic.trim(), categories, rows, difficulty, final, rounds }));
     if (!r) return;
     onCreated(r.id);
   };
@@ -47,7 +48,14 @@ export function GenerateBoardModal({ open, onClose, onCreated }: { open: boolean
         <Field label="Topic">
           <input className={inputCls} value={topic} onChange={(e) => setTopic(e.target.value)} maxLength={80} placeholder="e.g. 90s movies, the solar system, our family trip to Italy" aria-label="Topic" data-testid="generate-topic" />
         </Field>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {/* R7-30.3: two rounds (like a classic board) unless the host wants a short one. */}
+          <Field label="Rounds">
+            <select className={inputCls} value={rounds} onChange={(e) => setRounds(Number(e.target.value))} aria-label="Rounds" data-testid="generate-rounds">
+              <option value={2}>2 rounds</option>
+              <option value={1}>1 round</option>
+            </select>
+          </Field>
           <Field label="Categories">
             <select className={inputCls} value={categories} onChange={(e) => setCategories(Number(e.target.value))} aria-label="Categories">
               {[3, 4, 5, 6].map((n) => (

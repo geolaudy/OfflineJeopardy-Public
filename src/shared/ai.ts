@@ -65,6 +65,9 @@ export interface AiStatus {
   lastErrorAt: number | null;
   /** AI answers used in the current game (for the per-game limit). */
   gameRequests: number;
+  /** R7-30.2: where computer opponents' answers came from in the current game — the AI, or offline
+   *  (with the latest reasons), so "are the bots really using the AI?" can be checked. */
+  gameAnswers: { ai: number; offline: number; offlineReasons: string[] };
   /**
    * The provider said "too many requests" or "quota used up": no requests until `until`, bots
    * answer offline meanwhile. `message` is plain language, e.g. "Gemini free-tier limit reached —

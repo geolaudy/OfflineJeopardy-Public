@@ -6,6 +6,9 @@
 // - Model names come from Google's list (models.list); none is hardcoded.
 // - 429 RESOURCE_EXHAUSTED: the RetryInfo retryDelay (or the daily reset) tells AiService how long
 //   to pause; QuotaFailure tells whether it was the free tier.
+// - R7-30.2: 500 / 502 / 503 / 504 ("model is overloaded") and dropped connections are retried at
+//   most twice, with jittered backoff (≈ 0.5 s, 1.5 s; Retry-After when Google sends one), and only
+//   while the request's time budget allows — a bot must still answer before its timer ends.
 import { AI_PROVIDERS, type AiModelOption } from '../../shared/ai.js';
 import { AiNoModel, AiRefusal, isAbort, isNetworkError, parseRetryAfter, type AiProviderImpl, type ChatKind, type JsonSchema, type ProviderDeps } from './types.js';
 
@@ -16,6 +19,15 @@ const MAX_TOKENS: Record<ChatKind, number> = { test: 512, answer: 1024, board: 1
 
 /** Model ids as returned by models.list ("gemini-…"): safe to put into the URL path. */
 const MODEL_ID = /^[a-z0-9][a-z0-9._-]{0,99}$/i;
+
+/** Waits between attempts after a transient error (ms, before jitter). */
+export const GEMINI_RETRY_DELAYS = [500, 1500];
+const transient = (e: unknown) => (e instanceof GeminiError && [500, 502, 503, 504].includes(e.status)) || (!isAbort(e) && isNetworkError(e));
+const pause = (ms: number, signal: AbortSignal) =>
+  new Promise<void>((resolve, reject) => {
+    const t = setTimeout(resolve, ms);
+    signal.addEventListener('abort', () => (clearTimeout(t), reject(signal.reason)), { once: true });
+  });
 
 const BLOCKED = new Set(['SAFETY', 'RECITATION', 'BLOCKLIST', 'PROHIBITED_CONTENT', 'SPII', 'LANGUAGE', 'OTHER', 'IMAGE_SAFETY']);
 
@@ -119,7 +131,8 @@ export function createGeminiProvider(deps: () => ProviderDeps): AiProviderImpl {
       if (!MODEL_ID.test(model)) throw new Error('That Gemini model name looks wrong — load the model list and choose one.');
       const h = headers(key);
       const signal = AbortSignal.timeout(req.timeoutMs);
-      const send = async (simple: boolean) => {
+      const deadline = Date.now() + req.timeoutMs;
+      const sendOnce = async (simple: boolean) => {
         const generationConfig: Record<string, unknown> = { maxOutputTokens: MAX_TOKENS[req.kind] };
         if (req.schema && !simple) Object.assign(generationConfig, { responseMimeType: 'application/json', responseSchema: toGeminiSchema(req.schema) });
         // Quick answers: keep thinking low so bots answer within the time limit.
@@ -139,6 +152,20 @@ export function createGeminiProvider(deps: () => ProviderDeps): AiProviderImpl {
           candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] }; finishReason?: string }[];
           promptFeedback?: { blockReason?: string };
         }>;
+      };
+      const send = async (simple: boolean) => {
+        for (let attempt = 0; ; attempt++) {
+          try {
+            return await sendOnce(simple);
+          } catch (e) {
+            if (!transient(e) || attempt >= GEMINI_RETRY_DELAYS.length) throw e;
+            const hinted = e instanceof GeminiError ? e.retryAfterMs : null;
+            const wait = Math.min(5000, hinted ?? GEMINI_RETRY_DELAYS[attempt] * (0.8 + Math.random() * 0.4));
+            // Not worth it when the answer would come after the time limit anyway.
+            if (Date.now() + wait + 1000 > deadline) throw e;
+            await pause(wait, signal);
+          }
+        }
       };
       let body;
       try {

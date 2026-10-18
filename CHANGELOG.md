@@ -4,6 +4,32 @@ All notable changes to OfflineJeopardy. Versions follow [semantic versioning](ht
 GitHub Releases (with the Windows installer and portable exe) are published for major milestones;
 their notes come from the matching section below (`scripts/release-notes.mjs`).
 
+## [0.13.0] — 2026-10-18
+
+### New Features
+- **Bold, italics and underline in clues and answers**: select text in the board editor and press B, I or U (or Ctrl+B / Ctrl+I / Ctrl+U). The TV, the iPad and phones show the formatting; a preview under the field shows how it will look.
+- **Line breaks in clues and answers**: Enter or Shift+Enter starts a new line — answers, too, can now have several lines — and the line breaks show on the TV and the iPad.
+- **Category subheadings**: a smaller second line under a category name ("Name the year", "Capital cities"…), set in the board editor and shown on the TV board, the iPad board, the category introduction and Final Jeopardy!.
+- **Developer tools** (not in normal installs): diagnostics, a simulated buzzer fairness test and an exportable report, for troubleshooting.
+- **AI boards with two rounds**: "Create with AI" now writes Round 1, a harder Round 2 with new categories, and Final Jeopardy! (choose 1 round for a short game). A board with clues the AI left out is marked "incomplete".
+- **Write a clue from an idea**: in the board editor, describe what you want ("the tallest mountain in Africa") and the AI suggests a clue and its answer — you decide whether to use it.
+
+### Improvements
+- The iPad board now looks exactly like the TV board (spacing between tiles, shadows, colours).
+- The opening board fill flows straight into the category row and the round title — no more pause.
+- The small lobby panel on menu pages is shorter with space under it, its QR code is larger (no "Scan to join" caption), menu pages start right under their title, and the panel moves with the page when you switch menus.
+
+### Bug Fixes
+- Buzzinga boards now bring their uploaded pictures and sounds along (before, they were skipped). A clue whose picture still cannot be downloaded says so instead of appearing blank.
+- Google Gemini: when Google says the model is busy (error 503), OfflineJeopardy tries again briefly before falling back to an offline answer. Settings → AI shows how many of this game's answers came from the AI.
+- The clue text no longer flickers right after a clue opens.
+- A long Final Jeopardy! answer shrinks to fit its box instead of pushing the player's name over the category.
+
+### Known Issues
+- The iPad and TV changes were tested in browser emulation, not yet on your iPad and TV.
+- The board-fill timing was checked by measurement, not by ear with your sound pack.
+- Category subheadings are not part of CSV import/export (board files keep them).
+
 ## [0.12.0] — 2026-10-18
 
 ### New Features

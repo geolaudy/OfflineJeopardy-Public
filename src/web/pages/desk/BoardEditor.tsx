@@ -972,17 +972,24 @@ function IconBtn({ label, onClick, disabled, children }: { label: string; onClic
 /** Spec §19 helper: AI writes a clue for the answer, or tidies the wording. Shown only when AI is set up. */
 function AiClueHelper({ clue, category, onChange }: { clue: Clue; category: string; onChange: (p: Partial<Clue>) => void }) {
   const st = useFetch(() => hostApi<AiStatus>('GET', '/api/ai').catch(() => null), []);
-  const [busy, setBusy] = useState<'write' | 'tidy' | null>(null);
+  const [busy, setBusy] = useState<'write' | 'tidy' | 'idea' | null>(null);
   const [hint, setHint] = useState<{ question: string; answer: string } | null>(null);
-  useEffect(() => setHint(null), [clue.id]);
+  // R7-30.5: describe the clue you want; the AI writes the clue and its answer.
+  const [idea, setIdea] = useState('');
+  useEffect(() => {
+    setHint(null);
+    setIdea('');
+  }, [clue.id]);
   const ready = !!st.data && (!st.data.keyRequired || st.data.keySaved);
   if (!ready) return null;
-  const ask = async (mode: 'write' | 'tidy') => {
+  const ask = async (mode: 'write' | 'tidy' | 'idea') => {
     setBusy(mode);
-    const r = await attempt(() => hostApi<{ question: string; answer: string }>('POST', '/api/ai/clue', { mode, category, value: clue.value, question: clue.question, answer: clue.answer }));
+    const r = await attempt(() => hostApi<{ question: string; answer: string }>('POST', '/api/ai/clue', { mode, category, value: clue.value, question: clue.question, answer: clue.answer, idea }));
     setBusy(null);
     if (r) setHint(r);
   };
+  // Never a silent overwrite: the suggestion only replaces what is there when the host says so.
+  const replaces = !!(clue.question.trim() || clue.answer.trim());
   return (
     <div className="space-y-2" data-testid="ai-clue-helper">
       <div className="flex flex-wrap gap-2">
@@ -991,6 +998,21 @@ function AiClueHelper({ clue, category, onChange }: { clue: Clue; category: stri
         </Button>
         <Button size="sm" variant="ghost" disabled={!clue.question.trim() || !!busy} busy={busy === 'tidy'} onClick={() => void ask('tidy')} data-testid="ai-tidy-clue">
           <Sparkles size={14} aria-hidden /> Tidy the wording
+        </Button>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          className={cx(inputCls, 'min-w-0 flex-1')}
+          value={idea}
+          maxLength={300}
+          onChange={(e) => setIdea(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && idea.trim().length >= 3 && !busy && (e.preventDefault(), void ask('idea'))}
+          placeholder="Or describe a clue, e.g. “the tallest mountain in Africa”"
+          aria-label="Describe the clue for the AI"
+          data-testid="ai-idea"
+        />
+        <Button size="sm" variant="ghost" disabled={idea.trim().length < 3 || !!busy} busy={busy === 'idea'} onClick={() => void ask('idea')} data-testid="ai-idea-write">
+          <Sparkles size={14} aria-hidden /> Write from this idea
         </Button>
       </div>
       {hint && (
@@ -1007,7 +1029,7 @@ function AiClueHelper({ clue, category, onChange }: { clue: Clue; category: stri
               }}
               data-testid="ai-clue-use"
             >
-              Use it
+              {replaces ? 'Replace the clue and answer' : 'Use it'}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setHint(null)}>
               Dismiss
@@ -1055,9 +1077,7 @@ function ClueFields({ clue, onChange, final, category = '' }: { clue: Clue; onCh
         <h3 id="clue-presentation" className="font-bold">
           Clue presentation
         </h3>
-        <Field label="Question (shown on the board)" hint={media.length ? 'Optional when the clue is a picture, sound or video.' : undefined} group>
-          <RichField value={clue.question} onChange={(question) => onChange({ question })} rows={3} maxLength={2000} label="Question" fieldLabel="Question (shown on the board)" testId="clue-question" />
-        </Field>
+        <RichField value={clue.question} onChange={(question) => onChange({ question })} rows={3} maxLength={2000} label="Question" fieldLabel="Question (shown on the board)" hint={media.length ? 'Optional when the clue is a picture, sound or video.' : undefined} testId="clue-question" />
         <AiClueHelper clue={clue} category={category} onChange={onChange} />
         <MediaList
           label="Clue media"
@@ -1072,9 +1092,7 @@ function ClueFields({ clue, onChange, final, category = '' }: { clue: Clue; onCh
         <h3 id="answer-reveal" className="font-bold">
           Answer reveal
         </h3>
-        <Field label="Answer (host only until revealed)" group>
-          <RichField value={clue.answer} onChange={(answer) => onChange({ answer })} rows={2} maxLength={1000} label="Answer" fieldLabel="Answer (host only until revealed)" testId="clue-answer-input" />
-        </Field>
+        <RichField value={clue.answer} onChange={(answer) => onChange({ answer })} rows={2} maxLength={1000} label="Answer" fieldLabel="Answer (host only until revealed)" testId="clue-answer-input" />
         <MediaList
           label="Answer media (optional)"
           hint="Shown instead of the clue media when you reveal the answer — e.g. the uncovered picture."
@@ -1409,8 +1427,9 @@ function VersionsModal({
  * (R8-7, R8-8): the buttons and Ctrl+B / I / U wrap the selection in [b] [i] [u] tags, which the TV,
  * the host and phones render (RichText). A preview appears once formatting or a line break is used.
  */
-function RichField({ value, onChange, rows, maxLength, label, fieldLabel, testId }: { value: string; onChange: (v: string) => void; rows: number; maxLength: number; label: string; fieldLabel: string; testId: string }) {
+function RichField({ value, onChange, rows, maxLength, label, fieldLabel, hint, testId }: { value: string; onChange: (v: string) => void; rows: number; maxLength: number; label: string; fieldLabel: string; hint?: string; testId: string }) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const labelId = `${testId}-label`;
   const apply = (tag: 'b' | 'i' | 'u') => {
     const el = ref.current;
     if (!el) return;
@@ -1427,8 +1446,12 @@ function RichField({ value, onChange, rows, maxLength, label, fieldLabel, testId
     { tag: 'i', name: 'Italic', Icon: Italic },
     { tag: 'u', name: 'Underline', Icon: Underline },
   ];
+  // The visible label names only the text box (not the toolbar), like the other fields.
   return (
     <div className="space-y-1">
+      <span id={labelId} className="block text-sm font-semibold text-slate-700">
+        {fieldLabel}
+      </span>
       <div className="flex flex-wrap items-center gap-1" role="toolbar" aria-label={`${label} formatting`}>
         {tools.map(({ tag, name, Icon }) => (
           <button
@@ -1460,9 +1483,10 @@ function RichField({ value, onChange, rows, maxLength, label, fieldLabel, testId
             apply(k);
           }
         }}
-        aria-label={fieldLabel}
+        aria-labelledby={labelId}
         data-testid={testId}
       />
+      {hint ? <span className="block text-xs text-slate-500">{hint}</span> : null}
       {isRich(value) && (
         <div className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-800" data-testid={`${testId}-preview`}>
           <span className="mr-1 text-xs font-semibold text-slate-500">As shown:</span>

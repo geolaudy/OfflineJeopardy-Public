@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { checkUrl, isPrivateAddress } from '../../src/server/importers/net';
 import { createRegistry, parseInput } from '../../src/server/importers/registry';
-import { createBuzzingaSource, normalizeBuzzingaBoard, parseBuzzingaCsv, parseShareLink } from '../../src/server/importers/sources/buzzinga';
+import { BUZZINGA_MEDIA_BASE, buzzingaMediaUrl, createBuzzingaSource, normalizeBuzzingaBoard, parseBuzzingaCsv, parseShareLink } from '../../src/server/importers/sources/buzzinga';
 import { parseJeopardyDataset } from '../../src/server/importers/sources/jeopardyDataset';
 import { parseGenericCsv } from '../../src/server/importers/sources/csv';
 import { applyLimits, buildContent, previewBoard, validateContent } from '../../src/server/importers/pipeline';
@@ -204,5 +204,32 @@ describe('limits, build and validation', () => {
     expect(animals.clues[0].media).toEqual([{ kind: 'image', url: '/media/clues/abc.webp', caption: 'An elephant' }]);
     expect(animals.clues[1].answerMedia).toBeUndefined(); // penguin.png was not stored
     expect(validateContent(content)).toEqual([]);
+  });
+});
+
+describe('Buzzinga uploaded media (R7-30.1)', () => {
+  it('turns storage keys into links on Buzzinga’s public bucket; full links stay as they are', () => {
+    expect(buzzingaMediaUrl('u/123/abc.jpg')).toBe(`${BUZZINGA_MEDIA_BASE}u/123/abc.jpg`);
+    expect(buzzingaMediaUrl('a b c.png')).toBeNull(); // plain text, not a key
+    expect(buzzingaMediaUrl('../secret')).toBeNull();
+    expect(buzzingaMediaUrl('https://example.test/x.png')).toBe('https://example.test/x.png');
+    expect(buzzingaMediaUrl('What is the Sun?')).toBeNull();
+    const b = normalizeBuzzingaBoard(
+      { name: 'Keys', rounds: [[{ category: 'Pics', clues: [{ text: 'img/5f2c.png', answer: 'What is a cat?', type: 'IMAGE', answerType: 'AUDIO', topCaption: '' }] }]] } as never,
+      undefined,
+    );
+    const q = b.rounds[0].categories[0].clues[0];
+    expect(q.media[0].url).toBe(`${BUZZINGA_MEDIA_BASE}img/5f2c.png`);
+    // The answer here is plain text, so it is not mistaken for a key.
+    expect(q.answerMedia[0].url).toBeNull();
+  });
+
+  it('a clue whose media could not be imported says so and keeps the reference for the host', () => {
+    const board = normalizeBuzzingaBoard({ name: 'Lost', rounds: [[{ category: 'Pics', clues: [{ text: 'img/gone.png', answer: 'Cat', type: 'IMAGE' }] }]] } as never, undefined);
+    const content = buildContent(board, new Map()); // nothing was stored
+    const clue = content.rounds[0].categories[0].clues[0];
+    expect(clue.media).toBeUndefined();
+    expect(clue.question).toMatch(/image for this clue could not be imported/);
+    expect(clue.notes).toContain('img/gone.png');
   });
 });

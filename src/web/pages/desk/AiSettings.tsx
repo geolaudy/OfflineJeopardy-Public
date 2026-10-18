@@ -73,10 +73,17 @@ export function AiSettings() {
         </span>
       </label>
 
-      <div className={cx('flex items-center gap-2 rounded-xl p-3 text-sm font-semibold', s.ready ? 'bg-green-50 text-green-900' : 'bg-slate-100 text-slate-700')} data-testid="ai-status">
+      <div className={cx('flex flex-wrap items-center gap-2 rounded-xl p-3 text-sm font-semibold', s.ready ? 'bg-green-50 text-green-900' : 'bg-slate-100 text-slate-700')} data-testid="ai-status">
         {s.ready ? <CircleCheck size={18} aria-hidden /> : <Bot size={18} aria-hidden />}
         {s.ready ? 'AI answers are on' : s.keyRequired && !s.keySaved ? 'No API key saved — bots answer offline' : s.modelMissing ? 'No model chosen yet — press Load or Test connection' : 'AI answers are off — bots answer offline'}
         {s.requests > 0 && <span className="ml-auto font-normal text-slate-600">{s.requests} requests · {s.failures} failed{s.gameRequests ? ` · ${s.gameRequests} this game` : ''}</span>}
+        {/* R7-30.2: are the computer players really answering with the AI in this game? */}
+        {s.gameAnswers.ai + s.gameAnswers.offline > 0 && (
+          <span className="block w-full text-sm font-normal text-slate-600" data-testid="ai-game-answers">
+            This game: {s.gameAnswers.ai} {s.gameAnswers.ai === 1 ? 'answer' : 'answers'} from the AI, {s.gameAnswers.offline} offline
+            {s.gameAnswers.offlineReasons.length ? ` (latest reason: ${s.gameAnswers.offlineReasons[0]})` : ''}
+          </span>
+        )}
       </div>
       {s.cooldown && (
         <p className="flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900" data-testid="ai-cooldown">

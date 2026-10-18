@@ -151,12 +151,17 @@ export function buildContent(board: NormalizedBoard, stored: Map<string, StoredM
         clues: c.clues.map((q) => {
           const media = refs(q.media);
           const answerMedia = refs(q.answerMedia);
+          // R7-30.1: a picture / sound clue whose media could not be imported says so on the
+          // board (never a blank clue) and keeps the original reference in the host notes.
+          const lost = q.media.length > 0 && media.length === 0;
+          const lostNote = lost ? `Media not imported: ${q.media.map((m) => m.ref).join(', ')}` : '';
+          const notes = [q.notes, lost && !q.notes?.includes(q.media[0].ref) ? lostNote : ''].filter(Boolean).join('\n');
           return {
             id: uid('q'),
             value: q.value,
-            question: q.question,
+            question: q.question || (lost ? `(The ${q.media[0].kindHint ?? 'media'} for this clue could not be imported — see the host notes.)` : ''),
             answer: q.answer,
-            ...(q.notes ? { notes: q.notes } : {}),
+            ...(notes ? { notes } : {}),
             ...(q.dailyWager && r.kind === 'standard' ? { dailyWager: true } : {}),
             ...(media.length ? { media } : {}),
             ...(answerMedia.length ? { answerMedia } : {}),

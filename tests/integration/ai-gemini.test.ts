@@ -220,6 +220,31 @@ describe('Google Gemini provider (R5-11)', () => {
     expect((await api(s, 'GET', '/api/ai', undefined, host)).data.cooldown).toBeNull();
   });
 
+  it('503 "model overloaded": retried with a short backoff, then the AI answer is used (R7-30.2)', async () => {
+    let calls = 0;
+    const busy = { status: 503, json: { error: { code: 503, message: 'The model is overloaded. Please try again later.', status: 'UNAVAILABLE' } } };
+    const { s, host, seen, answerOn } = await setup(() => (++calls === 1 ? busy : reply('{"answer": "Who are the Inca?"}')));
+    const sub = await answerOn('hist_1', true);
+    expect(sub).toMatchObject({ answer: 'Who are the Inca?', via: 'ai' });
+    expect(generateCalls(seen)).toHaveLength(2);
+    // The AI status shows that this game's bot answers came from the AI.
+    expect((await api(s, 'GET', '/api/ai', undefined, host)).data.gameAnswers).toMatchObject({ ai: 1, offline: 0 });
+  });
+
+  it('a 503 that does not go away: a bounded number of tries, a clear message, offline answer in time (R7-30.2)', async () => {
+    const { s, host, seen, answerOn } = await setup(() => ({ status: 503, json: { error: { code: 503, message: 'The model is overloaded.', status: 'UNAVAILABLE' } } }));
+    const started = Date.now();
+    const sub = await answerOn('hist_1', true);
+    expect(sub.via).toBe('local');
+    expect(sub.warning).toMatch(/busy or unavailable/);
+    expect((await api(s, 'GET', '/api/ai', undefined, host)).data.gameAnswers).toMatchObject({ ai: 0, offline: 1, offlineReasons: [expect.stringMatching(/busy or unavailable/)] });
+    expect(generateCalls(seen).length).toBeGreaterThanOrEqual(2);
+    expect(generateCalls(seen).length).toBeLessThanOrEqual(3);
+    expect(Date.now() - started).toBeLessThan(5000);
+    // A busy model is not a quota problem: no pause.
+    expect((await api(s, 'GET', '/api/ai', undefined, host)).data.cooldown).toBeNull();
+  });
+
   it('retries once without optional settings a model rejects, then remembers that', async () => {
     const { s, host, seen } = await setup((req) =>
       req.body.generationConfig.thinkingConfig
@@ -237,7 +262,7 @@ describe('Google Gemini provider (R5-11)', () => {
   it('writes a board through Gemini with a converted response schema', async () => {
     const board = { categories: [{ name: 'Moons', clues: [{ clue: 'Largest moon of Saturn', answer: 'Titan' }] }], final: { category: 'Space firsts', clue: 'First person in space', answer: 'Yuri Gagarin' } };
     const { s, host, seen } = await setup(() => reply(JSON.stringify(board)));
-    const r = await api(s, 'POST', '/api/ai/generate-board', { topic: 'Space', categories: 1, rows: 3, final: true }, host);
+    const r = await api(s, 'POST', '/api/ai/generate-board', { topic: 'Space', categories: 1, rows: 3, final: true, rounds: 1 }, host);
     expect(r.status).toBe(200);
     expect(r.data).toMatchObject({ filled: 1, total: 3 });
     const cfg = generateCalls(seen)[0].body.generationConfig;

@@ -19,6 +19,26 @@ import { ImportError } from '../types.js';
 import { csvHeader, isHttpUrl, looksLikeJson, parseCsv, parseMoney, str, truthy } from '../text.js';
 
 export const BUZZINGA_API_BASE = 'https://api.buzzinga.io';
+/** R7-30.1: Buzzinga keeps uploaded pictures and sounds as keys in its public storage bucket; its
+ *  own player shows them as `<bucket>/<key>` (static reading of play.buzzinga.io's client, see
+ *  RESEARCH_NOTES "Buzzinga media"). Full links (pasted from elsewhere) are used as they are. */
+export const BUZZINGA_MEDIA_BASE = 'https://buzzinga.s3.us-east-2.amazonaws.com/';
+const MEDIA_KEY = /^[A-Za-z0-9][A-Za-z0-9._~%/-]{0,299}$/;
+
+/** A downloadable link for a clue's media reference, or null. */
+export function buzzingaMediaUrl(ref: string): string | null {
+  const r = ref.trim();
+  if (isHttpUrl(r)) return r;
+  if (!MEDIA_KEY.test(r) || r.includes('..') || r.includes('//')) return null;
+  return BUZZINGA_MEDIA_BASE + r.split('/').map((p) => encodeURIComponent(decodeURIComponentSafe(p))).join('/');
+}
+function decodeURIComponentSafe(p: string) {
+  try {
+    return decodeURIComponent(p);
+  } catch {
+    return p;
+  }
+}
 const HOSTS = new Set(['play.buzzinga.io', 'buzzinga.io', 'www.buzzinga.io']);
 const LINK_RE = /^\/(share|embed)\/([A-Za-z0-9_-]{1,80})\/?$/;
 const PRIVATE_LINK_RE = /^\/(edit|board|classic|practice|join|final)\b/;
@@ -69,8 +89,9 @@ function mediaFrom(ref: string, kind: MediaKind, caption: string): NormalizedMed
   if (!r) return { url: null, ref: '(empty)', kindHint: kind, caption: cap, unavailable: 'The media link is empty.' };
   if (kind === 'video' || isYouTube(r))
     return { url: null, ref: r, kindHint: kind, caption: cap, unavailable: 'YouTube videos cannot be downloaded; the link is kept in the host notes.' };
-  if (!isHttpUrl(r)) return { url: null, ref: r, kindHint: kind, caption: cap, unavailable: 'Not a downloadable web link.' };
-  return { url: r, ref: r, kindHint: kind, caption: cap };
+  const url = buzzingaMediaUrl(r);
+  if (!url) return { url: null, ref: r, kindHint: kind, caption: cap, unavailable: 'Not a downloadable web link.' };
+  return { url, ref: r, kindHint: kind, caption: cap };
 }
 
 function joinCaps(...c: unknown[]) {

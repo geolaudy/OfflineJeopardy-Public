@@ -114,12 +114,14 @@ describe('Create a board with AI (spec §19)', () => {
     };
     const fake = await fakeOllama(() => ({ content: '```json\n' + JSON.stringify(reply) + '\n```' }));
     const { s, host } = await setup(fake.url);
-    const r = await api(s, 'POST', '/api/ai/generate-board', { topic: 'Space', categories: 3, rows: 3, difficulty: 'easy', final: true }, host);
+    const r = await api(s, 'POST', '/api/ai/generate-board', { topic: 'Space', categories: 3, rows: 3, difficulty: 'easy', final: true, rounds: 1 }, host);
     expect(r.status).toBe(200);
     expect(r.data).toMatchObject({ filled: 4, total: 9 });
     const b = (await api(s, 'GET', `/api/boards/${r.data.id}`, undefined, host)).data;
-    expect(b).toMatchObject({ title: 'Space', tags: ['AI-generated'] }); // R7-27: no "(AI)" suffix; the tag marks it
+    // R7-27: no "(AI)" suffix; the tag marks it. R7-30.3: gaps → marked incomplete, never "finished".
+    expect(b).toMatchObject({ title: 'Space', tags: ['AI-generated', 'incomplete'] });
     expect(b.description).toMatch(/Check every clue/);
+    expect(b.description).toMatch(/Incomplete: 5 of 9 clues still need writing/);
     const [round, final] = b.content.rounds;
     expect(round.categories.map((c: { name: string }) => c.name)).toEqual(['Moons', 'Rockets', '']);
     expect(round.categories[0].clues.map((q: { value: number }) => q.value)).toEqual([200, 400, 600]);
@@ -130,6 +132,46 @@ describe('Create a board with AI (spec §19)', () => {
     const prompt = fake.seen.find((x) => x.path === '/v1/chat/completions')!.body;
     expect(prompt.max_tokens).toBeGreaterThan(1000);
     expect(prompt.messages[1].content).toMatch(/exactly 3 categories/);
+  });
+
+  it('two rounds by default: round 2 asked for separately (harder, new categories), values doubled; a full board is not marked incomplete (R7-30.3)', async () => {
+    const cat = (n: string, i: number) => ({ name: n, clues: [1, 2, 3].map((k) => ({ clue: `Clue ${n} ${k}`, answer: `Answer ${i}-${k}` })) });
+    let call = 0;
+    const fake = await fakeOllama(() => {
+      call++;
+      const reply = call === 1 ? { categories: [cat('Moons', 1), cat('Rockets', 2)], final: { category: 'Firsts', clue: 'First person in space', answer: 'Yuri Gagarin' } } : { categories: [cat('Stars', 3), cat('Probes', 4)] };
+      return { content: JSON.stringify(reply) };
+    });
+    const { s, host } = await setup(fake.url);
+    const r = await api(s, 'POST', '/api/ai/generate-board', { topic: 'Space', categories: 2, rows: 3 }, host);
+    expect(r.status).toBe(200);
+    expect(r.data).toMatchObject({ filled: 12, total: 12 });
+    const b = (await api(s, 'GET', `/api/boards/${r.data.id}`, undefined, host)).data;
+    expect(b.tags).toEqual(['AI-generated']);
+    expect(b.description).not.toMatch(/Incomplete/);
+    expect(b.content.rounds.map((x: { name: string; kind: string }) => [x.name, x.kind])).toEqual([
+      ['Round 1', 'standard'],
+      ['Round 2', 'standard'],
+      ['Final Jeopardy!', 'final'],
+    ]);
+    expect(b.content.rounds[1].categories.map((c: { name: string }) => c.name)).toEqual(['Stars', 'Probes']);
+    expect(b.content.rounds[1].categories[0].clues.map((q: { value: number }) => q.value)).toEqual([400, 800, 1200]);
+    const prompts = fake.seen.filter((x) => x.path === '/v1/chat/completions').map((x) => x.body.messages[1].content as string);
+    expect(prompts).toHaveLength(2);
+    expect(prompts[1]).toMatch(/second round/);
+    expect(prompts[1]).toMatch(/Do not use these categories again: Moons; Rockets/);
+    expect(prompts[1]).not.toMatch(/Final Jeopardy/);
+  });
+
+  it('a second round that cannot be written means nothing is created (R7-30.3)', async () => {
+    let call = 0;
+    const fake = await fakeOllama(() => (++call === 1 ? { content: JSON.stringify({ categories: [{ name: 'Moons', clues: [{ clue: 'One of these orbits Earth', answer: 'The Moon' }] }] }) } : { content: 'Sorry.' }));
+    const { s, host } = await setup(fake.url);
+    const before = (await api(s, 'GET', '/api/boards', undefined, host)).data.length;
+    const r = await api(s, 'POST', '/api/ai/generate-board', { topic: 'Space', categories: 1, rows: 3 }, host);
+    expect(r.status).toBe(502);
+    expect(r.data.error).toMatch(/Round 2 could not be written/);
+    expect((await api(s, 'GET', '/api/boards', undefined, host)).data.length).toBe(before);
   });
 
   it('reports an unusable reply and missing setup clearly; nothing is created', async () => {
@@ -166,5 +208,20 @@ describe('AI clue helper in the editor (spec §19)', () => {
     expect(JSON.stringify(bad.data)).toMatch(/put the answer into the clue/);
     expect((await api(s, 'POST', '/api/ai/clue', { mode: 'write', answer: '' }, host)).status).toBe(400);
     expect((await api(s, 'POST', '/api/ai/clue', { mode: 'tidy', question: '' }, host)).status).toBe(400);
+  });
+
+  it('writes a clue and its answer from a short idea (R7-30.5)', async () => {
+    let next = '{"clue": "At 5,895 metres, this Tanzanian peak is the roof of Africa.", "answer": "Kilimanjaro"}';
+    const fake = await fakeOllama(() => ({ content: next }));
+    const { s, host } = await setup(fake.url);
+    const r = await api(s, 'POST', '/api/ai/clue', { mode: 'idea', category: 'Mountains', value: 600, idea: 'the tallest mountain in Africa' }, host);
+    expect(r.data).toEqual({ question: 'At 5,895 metres, this Tanzanian peak is the roof of Africa.', answer: 'Kilimanjaro' });
+    expect(fake.seen.at(-1)!.body.messages[1].content).toMatch(/about: "the tallest mountain in Africa"/);
+    // No answer → not usable; an answer inside the clue → refused; no idea → asked for one.
+    next = '{"clue": "The roof of Africa."}';
+    expect((await api(s, 'POST', '/api/ai/clue', { mode: 'idea', idea: 'the tallest mountain in Africa' }, host)).status).toBe(502);
+    next = '{"clue": "Kilimanjaro is the tallest mountain in Africa.", "answer": "Kilimanjaro"}';
+    expect(JSON.stringify((await api(s, 'POST', '/api/ai/clue', { mode: 'idea', idea: 'the tallest mountain in Africa' }, host)).data)).toMatch(/put the answer into the clue/);
+    expect((await api(s, 'POST', '/api/ai/clue', { mode: 'idea', idea: 'x' }, host)).status).toBe(400);
   });
 });

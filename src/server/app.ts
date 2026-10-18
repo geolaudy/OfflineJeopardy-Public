@@ -128,9 +128,16 @@ export async function startServer(opts: ServerOptions) {
   // failure falls back to the offline answer generator (or a pass), so the game never waits.
   const ai = new AiService(db, dataDir, opts.secretCodec ?? null);
   games.bots.answerSource = async (req, fallback) => {
-    if (!req.bot.botAi) return { text: fallback(), via: 'local' };
+    if (!req.bot.botAi) {
+      ai.recordAnswer(req.gameId, 'local', 'This computer player has "AI answers" switched off');
+      return { text: fallback(), via: 'local' };
+    }
     const r = await ai.answer({ gameId: req.gameId, level: req.level, ctx: req.ctx, correct: req.correct, avoid: req.avoid, final: req.final, budgetMs: req.budgetMs });
-    if (r.text !== null) return { text: r.text, via: 'ai' };
+    if (r.text !== null) {
+      ai.recordAnswer(req.gameId, 'ai');
+      return { text: r.text, via: 'ai' };
+    }
+    ai.recordAnswer(req.gameId, 'local', r.reason);
     const pass = ai.config().fallback === 'pass';
     return { text: pass ? 'Pass' : fallback(), via: 'local', warning: `${r.reason} — ${pass ? 'the bot passed' : 'offline answer used'}.` };
   };
@@ -277,6 +284,8 @@ export async function startServer(opts: ServerOptions) {
         rows: z.number().int().min(3).max(5).default(5),
         difficulty: z.enum(['easy', 'medium', 'hard']).default('medium'),
         final: z.boolean().default(true),
+        // R7-30.3: two rounds by default, like a classic board.
+        rounds: z.number().int().min(1).max(2).default(2),
       }),
       req.body,
       reply,
@@ -284,9 +293,16 @@ export async function startServer(opts: ServerOptions) {
     if (!body) return;
     const r = await ai.generateBoard(body);
     if (!r.ok) return bad(reply, r.error, 502);
+    // A board with clues still to write is saved as a marked draft, never as a finished board.
+    const missing = r.total - r.filled;
     const board = repo.saveBoard(
       db,
-      { title: body.topic.slice(0, 120), description: `Generated with AI from the topic "${body.topic}". Check every clue before playing — AI can be wrong.`, tags: ['AI-generated'], content: r.content },
+      {
+        title: body.topic.slice(0, 120),
+        description: `Generated with AI from the topic "${body.topic}". Check every clue before playing — AI can be wrong.${missing > 0 ? ` Incomplete: ${missing} of ${r.total} clues still need writing.` : ''}`,
+        tags: missing > 0 ? ['AI-generated', 'incomplete'] : ['AI-generated'],
+        content: r.content,
+      },
       { version: true },
     );
     audit(db, 'host', 'ai.generate-board', { id: board.id, topic: body.topic, filled: r.filled, total: r.total });
@@ -296,13 +312,15 @@ export async function startServer(opts: ServerOptions) {
   app.post('/api/ai/clue', async (req, reply) => {
     if (!requireHost(req, reply)) return;
     const body = parse(
-      z.object({ mode: z.enum(['write', 'tidy']), category: z.string().max(120).default(''), value: z.number().int().min(0).max(1_000_000).default(0), question: z.string().max(2000).default(''), answer: z.string().max(1000).default('') }),
+      // R7-30.5: 'idea' writes a clue AND its answer from a short description of what to ask.
+      z.object({ mode: z.enum(['write', 'tidy', 'idea']), category: z.string().max(120).default(''), value: z.number().int().min(0).max(1_000_000).default(0), question: z.string().max(2000).default(''), answer: z.string().max(1000).default(''), idea: z.string().max(300).default('') }),
       req.body,
       reply,
     );
     if (!body) return;
     if (body.mode === 'write' && !body.answer.trim()) return bad(reply, 'Type the answer first');
     if (body.mode === 'tidy' && !body.question.trim()) return bad(reply, 'Type the clue first');
+    if (body.mode === 'idea' && body.idea.trim().length < 3) return bad(reply, 'Describe the clue you want first');
     const r = await ai.suggestClue(body);
     return r.ok ? { question: r.question, answer: r.answer } : bad(reply, r.error, 502);
   });

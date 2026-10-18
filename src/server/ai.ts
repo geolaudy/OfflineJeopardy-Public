@@ -77,6 +77,23 @@ export class AiService {
   private secretsDir: string;
   private stats = { requests: 0, failures: 0, lastLatencyMs: null as number | null, lastError: null as string | null, lastErrorAt: null as number | null };
   private perGame = new Map<string, number>();
+  /** R7-30.2: answer sources per game (AI vs offline, latest offline reasons). */
+  private answerLog = new Map<string, { ai: number; offline: number; offlineReasons: string[] }>();
+
+  /** A computer opponent answered (from the AI or offline, with the reason when offline). */
+  recordAnswer(gameId: string, via: 'ai' | 'local', reason?: string) {
+    let log = this.answerLog.get(gameId);
+    if (!log) {
+      log = { ai: 0, offline: 0, offlineReasons: [] };
+      this.answerLog.set(gameId, log);
+      if (this.answerLog.size > 50) this.answerLog.delete(this.answerLog.keys().next().value!);
+    }
+    if (via === 'ai') log.ai++;
+    else {
+      log.offline++;
+      if (reason) log.offlineReasons = [reason, ...log.offlineReasons.filter((r) => r !== reason)].slice(0, 3);
+    }
+  }
   private cache = new Map<string, string>();
   /** Provider paused after a rate-limit / quota error: no requests until `until`. */
   private cooldowns = new Map<AiProvider, { until: number; label: string }>();
@@ -172,6 +189,7 @@ export class AiService {
       ready: config.enabled && (keySaved || !needsKey) && !modelMissing,
       ...this.stats,
       gameRequests: gameId ? (this.perGame.get(gameId) ?? 0) : 0,
+      gameAnswers: (gameId ? this.answerLog.get(gameId) : undefined) ?? { ai: 0, offline: 0, offlineReasons: [] },
       cooldown: cd ? { until: cd.until, message: `${cd.label} — offline answers until ${clock(cd.until)}` } : null,
       modelMissing,
     };
@@ -328,19 +346,45 @@ export class AiService {
    * no cost) or a cloud provider. The result is a draft for the host to check — every clue is marked as
    * AI-generated, and anything missing or duplicated is left blank to fill in by hand.
    */
-  async generateBoard(req: { topic: string; categories: number; rows: number; difficulty: 'easy' | 'medium' | 'hard'; final: boolean }): Promise<{ ok: true; content: BoardContent; filled: number; total: number } | { ok: false; error: string }> {
+  /**
+   * A draft board from a topic. R7-30.3: two rounds by default (the second asked for separately,
+   * harder, with new categories, so each reply stays a size even small local models can write) plus
+   * Final Jeopardy!. Any request that fails or cannot be read means nothing is created; clues the AI
+   * left out stay blank and are counted, so the caller can mark the board incomplete.
+   */
+  async generateBoard(req: { topic: string; categories: number; rows: number; difficulty: 'easy' | 'medium' | 'hard'; final: boolean; rounds?: number }): Promise<{ ok: true; content: BoardContent; filled: number; total: number } | { ok: false; error: string }> {
     const cfg = this.config();
     const blocked = this.blocked(cfg, 'Set up AI first (Settings → AI answers): choose a local AI server or save an API key.');
     if (blocked) return { ok: false, error: blocked };
+    const rounds = Math.max(1, Math.min(2, req.rounds ?? 2));
+    const first = await this.askBoard(cfg, req, { final: req.final, harder: false, avoid: null });
+    if (!first.ok) return first;
+    let second: GeneratedBoard | null = null;
+    if (rounds === 2) {
+      const r2 = await this.askBoard(cfg, req, { final: false, harder: true, avoid: first.board });
+      if (!r2.ok) return { ok: false, error: `Round 2 could not be written: ${r2.error}` };
+      second = r2.board;
+    }
+    this.stats.lastError = null;
+    return { ok: true, ...buildGeneratedBoard(first.board, second, req) };
+  }
+
+  /** One board-writing request (a round, with or without the Final). */
+  private async askBoard(cfg: AiConfig, req: { topic: string; categories: number; rows: number; difficulty: string }, opts: { final: boolean; harder: boolean; avoid: GeneratedBoard | null }): Promise<{ ok: true; board: GeneratedBoard } | { ok: false; error: string }> {
     const timeoutMs = Math.min(180, Math.max(90, cfg.timeoutSeconds * 6)) * 1000;
     const system = 'You write accurate trivia for a friendly offline quiz party game. Reply only with the JSON object asked for.';
+    const avoidCats = opts.avoid?.categories.map((c) => c.name).filter(Boolean) ?? [];
+    const avoidAnswers = opts.avoid?.categories.flatMap((c) => c.clues.map((q) => q.answer)).filter(Boolean) ?? [];
     const prompt = [
       `Write a trivia board about: ${req.topic}.`,
-      `Make exactly ${req.categories} categories, each with exactly ${req.rows} clues ordered from easiest to hardest (${req.difficulty} overall).`,
+      `Make exactly ${req.categories} categories, each with exactly ${req.rows} clues ordered from easiest to hardest (${opts.harder ? `a step harder than ${req.difficulty}` : req.difficulty} overall).`,
       'Each clue is a short factual statement (at most 25 words) in game-show style; its answer is a short response (1–5 words): a person, place, thing, title or number.',
       'Only use facts you are sure are true. Category names are short (at most 4 words), fun and different from each other. No answer may appear twice.',
-      req.final ? 'Also write one harder Final Jeopardy! clue with its own category.' : '',
-      'Reply with JSON only, exactly in this shape: {"categories":[{"name":"...","clues":[{"clue":"...","answer":"..."}]}]' + (req.final ? ',"final":{"category":"...","clue":"...","answer":"..."}' : '') + '}',
+      opts.harder ? 'This is the second round: harder than the first.' : '',
+      avoidCats.length ? `Do not use these categories again: ${avoidCats.join('; ')}.` : '',
+      avoidAnswers.length ? `Do not use these answers again: ${avoidAnswers.slice(0, 60).join('; ')}.` : '',
+      opts.final ? 'Also write one harder Final Jeopardy! clue with its own category.' : '',
+      'Reply with JSON only, exactly in this shape: {"categories":[{"name":"...","clues":[{"clue":"...","answer":"..."}]}]' + (opts.final ? ',"final":{"category":"...","clue":"...","answer":"..."}' : '') + '}',
     ]
       .filter(Boolean)
       .join('\n');
@@ -355,8 +399,7 @@ export class AiService {
     this.stats.lastLatencyMs = Date.now() - started;
     const parsed = generatedBoardSchema.safeParse(parseJsonObject(raw));
     if (!parsed.success) return { ok: false, error: this.fail(new Error('The AI reply was not a usable board — try again, or try a larger model.'), 'board') };
-    this.stats.lastError = null;
-    return { ok: true, ...buildGeneratedBoard(parsed.data, req) };
+    return { ok: true, board: parsed.data };
   }
 
   /**
@@ -364,7 +407,7 @@ export class AiService {
    * wording (grammar, clarity, game-show style) keeping its answer. A suggestion only — the host
    * accepts or ignores it.
    */
-  async suggestClue(req: { mode: 'write' | 'tidy'; category: string; value: number; question: string; answer: string }): Promise<{ ok: true; question: string; answer: string } | { ok: false; error: string }> {
+  async suggestClue(req: { mode: 'write' | 'tidy' | 'idea'; category: string; value: number; question: string; answer: string; idea?: string }): Promise<{ ok: true; question: string; answer: string } | { ok: false; error: string }> {
     const cfg = this.config();
     const blocked = this.blocked(cfg, 'Set up AI first (Settings → AI answers).');
     if (blocked) return { ok: false, error: blocked };
@@ -372,7 +415,9 @@ export class AiService {
     const system = 'You help write accurate trivia for a friendly offline quiz party game. Reply only with the JSON object asked for.';
     const ctx = `Category: ${req.category || '(none)'}. Value: ${req.value} (higher = harder).`;
     const prompt =
-      req.mode === 'write'
+      req.mode === 'idea'
+        ? `${ctx}\nWrite one game-show style clue (a short factual statement, at most 25 words) and its correct response (1–5 words) about: "${(req.idea ?? '').trim()}". The response must not appear in the clue. Only use facts you are sure are true.\nReply with JSON only: {"clue": "...", "answer": "..."}.`
+        : req.mode === 'write'
         ? `${ctx}\nWrite one game-show style clue (a short factual statement, at most 25 words) whose correct response is: "${req.answer}". Do not include the answer or an obvious form of it in the clue. Only use facts you are sure are true.\nReply with JSON only: {"clue": "...", "answer": "..."} (answer: the response as given, tidied if needed).`
         : `${ctx}\nImprove the wording of this clue: fix grammar and spelling, make it clear and in game-show style (a short factual statement, at most 25 words), keep the meaning and the facts. Correct response: "${req.answer || '(not given)'}" — it must not appear in the clue.\nClue: "${req.question}"\nReply with JSON only: {"clue": "...", "answer": "..."} (answer: the response, tidied if needed).`;
     this.stats.requests++;
@@ -385,6 +430,7 @@ export class AiService {
     const v = parseJsonObject(raw) as { clue?: unknown; answer?: unknown } | null;
     const question = typeof v?.clue === 'string' ? v.clue.replace(/\s+/g, ' ').trim() : '';
     const answer = typeof v?.answer === 'string' && v.answer.trim() ? v.answer.replace(/\s+/g, ' ').trim() : req.answer;
+    if (req.mode === 'idea' && !answer.trim()) return { ok: false, error: this.fail(new Error('The AI did not give an answer — try again.'), 'clue') };
     if (question.length < 3 || question.length > 400) return { ok: false, error: this.fail(new Error('The AI reply was not a usable clue — try again.'), 'clue') };
     // A clue that gives its own answer away is no clue.
     const a = norm(answer);
@@ -455,26 +501,31 @@ function parseJsonObject(raw: string): unknown {
 
 export const AI_NOTE = 'AI-generated — check before playing';
 
-/** A draft board from the AI reply: values 200…, every clue marked as AI-generated, gaps left blank. */
-function buildGeneratedBoard(g: GeneratedBoard, req: { categories: number; rows: number; final: boolean }) {
+/** A draft board from the AI replies: round 1 values 200…, round 2 400…, every clue marked as
+ *  AI-generated, gaps (missing, incomplete or repeated answers) left blank and counted. */
+function buildGeneratedBoard(g: GeneratedBoard, g2: GeneratedBoard | null, req: { categories: number; rows: number; final: boolean }) {
   const seen = new Set<string>();
   const key = (a: string) => a.toLowerCase().replace(/[^a-z0-9]/g, '');
   let filled = 0;
-  const categories: Category[] = g.categories.slice(0, req.categories).map((cat) => ({
-    id: uid('c'),
-    name: cat.name,
-    clues: Array.from({ length: req.rows }, (_, i) => {
-      const value = (i + 1) * 200;
-      const c = cat.clues[i];
-      // Missing, incomplete or duplicate answers are left for the host to write.
-      if (!c?.clue || c.clue.length < 3 || !c.answer || seen.has(key(c.answer))) return blankClue(value);
-      seen.add(key(c.answer));
-      filled++;
-      return { id: uid('q'), value, question: c.clue, answer: c.answer, notes: AI_NOTE };
-    }),
-  }));
-  while (categories.length < req.categories) categories.push({ id: uid('c'), name: '', clues: Array.from({ length: req.rows }, (_, i) => blankClue((i + 1) * 200)) });
-  const content: BoardContent = { rounds: [{ id: uid('r'), name: 'Round 1', kind: 'standard', categories }] };
+  const round = (src: GeneratedBoard, step: number): Category[] => {
+    const categories: Category[] = src.categories.slice(0, req.categories).map((cat) => ({
+      id: uid('c'),
+      name: cat.name,
+      clues: Array.from({ length: req.rows }, (_, i) => {
+        const value = (i + 1) * step;
+        const c = cat.clues[i];
+        // Missing, incomplete or duplicate answers are left for the host to write.
+        if (!c?.clue || c.clue.length < 3 || !c.answer || seen.has(key(c.answer))) return blankClue(value);
+        seen.add(key(c.answer));
+        filled++;
+        return { id: uid('q'), value, question: c.clue, answer: c.answer, notes: AI_NOTE };
+      }),
+    }));
+    while (categories.length < req.categories) categories.push({ id: uid('c'), name: '', clues: Array.from({ length: req.rows }, (_, i) => blankClue((i + 1) * step)) });
+    return categories;
+  };
+  const content: BoardContent = { rounds: [{ id: uid('r'), name: 'Round 1', kind: 'standard', categories: round(g, 200) }] };
+  if (g2) content.rounds.push({ id: uid('r'), name: 'Round 2', kind: 'standard', categories: round(g2, 400) });
   if (req.final)
     content.rounds.push({
       id: uid('r'),
@@ -482,5 +533,5 @@ function buildGeneratedBoard(g: GeneratedBoard, req: { categories: number; rows:
       kind: 'final',
       categories: [{ id: uid('c'), name: g.final?.category ?? '', clues: [g.final ? { id: uid('q'), value: 0, question: g.final.clue, answer: g.final.answer, notes: AI_NOTE } : blankClue(0)] }],
     });
-  return { content, filled, total: req.categories * req.rows };
+  return { content, filled, total: req.categories * req.rows * (g2 ? 2 : 1) };
 }

@@ -81,6 +81,10 @@ Assumed / NOT verified (no real shareable board was available):
 
 Decision: implement the `buzzinga` plugin for public share links, because the access is public, unauthenticated, authorised by the owner ("Shareable"), allowed by robots.txt and not restricted by the Terms we read. It makes one request per user action, sends no cookies or credentials, identifies itself in the User-Agent, never retries, and stops on 401/403/404/429 with an explanation. Private boards and anything behind a sign-in or paid plan are never accessed — the user is told to ask the owner to make the board shareable or to export it as CSV. The plugin also imports the official CSV export (and a saved board JSON), which is the recommended path when links fail. YouTube videos are not downloaded (the link is kept in the host notes).
 
+#### Buzzinga media (R7-30.1, 2026-10-18)
+
+Why imported boards lost their pictures and sounds: Buzzinga stores *uploaded* media as a key in its public storage bucket, not as a web link. Static reading of the shipped client (https://play.buzzinga.io/assets/index-*.js, one download, no sign-in, no automation) shows the player rendering images and audio as `https://buzzinga.s3.us-east-2.amazonaws.com/${key}` (`<img src>` / `<source src>`), while media pasted from elsewhere stays a full URL; the client also preloads `clue.text` / `clue.answer` for IMAGE/AUDIO clues (so those fields carry the media, as the parser assumed). Our importer only accepted http(s) links, so every uploaded file was skipped as "Not a downloadable web link". Fix: a key (letters, digits, `._~%/-`, no spaces, no `..`) is resolved against that bucket; full links are used as they are; YouTube stays a host note. A clue whose media still fails shows "(The image for this clue could not be imported — see the host notes.)" with the original reference in its notes (never a blank clue). Not verified against a live board (no public share id was used).
+
 ## Joy-Con rumble (Z12, 2026-10-13)
 
 - Vibration must be enabled once with subcommand **0x48, arg 0x01** (sent after the 0x03 input-mode and 0x30 player-light subcommands).
@@ -149,3 +153,14 @@ emulated Xbox pads; otherwise the Desktop Configuration turns presses into keys/
 not on Valve's supported list for Steam Link on tvOS. Our side: gamepad buttons B4–B7 (shoulders,
 triggers) are now selectable, menu buttons never buzz, XInput pads get numbered labels. Best
 practical option: Bluetooth adapter on the PC (existing WebHID path, verified K1).
+
+## Sign-in-based AI connections (R7-30.4, 2026-10-18)
+
+Question: could the host connect Claude, Gemini or ChatGPT by signing in with an existing account instead of pasting an API key? Official methods only. Desk research (web searches, 2026-10-18); nothing was implemented or tried with real accounts.
+
+- **Claude (Anthropic): not allowed.** Anthropic's consumer terms reserve the OAuth tokens of Free / Pro / Max plans for Claude Code and Claude.ai; third-party apps must use an API key from the Claude Console (or a supported cloud provider). Secondary coverage of the February 2026 documentation update and its enforcement (gigazine.net, winbuzzer.com, docs.moltis.org); the official Legal and Compliance page should be re-checked before any change. → Keep the API key.
+- **Gemini (Google): possible, but heavy.** The Gemini API has an official OAuth 2.0 path (https://ai.google.dev/gemini-api/docs/oauth): a Google Cloud project with the Generative Language API, an OAuth consent screen, a *desktop* client ID (one per platform) and user credentials. The quickstart is a testing setup (test users); distributing it to everyone needs a published, Google-verified OAuth app owned by us, and usage then counts against the signing-in user's project. → Feasible later as "Sign in with Google" (loopback/desktop flow, token stored like the key), not worth it now: a free-tier API key from AI Studio is simpler and does the same.
+- **ChatGPT (OpenAI): not available to us.** "Sign in with ChatGPT" was announced in 2025 (first in Codex CLI) and is reported as a beta for named partner apps (techcrunch.com 2025-05-27; later reports list Airtable, GitLab, HubSpot, Notion, Supabase, Vercel). No open developer programme was found; OpenAI's own docs were not reached in this search. → Use an OpenAI API key with the "OpenAI-compatible" provider.
+- **Local AI (Ollama / LM Studio)** needs no sign-in, no key and no internet — the recommended offline option.
+
+Decision: no sign-in connection now; API keys (Gemini's free tier for the easiest start) and local AI stay. Revisit Google OAuth if the owner wants "Sign in with Google", and ChatGPT sign-in if OpenAI opens it to developers.

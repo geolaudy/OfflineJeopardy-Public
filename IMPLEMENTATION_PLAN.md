@@ -113,8 +113,8 @@ Rollback point: tag v0.11.0 (verified on GitHub). See USER_FEEDBACK.md "Round 7"
 
 Rollback point: tag v0.12.0 (published). See USER_FEEDBACK.md "Round 8"; statuses in FEATURE_MATRIX.md.
 - **0 — Verify E:** full Playwright run that low memory stopped in session 11.
-- **A — Gameplay presentation bugs:** R8-2 (clue flicker), R8-3 (host board preview styling), R8-4 (board fill → intro), R8-5 (Final answer sizing).
-- **B — Minimized lobby:** R8-6.1 … R8-6.4.
-- **C — Rich clue text:** R8-7 (line breaks), R8-8 (bold/italic/underline), R8-9 (category subheading). One shared text format for board content (stored with the board, rendered by one component on TV, host and phones; plain-text fallbacks for search, history and AI).
-- **F (round 7, open):** R7-30.1 … R7-30.5 after A–C.
+- **A — Gameplay presentation bugs:** R8-2 (clue flicker), R8-3 (host board preview styling), R8-4 (board fill → intro), R8-5 (Final answer sizing). **Done.**
+- **B — Minimized lobby:** R8-6.1 … R8-6.4. **Done.**
+- **C — Rich clue text:** R8-7 (line breaks), R8-8 (bold/italic/underline), R8-9 (category subheading). **Done.** One shared text format for board content (stored with the board, rendered by one component on TV, host and phones; plain-text fallbacks for search, history and AI).
+- **F (round 7):** R7-30.1 … R7-30.5 after A–C. **Done** (session 12, D81).
 - Commit + push after every stable sub-task; release v0.13.0 when A–C are done and tested.
