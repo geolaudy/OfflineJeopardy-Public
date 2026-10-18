@@ -1,19 +1,19 @@
 # Session handoff
 
-Read this first, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 8". Ready-to-paste resume prompts: `CONTINUE_PROMPT_SAME_COMPUTER.txt` / `CONTINUE_PROMPT_OTHER_COMPUTER.txt`.
+Read this first, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 9". Ready-to-paste resume prompts: `CONTINUE_PROMPT_SAME_COMPUTER.txt` / `CONTINUE_PROMPT_OTHER_COMPUTER.txt`.
 
-## Current state (session 12, 2026-10-18 — round 8 A–C and round 7 F done; v0.13.0 not yet released)
+## Current state (session 13, 2026-10-18 — v0.13.0 released; round 9 done)
 
-- **Branch:** `main` = `origin/main`, clean, latest code commit **ca9e9e4** (plus this handoff commit). Version in package.json **0.12.0** (released). CHANGELOG has a ready **[0.13.0]** section (round 8 A–C, developer tools, round 7 F).
-- **Done and tested:** round 8 A (R8-2 flicker, R8-3 iPad board styling, R8-4 board fill → intro, R8-5 Final answer sizing), B (R8-6.1–6.4 minimized lobby), C (R8-7 line breaks, R8-8 bold/italic/underline, R8-9 category subheadings); round 7 E (developer tools) and F (R7-30.1 Buzzinga media, 30.2 Gemini retries + AI answer counts, 30.3 two-round AI boards, 30.4 sign-in research, 30.5 AI clue from an idea). Round 7 is complete.
-- **Tests:** tsc clean, **Vitest 316/316**. Playwright: full run after milestone C 51/53 (2 label failures, fixed and re-run passing); every affected spec passing after F. **The last full run (on ca9e9e4) was stopped by Claude Code because this PC ran low on memory**: 47/53 passed, the last 6 died with "Target crashed" / worker exit 0xC0000142 (out of memory, not test failures).
-- **Owner to check on real devices:** iPad screens (K38), lobby phone delays (K40), TV layouts, the board-fill timing with the real sound pack, Buzzinga import with a real share link, Gemini with a real key (K31).
+- **Branch:** `main` = `origin/main`, clean (latest code commit **6deb8fb**, plus this handoff commit). package.json **0.13.0** = the latest GitHub release (https://github.com/geolaudy/OfflineJeopardy/releases/tag/v0.13.0, 3 assets verified). CHANGELOG **[Unreleased]** lists what came after it (Final Jeopardy! pictures and sounds, iPad Final frame, CSV subheadings, buzzed-in names, sound never cut off).
+- **Done and tested this session:** full Playwright 53/53 → **release v0.13.0**; round 9 (USER_FEEDBACK "Round 9"): R9-5 iPad Final in the game frame, R9-6.1–6.10 Final Jeopardy! media (root cause: the Final's view carried only text, its TV screen rendered only text and playback accepted only a regular clue — D82); leftovers R9-L1 (CSV subheadings), R9-L2 (buzzed-in names), R9-L3 (sound never cut off, K42).
+- **Tests:** tsc clean, **Vitest 332/332** (the round-6 socket timing test is flaky under load — K43; it passes on its own). Playwright: new round9 spec (3) + presentation, playtest, teams-editor, practice, media, round7d-host, round7-tv, round8, round6-host, host-ipad, editor, bots, survival, library passing. **No full Playwright run since round 9** — do one before the next release.
+- **Local build (personal, includes new_sfx — never upload):** `release/OfflineJeopardy-Setup-0.13.0.exe` and `release/OfflineJeopardy-Portable-0.13.0.exe` built from 6deb8fb (verify-dist 17/17). They contain the round-9 work although the version number still says 0.13.0.
+- **Owner to check on real devices:** a Final with a picture and a sound on the real TV and iPad (sound plays only on the TV; the think time starts when it ends), iPad screens (K38), lobby phone delays (K40), Buzzinga with a real share link, Gemini with a real key (K31).
 
 ### Single recommended next task
 
-1. **Run the full Playwright suite once with nothing else open** (`npm run build` then `npx playwright test`). If green: **release v0.13.0** with the windows-release skill (bump package.json to 0.13.0 with `npm version 0.13.0 --no-git-tag-version`, CHANGELOG section is ready, `npm run release:local`, commit, push, `git tag -a v0.13.0`, push the tag, verify the release + 3 assets via the GitHub API with the stored git credential).
-2. Then: **put the iPad Final Jeopardy! screen into the shared game frame** (the last R7-21 gap): header "Final Jeopardy! · category" + stage chips + timer; preview = TvPreview with the correct-response band; overlay = who has wagered/answered (`final-status`) + recovery (`final-recovery`); bar = next-step buttons and, in the reveal, contestant line, team credit, Correct/Incorrect/Next. Keep every `final-*` test id (presentation, playtest, teams-editor, practice specs use them).
-3. Smaller leftovers: category subheadings in CSV import/export; the iPad buzzed-in line still shows "Nickname (Name)" inline.
+1. **Full Playwright run** (`npm run build` then `npx playwright test`, nothing else open). If green, **release v0.14.0** (Final Jeopardy! media is a user-visible fix worth a release): `npm version 0.14.0 --no-git-tag-version`, rename CHANGELOG **[Unreleased]** to **[0.14.0] — <date>** and add a Known Issues line (K42), `npm run release:local`, commit, push, `git tag -a v0.14.0`, push the tag, verify the release + 3 assets via the GitHub API.
+2. Then wait for the owner's next feedback round; open items otherwise are hardware checks (Joy-Cons, iPad, TV), the accessibility audit (O9) and P3 ideas (O6 workspaces, O13 plugins, profile import, a data-folder UI), plus reading media lengths on the server at upload (K42).
 
 ### Two developers, two machines
 

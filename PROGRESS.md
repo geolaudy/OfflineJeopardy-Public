@@ -8,6 +8,8 @@
 - Found on the way: two quick uploads to one editor media list replaced each other (fixed); a picture-only answer counted as "missing answer" (fixed).
 - **Leftovers:** category subheadings in CSV (export column, both CSV importers); the iPad's buzzed-in line shows the real name without brackets (player: underneath, team member: small and gray after the nickname).
 - Found while testing: WebKit on Windows sometimes reads a 2-second WAV as ~1 s (no later correction) — the server's "media finished" time comes from the host's reading, so the TV cut the sound off. The TV now lets a still-playing sound finish; the host also listens for duration corrections (K42).
+- Local build of 6deb8fb: `release:local` passed (Vitest 332/332, verify-dist 17/17) → release/OfflineJeopardy-Setup-0.13.0.exe + Portable (personal, with new_sfx; version number still 0.13.0). Flaky round-6 socket timing test recorded (K43).
+- **Next:** full Playwright run, then release v0.14.0 (SESSION_HANDOFF).
 - Tests: tsc clean, **Vitest 332/332**; Playwright round9 (3) + host-ipad, round7d-host, presentation, teams-editor, library, media passing.
 - Earlier in the session: Vitest 330/330 (new unit round9: 14), Playwright round9 (2, new) + presentation, playtest, teams-editor, practice, media, round7d-host, round7-tv, round8, round6-host, host-ipad, editor, bots, survival — **25/25**.
 

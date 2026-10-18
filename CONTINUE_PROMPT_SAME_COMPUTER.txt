@@ -6,13 +6,14 @@ Continue the existing OfflineJeopardy project in this repository. Do not restart
 2. Run: git fetch origin && git status -sb && git log --oneline -5
    - Branch: main (tracks origin/main). Expect a clean tree at the latest commit listed in SESSION_HANDOFF.md.
    - If origin/main is ahead (the other computer pushed), pull first (git pull --ff-only) and re-read the handoff.
-3. Current state: version 0.12.0 is released on GitHub. Round 8 (USER_FEEDBACK.md "Round 8") A, B, C
-   and round 7 milestone F (R7-30.x) are done and pushed (latest code commit ca9e9e4). The CHANGELOG
-   [0.13.0] section is ready but v0.13.0 is NOT released: the last full Playwright run was stopped
-   because this PC ran low on memory (47/53 passed before the crash; no test failures).
+3. Current state: v0.13.0 is released on GitHub (verified). Round 9 (USER_FEEDBACK.md "Round 9":
+   Final Jeopardy! pictures and sounds, iPad Final in the game frame) and the small leftovers are done
+   and pushed (latest code commit 6deb8fb). CHANGELOG [Unreleased] lists them. No full Playwright run
+   since round 9 yet.
 4. Exact next task (SESSION_HANDOFF.md "Single recommended next task"): close other programs, run
-   npm run build && npx playwright test once; if green, release v0.13.0 with the windows-release skill.
-   Then move the iPad Final Jeopardy! screen into the shared game frame (keep the final-* test ids).
+   npm run build && npx playwright test once; if green, release v0.14.0 with the windows-release skill
+   (rename CHANGELOG [Unreleased] to [0.14.0]). The round-6 socket timing test is flaky under load
+   (KNOWN_ISSUES K43) — re-run it alone before treating it as a failure.
 5. This machine: no Python (write Node edit scripts with the Write tool, not bash heredocs);
    Playwright needs chromium + webkit (already installed here); new_sfx/ and references/ are
    git-ignored and present. If a full Playwright run is stopped for low memory, close other programs
