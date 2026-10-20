@@ -440,3 +440,34 @@ Last run 2026-10-12: Vitest 58/58 (43 unit, 15 integration), Playwright 8/8.
 | R13-11 | Compact controllers | P1 | TESTED | components/ControllersPanel (cards in a grid, settings sheet per controller, `ControllerChips`) | E round13 | No battery level: controllers do not report one |
 | R13-12 | Home screen Buzzers tab without scrolling | P1 | TESTED | Setup Buzzers tab (BuzzCheckPanel: results on one line, order folded away after the check; ControllersPanel compact) | E round13 (15 players + 15 controllers, before and after a buzzer check with every controller pressed), buzzcheck | While a check runs with many controllers not yet pressed, their chips can make the right column scroll for those seconds |
 | R13-13 | Host preview animations = TV (board fill-in, clue zoom) | P1 | TESTED | board/BoardPage `Stage` (`quietStart`), board/Preview (renders `Stage`, reports tiles), host/TvMirror `HostBoardHits` | E round13 (fill-in after the introduction, zoom = scale transform, no reload across stages / views, no fill-in when opened mid-game) | — |
+
+## User feedback round 14 (2026-10-20) — see USER_FEEDBACK.md "Round 14"
+
+| ID | Feature | Pri | Status | Source | Tests | Limitations |
+|---|---|---|---|---|---|---|
+| R14-1 | At most 12 players (solo) / 12 teams | P1 | TESTED | shared/game `MAX_ENTRIES`, engine (`soloSeats`, `soloFull`; addPlayer / approve / addBot / addTeam / setTeamCount / startGame), app POST /api/guests (409), server/lobby roster max, rulesSummary, host/RulesEditor, host/Setup (count, notice, disabled buttons) | U round14 (6), E round14 (13th player / bot / guest refused, iPad count + notice) | Older lobbies with more entries cannot start until some are removed (K54) |
+| R14-2 | Host score cards: constant section height, 1 row ≤ 6, 2 rows of 6 | P1 | TESTED | host/GameFrame `scoreGrid` (CARD, CARDS_PER_ROW), host/Live ScoreCards (`--card-u`), host-tv.css | E round14 (1 / 3 / 6 / 9 / 12 × iPad landscape / portrait × embedded / full screen: rows, same height, nothing clipped), round13 (2 / 6 / 10 / 12) | Emulation only (K57) |
+| R14-3 | Score font fitted once to the widest possible score | P1 | TESTED | web/lib/scoreFit (`widestScore`, `useFitFontSize`), board/Scoreboard (`--bt-score-fs`), host/Live (`--score-fs`) | E round14 (12 TV podiums one size, −$999,999 fits, size unchanged by score changes; host cards −$250,000 whole) | — |
+| R14-4 | Bot difficulty no longer overlaps "Computer opponent" | P2 | TESTED | host/Setup (difficulty select inside the badge) | E practice (difficulty select by label) | — |
+| R14-5 | Wi-Fi password with host-approved elevation; Mobile Hotspot | P1 | IMPLEMENTED | server/wifi (`hotspotConfig`, `wifiPasswordElevated`, `isHotspotAdapter`), app POST /api/host/wifi/elevate, host/WifiShare | U wifi (11: hotspot adapter names, hotspot script output, elevated export, refused names) | Elevated read and hotspot untested on a Wi-Fi PC (K48) |
+| R14-6 | Preview surroundings in the clue's panel colour | P2 | TESTED | host-tv.css `.host-stage-bg`, board.css `.bt-host-band-slot` | E round14 (classic panel colour during a clue) | — |
+| R14-7 | No "buzzers open" glow on the host preview | P2 | TESTED | board.css `.is-host-preview [data-testid="tv-unlock-indicator"]` | E round14 | — |
+| R14-8 | Correct response centred on the whole width | P1 | TESTED | host-tv.css answer band (`--head-l` / `--head-r`), GameFrame `useHeadEnds` | E round14 (centre within 3 %) | — |
+| R14-9 | One Options menu in both views (Pause, Switch game, Close lobby); no page header during play | P1 | TESTED | host/Live GameOptions, host/HostPage | E round14 (both views, centred), game / practice / survival / tournament | — |
+| R14-10 | iPad full screen: status-bar area in the header colour | P2 | IMPLEMENTED | host/GameFrame `useStatusBarColour` | — (emulation has no status bar) | Depends on iPadOS (K55) |
+| R14-11 | Windows start-up splash; faster portable | P1 | IMPLEMENTED | electron/splash, electron/splashPage, electron/main (lazy server import, `onStage`), server/app `onStage`, scripts/make-splash-bmp, package.json (useZip, splashImage, electronLanguages) | Splash page rendered in Playwright (scratch), start-up timed from main.log; verify-dist | Real-PC timing on this PC only (K56) |
+| R14-12 | Bot answer "delay out of range" | P1 | TESTED | server/ai `chat()` (integer, bounded timeout), server/bots (whole-ms budget) | U aiProviders (reproduces the owner's error without the fix) | — |
+| R14-13 | Clue picture no longer flashes on reveal | P1 | TESTED | board/ClueMedia (aspect cache, composition keyed by the side shown, text-only cross-fade) | E media / presentation suites | Checked in emulation |
+| R14-14 | Full-screen menu slides closed | P2 | TESTED | host/Live FullscreenMenu (`closing`, `is-closing`), host-tv.css | E round14 (data-state open → closing → removed) | — |
+| R14-15 / R14-16 | No category / "Final Jeopardy" in the host footer or banner | P2 | TESTED | host/FinalControl | E round14 | — |
+| R14-17 | Preview Clue lightbox (text only, TV style) | P1 | TESTED | host/FinalControl CluePreview | E round14 (text, no media, nothing on the TV) | — |
+| R14-18 | Host bubbles: enter / change a player's wager and answer | P1 | TESTED | host/FinalControl HostFinalHits + EntrySheet, board/Preview (`final` tiles) | E round14 (wager and answer entered through the bubbles) | — |
+| R14-19 | Final category 80 %, closer to the heading | P2 | TESTED | board/FinalScreen | E round14 screens | — |
+| R14-20 | Verdict by bubble outline colour (no ✓ / ✗) | P1 | TESTED | board/FinalScreen RevealProgress, board.css `.bt-reveal-chip` | U presentation.dom, E round14, presentation | — |
+| R14-21 / R14-22 | Results: no colour strip, names like the score cards, no "Correct response" label | P2 | TESTED | board/FinalScreen Summary, board.css | E round14 | — |
+| R14-23 / R14-24 | Banner typography and symmetric spacing | P2 | TESTED | answer-band.css, host-tv.css | E round14 screens | Owner's eye on the iPad |
+| R14-25 | Larger primary footer actions; Undo secondary | P2 | TESTED | host-tv.css `.host-btn-main`, `.host-band .host-btn`, Undo | E round13 / round14 screens | — |
+| R14-26 | TV lobby: "or open" centred above the address | P2 | TESTED | board/Presenter JoinUrl, presenter.css | E round14 | — |
+| R14-27 | Lobby streak text not clipped | P2 | IMPLEMENTED | board/presentKit `useFitScale(…, lines)`, board/LobbyFull PersonCard | E round7c (long names) | Not reproduced with a real streak in tests |
+| R14-28 | No nickname field in the Players editor | P2 | TESTED | desk/Players EditProfile | E round14 | Existing nicknames kept |
+| R14-29 | Lobby player sheet: nickname / view / edit; guests nickname only | P1 | TESTED | host/LobbyPlayerSheet, host/Setup | E round14 (nickname → TV, editor opens, guest: nickname only) | — |

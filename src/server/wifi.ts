@@ -1,6 +1,9 @@
 // R12-13: the Wi-Fi the game is hosted on, for the lobby's "Join this Wi-Fi" step. Windows only,
-// through Windows' own documented command (netsh wlan) — never elevated, nothing bypassed. The
-// password is read only when the host asks to show it, kept in memory only, and never logged.
+// through Windows' own documented command (netsh wlan) — nothing bypassed. The password is read
+// only when the host asks to show it, kept in memory only, and never logged. R14-5: where Windows
+// keeps the saved password for administrators, the host may approve one elevated read (Windows'
+// own permission prompt, on the game computer) — the app itself never runs elevated. A Windows
+// Mobile Hotspot run by this computer is read through Windows' tethering API.
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -66,21 +69,81 @@ export async function wlanInterfaces(): Promise<WlanInterface[]> {
 }
 
 export type HostingWifi =
-  | { ssid: string; adapter: string; profile: string }
+  | { ssid: string; adapter: string; profile: string; kind: 'wifi' | 'hotspot' }
   | { ssid: null; reason: 'unsupported' | 'ethernet' | 'not-connected' };
 
+/** Windows names the virtual adapter of a Mobile Hotspot (Wi-Fi Direct) "<connection>* <n>"
+ *  ("Local Area Connection* 10", "LAN-Verbindung* 3"). */
+export const isHotspotAdapter = (name: string | null) => !!name && /\*\s*\d+$/.test(name);
+
 /** The Wi-Fi network of the adapter the game is hosted on (the join QR's address). */
-export async function hostingWifi(adapterName: string | null): Promise<HostingWifi> {
+export async function hostingWifi(adapterName: string | null, hotspot: (withPassword: boolean) => Promise<HotspotConfig | null> = hotspotConfig): Promise<HostingWifi> {
   if (process.platform !== 'win32') return { ssid: null, reason: 'unsupported' };
   const list = await wlanInterfaces();
   const mine = adapterName ? list.find((i) => i.name.toLowerCase() === adapterName.toLowerCase()) : undefined;
+  if (!mine && isHotspotAdapter(adapterName)) {
+    // R14-5: players join this computer's own hotspot.
+    const h = await hotspot(false);
+    if (h) return { ssid: h.ssid, adapter: adapterName!, profile: '', kind: 'hotspot' };
+  }
   // Hosting on a cable: the PC's Wi-Fi (if any) may be another network — never guess.
   if (!mine) return { ssid: null, reason: list.some((i) => i.ssid) || adapterName ? 'ethernet' : 'not-connected' };
   if (!mine.ssid) return { ssid: null, reason: 'not-connected' };
-  return { ssid: mine.ssid, adapter: mine.name, profile: mine.profile ?? mine.ssid };
+  return { ssid: mine.ssid, adapter: mine.name, profile: mine.profile ?? mine.ssid, kind: 'wifi' };
 }
 
-export type PasswordResult = { ok: true; open: boolean; password: string | null } | { ok: false; reason: 'unsupported' | 'not-available' };
+/** R14-5: PowerShell's -EncodedCommand form (UTF-16LE, base64): values never pass through a shell. */
+export const encodePowerShell = (script: string) => Buffer.from(script, 'utf16le').toString('base64');
+const psString = (s: string) => `'${s.replace(/'/g, "''")}'`;
+
+type PsRunner = (script: string, timeoutMs: number) => Promise<{ code: number; stdout: string }>;
+const runPowerShell: PsRunner = (script, timeoutMs) =>
+  new Promise((resolve) =>
+    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encodePowerShell(script)], { windowsHide: true, timeout: timeoutMs, encoding: 'utf8' }, (err, stdout) =>
+      resolve({ code: err ? (typeof (err as { code?: unknown }).code === 'number' ? ((err as { code: number }).code) : 1) : 0, stdout: stdout ?? '' }),
+    ),
+  );
+
+export interface HotspotConfig {
+  ssid: string;
+  passphrase: string | null;
+}
+
+/** The script that reads the running Mobile Hotspot's network (and, when asked, its passphrase)
+ *  through Windows.Networking.NetworkOperators.NetworkOperatorTetheringManager. */
+export function hotspotScript(withPassword: boolean) {
+  return [
+    "$ErrorActionPreference = 'Stop'",
+    'Add-Type -AssemblyName System.Runtime.WindowsRuntime',
+    '$null = [Windows.Networking.Connectivity.NetworkInformation, Windows.Networking.Connectivity, ContentType = WindowsRuntime]',
+    '$null = [Windows.Networking.NetworkOperators.NetworkOperatorTetheringManager, Windows.Networking.NetworkOperators, ContentType = WindowsRuntime]',
+    'foreach ($p in [Windows.Networking.Connectivity.NetworkInformation]::GetConnectionProfiles()) {',
+    '  try {',
+    '    $m = [Windows.Networking.NetworkOperators.NetworkOperatorTetheringManager]::CreateFromConnectionProfile($p)',
+    "    if ($m.TetheringOperationalState -ne 'On') { continue }",
+    '    $c = $m.GetCurrentAccessPointConfiguration()',
+    `    [Console]::Out.Write((@{ ssid = $c.Ssid; passphrase = ${withPassword ? '$c.Passphrase' : '$null'} } | ConvertTo-Json -Compress))`,
+    '    exit 0',
+    '  } catch { }',
+    '}',
+    'exit 2',
+  ].join('\n');
+}
+
+/** The Mobile Hotspot this computer runs, or null (none running, or Windows refused). */
+export async function hotspotConfig(withPassword: boolean, ps: PsRunner = runPowerShell): Promise<HotspotConfig | null> {
+  if (process.platform !== 'win32' && ps === runPowerShell) return null;
+  const r = await ps(hotspotScript(withPassword), 8000);
+  if (r.code !== 0) return null;
+  try {
+    const j = JSON.parse(r.stdout) as { ssid?: unknown; passphrase?: unknown };
+    return typeof j.ssid === 'string' && j.ssid ? { ssid: j.ssid, passphrase: typeof j.passphrase === 'string' && j.passphrase ? j.passphrase : null } : null;
+  } catch {
+    return null;
+  }
+}
+
+export type PasswordResult = { ok: true; open: boolean; password: string | null } | { ok: false; reason: 'unsupported' | 'not-available' | 'declined' };
 
 /**
  * The saved password of a WLAN profile, as Windows hands it to the signed-in user without
@@ -93,6 +156,41 @@ export async function wifiPassword(profile: string): Promise<PasswordResult> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'oj-wlan-'));
   try {
     await run(['wlan', 'export', 'profile', `name=${profile}`, 'key=clear', `folder=${dir}`]);
+    const file = fs.readdirSync(dir).find((f) => f.toLowerCase().endsWith('.xml'));
+    if (!file) return { ok: false, reason: 'not-available' };
+    const p = parseProfileXml(fs.readFileSync(path.join(dir, file), 'utf8'));
+    if (p.open) return { ok: true, open: true, password: null };
+    return p.password ? { ok: true, open: false, password: p.password } : { ok: false, reason: 'not-available' };
+  } catch {
+    return { ok: false, reason: 'not-available' };
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+/** R14-5: the script for the host-approved elevated export. Start-Process -Verb RunAs shows Windows'
+ *  own permission prompt (UAC) for netsh alone; cancelling it ends with ERROR_CANCELLED (1223). */
+export function elevatedExportScript(profile: string, dir: string) {
+  const args = `wlan export profile name="${profile}" key=clear folder="${dir}"`;
+  return [
+    "$ErrorActionPreference = 'Stop'",
+    `try { $p = Start-Process -FilePath 'netsh.exe' -ArgumentList ${psString(args)} -Verb RunAs -WindowStyle Hidden -Wait -PassThru; exit $p.ExitCode } catch { exit 1223 }`,
+  ].join('\n');
+}
+
+/**
+ * R14-5: the saved password through one elevated netsh export — run only when the host asks for it
+ * (the Windows prompt appears on the game computer; the host approves or cancels it there). The
+ * export lands in a private temporary folder that is deleted straight away; nothing is logged.
+ */
+export async function wifiPasswordElevated(profile: string, ps: PsRunner = runPowerShell): Promise<PasswordResult> {
+  if (process.platform !== 'win32' && ps === runPowerShell) return { ok: false, reason: 'unsupported' };
+  // netsh cannot take a profile name with a double quote or a line break in its arguments.
+  if (!profile || /["\r\n]/.test(profile)) return { ok: false, reason: 'not-available' };
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'oj-wlan-'));
+  try {
+    const r = await ps(elevatedExportScript(profile, dir), 120_000);
+    if (r.code === 1223) return { ok: false, reason: 'declined' };
     const file = fs.readdirSync(dir).find((f) => f.toLowerCase().endsWith('.xml'));
     if (!file) return { ok: false, reason: 'not-available' };
     const p = parseProfileXml(fs.readFileSync(path.join(dir, file), 'utf8'));

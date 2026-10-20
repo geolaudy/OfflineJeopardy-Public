@@ -81,3 +81,18 @@ describe('Gemini helpers', () => {
     expect(pickDefaultModel([])).toBeNull();
   });
 });
+
+describe('bot answer time budget (R14-12)', () => {
+  it('a fractional budget from a running answer timer reaches Gemini as whole milliseconds', async () => {
+    const dir = tmp();
+    const db = openDatabase(':memory:');
+    setSetting(db, 'aiConfig', { ...DEFAULT_AI_CONFIG, enabled: true, provider: 'gemini', model: 'gemini-9-flash' });
+    const ai = new AiService(db, dir, null);
+    ai.setKey('AIza-test-key-123456', 'gemini');
+    ai.fetchImpl = async () => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"answer": "What is Rome?"}' }] } }] }), { status: 200 });
+    const ctx = { category: 'Cities', question: 'Capital of Italy', answer: 'Rome', value: 400, sameCategory: [], board: [] };
+    // 7998 ms left on the timer × 0.8 = 6398.4 — AbortSignal.timeout threw on it and the bot passed.
+    const r = await ai.answer({ gameId: 'g', level: 'medium', ctx, correct: true, avoid: new Set(), final: false, budgetMs: 6398.400000000001 });
+    expect(r).toEqual({ text: 'What is Rome?' });
+  });
+});

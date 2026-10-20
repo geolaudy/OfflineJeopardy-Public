@@ -104,17 +104,19 @@ export function Presenter({
   );
 }
 
-/** R13-9: "or open <address>" under the code, its type made smaller until it is no wider than the
- *  code (measured, so any font and address length fit). */
+/** R13-9: "or open <address>" under the code, the address's type made smaller until it is no wider
+ *  than the code (measured, so any font and address length fit). R14-26: "or open" is a line of its
+ *  own, centred above the address — both centred on the code. */
 function JoinUrl({ url }: { url: string }) {
   const ref = useRef<HTMLParagraphElement>(null);
   useLayoutEffect(() => {
     const p = ref.current;
     if (!p) return;
     const fit = () => {
-      p.style.fontSize = '';
-      const text = p.firstElementChild as HTMLElement;
-      if (text.offsetWidth > p.clientWidth) p.style.fontSize = `${(parseFloat(getComputedStyle(p).fontSize) * p.clientWidth * 0.98) / text.offsetWidth}px`;
+      const addr = p.querySelector<HTMLElement>('.tvp-qr-addr');
+      if (!addr) return;
+      addr.style.fontSize = '';
+      if (addr.offsetWidth > p.clientWidth) addr.style.fontSize = `${(parseFloat(getComputedStyle(addr).fontSize) * p.clientWidth * 0.98) / addr.offsetWidth}px`;
     };
     fit();
     if (typeof ResizeObserver === 'undefined') return;
@@ -124,7 +126,8 @@ function JoinUrl({ url }: { url: string }) {
   }, [url]);
   return (
     <p ref={ref} className="tvp-qr-url" data-testid="tv-join-url">
-      <span>or open {url}</span>
+      <span className="tvp-qr-or">or open</span>
+      <span className="tvp-qr-addr">{url}</span>
     </p>
   );
 }

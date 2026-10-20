@@ -102,7 +102,7 @@ test('team lobby: phones pick teams, rename them and set nicknames; host drags p
   await expect(pa.getByTestId('my-teammates')).toBeVisible();
   await expect(pb.getByTestId('buzzer')).toHaveCount(0);
 
-  await ipad.getByTestId('nav-menu').click();
+  await ipad.getByTestId('game-options').click(); // R14-9: no page header during play; Close lobby is in Options
   await ipad.getByTestId('close-lobby').click();
   await api.post('/api/games/close', { headers: H });
   await api.dispose();

@@ -370,3 +370,11 @@ button {
     animation-timing-function: steps(1, end);
   }
 }
+/* R14-14: a drawer closing slides out the way it came in (the opening animation reversed). */
+@keyframes drawer-out {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+.drawer-panel.is-closing {
+  animation: drawer-out 0.22s ease-in forwards;
+}

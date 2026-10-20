@@ -169,7 +169,7 @@ export class BotDriver {
   }
 
   private answerBudget(s: GameState) {
-    return s.timer?.running && s.timer.kind === 'answer' ? timerRemaining(s.timer, Date.now()) * 0.8 : undefined;
+    return s.timer?.running && s.timer.kind === 'answer' ? Math.floor(timerRemaining(s.timer, Date.now()) * 0.8) : undefined;
   }
 
   private memory(s: GameState, botId: string): PickMemory {
@@ -288,7 +288,7 @@ export class BotDriver {
     const t = this.between(BOT_PARAMS[b.bot!].think, b);
     if (s.timer?.running && s.timer.kind === 'answer') {
       const left = timerRemaining(s.timer, Date.now());
-      return Math.max(300, Math.min(t, left * 0.7));
+      return Math.max(300, Math.round(Math.min(t, left * 0.7)));
     }
     return t;
   }

@@ -2028,3 +2028,21 @@
   font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
   letter-spacing: 0.04em;
 }
+
+/* R14-26: "or open" on its own line, centred above the address (both centred on the QR code). */
+.tvp-qr-url {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.tvp-qr-or {
+  font-family: var(--tvp-body-font, inherit);
+  font-size: 0.8em;
+  font-weight: 600;
+  opacity: 0.85;
+}
+.tvp-qr-addr {
+  display: inline-block;
+  max-width: none;
+  white-space: nowrap;
+}

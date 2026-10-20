@@ -13,7 +13,7 @@
 // Final stages render into its slots (FrameParts, through portals). The preview is therefore one
 // TV page that plays the TV's own animations (board fill-in, clue zoom) and never restarts when
 // the stage or the view changes (R13-13).
-import { createContext, useContext, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { createContext, useContext, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { Maximize2, Minimize2 } from 'lucide-react';
 import { HOST_BAND, themeRoot } from '../board/common';
@@ -27,13 +27,17 @@ export const STAGE_ASPECT = 16 / 9 / (1 - HOST_BAND);
 /** Heights (px) of the header row and the control band; short screens (phones in landscape) get
  *  the compact sizes. */
 export const HEAD_H = 68;
-export const BAND_H = 72;
+export const BAND_H = 80; // R14-25: room for larger main actions (80 + the score section keep a full-screen iPad picture edge to edge)
 export const HEAD_H_COMPACT = 50;
-export const BAND_H_COMPACT = 56;
-/** Score cards: height of one row (px, min … max), the gap between cards, the width a card needs
- *  at least / at most, the Undo column (host-tv.css .host-scores-grid: 8.5rem, kept at both ends so
- *  the cards stay centred) and the row's own padding and gaps. */
-const CARD = { min: 60, max: 100, minCompact: 46, maxCompact: 58, gap: 8, pad: 12, w: 150, wCompact: 118, wMax: 260, undo: 136, chrome: 36 };
+export const BAND_H_COMPACT = 62;
+/** Score cards (R14-2): the height of one of the (at most) two rows (px, min … max) — the section is
+ *  always two rows high, whatever the number of players, and one row of up to six cards uses all of
+ *  it — the gap between cards, the width a card should have to sit centred between two Undo-wide
+ *  columns (host-tv.css .host-scores-grid: 8.5rem), the widest card, the Undo column, the row's own
+ *  padding and gaps, and the width under which a card leaves out the picture. */
+const CARD = { min: 44, max: 60, minCompact: 34, maxCompact: 40, gap: 8, pad: 12, w: 150, wCompact: 118, wMax: 300, undo: 136, chrome: 36, noPic: 128 };
+/** Cards in one row (R14-2: 12 players = two rows of six). */
+export const CARDS_PER_ROW = 6;
 
 export type FrameKind = 'board' | 'intro' | 'clue' | 'final';
 /** Test ids per stage (the frame is the same element in every stage). */
@@ -47,22 +51,26 @@ const IDS: Record<FrameKind, { box: string; test?: string; preview: string }> = 
 /** R11-3: the host controller's full-screen state (provided by the live screen). */
 export const HostFullscreenCtx = createContext<{ on: boolean; toggle: () => void; compact?: boolean }>({ on: false, toggle: () => {} });
 
-/** How the score cards are laid out: rows, card size, and the row's height range. */
+/**
+ * How the score cards are laid out (R14-2): up to six in one row, seven to twelve in two rows; the
+ * section's height range does not depend on the number of players (two rows' worth), so more
+ * players make the cards narrower and lower, never the section taller. The cards stay centred under
+ * the game (an Undo-wide column at both ends) while they keep a comfortable width; otherwise the
+ * left column is given to the cards too (`wide`).
+ */
 export function scoreGrid(aw: number, n: number, compact: boolean) {
-  const narrow = aw < 640; // host-tv.css: Undo only at the right end below 40rem
-  const room = Math.max(0, aw - (narrow ? 1 : 2) * CARD.undo - CARD.chrome);
-  const wantW = compact ? CARD.wCompact : CARD.w;
-  const perRow = Math.max(1, Math.floor((room + CARD.gap) / (wantW + CARD.gap)));
-  // At most three rows: beyond that the cards get narrower instead (names truncate sooner).
-  const rows = Math.max(1, Math.min(3, Math.ceil(n / perRow)));
+  const rows = n > CARDS_PER_ROW ? 2 : 1;
   const inRow = Math.max(1, Math.ceil(n / rows));
-  const fit = Math.floor((room - (inRow - 1) * CARD.gap) / inRow);
-  const minW = Math.max(80, Math.min(wantW, fit));
-  const cardW = Math.max(minW, Math.min(CARD.wMax, fit));
+  const wantW = compact ? CARD.wCompact : CARD.w;
+  const across = (room: number) => Math.floor((room - (inRow - 1) * CARD.gap) / inRow);
+  const sym = aw >= 640 ? across(aw - 2 * CARD.undo - CARD.chrome) : 0; // host-tv.css: one Undo column below 40rem
+  const wide = sym < Math.min(wantW, across(aw - CARD.undo - CARD.chrome));
+  const fit = Math.max(60, wide ? across(aw - CARD.undo - CARD.chrome) : sym);
+  const cardW = Math.min(CARD.wMax, fit);
   const lo = compact ? CARD.minCompact : CARD.min;
   const hi = compact ? CARD.maxCompact : CARD.max;
-  const span = (h: number) => rows * h + (rows - 1) * CARD.gap + CARD.pad;
-  return { rows, cardW, minW, min: span(lo), max: span(hi), cardH: (h: number) => Math.floor((h - CARD.pad - (rows - 1) * CARD.gap) / rows) };
+  const span = (h: number) => 2 * h + CARD.gap + CARD.pad;
+  return { rows, wide, cardW, minW: cardW, pic: cardW >= CARD.noPic, min: span(lo), max: span(hi), cardH: (h: number) => Math.floor((h - CARD.pad - (rows - 1) * CARD.gap) / rows) };
 }
 
 /** The frame's geometry below the header for an available area (shared by both views). */
@@ -79,6 +87,73 @@ export function frameLayout(aw: number, ah: number, band: number, scores: { min:
   const scoresH = Math.floor(Math.max(scores.min, Math.min(scores.max, ah - band - sh)));
   const midH = Math.max(sh, ah - band - scoresH);
   return { sw, sh, midH, band, scoresH, stageLeft: Math.floor((aw - sw) / 2), stageTop: Math.floor((midH - sh) / 2) };
+}
+
+/**
+ * R14-8 / R14-24: how far the header's buttons reach in from each edge (`--head-l` / `--head-r`, px,
+ * safe areas included), written straight onto the header. The red correct-response strip spans the
+ * whole header and keeps its middle column centred on the header (not between the menu and the much
+ * wider Options + Fullscreen group), with the category and the value the same distance from their
+ * buttons.
+ */
+function useHeadEnds(head: RefObject<HTMLElement | null>, start: RefObject<HTMLElement | null>, end: RefObject<HTMLElement | null>) {
+  useLayoutEffect(() => {
+    const h = head.current;
+    if (!h) return;
+    const read = () => {
+      const b = h.getBoundingClientRect();
+      const s = start.current?.getBoundingClientRect();
+      const e = end.current?.getBoundingClientRect();
+      h.style.setProperty('--head-l', `${Math.round(s && s.width ? s.right - b.left : 0)}px`);
+      h.style.setProperty('--head-r', `${Math.round(e && e.width ? b.right - e.left : 0)}px`);
+    };
+    read();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(read);
+    for (const el of [h, start.current, end.current]) if (el) ro.observe(el);
+    return () => ro.disconnect();
+  }, [head, start, end]);
+}
+
+/** The header's two grounds (host-tv.css --host-navy-1 / --host-red-1). */
+const HEAD_NAVY = '#181e52';
+const HEAD_RED = '#b01f1f';
+
+/**
+ * R14-10: in full screen the area above the header — the iPad's status bar in the Home Screen app,
+ * Safari's top bar where it tints from `theme-color` — takes the header's colour: the page's root
+ * background and the theme colour follow the header (navy, or red with the correct-response strip)
+ * while full screen is on, and are put back when it ends. Embedded, nothing changes (no extra strip
+ * above the controller). The system draws the status bar itself; where iPadOS ignores both, the
+ * header still starts below it (--safe-top).
+ */
+function useStatusBarColour(on: boolean, head: RefObject<HTMLElement | null>) {
+  const saved = useRef<{ bg: string; theme: string | null } | null>(null);
+  useLayoutEffect(() => {
+    const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    if (!on) {
+      if (saved.current) {
+        document.documentElement.style.background = saved.current.bg;
+        if (meta && saved.current.theme != null) meta.content = saved.current.theme;
+        saved.current = null;
+      }
+      return;
+    }
+    saved.current ??= { bg: document.documentElement.style.background, theme: meta?.content ?? null };
+    const colour = head.current?.querySelector('.host-answer-band') ? HEAD_RED : HEAD_NAVY;
+    document.documentElement.style.background = colour;
+    if (meta && meta.content !== colour) meta.content = colour;
+  });
+  useLayoutEffect(
+    () => () => {
+      const s = saved.current;
+      if (!s) return;
+      document.documentElement.style.background = s.bg;
+      const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+      if (meta && s.theme != null) meta.content = s.theme;
+    },
+    [],
+  );
 }
 
 interface Slots {
@@ -107,7 +182,7 @@ export function GameFrame({
   /** The TV presentation, sized `w` × `h` (the TV's proportions) — mounted once for the game. */
   preview: (size: { w: number; h: number }, testId: string) => ReactNode;
   /** The score cards, given the card size the frame worked out. */
-  scores: (m: { cardW: number; cardH: number; cardMin: number; rows: number }) => ReactNode;
+  scores: (m: { cardW: number; cardH: number; cardMin: number; rows: number; wide: boolean; pic: boolean }) => ReactNode;
   scoreCount: number;
   /** Header ends: the menu (full screen) and Options + Fullscreen / minimise. */
   start?: ReactNode;
@@ -121,6 +196,10 @@ export function GameFrame({
   // The whole frame and the header are measured; what is left under the header is laid out here.
   const ref = useRef<HTMLDivElement>(null);
   const headRef = useRef<HTMLElement>(null);
+  const startRef = useRef<HTMLDivElement>(null);
+  const endRef = useRef<HTMLDivElement>(null);
+  useHeadEnds(headRef, startRef, endRef);
+  useStatusBarColour(fs.on, headRef);
   const { w: aw, h: total } = useSize(ref);
   const { h: headH } = useSize(headRef);
   const ah = Math.max(0, total - headH);
@@ -150,9 +229,13 @@ export function GameFrame({
         {/* The stage's test id covers the header, the picture and the band (not the score cards). */}
         <div className="flex flex-none flex-col" data-testid={ids.test}>
           <header ref={headRef} className="host-head host-dark" data-testid="game-strip">
-            {start}
+            <div ref={startRef} className="host-head-start">
+              {start}
+            </div>
             <div ref={setHead} className="host-head-main" />
-            <div className="host-head-end">{end}</div>
+            <div ref={endRef} className="host-head-end">
+              {end}
+            </div>
           </header>
           {L.sw > 0 && L.sh > 0 && (
             <div
@@ -163,8 +246,10 @@ export function GameFrame({
               data-testid={ids.box}
               data-fullscreen={fs.on ? 'true' : 'false'}
             >
-              {/* The blue presentation area: the TV's own background, the TV picture centred in it. */}
-              <div className="board-theme absolute inset-x-0 top-0" data-theme={root.dataTheme} style={{ ...root.style, height: L.midH }} aria-hidden />
+              {/* The presentation area around the TV picture (R14-6): it continues the stage's own
+                  background — the clue / Final panel's blue during a clue or the Final, the board's
+                  black grid on the board — so the picture has no visible edge (host-tv.css). */}
+              <div className="board-theme host-stage-bg absolute inset-x-0 top-0" data-theme={root.dataTheme} style={{ ...root.style, height: L.midH }} aria-hidden />
               <div className="absolute overflow-hidden" style={{ left: L.stageLeft, top: L.stageTop, width: L.sw, height: L.sh }} data-testid="game-stage">
                 {preview({ w: L.sw, h: L.sh }, ids.preview)}
                 <div ref={setStage} className="contents" />
@@ -180,7 +265,7 @@ export function GameFrame({
         </div>
         {L.sw > 0 && L.sh > 0 && (
           <div className="flex-none" style={{ height: L.scoresH }}>
-            {scores({ cardW: grid.cardW, cardH: grid.cardH(L.scoresH), cardMin: grid.minW, rows: grid.rows })}
+            {scores({ cardW: grid.cardW, cardH: grid.cardH(L.scoresH), cardMin: grid.minW, rows: grid.rows, wide: grid.wide, pic: grid.pic })}
           </div>
         )}
         {children}

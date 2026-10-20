@@ -15,6 +15,8 @@ import {
   type Id,
   type TimerState,
   CLUE_LOCKOUT,
+  MAX_ENTRIES,
+  MAX_TEAMS,
   findClue,
   finalClueOf,
   finalMediaLive,
@@ -390,6 +392,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
     case 'addTeam': {
       if (s.mode !== 'team') fail('Teams are only available in team games');
       if (a.teamId && s.competitors.some((c) => c.teamId === a.teamId)) fail('That team is already in this game');
+      if (s.competitors.filter((c) => c.kind === 'team').length >= MAX_TEAMS) fail(`Up to ${MAX_TEAMS} teams per game`);
       for (const pid of a.memberIds) {
         const other = competitorForProfile(s, pid);
         if (other) fail('A player can only be on one team per game');
@@ -410,6 +413,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
     case 'addBot': {
       if (s.mode !== 'solo') fail('Computer opponents play in individual (solo) games');
       if (s.competitors.filter((c) => c.bot).length >= 5) fail('Up to 5 computer opponents per game');
+      if (soloSeats(s) >= MAX_ENTRIES) fail(`This game is full (${MAX_ENTRIES} players) — remove a player to add a computer opponent`);
       if (s.competitors.some((c) => c.bot && c.name.toLowerCase() === a.name.trim().toLowerCase())) fail('Give each computer opponent a different name');
       s.competitors.push({
         id: ctx.newId(),
@@ -516,6 +520,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
     case 'setTeamCount': {
       if (s.phase !== 'lobby') fail('Teams can only be changed before the game starts');
       if (s.mode !== 'team') fail('Switch to teams first');
+      if (a.count > MAX_TEAMS) fail(`Up to ${MAX_TEAMS} teams per game`);
       const teams = s.competitors.filter((c) => c.kind === 'team');
       for (let i = teams.length; i < a.count; i++) s.competitors.push(teamSlot(s, ctx));
       // Fewest players first, from the end: their players go back to Unassigned (never removed).
@@ -753,6 +758,9 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
         s.bindings = s.bindings.filter((b) => !(b.target.kind === 'competitor' && empty.has(b.target.competitorId)));
       }
       if (s.competitors.length === 0) fail('Add at least one player or team first');
+      // A lobby saved by an older version may hold more (R14-1): nobody is removed, the host chooses.
+      if (s.competitors.length > MAX_ENTRIES)
+        fail(`At most ${MAX_ENTRIES} ${s.mode === 'team' ? 'teams' : 'players'} can play in one game — remove ${s.competitors.length - MAX_ENTRIES} first`);
       s.phase = 'board';
       s.startedAt = now;
       s.showJoinQr = false;
@@ -1394,9 +1402,22 @@ export function humanCount(s: GameState) {
   return new Set([...s.competitors.flatMap((c) => c.memberIds), ...s.unassigned.map((u) => u.profileId)]).size;
 }
 
+/** Seats taken in a solo game: players, computer opponents and people waiting to be let in (R14-1). */
+export function soloSeats(s: GameState) {
+  return s.competitors.length + s.unassigned.filter((u) => !s.competitors.some((c) => c.memberIds.includes(u.profileId))).length;
+}
+
+/** No seat left in a solo game for one more player (R14-1, or the host's own player limit). */
+export function soloFull(s: GameState) {
+  return s.mode === 'solo' && (soloSeats(s) >= MAX_ENTRIES || (s.rules.maxPlayers > 0 && humanCount(s) >= s.rules.maxPlayers));
+}
+
 function checkRoom(s: GameState) {
-  // Team games are limited per team (R5-4.2); joining is never blocked there: extra players wait in Unassigned.
-  if (s.mode === 'solo' && s.rules.maxPlayers > 0 && humanCount(s) >= s.rules.maxPlayers) fail('This game is full (' + s.rules.maxPlayers + ' players)');
+  // Team games are limited per team (R5-4.2) and to MAX_TEAMS teams; joining is never blocked there:
+  // extra players wait in Unassigned.
+  if (s.mode !== 'solo') return;
+  if (soloSeats(s) >= MAX_ENTRIES) fail(`This game is full (${MAX_ENTRIES} players)`);
+  if (s.rules.maxPlayers > 0 && humanCount(s) >= s.rules.maxPlayers) fail('This game is full (' + s.rules.maxPlayers + ' players)');
 }
 
 /** A new, empty team slot with the first free default name and colour (R5-5.1). */

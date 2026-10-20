@@ -7,12 +7,12 @@ import { newPairingCode } from './auth.js';
 import * as repo from './repos.js';
 import * as stats from './stats.js';
 import type { GameState } from '../shared/game.js';
-import { BOT_LEVELS } from '../shared/game.js';
+import { BOT_LEVELS, MAX_ENTRIES } from '../shared/game.js';
 import { publicSettings } from '../shared/rulesSummary.js';
 import { DEFAULT_THRESHOLDS, type Thresholds, rankRows, rankTeamRows, secondaryLine, teamSecondaryLine, formatValue, TEAMS_VIEW_LABEL, VIEW_LABELS, type LeaderView } from '../shared/leaderboard.js';
 import { normalizeRules, type GameRules } from '../shared/game.js';
 import type { PresentationState, PresentRequest, PublicLobby, PublicRoster, RosterRow } from '../shared/presentation.js';
-import { humanCount } from './engine/engine.js';
+import { humanCount, soloSeats } from './engine/engine.js';
 import type { ControllerRegistry } from './controllers.js';
 import * as tour from './tournaments.js';
 
@@ -485,8 +485,9 @@ export class LobbyManager {
       boardTitle: board ?? s.title,
       board: { title: b?.title ?? s.title, description: b?.description ?? '', rounds: standard.length, clues: standard.reduce((n, r) => n + r.categories.reduce((m, c) => m + c.clues.length, 0), 0), final: s.board.rounds.some((r) => r.kind === 'final') },
       mode: s.mode,
-      count: humanCount(s),
-      max: s.mode === 'solo' ? s.rules.maxPlayers : 0,
+      // Solo: every seat, computer opponents included (R14-1: at most MAX_ENTRIES).
+      count: s.mode === 'solo' ? soloSeats(s) - s.unassigned.filter((u) => u.pending).length : humanCount(s),
+      max: s.mode === 'solo' ? (s.rules.maxPlayers > 0 ? Math.min(s.rules.maxPlayers, MAX_ENTRIES) : MAX_ENTRIES) : 0,
       maxPerTeam: s.rules.maxPerTeam,
       rows,
       ready: rows.filter((r) => r.ready).length,

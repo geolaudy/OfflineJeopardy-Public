@@ -127,7 +127,10 @@
   flex-direction: column;
   justify-content: center;
 }
+.host-head-start,
 .host-head-end {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex: none;
   align-items: center;
@@ -139,12 +142,30 @@
   box-shadow: inset 0 -2px 0 rgb(0 0 0 / 0.3);
   border-bottom-color: transparent;
 }
+/* R14-8 / R14-24: the strip spans the whole header (under its buttons) in three columns — the
+   category beside the menu, the label and the answer centred on the whole width, the value beside
+   Options at the same distance (--head-gap) as the category from the menu. Both side columns are
+   equally wide (as wide as the wider button group needs), so the middle is the header's centre. */
 .host-head .host-answer-band {
-  flex: 1;
+  --head-gap: 0.75rem;
+  --side: calc(max(var(--head-l, 3rem), var(--head-r, 3rem)) + var(--head-gap) + 5rem);
+  position: absolute;
+  inset: 0;
+  grid-template-columns: minmax(var(--side), 1fr) minmax(0, 2.4fr) minmax(var(--side), 1fr);
   align-content: center;
+  column-gap: 0.5rem;
   background: none;
   box-shadow: none;
-  padding: 0.2rem 0.5rem;
+  padding: 0.2rem 0;
+}
+.host-fullscreen .host-head .host-answer-band {
+  top: var(--safe-top);
+}
+.host-head .host-answer-band-left {
+  padding-left: calc(var(--head-l, 3rem) + var(--head-gap));
+}
+.host-head .host-answer-band-right {
+  padding-right: calc(var(--head-r, 3rem) + var(--head-gap));
 }
 .host-head-status {
   display: flex;
@@ -316,11 +337,17 @@
 /* The band's main action (Unlock Buzzers / Reveal Answer / Return to Board …): one size and one
    place, so the host never looks for it (R12-8). */
 .host-btn-main {
-  min-height: 3.6rem;
-  min-width: min(17rem, 42vw);
-  padding-inline: 1.5rem;
-  font-size: 1.35rem;
+  min-height: 4.1rem;
+  min-width: min(19rem, 42vw);
+  padding-inline: 1.75rem;
+  font-size: 1.55rem;
   letter-spacing: 0.04em;
+}
+/* R14-25: every action in the band (More, Correct / Incorrect, the introduction's steps) is as tall
+   as the main action — large targets for the game's next step; Undo (under the band, beside the
+   score cards) is deliberately quieter. */
+.host-band .host-btn {
+  min-height: 4.1rem;
 }
 @container (max-width: 40rem) {
   .host-btn-main {
@@ -354,6 +381,9 @@
 }
 .host-scores-row {
   display: flex;
+  width: 100%;
+  max-width: var(--row-max, none);
+  justify-self: center;
   min-width: 0;
   max-height: 100%;
   grid-column: 2;
@@ -366,6 +396,16 @@
 }
 .host-scores-grid > .host-scores-undo {
   grid-column: 3;
+}
+/* R14-2: many players on a narrow screen — the cards also take the left column. */
+.host-scores-grid.is-wide {
+  grid-template-columns: minmax(0, 1fr) 8.5rem;
+}
+.host-scores-grid.is-wide .host-scores-row {
+  grid-column: 1;
+}
+.host-scores-grid.is-wide > .host-scores-undo {
+  grid-column: 2;
 }
 @container (max-width: 40rem) {
   .host-scores-grid {
@@ -381,16 +421,30 @@
 /* Undo: one fixed width (the Undo column), what it would undo in small type underneath. */
 .host-undo {
   width: 100%;
-  min-height: 3rem;
+  min-height: 2.75rem;
   flex-direction: column;
   gap: 0;
   padding: 0.25rem 0.5rem;
   line-height: 1.15;
 }
+/* R14-25: Undo is available but secondary — an outlined button on the dark row, not a white one
+   competing with the band's main action. */
+.host-scores .host-undo {
+  background: transparent;
+  color: #e2e8f0 !important;
+  font-size: 0.95rem;
+  box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.35);
+}
+.host-scores .host-undo:not(:disabled):active {
+  background: rgb(255 255 255 / 0.12);
+}
+.host-scores .host-undo:disabled {
+  opacity: 0.45;
+}
 .host-undo-what {
   max-width: 100%;
   overflow: hidden;
-  color: rgb(71 85 105);
+  color: rgb(203 213 225);
   font-size: 0.72rem;
   font-weight: 500;
   text-overflow: ellipsis;
@@ -405,10 +459,10 @@
   height: var(--card-h, 4rem);
   flex: 1 1 0;
   align-items: center;
-  gap: calc(var(--card-h, 4rem) * 0.12);
+  gap: calc(var(--card-u, 4rem) * 0.12);
   border-radius: 0.9rem;
   background: #ffffff;
-  padding: 0 calc(var(--card-h, 4rem) * 0.16) 0 calc(var(--card-h, 4rem) * 0.1);
+  padding: 0 calc(var(--card-u, 4rem) * 0.16) 0 calc(var(--card-u, 4rem) * 0.1);
   color: #0f172a;
   text-align: left;
   box-shadow:
@@ -421,7 +475,7 @@
 }
 /* R13-5: the player's colour as a ring around the picture (was a strip along the bottom). */
 .host-score-pic {
-  --ring: max(3px, calc(var(--card-h, 4rem) * 0.05));
+  --ring: max(3px, calc(var(--card-u, 4rem) * 0.05));
   display: flex;
   flex: none;
   margin: calc(var(--ring) + 2px);
@@ -430,10 +484,19 @@
     0 0 0 2px #ffffff,
     0 0 0 calc(var(--ring) + 2px) var(--pc, #64748b);
 }
+/* R14-2: a card too narrow for the picture keeps the player's colour as a dot. */
+.host-score-dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  flex: none;
+  border-radius: 999px;
+  background: var(--pc, #64748b);
+  box-shadow: 0 0 0 2px #ffffff, 0 0 0 3px var(--pc, #64748b);
+}
 .host-score-name {
   display: block;
   overflow: hidden;
-  font-size: clamp(0.8rem, calc(var(--card-h, 4rem) * 0.2), 1.2rem);
+  font-size: clamp(0.8rem, calc(var(--card-u, 4rem) * 0.2), 1.2rem);
   font-weight: 700;
   line-height: 1.15;
   text-overflow: ellipsis;
@@ -441,7 +504,9 @@
 }
 .host-score-value {
   display: block;
-  font-size: clamp(1.05rem, calc(var(--card-h, 4rem) * 0.36), 2.1rem);
+  /* R14-3: fitted once to the widest score the game can reach (ScoreCards, lib/scoreFit). */
+  font-size: var(--score-fs, clamp(1.05rem, calc(var(--card-u, 4rem) * 0.36), 2.1rem));
+  white-space: nowrap;
   font-weight: 900;
   line-height: 1.05;
   font-variant-numeric: tabular-nums;
@@ -515,9 +580,10 @@
   font-size: 1.05rem;
 }
 [data-compact='true'] .host-btn-main,
-[data-compact='true'] .host-btn {
-  min-height: 2.9rem;
-  font-size: 1.05rem;
+[data-compact='true'] .host-btn,
+[data-compact='true'] .host-band .host-btn {
+  min-height: 3.2rem;
+  font-size: 1.1rem;
 }
 [data-compact='true'] .host-band {
   padding-block: 0.25rem;
@@ -547,4 +613,45 @@
     clip-path: inset(50%);
     white-space: nowrap;
   }
+}
+
+/* R14-6: the area around the TV picture continues the stage — the clue / Final panel's colour
+   during a clue (Daily Double!, picture and sound clues, the answer) and the Final; the board's black
+   grid on the board and during the category introduction (classic theme; other themes keep their
+   own background there). */
+.host-frame:is([data-kind="clue"], [data-kind="final"]) .host-stage-bg {
+  background: var(--bt-panel-color, var(--bt-panel));
+}
+.host-frame:is([data-kind="board"], [data-kind="intro"]) .host-stage-bg[data-theme="classic"] {
+  background: var(--bt-grid-bg);
+}
+
+/* R14-10: the browser's own full screen paints the element and its backdrop in the header's navy
+   (never white) around and above the frame. */
+.host-live:fullscreen,
+.host-live:-webkit-full-screen {
+  background: var(--host-navy-1, #181e52);
+}
+.host-live::backdrop {
+  background: #181e52;
+}
+/* Classic theme: the clue panel's colour at its edges (its base colour lightened by the panel's
+   grain), measured on the TV picture — so the picture's edge disappears. */
+.host-frame:is([data-kind="clue"], [data-kind="final"]) .host-stage-bg[data-theme="classic"] {
+  background: #0e1a86;
+}
+
+/* R14-18: the Final's player bubbles on the preview, tappable (round, like the bubbles). */
+.host-final-hit {
+  border-radius: 999px;
+}
+/* R14-17: Preview Clue — the Final's clue in the TV's clue panel style, privately on the iPad. */
+.host-clue-lightbox {
+  overflow: hidden;
+  border-radius: 0.75rem;
+  background: var(--bt-panel);
+  background-color: var(--bt-panel-color, transparent);
+  color: var(--b-fg, #ffffff);
+  padding: 4% 6%;
+  box-shadow: 0 20px 60px rgb(0 0 0 / 0.6);
 }

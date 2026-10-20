@@ -237,7 +237,10 @@ export class AiService {
   }
 
   private chat(cfg: AiConfig, req: ChatRequest) {
-    return this.providers[cfg.provider].chat(cfg, this.readKey(cfg.provider), req);
+    // Timer APIs (AbortSignal.timeout, setTimeout) need whole milliseconds: a budget derived from a
+    // running answer timer is fractional ("delay … must be an integer. Received 6398.4", R14-12).
+    const timeoutMs = Math.min(600_000, Math.max(1, Math.round(req.timeoutMs)));
+    return this.providers[cfg.provider].chat(cfg, this.readKey(cfg.provider), { ...req, timeoutMs });
   }
 
   /**

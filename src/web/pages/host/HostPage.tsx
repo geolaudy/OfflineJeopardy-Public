@@ -215,7 +215,9 @@ function HostHome() {
   return (
     <div className="flex h-full flex-col">
       {/* Before any game or lobby the setup page has its own title, so this bar would only repeat it. */}
-      <header className={cx('shrink-0 border-b border-slate-200 bg-white', ready && !game && !lobby?.open && 'hidden')}>
+      {/* R14-9: during the game the live screen's own header (menu · Options · Fullscreen) is the
+          only one, in the embedded view as in full screen — Pause and the game menu are in Options. */}
+      <header className={cx('shrink-0 border-b border-slate-200 bg-white', ((ready && !game && !lobby?.open) || playing) && 'hidden')}>
         {/* R11-7: the page area already clears the status bar (AppShell). */}
         <div className="flex min-h-14 items-center gap-2 px-2 py-1.5">
           {(game || lobby?.open) && (
@@ -254,7 +256,7 @@ function HostHome() {
         </div>
       </header>
       <div className="scroll-area min-h-0 flex-1">
-        {!ready ? <div className="p-6 text-center text-slate-500">Connecting to the game computer…</div> : !game ? <HostLanding /> : game.phase === 'lobby' ? <Setup g={game} /> : game.phase === 'ended' ? <Results g={game} /> : <Live g={game} run={run} menu={{ rules: () => setRules(true), log: () => setLog(true) }} />}
+        {!ready ? <div className="p-6 text-center text-slate-500">Connecting to the game computer…</div> : !game ? <HostLanding /> : game.phase === 'lobby' ? <Setup g={game} /> : game.phase === 'ended' ? <Results g={game} /> : <Live g={game} run={run} menu={{ rules: () => setRules(true), log: () => setLog(true), switchGame, closeLobby: lobby?.open ? closeLobby : undefined }} />}
       </div>
       <Drawer
         open={menu}

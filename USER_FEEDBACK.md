@@ -409,3 +409,41 @@ Rollback point: tag **v0.16.0** (published). Statuses: FEATURE_MATRIX.md → "Us
 | R13-11 | Compact connected-controller display (identity, status, assigned player, battery where known, assignment, actions) | D |
 | R13-12 | Home screen Buzzers tab without scrolling (up to 15 players / controllers, iPad landscape) | D |
 | R13-13 | Host preview animations as on the TV: board-to-clue zoom, opening board fill — shared with the TV, never restarted by a mode switch or a late / reconnecting preview | E |
+
+# User Feedback — Round 14 (received 2026-10-20, session 17, after playtesting the unreleased round-13 build on real hardware; DESKTOP-6HN0OQ4)
+
+Rollback point: tag **v0.16.0** (published). Statuses: FEATURE_MATRIX.md → "User feedback round 14". The owner will test a 0.17.0 release candidate on real hardware before the release is published.
+
+**Verified by the owner on real hardware (keep):** the host preview reaches the screen edges (embedded + full screen, landscape + portrait); the lobby Buzzers tab.
+
+| ID | Requirement (summary) | Milestone |
+|---|---|---|
+| R14-1 | At most 12 competing entries (12 players solo, 12 teams in team mode — team members not limited to 12): lobby, host, TV, joining, guests, bots, teams, game start; clear feedback at the limit; nobody removed; older games with more stay readable | A |
+| R14-2 | Host score cards: section height independent of the player count (12 ≈ 3), one row of 12 or two rows of 6, narrower cards first; never clipped top / bottom, no overlap; colour ring + active / buzz indicators kept; 1/3/6/9/12 × embedded / full screen × portrait / landscape | A |
+| R14-3 | TV score never leaves its card: score font size fixed at game start from the card width and the widest possible score (currency, at least 6 digits, negative; more digits when the game's values can exceed it — Daily Doubles, Final, custom values, teams); same principle on the host cards | A |
+| R14-4 | Host lobby: bot difficulty selector overlaps the "Computer opponent" label — fix the cause | A |
+| R14-5 | Automatic Wi-Fi name and password (admin allowed): supported Windows methods; Ethernet / hotspot / open / several adapters / not retrievable; explicit host-approved elevation only for the password, never the whole app; manual fallback with the reason; password never shown publicly without the host, never logged / committed / stored needlessly | D |
+| R14-6 | Host preview: the blue strips above / below the picture and the picture's border take the clue background during clues (clue, picture / sound clue, Daily Double, answer, Final); black stays on the board; from the real presentation state | B |
+| R14-7 | No "buzzers open" bottom glow on the host preview (the TV keeps it) | B |
+| R14-8 | "Correct Response" and the answer centred on the whole width (not between uneven neighbours) | B |
+| R14-9 | Embedded mode uses the full-screen Options menu (menu actions + Pause in Options), same centred overlay | B |
+| R14-10 | iPad full screen: the status-bar area matches the blue header where iPadOS allows (no extra strip in embedded mode; no false claims) | B |
+| R14-11 | Windows startup splash (styled name, status text from the real start-up stages, loading bar, errors, closes when ready) + investigate the ~30 s start | E |
+| R14-12 | Bot answer error "The value of "delay" is out of range … Received 6398.400000000001" → the bot passes; fix the delay calculation (integer, bounds) | A |
+| R14-13 | Clue picture flashes on the TV and the host preview when the answer is revealed | A |
+| R14-14 | Full-screen hamburger menu slides closed (reverse of opening) | B |
+| R14-15 | Final Jeopardy!: no "Final Jeopardy (Category)" text in the footer; footer keeps its height | C |
+| R14-16 | Final Jeopardy!: no category / "Final Jeopardy" in the red banner | C |
+| R14-17 | Final Jeopardy!: the clue / wager panel replaced by a **Preview Clue** button (left of Open / Lock Wagers) → centred lightbox with the clue text only in the TV clue style; nothing changes on the TV | C |
+| R14-18 | Final Jeopardy!: host player bubbles like the TV's (green submitted / grey not); tap → set / edit that player's wager and answer (same validation, phase rules, privacy) | C |
+| R14-19 | Final Jeopardy!: category name ≈ 80 % and closer to "Final Jeopardy!" after the category reveal (TV + host) | C |
+| R14-20 | Final Jeopardy!: no ✓ / ✗ in the TV bubbles; outline colours green correct / red incorrect / yellow revealing / grey not yet | C |
+| R14-21 | Final results: no colour strip on top of the boxes; names styled like the TV score cards | C |
+| R14-22 | Final results: no "Correct Response" label (the answer stays) | C |
+| R14-23 | Red host banner: answer ≈ 80 %; value = category size; "Correct Response" ≈ category size | B |
+| R14-24 | Red host banner: value ↔ Options gap = category ↔ menu gap | B |
+| R14-25 | Host footer: larger primary actions (Return to Board, Unlock, Reveal, More…), Undo secondary; no clipping of score cards / preview | B |
+| R14-26 | TV lobby: "or open" centred above the join address, both centred on the QR | D |
+| R14-27 | Lobby player cards: streak text clipped (references/lobby_player_cutoff.png) | D |
+| R14-28 | Players page profile editor: no nickname field (keep the data) | D |
+| R14-29 | Lobby player cards: tap → change the lobby nickname (used everywhere in the game) / view profile / edit profile; guests: nickname only | D |

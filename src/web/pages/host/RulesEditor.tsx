@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { GameView } from '../../../shared/views';
 import type { HostAction } from '../../../shared/actions';
-import { RULE_PRESETS, rulesFromPreset, type GameRules } from '../../../shared/game';
+import { MAX_ENTRIES, RULE_PRESETS, rulesFromPreset, type GameRules } from '../../../shared/game';
 import { Button, Field, Modal, inputCls } from '../../components/ui';
 import { EarlyBuzzFields } from './EarlyBuzzRule';
 import { ChevronDown, ChevronRight } from 'lucide-react';
@@ -76,8 +76,8 @@ export default function RulesEditor({
         <Toggle label="Re-open buzzers after a wrong answer" checked={r.autoReopenAfterIncorrect} onChange={(v) => setR({ ...r, autoReopenAfterIncorrect: v })} />
         <Toggle label="Players can join from their phones without approval" checked={r.allowSelfJoin} onChange={(v) => setR({ ...r, allowSelfJoin: v })} />
         <Toggle label="Introduce the categories on the TV at the start of each round" hint="You can skip or replay the introduction any time." checked={r.categoryIntro} onChange={(v) => setR({ ...r, categoryIntro: v })} />
-        <Field label="Player limit" hint="0 = no limit. Computer opponents don't count.">
-          <input className={inputCls} inputMode="numeric" value={r.maxPlayers} onChange={(e) => setR({ ...r, maxPlayers: Math.min(200, Number(e.target.value.replace(/\D/g, '') || 0)) })} aria-label="Player limit" />
+        <Field label="Player limit" hint={`0 = the most (${MAX_ENTRIES}). Computer opponents take seats too.`}>
+          <input className={inputCls} inputMode="numeric" value={r.maxPlayers} onChange={(e) => setR({ ...r, maxPlayers: Math.min(MAX_ENTRIES, Number(e.target.value.replace(/\D/g, '') || 0)) })} aria-label="Player limit" />
         </Field>
         <Field label="Unlock buzzers automatically when a clue opens" hint="Applies to the next clue that opens. Clues can also have their own setting in the board editor.">
           <select className={inputCls} value={r.autoUnlock} onChange={(e) => setR({ ...r, autoUnlock: e.target.value as GameRules['autoUnlock'] })} aria-label="Automatic buzzer unlock">

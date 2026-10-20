@@ -44,7 +44,7 @@ test('tournament: create, choose it for a game, standings after the game on host
   await pc.getByRole('dialog').getByRole('button', { name: 'Close' }).click();
   await pc.getByTestId('start-game').click();
   await pc.getByTestId('intro-skip').click();
-  await pc.getByRole('button', { name: 'Game menu' }).click();
+  await pc.getByTestId('game-options').click(); // R14-9: the game menu is in Options during the game
   await pc.getByRole('button', { name: 'End game' }).click();
 
   // Standings on the host results, then on the TV.

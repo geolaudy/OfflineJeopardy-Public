@@ -1,9 +1,12 @@
 // Electron main process: starts the local game server automatically, opens the
 // desktop dashboard and the TV board window, and grants WebHID access to Joy-Cons.
+// R14-11: a splash screen shows the start-up phases from the moment Electron is ready; the game
+// server's code (Fastify, SQLite, sharp, the AI SDK…) is loaded only after it is on screen.
 import { app, BrowserWindow, dialog, ipcMain, safeStorage, screen, session, shell } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
-import { startServer, type RunningServer } from '../server/app.js';
+import type { RunningServer } from '../server/app.js';
+import { openSplash, type Splash } from './splash.js';
 
 const NINTENDO_VENDOR = 0x057e;
 let server: RunningServer | null = null;
@@ -55,7 +58,12 @@ function resolveDataDir(): string {
   return path.join(app.getPath('userData'), 'data');
 }
 
+/** What the splash says for each phase the server reports (R14-11). */
+const STAGE_TEXT = { data: 'Loading saved data…', services: 'Preparing game services…', network: 'Starting local server…' } as const;
+
 async function boot() {
+  const t0 = Date.now();
+  const splash = openSplash(app.getVersion());
   const dataDir = resolveDataDir();
   fs.mkdirSync(path.join(dataDir, 'logs'), { recursive: true });
   logFile = path.join(dataDir, 'logs', 'main.log');
@@ -63,23 +71,42 @@ async function boot() {
 
   const webDir = path.join(app.getAppPath(), 'dist', 'web');
   let lastErr: unknown;
-  for (let port = 3000; port <= 3010; port++) {
-    try {
-      // Developer tools (R7-31) only when not packaged, or on request (OJ_DEV_TOOLS=1).
-      server = await startServer({ dataDir, port, host: '0.0.0.0', webDir, secretCodec: secretCodec(), soundPackDirs: soundPackDirs(dataDir), devTools: !app.isPackaged || process.env.OJ_DEV_TOOLS === '1' });
-      break;
-    } catch (e) {
-      lastErr = e;
-      if ((e as NodeJS.ErrnoException).code !== 'EADDRINUSE') break;
+  try {
+    splash.status('Loading the game…');
+    const { startServer } = await import('../server/app.js');
+    log('Server code loaded in', Date.now() - t0, 'ms');
+    for (let port = 3000; port <= 3010; port++) {
+      try {
+        // Developer tools (R7-31) only when not packaged, or on request (OJ_DEV_TOOLS=1).
+        server = await startServer({
+          dataDir,
+          port,
+          host: '0.0.0.0',
+          webDir,
+          secretCodec: secretCodec(),
+          soundPackDirs: soundPackDirs(dataDir),
+          devTools: !app.isPackaged || process.env.OJ_DEV_TOOLS === '1',
+          onStage: (s) => splash.status(STAGE_TEXT[s]),
+        });
+        break;
+      } catch (e) {
+        lastErr = e;
+        if ((e as NodeJS.ErrnoException).code !== 'EADDRINUSE') break;
+      }
     }
+  } catch (e) {
+    lastErr = e;
   }
   if (!server) {
     log('Server failed to start', lastErr);
+    // The splash says so instead of loading forever; the dialog has the details.
+    splash.status('OfflineJeopardy could not start.', true);
     dialog.showErrorBox('OfflineJeopardy could not start', `The local game server failed to start.\n\n${String(lastErr)}\n\nLog: ${logFile}`);
+    splash.close();
     app.quit();
     return;
   }
-  log('Server listening on port', server.port);
+  log('Server listening on port', server.port, 'after', Date.now() - t0, 'ms');
 
   // ---- WebHID permissions for Nintendo controllers (Joy-Con L/R, Pro Controller) ----
   const ses = session.defaultSession;
@@ -99,11 +126,14 @@ async function boot() {
     callback(dev?.deviceId);
   });
 
-  createMainWindow();
+  splash.status('Opening the host interface…');
+  createMainWindow(splash, t0);
 }
 
-function createMainWindow() {
+function createMainWindow(splash?: Splash, t0 = Date.now()) {
   mainWin = new BrowserWindow({
+    // R14-11: shown once it has painted (the splash covers the wait), never left hidden.
+    show: !splash,
     width: 1366,
     height: 860,
     minWidth: 980,
@@ -121,6 +151,19 @@ function createMainWindow() {
   });
   void mainWin.loadURL(`${server!.url}/desk`);
   lockNavigation(mainWin);
+  if (splash) {
+    const win = mainWin;
+    let shown = false;
+    const reveal = (why: string) => {
+      if (shown || win.isDestroyed()) return;
+      shown = true;
+      win.show();
+      splash.close();
+      log('Main window shown (' + why + ') after', Date.now() - t0, 'ms');
+    };
+    win.once('ready-to-show', () => reveal('ready'));
+    setTimeout(() => reveal('timeout'), 20_000);
+  }
   mainWin.on('closed', () => {
     mainWin = null;
     app.quit();
@@ -211,6 +254,7 @@ async function smokeTest(reportFile: string) {
     const webDir = path.join(app.getAppPath(), 'dist', 'web');
     report.webIndex = fs.existsSync(path.join(webDir, 'index.html'));
     report.userGuide = fs.existsSync(path.join(process.resourcesPath, 'USER_GUIDE.md')) || !app.isPackaged;
+    const { startServer } = await import('../server/app.js');
     const s = await startServer({ dataDir, port: 0, host: '127.0.0.1', webDir, soundPackDirs: soundPackDirs(dataDir) });
     try {
       const info = (await (await fetch(`${s.url}/api/info`)).json()) as { version?: string };
@@ -247,6 +291,10 @@ async function smokeTest(reportFile: string) {
   fs.rmSync(dataDir, { recursive: true, force: true });
   app.exit(ok ? 0 : 1);
 }
+
+// Side-by-side runs (tests, development next to an installed copy): a separate profile, and with it
+// a separate single-instance lock.
+if (process.env.OJ_USER_DATA) app.setPath('userData', process.env.OJ_USER_DATA);
 
 const smokeArg = process.argv.find((a) => a.startsWith('--smoke-test='));
 if (smokeArg) {

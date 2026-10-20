@@ -458,7 +458,7 @@ test('board editor: visual bold / italic / underline, undo, paste, save + reload
   // The correct response: its picture, its own sound; the clue's sound has stopped.
   await dlg.getByTestId('final-preview-tab-done').click();
   await expect(frame.getByTestId('tv-final-correct').locator(`img[src="${city.url}"]`)).toBeVisible();
-  await expect(frame.getByTestId('tv-final-correct')).toContainText('Correct response');
+  await expect(frame.getByTestId('tv-final-correct')).not.toContainText('Correct response'); // R14-22
   await expect(frame.getByTestId('tv-final-correct')).toContainText('Budapest');
   expect(await pc.locator('audio').evaluateAll((els) => els.filter((e) => !(e as HTMLAudioElement).paused).length)).toBe(0);
   await expect(dlg.getByTestId('final-preview-sound')).toContainText("Correct response's sound");

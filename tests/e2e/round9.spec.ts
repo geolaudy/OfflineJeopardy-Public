@@ -145,10 +145,12 @@ test('Final Jeopardy! media: editor save + reload, TV picture and sound, correct
   expect(Math.abs(stage.width / stage.height - 16 / 9 / 0.86)).toBeLessThan(0.02); // R11-3: the TV's proportions
   await h.act({ type: 'startFinal' });
 
-  // 2) Category: the host may read ahead (clue picture privately); the TV shows neither picture.
+  // 2) Category: the host may read ahead (R14-17: Preview Clue — the clue's text only, privately); the TV shows neither picture.
   await expect(ipad.getByTestId('final-control')).toBeVisible();
-  await expect(ipad.getByTestId('final-host-clue')).toContainText('Name this city.');
-  await expect(ipad.getByTestId('final-host-clue').locator(`img[src="${map.url}"]`)).toHaveCount(1);
+  await ipad.getByTestId('final-preview-clue').click();
+  await expect(ipad.getByTestId('final-clue-preview-text')).toContainText('Name this city.');
+  await expect(ipad.getByTestId('final-clue-preview').locator('img')).toHaveCount(0);
+  await ipad.getByTestId('final-clue-preview-close').click();
   await expect(ipad.getByTestId('host-answer')).toHaveText('Budapest');
   await measure('category');
   await expect(tv.getByTestId('tv-final')).toBeVisible();
@@ -294,7 +296,7 @@ test('Final Jeopardy! picture-only clue and picture-only correct response (R9-6.
   const correct = tv.getByTestId('tv-final-correct');
   await expect(correct.getByTestId('clue-image')).toHaveAttribute('src', ans.url);
   await expect(correct.getByTestId('clue-answer')).toHaveCount(0);
-  await expect(correct).toContainText('Correct response');
+  await expect(correct).not.toContainText('Correct response'); // R14-22: no label, the picture is the response
   await tv.waitForTimeout(500);
   await shot(tv, 'tv-final-picture-only');
   h.close();

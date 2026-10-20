@@ -13,13 +13,14 @@ import { competitorAvatar, competitorColor, competitorHighlight, competitorName,
 import ControllersPanel, { AssignListener } from '../../components/ControllersPanel';
 import FinalControl from './FinalControl';
 import { HOST_SHORTCUTS, useHostShortcuts } from './shortcuts';
-import { Undo2, Gamepad2, Play, Pause, ChevronLeft, ChevronRight, ChevronsRight, Square, SlidersHorizontal, QrCode, Flag, Menu as MenuIcon, Save, ScrollText } from 'lucide-react';
+import { Undo2, Gamepad2, Play, Pause, ChevronLeft, ChevronRight, ChevronsRight, Square, SlidersHorizontal, QrCode, Flag, Menu as MenuIcon, Save, ScrollText, Repeat, Power } from 'lucide-react';
 import { AnswerBanner } from './AnswerBanner';
 import { ClueStage } from './HostClue';
 import { HostBoardHits, TvPreview, type PreviewTile } from './TvMirror';
 import ScoreEditor from './ScoreEditor';
 import { FrameParts, FullscreenButton, GameFrame, HostFullscreenCtx, type FrameKind } from './GameFrame';
 import { RichText } from '../../components/RichText';
+import { scoreSample, useFitFontSize, widestScore } from '../../lib/scoreFit';
 
 type Run = (a: HostAction) => Promise<{ ok: boolean }>;
 
@@ -109,19 +110,26 @@ function useHostFullscreen(ref: RefObject<HTMLElement | null>) {
 export interface LiveMenu {
   rules: () => void;
   log: () => void;
+  switchGame?: () => void;
+  closeLobby?: () => void;
 }
 
 export default function Live({ g, run, menu }: { g: GameView; run: Run; menu?: LiveMenu }) {
   const [adjust, setAdjust] = useState<CompetitorView | null>(null);
   const [devices, setDevices] = useState(false);
   const [nav, setNav] = useState(false);
+  // R14-14: the menu slides closed (the reverse of opening) before it unmounts.
+  const [navClosing, setNavClosing] = useState(false);
   const [tiles, setTiles] = useState<PreviewTile[]>([]);
   useHostShortcuts(g, run);
   const rootRef = useRef<HTMLDivElement>(null);
   const full = useHostFullscreen(rootRef);
   // A short screen (a phone in landscape) gets the compact header, band and cards (R12-3).
   const compact = useMediaQuery('(max-height: 560px)');
-  useEffect(() => setNav(false), [full.on]);
+  useEffect(() => {
+    setNav(false);
+    setNavClosing(false);
+  }, [full.on]);
   const onDevices = useCallback(() => setDevices(true), []);
   const fs = useMemo(() => ({ ...full, compact }), [full, compact]);
   const kind: FrameKind = g.phase === 'final' && g.final ? 'final' : g.phase === 'board' && g.intro ? 'intro' : g.phase === 'clue' && g.clue ? 'clue' : 'board';
@@ -144,20 +152,33 @@ export default function Live({ g, run, menu }: { g: GameView; run: Run; menu?: L
           scores={(m) => <ScoreCards g={g} run={run} onAdjust={setAdjust} {...m} />}
           // R13-2: the same header in both views — the menu slides over the game in either.
           start={
-            <button type="button" className="host-icon-btn" onClick={() => setNav(true)} aria-label="Open menu" aria-expanded={nav} data-testid="fs-menu-toggle">
+            <button type="button" className="host-icon-btn" onClick={() => {
+                setNav(true);
+                setNavClosing(false);
+              }}
+              aria-label="Open menu" aria-expanded={nav} data-testid="fs-menu-toggle">
               <MenuIcon size={28} strokeWidth={2.4} aria-hidden />
             </button>
           }
           end={
             <>
-              <GameOptions g={g} run={run} onDevices={onDevices} menu={menu} all={fs.on} compact={compact} />
+              <GameOptions g={g} run={run} onDevices={onDevices} menu={menu} compact={compact} />
               <FullscreenButton />
             </>
           }
         >
-          {kind === 'final' ? <FinalControl g={g} run={run} /> : kind === 'intro' ? <IntroStage g={g} run={run} /> : kind === 'clue' ? <ClueStage g={g} run={run} /> : <BoardStage g={g} run={run} tiles={tiles} />}
+          {kind === 'final' ? <FinalControl g={g} run={run} tiles={tiles} /> : kind === 'intro' ? <IntroStage g={g} run={run} /> : kind === 'clue' ? <ClueStage g={g} run={run} /> : <BoardStage g={g} run={run} tiles={tiles} />}
         </GameFrame>
-        {nav && <FullscreenMenu onClose={() => setNav(false)} />}
+        {nav && (
+          <FullscreenMenu
+            closing={navClosing}
+            onClose={() => setNavClosing(true)}
+            onClosed={() => {
+              setNav(false);
+              setNavClosing(false);
+            }}
+          />
+        )}
         {adjust && <ScoreEditor g={g} c={g.competitors.find((x) => x.id === adjust.id) ?? adjust} run={run} onClose={() => setAdjust(null)} />}
         <Modal open={devices} onClose={() => setDevices(false)} title="Buzzers & controllers" wide>
           <ControllersPanel g={g} />
@@ -169,19 +190,36 @@ export default function Live({ g, run, menu }: { g: GameView; run: Run; menu?: L
 }
 
 /**
- * R12-7 / R13-5: the score cards, centred as a group under the game (Undo at the right end, the same
- * width kept free at the left so the group stays centred). The frame sizes them from the room
- * left under the band: bigger cards when there is height, more rows for many players; the player's
- * colour is the ring around their picture.
+ * R12-7 / R13-5 / R14-2: the score cards, centred as a group under the game (Undo at the right end,
+ * the same width kept free at the left while the cards have room). The section is the same height
+ * for 1 … 12 players: up to six cards in one row, then two rows of up to six; the cards get narrower
+ * (narrow cards show the colour as a dot instead of the picture). The
+ * player's colour is the ring around their picture. R14-3: one score size for all cards, fitted to
+ * the widest score the game can reach.
  */
-function ScoreCards({ g, run, onAdjust, cardW, cardH, cardMin, rows }: { g: GameView; run: Run; onAdjust: (c: CompetitorView) => void; cardW: number; cardH: number; cardMin: number; rows: number }) {
+function ScoreCards({ g, run, onAdjust, cardW, cardH, cardMin, rows, wide, pic }: { g: GameView; run: Run; onAdjust: (c: CompetitorView) => void; cardW: number; cardH: number; cardMin: number; rows: number; wide: boolean; pic: boolean }) {
+  // The card's inner scale (picture, paddings, type): its height, but never more than its width
+  // allows — a tall card in a single row must not squeeze the name and score (R14-2).
+  const unit = Math.min(cardH, cardW * 0.5);
+  const first = useRef<HTMLSpanElement>(null);
+  const fs = useFitFontSize(first, scoreSample('', widestScore(g)), Math.max(16.8, Math.min(33.6, unit * 0.36)), 0.96);
+  // Exactly the planned number of cards per line (12 = 6 + 6, 9 = 5 + 4), however wide the cards are.
+  const inRow = Math.max(1, Math.ceil(g.competitors.length / rows));
+  // The picture leaves the name most of a narrow card (a tall single row must not squeeze it).
+  const avatar = Math.round(Math.max(24, Math.min(64, unit * 0.62, cardW * 0.22)));
   return (
-    <footer className="host-scores @container h-full" style={{ '--card-w': `${cardW}px`, '--card-h': `${cardH}px`, '--card-min': `${cardMin}px` } as CSSProperties} data-testid="host-scores" data-rows={rows}>
-      <div className="host-scores-grid">
+    <footer
+      className="host-scores @container h-full"
+      style={{ '--card-w': `${cardW}px`, '--card-h': `${cardH}px`, '--card-u': `${unit}px`, '--card-min': `${cardMin}px`, '--row-max': `${inRow * cardW + (inRow - 1) * 8 + 9}px`, ...(fs ? { '--score-fs': `${fs}px` } : {}) } as CSSProperties}
+      data-testid="host-scores"
+      data-rows={rows}
+      data-pic={pic ? 'true' : 'false'}
+    >
+      <div className={cx('host-scores-grid', wide && 'is-wide')}>
         {/* The scroller clips everything outside its padding box: the padding leaves room for the
             highlight ring (R6-2.2), which is never shrunk to fit. */}
         <div className="host-scores-row" data-testid="host-score-row">
-          {g.competitors.map((c) => {
+          {g.competitors.map((c, i) => {
             const hl = competitorHighlight(g, c.id);
             return (
               <button
@@ -194,12 +232,19 @@ function ScoreCards({ g, run, onAdjust, cardW, cardH, cardMin, rows }: { g: Game
                 data-testid="host-score"
                 data-highlight={hl ?? undefined}
               >
-                <span className="host-score-pic" data-testid="host-score-pic">
-                  <Avatar profile={competitorAvatar(c, g)} size={Math.round(Math.max(24, Math.min(64, cardH * 0.62)))} />
-                </span>
+                {pic ? (
+                  <span className="host-score-pic" data-testid="host-score-pic">
+                    <Avatar profile={competitorAvatar(c, g)} size={avatar} />
+                  </span>
+                ) : (
+                  <span className="host-score-dot" data-testid="host-score-pic" aria-hidden />
+                )}
                 <span className="min-w-0 flex-1">
                   <span className="host-score-name">{competitorName(c, g)}</span>
-                  <span className={cx('host-score-value', c.score < 0 && 'is-negative')}>{fmtScore(c.score)}</span>
+                  {/* The first score is the one measured (its own heavy weight; every score has the same width). */}
+                  <span ref={i === 0 ? first : undefined} className={cx('host-score-value', c.score < 0 && 'is-negative')}>
+                    {fmtScore(c.score)}
+                  </span>
                   {c.lives !== undefined && (c.lives > 0 ? <Lives lives={c.lives} max={g.rules.survivalLives} size={13} /> : <span className="text-xs font-bold text-slate-500 uppercase">Out</span>)}
                 </span>
               </button>
@@ -221,11 +266,20 @@ function ScoreCards({ g, run, onAdjust, cardW, cardH, cardMin, rows }: { g: Game
 
 /** R12-4: the host's navigation sliding over the game from the left (the game keeps its size); ‹,
  *  Esc or a tap beside it closes it. Inside the live screen (and so inside the full-screen element,
- *  where it also shows when the browser's own full screen is on). */
-function FullscreenMenu({ onClose }: { onClose: () => void }) {
+ *  where it also shows when the browser's own full screen is on). R14-14: `closing` slides it back
+ *  out (the opening animation reversed); `onClosed` follows when it is gone. */
+function FullscreenMenu({ onClose, closing, onClosed }: { onClose: () => void; closing: boolean; onClosed: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const close = useRef(onClose);
   close.current = onClose;
+  const closed = useRef(onClosed);
+  closed.current = onClosed;
+  useEffect(() => {
+    if (!closing) return;
+    // animationend ends it; the timer covers reduced motion (no animation runs).
+    const t = setTimeout(() => closed.current(), 320);
+    return () => clearTimeout(t);
+  }, [closing]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close.current();
     window.addEventListener('keydown', onKey);
@@ -233,8 +287,18 @@ function FullscreenMenu({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
   return (
-    <div className="absolute inset-0 z-[60]" onPointerDown={(e) => e.target === e.currentTarget && onClose()} data-testid="fs-menu-backdrop">
-      <div ref={ref} role="dialog" aria-modal="true" aria-label="Menu" className="host-fs-menu drawer-panel flex h-full w-[min(20rem,85vw)] flex-col gap-3 bg-white p-3 text-slate-900 shadow-2xl" style={{ paddingTop: 'max(0.75rem, var(--safe-top))', paddingLeft: 'max(0.75rem, env(safe-area-inset-left))', paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }} data-testid="fs-menu">
+    <div className={cx('absolute inset-0 z-[60]', closing && 'pointer-events-none')} onPointerDown={(e) => e.target === e.currentTarget && onClose()} data-testid="fs-menu-backdrop">
+      <div
+        ref={ref}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Menu"
+        onAnimationEnd={(e) => closing && e.target === e.currentTarget && closed.current()}
+        data-state={closing ? 'closing' : 'open'}
+        className={cx('host-fs-menu drawer-panel flex h-full w-[min(20rem,85vw)] flex-col gap-3 bg-white p-3 text-slate-900 shadow-2xl', closing && 'is-closing')}
+        style={{ paddingTop: 'max(0.75rem, var(--safe-top))', paddingLeft: 'max(0.75rem, env(safe-area-inset-left))', paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+        data-testid="fs-menu"
+      >
         <div className="flex items-start gap-2 px-2">
           <div className="min-w-0 flex-1">
             <HostNavTitle />
@@ -331,11 +395,12 @@ function roundInfo(g: GameView) {
 }
 
 /**
- * Options: round changes (on the board only), buzzers, the join QR, the introduction. `all` (full
- * screen, R12-3.3 — the page's own header with Pause and the game menu is covered there) adds Pause
- * / Resume, Rules & timers, Event history, Save now and End game.
+ * Options: Pause / Resume, round changes (on the board only), buzzers, the join QR, the introduction,
+ * Rules & timers, Event history, Save now, End game, Switch game and Close lobby. R14-9: the same
+ * dialog in the embedded view and in full screen (the page's own header with Pause and the game menu
+ * is hidden while a game is played).
  */
-function GameOptions({ g, run, onDevices, menu, all, compact }: { g: GameView; run: Run; onDevices: () => void; menu?: LiveMenu; all?: boolean; compact?: boolean }) {
+function GameOptions({ g, run, onDevices, menu, compact }: { g: GameView; run: Run; onDevices: () => void; menu?: LiveMenu; compact?: boolean }) {
   const { standard, hasFinal, remaining, next } = roundInfo(g);
   const onBoard = g.phase === 'board' && !g.intro;
   const [options, setOptions] = useState(false);
@@ -346,11 +411,9 @@ function GameOptions({ g, run, onDevices, menu, all, compact }: { g: GameView; r
       </button>
       <Modal open={options} onClose={() => setOptions(false)} title="Game options">
         <div className="grid gap-2">
-          {all && (
-            <ActionButton size="lg" variant={g.paused ? 'warning' : 'secondary'} onAction={() => run({ type: g.paused ? 'resumeGame' : 'pauseGame' })} data-testid="option-pause">
-              {g.paused ? <Play size={18} aria-hidden /> : <Pause size={18} aria-hidden />} {g.paused ? 'Resume game' : 'Pause game'}
-            </ActionButton>
-          )}
+          <ActionButton size="lg" variant={g.paused ? 'warning' : 'secondary'} onAction={() => run({ type: g.paused ? 'resumeGame' : 'pauseGame' })} data-testid="option-pause">
+            {g.paused ? <Play size={18} aria-hidden /> : <Pause size={18} aria-hidden />} {g.paused ? 'Resume game' : 'Pause game'}
+          </ActionButton>
           {onBoard && next && (
             <ActionButton
               size="lg"
@@ -427,7 +490,7 @@ function GameOptions({ g, run, onDevices, menu, all, compact }: { g: GameView; r
               <Play size={18} aria-hidden /> Replay the category introduction
             </Button>
           )}
-          {all && menu && (
+          {menu && (
             <>
               <Button
                 size="lg"
@@ -451,30 +514,44 @@ function GameOptions({ g, run, onDevices, menu, all, compact }: { g: GameView; r
               </Button>
             </>
           )}
-          {all && (
-            <>
-              <Button
-                size="lg"
-                variant="secondary"
-                onClick={async () => {
-                  if (await attempt(() => hostApi<{ savedAt: number }>('POST', '/api/games/save'))) toast('Game saved', 'success');
-                }}
-              >
-                <Save size={18} aria-hidden /> Save now <span className="text-sm font-normal text-slate-500">(also saves automatically)</span>
-              </Button>
-              <Button
-                size="lg"
-                variant="danger"
-                onClick={async () => {
-                  if (!confirm('End the game now and show the results?')) return;
-                  setOptions(false);
-                  await run({ type: 'endGame' });
-                }}
-                data-testid="option-end-game"
-              >
-                <Flag size={18} aria-hidden /> End game
-              </Button>
-            </>
+          <Button
+            size="lg"
+            variant="secondary"
+            onClick={async () => {
+              if (await attempt(() => hostApi<{ savedAt: number }>('POST', '/api/games/save'))) toast('Game saved', 'success');
+            }}
+          >
+            <Save size={18} aria-hidden /> Save now <span className="text-sm font-normal text-slate-500">(also saves automatically)</span>
+          </Button>
+          <Button
+            size="lg"
+            variant="danger"
+            onClick={async () => {
+              if (!confirm('End the game now and show the results?')) return;
+              setOptions(false);
+              await run({ type: 'endGame' });
+            }}
+            data-testid="option-end-game"
+          >
+            <Flag size={18} aria-hidden /> End game
+          </Button>
+          {menu?.switchGame && (
+            <Button
+              size="lg"
+              variant="ghost"
+              onClick={() => {
+                setOptions(false);
+                menu.switchGame!();
+              }}
+              data-testid="switch-game"
+            >
+              <Repeat size={18} aria-hidden /> Switch game (this one stays saved)
+            </Button>
+          )}
+          {menu?.closeLobby && (
+            <Button size="lg" variant="ghost" className="text-red-700" onClick={menu.closeLobby} data-testid="close-lobby">
+              <Power size={18} aria-hidden /> Close lobby
+            </Button>
           )}
           <p className="text-sm text-slate-500">To give board control to someone else, tap their score at the bottom of the screen.</p>
           <details className="hidden rounded-xl border border-slate-200 p-3 text-sm text-slate-600 [@media(pointer:fine)]:block">

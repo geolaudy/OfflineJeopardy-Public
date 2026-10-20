@@ -216,9 +216,12 @@ export const TEAM_COLORS = ['#2563eb', '#dc2626', '#16a34a', '#d97706', '#7c3aed
 export const TEAM_SLOT_NAMES = ['Blue Team', 'Red Team', 'Green Team', 'Orange Team', 'Purple Team', 'Pink Team', 'Teal Team', 'Lime Team'];
 /** Default number of teams: about two players per team (an empty lobby starts with two). */
 export function defaultTeamCount(players: number) {
-  return players > 0 ? Math.ceil(players / 2) : 2;
+  return players > 0 ? Math.min(MAX_TEAMS, Math.ceil(players / 2)) : 2;
 }
-export const MAX_TEAMS = 12;
+/** Most competing entries in one game (R14-1): 12 players in a solo game (people, guests and
+ *  computer opponents together), 12 teams in a team game (members per team are not limited by it). */
+export const MAX_ENTRIES = 12;
+export const MAX_TEAMS = MAX_ENTRIES;
 
 /** Player colours: the profile's preferred colour is chosen from these (all pass 4.5:1 with white). */
 export const PLAYER_COLORS = ['#1d4ed8', '#b91c1c', '#15803d', '#b45309', '#6d28d9', '#be185d', '#0e7490', '#4d7c0f', '#c2410c', '#334155', '#0f766e', '#7e22ce'];

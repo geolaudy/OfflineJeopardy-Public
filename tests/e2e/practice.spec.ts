@@ -67,7 +67,7 @@ test('practice game: computer opponent, answer hidden until revealed, buzzers op
   await pc.getByTestId('back-to-board').click();
   await expect(tv.getByTestId('scoreboard')).toContainText('Robo Rita');
 
-  await pc.getByRole('button', { name: 'Game menu' }).click();
+  await pc.getByTestId('game-options').click(); // R14-9: the game menu is in Options during the game
   pc.once('dialog', (d) => d.accept());
   await pc.getByRole('button', { name: 'End game' }).click();
   await expect(tv.getByTestId('winner')).toContainText('Solo Sue wins!');
@@ -80,7 +80,7 @@ test('practice game: computer opponent, answer hidden until revealed, buzzers op
   await expect(tv.getByTestId('tv-lobby-player')).toHaveCount(2);
   await expect(tv.getByTestId('tv-bot-level')).toHaveText('Easy'); // R3-5
   await expect(pc.getByTestId('setup-player')).toContainText('Solo Sue');
-  await expect(pc.getByTestId('bot-level-badge')).toContainText('Easy');
+  await expect(pc.getByLabel('Robo Rita difficulty')).toHaveValue('easy');
   await pc.getByLabel('Robo Rita difficulty').selectOption('expert');
   await expect(tv.getByTestId('tv-bot-level')).toHaveText('Expert');
   await tv.waitForTimeout(600);

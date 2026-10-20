@@ -180,7 +180,7 @@ test('full game: iPad host pairing, phone profiles + buzzing, private answers, l
   await ipad.getByTestId('reveal-answer').click();
   await expect(tv.getByTestId('clue-answer')).toBeVisible();
   await ipad.getByTestId('back-to-board').click();
-  await expect(ipad.getByTestId('phase')).toContainText('choose a clue');
+  await expect(ipad.getByTestId('choosing')).toBeVisible();
 
   // Profile change on the phone syncs live to TV and host without refresh
   await iphone.getByTestId('nav-menu').click();
@@ -207,10 +207,10 @@ test('full game: iPad host pairing, phone profiles + buzzing, private answers, l
   // Host disconnects and reconnects (reload): state intact, no restart
   await ipad.reload();
   await expect(ipad.getByTestId('host-score')).toHaveCount(2);
-  await expect(ipad.getByTestId('phase')).toContainText('choose a clue');
+  await expect(ipad.getByTestId('choosing')).toBeVisible();
 
   // End the game from the menu → winner on TV, results on phones
-  await ipad.getByRole('button', { name: 'Game menu' }).click();
+  await ipad.getByTestId('game-options').click(); // R14-9: the game menu is in Options during the game
   ipad.once('dialog', (d) => d.accept());
   await ipad.getByRole('button', { name: 'End game' }).click();
   await expect(tv.getByTestId('winner')).toContainText('wins!');

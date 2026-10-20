@@ -6,19 +6,37 @@ their notes come from the matching section below (`scripts/release-notes.mjs`).
 
 ## [Unreleased]
 
+### New Features
+- **Start-up screen on Windows**: OfflineJeopardy now shows its name and what it is doing ("Loading saved data…", "Starting local server…") from the first second, with a loading bar, until the host interface is ready — and says so if the start fails instead of waiting forever. The portable version starts about twice as fast (it unpacks a compressed copy) and shows a picture while it unpacks.
+- **Wi-Fi password with administrator approval**: when Windows keeps the saved Wi-Fi password for administrators, the host can press "Read it with administrator approval" and approve Windows' permission prompt on the game computer. Only that one read runs with administrator rights; the password stays in memory for the lobby and is never saved or logged. A Mobile Hotspot run by the game computer is found too.
+- **Manage players from the lobby**: tap a player's card in the iPad lobby to give them a nickname for this game (shown on the TV, the host controller and the phones), view their profile or edit it. Guests can be given a nickname.
+- **Final Jeopardy! from the host's preview**: tap a player's bubble to enter or change their wager or answer for them (for a player whose phone is not working), and use **Preview Clue** to read the clue on the iPad (in the TV's style) before the TV shows it.
+
 ### Improvements
+- **At most 12 players or teams per game**: the lobby shows "Players (n / 12)" and says when the game is full; a 13th player, guest or computer opponent is turned away with a clear message.
+- **Score cards keep their size**: the host's score row has the same height for 1 to 12 players (one row of up to 6 cards, then two rows), and scores on the TV and the host cards are sized once for the largest score the game can reach (at least −$999,999), so they never leave their card or change size mid-game.
+- **The same Options menu in both views** of the host's live screen, with Pause, Switch game and Close lobby; the page header is hidden while a game runs so the game gets the whole screen. The full-screen menu now slides closed.
+- **Host banner**: the correct response is centred on the whole width; larger answer, value and labels; Unlock Buzzers, Reveal Answer and Return to Board are larger, Undo is outlined as a secondary action.
+- **Host preview**: during a clue and the Final the area around the TV picture takes the clue's blue (no dark lines); no "buzzers open" glow on the host's preview (the TV keeps it). In full screen on an iPad the status-bar area takes the header's colour where iPadOS allows it.
+- **Final Jeopardy! on the TV**: the category sits closer to "Final Jeopardy!" and a little smaller after it is revealed; the players' bubbles show the verdict by their outline colour (green correct, red incorrect, yellow being revealed, grey not yet) instead of ✓ / ✗; the results show names like the score cards, without a colour strip or the "Correct response" label. The host's footer no longer repeats the category.
+- **TV lobby**: "or open" is on its own line, centred above the join address.
+- **Players page**: the profile editor no longer has a nickname field (nicknames are set per game in the lobby; existing nicknames are kept).
 - **Bigger TV preview on the host controller**: in full screen on an iPad in landscape the TV picture now reaches both edges of the screen. The menu, Options and minimise buttons share one thin row with the red correct-response strip, the button band is slimmer, and nothing is stretched or cropped.
 - **One layout for the embedded view and full screen**: the full-screen button, Options and the menu stay in the same place, the white bar between the buttons and the score cards is gone, and switching never changes anything about the game.
-- **Larger score cards** that use the space under the controls, with the player's colour as a ring around their picture; 2 to 15 players fit (more rows, then narrower cards).
+- **Larger score cards** that use the space under the controls, with the player's colour as a ring around their picture; up to 12 players fit.
 - **Larger texts** for the instructions ("Read the clue, then unlock the buzzers"), the correct response, its category and value, and the category introduction.
 - **Category introduction**: the categories to tap are now in the header; the TV preview shows which one is on screen.
 - **The preview animates like the TV**: the board fills in and clues zoom out of their tile, exactly as on the TV (the preview now runs the TV's own presentation). Opening the controller mid-game or switching to full screen never restarts an animation.
 - **Calmer colours and buttons**: the awkward blue strip above the answer is gone; icon buttons have no boxes; header, controls and score row share one navy palette.
 - **TV lobby**: the Wi-Fi network and password are shown in a labelled box with room for long names; "or open <address>" moved under "Scan to join", centred on the QR code and never wider than it.
-- **Lobby on the iPad without scrolling**: settings, players, controllers, Wi-Fi and More options fit on one screen in landscape (up to 15 players and 15 controllers); controllers are shown as compact cards (tap one for its settings). The Buzzers tab and page are compact too.
+- **Lobby on the iPad without scrolling**: settings, players, controllers, Wi-Fi and More options fit on one screen in landscape (up to 12 players and 15 controllers); controllers are shown as compact cards (tap one for its settings). The Buzzers tab and page are compact too.
 - **Buzzer check results in one line**: who has not pressed stays in view ("Everyone pressed ✓" when all did); the order and timings fold away under "Order" once the check ends.
 
 ### Bug Fixes
+- Computer opponents with an AI provider sometimes gave up on a clue with "The value of "delay" is out of range" (a fractional time limit); the time limit is now always a whole number of milliseconds within bounds.
+- The clue's picture no longer flashes on the TV and the host preview when the correct response is revealed.
+- The difficulty selector of a computer opponent no longer overlaps the "Computer opponent" label in the lobby.
+- Long winning-streak texts on the TV lobby player cards are no longer cut off.
 - Final Jeopardy!: an answer submitted on a phone less than a second after typing it could be turned back into an unsubmitted draft (the delayed autosave arrived after the submit). The pending autosave is now cancelled when the player submits.
 
 ## [0.16.0] — 2026-10-19

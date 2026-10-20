@@ -2,20 +2,24 @@
 // read from Windows when the game runs over Wi-Fi; the password only when the host asks to show it
 // (Windows may keep it protected — then the host types it). Off by default; the password stays
 // hidden on the TV until the host reveals it. Nothing here is saved: it ends with the lobby.
+// R14-5: when Windows keeps the password for administrators, the host can approve one elevated
+// read (Windows' permission prompt on the game computer); a Mobile Hotspot run by this computer is
+// found too.
 import { useEffect, useState } from 'react';
-import { Eye, EyeOff, Wifi } from 'lucide-react';
+import { Eye, EyeOff, ShieldCheck, Wifi } from 'lucide-react';
 import { hostApi } from '../../lib/api';
 import { Button, cx, inputCls, toast } from '../../components/ui';
 
 interface WifiView {
-  detected: { ssid: string; adapter: string } | null;
+  detected: { ssid: string; adapter: string; kind: 'wifi' | 'hotspot' } | null;
+  canElevate?: boolean;
   reason: 'unsupported' | 'ethernet' | 'not-connected' | null;
   show: boolean;
   showPassword: boolean;
   manualSsid: string;
   hasManualPassword: boolean;
   autoPassword: 'unknown' | 'open' | 'known';
-  passwordStatus?: 'not-available';
+  passwordStatus?: 'not-available' | 'declined';
   shared: { ssid: string; password: boolean } | null;
 }
 
@@ -32,6 +36,7 @@ export function WifiShare() {
   const [reveal, setReveal] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
+  const [declined, setDeclined] = useState(false);
   useEffect(() => {
     hostApi<WifiView>('GET', '/api/host/wifi').then(
       (r) => {
@@ -58,6 +63,20 @@ export function WifiShare() {
       setBusy(false);
     }
   };
+  const elevate = async () => {
+    setBusy(true);
+    try {
+      const r = await hostApi<WifiView>('POST', '/api/host/wifi/elevate');
+      setV(r);
+      setDeclined(r.passwordStatus === 'declined');
+      setUnavailable(r.passwordStatus === 'not-available');
+      if (!r.passwordStatus) toast('Password read from Windows', 'success');
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
   if (!v) return null;
   const name = v.manualSsid || v.detected?.ssid || '';
   const needsTyping = !v.detected && !v.manualSsid;
@@ -75,7 +94,7 @@ export function WifiShare() {
       <p className="text-sm text-slate-600" data-testid="wifi-detected">
         {v.detected ? (
           <>
-            Wi-Fi network: <b>{v.detected.ssid}</b> <span className="text-slate-500">(found on this computer)</span>
+            Wi-Fi network: <b>{v.detected.ssid}</b> <span className="text-slate-500">{v.detected.kind === 'hotspot' ? "(this computer's Mobile Hotspot)" : '(found on this computer)'}</span>
           </>
         ) : (
           v.reason && REASONS[v.reason]
@@ -114,8 +133,24 @@ export function WifiShare() {
           </label>
           {v.showPassword && v.shared && !v.shared.password && (
             <p className={cx('rounded-lg px-3 py-2 text-sm', v.autoPassword === 'open' ? 'bg-green-50 text-green-800' : 'bg-amber-50 text-amber-900')} data-testid="wifi-password-status">
-              {v.autoPassword === 'open' ? 'This network has no password.' : unavailable || v.autoPassword === 'unknown' ? 'Windows did not hand out the saved password (it needs administrator rights for some networks). Type it above to show it.' : 'No password to show yet — type it above.'}
+              {v.autoPassword === 'open'
+                ? 'This network has no password.'
+                : declined
+                  ? 'The Windows permission prompt was cancelled. Try again, or type the password above.'
+                  : unavailable || v.autoPassword === 'unknown'
+                    ? v.canElevate
+                      ? 'Windows keeps this saved password for administrators. Read it with administrator approval, or type it above.'
+                      : 'Windows did not hand out the saved password (an enterprise network, or no saved password). Type it above to show it.'
+                    : 'No password to show yet — type it above.'}
             </p>
+          )}
+          {v.showPassword && v.canElevate && v.shared && !v.shared.password && v.autoPassword !== 'open' && (
+            <div className="space-y-1">
+              <Button size="sm" variant="secondary" disabled={busy} onClick={() => void elevate()} data-testid="wifi-elevate">
+                <ShieldCheck size={16} aria-hidden /> Read it with administrator approval
+              </Button>
+              <p className="text-xs text-slate-500">A Windows permission prompt opens on the game computer — approve it there. Only this one read runs with administrator rights; the password stays in memory for this lobby and is never saved or logged.</p>
+            </div>
           )}
           {v.shared?.password && (
             <p className="flex items-center gap-2 text-sm text-slate-600">

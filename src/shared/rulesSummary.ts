@@ -1,6 +1,6 @@
 // Plain-language summary of a game's settings — the host's setup summary and the TV's public
 // rules page use the same wording.
-import { EARLY_BUZZ_OPTIONS, RULE_PRESETS, type GameRules } from './game.js';
+import { EARLY_BUZZ_OPTIONS, MAX_ENTRIES, RULE_PRESETS, type GameRules } from './game.js';
 import { BUZZ_FAIRNESS_OPTIONS } from './buzzTiming.js';
 
 export interface SummaryContext {
@@ -22,7 +22,7 @@ export function summarizeRules(r: GameRules, ctx: SummaryContext): { label: stri
   return [
     ...(ctx.boardTitle ? [{ label: 'Board', value: ctx.boardTitle }] : []),
     { label: 'Mode', value: ctx.mode === 'team' ? 'Teams' : 'Individuals' },
-    { label: 'Player limit', value: r.maxPlayers ? String(r.maxPlayers) : 'No limit' },
+    { label: 'Player limit', value: String(r.maxPlayers ? Math.min(r.maxPlayers, MAX_ENTRIES) : MAX_ENTRIES) },
     { label: 'Wrong answers', value: r.incorrectDeducts ? 'Lose the clue value' : 'No penalty' },
     { label: 'Early buzzing', value: EARLY_BUZZ_OPTIONS[r.earlyBuzzPenalty].label + (r.earlyBuzzPenalty === 'points' ? ` (−${r.earlyBuzzPoints})` : '') },
     { label: 'Buzzers open', value: AUTO_UNLOCK[r.autoUnlock] },
@@ -53,7 +53,7 @@ export function publicSettings(r: GameRules, ctx: PublicSettingsContext): { titl
     { label: 'Mode', value: ctx.mode === 'team' ? 'Teams' : 'Individuals', hint: ctx.mode === 'team' ? 'Points belong to the team; personal answers still count in your statistics.' : 'Everyone plays for themselves.' },
     ...(ctx.boardTitle ? [{ label: 'Board', value: ctx.boardTitle }] : []),
     ...(presetLabel ? [{ label: 'Rule set', value: presetLabel, hint: RULE_PRESETS[r.preset]?.description }] : []),
-    { label: 'Player limit', value: r.maxPlayers ? `${r.maxPlayers} players` : 'No limit' },
+    { label: 'Player limit', value: `${r.maxPlayers ? Math.min(r.maxPlayers, MAX_ENTRIES) : MAX_ENTRIES} players` },
     { label: 'Joining', value: r.allowSelfJoin ? 'Scan the code and tap Join' : 'The host approves new players', hint: r.requireRoomCode ? 'You also need the room code shown on this screen.' : undefined },
     ...(ctx.tournament ? [{ label: 'Tournament', value: ctx.tournament, hint: 'This game counts towards the standings.' }] : []),
     ...(ctx.practice ? [{ label: 'Practice game', value: 'Not counted in statistics' }] : []),
@@ -109,7 +109,7 @@ export function lobbyRules(r: GameRules, ctx: { mode: 'solo' | 'team'; teams?: n
   return [
     ...(ctx.mode === 'team'
       ? [{ label: 'Teams', value: `${ctx.teams ?? 0} ${ctx.teams === 1 ? 'team' : 'teams'}${r.maxPerTeam ? ` · up to ${r.maxPerTeam} each` : ''}` }]
-      : [{ label: 'Players', value: r.maxPlayers ? `Up to ${r.maxPlayers}` : 'No limit' }]),
+      : [{ label: 'Players', value: `Up to ${r.maxPlayers ? Math.min(r.maxPlayers, MAX_ENTRIES) : MAX_ENTRIES}` }]),
     { label: 'Early buzz', value: early },
     { label: 'Time to buzz in', value: secs(r.timers.buzzSeconds) },
     { label: 'Time to answer', value: secs(r.timers.answerSeconds) },

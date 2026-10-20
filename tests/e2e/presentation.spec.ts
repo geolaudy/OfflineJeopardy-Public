@@ -116,7 +116,7 @@ test('score labels, the Final swipe and the podium with places 4+', async () => 
   await expect(catBox.getByTestId('score-delta')).toHaveText('+$300');
   await expect(tv.getByTestId('tv-final-wager')).toContainText('$300');
   await expect(tv.getByTestId('tv-final-spotlight').getByTestId('score-delta')).toHaveCount(0);
-  await expect(tv.getByTestId('tv-final-chip').first().getByTestId('verdict-mark')).toHaveAttribute('data-correct', 'true'); // R7-12
+  await expect(tv.getByTestId('tv-final-chip').first()).toHaveAttribute('data-state', 'correct'); // R14-20: the outline, no ✓ / ✗
   await shot(tv, 'final-verdict');
   await expect(catBox).toHaveText('$700'); // then the new total
   await h.act({ type: 'finalReveal' }); // next contestant: Ben

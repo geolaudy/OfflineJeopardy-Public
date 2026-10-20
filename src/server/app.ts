@@ -28,7 +28,7 @@ import { GameManager } from './gameManager.js';
 import { ControllerRegistry } from './controllers.js';
 import { Hub } from './hub.js';
 import { lanAddresses, pickAddress } from './network.js';
-import { hostingWifi, wifiPassword, type HostingWifi } from './wifi.js';
+import { hostingWifi, hotspotConfig, wifiPassword, wifiPasswordElevated, type HostingWifi, type PasswordResult } from './wifi.js';
 import { ImageError, MAX_UPLOAD_BYTES, processClueImage, processProfilePicture, safeJoin, sniffMedia } from './images.js';
 import * as stats from './stats.js';
 import { createZip, isZip, readZip, ZipError, type ZipEntry } from './zip.js';
@@ -41,7 +41,7 @@ import { DEFAULT_THRESHOLDS, type Thresholds } from '../shared/leaderboard.js';
 import { ratingOf } from '../shared/teamBalance.js';
 import * as tour from './tournaments.js';
 import { defaultTeamCount, normalizeRules, PLAYER_COLORS, rulesFromPreset, RULE_PRESETS, type GameRules } from '../shared/game.js';
-import { humanCount } from './engine/engine.js';
+import { humanCount, soloFull } from './engine/engine.js';
 import { customThemeSchema, isPreset, newThemeData, type ThemeFile } from '../shared/themes.js';
 import { rulesSchema } from '../shared/actions.js';
 import { boardContentSchema, exportBoardCsv, exportBoardJson, importBoardCsv, importBoardJson } from '../shared/boardIO.js';
@@ -71,6 +71,8 @@ export interface ServerOptions {
   soundPackDirs?: string[];
   /** R7-31: developer tools (diagnostics, fairness test). Off in normal releases. */
   devTools?: boolean;
+  /** R14-11: start-up progress for the Windows app's splash screen (the real phases, in order). */
+  onStage?: (stage: 'data' | 'services' | 'network') => void;
 }
 
 const COLOR = z.string().regex(/^#[0-9a-fA-F]{6}$/);
@@ -105,10 +107,12 @@ export async function startServer(opts: ServerOptions) {
   };
 
   const dbFile = path.join(dataDir, 'offlinejeopardy.db');
+  opts.onStage?.('data');
   applyPendingRestore(dataDir, dbFile);
   const db = openDatabase(dbFile);
   if (opts.seed !== false) seed(db);
 
+  opts.onStage?.('services');
   const games = new GameManager(db);
   const controllers = new ControllerRegistry(db, {
     onPress: (p) => {
@@ -156,6 +160,7 @@ export async function startServer(opts: ServerOptions) {
 
   const pinLimiter = new RateLimiter(20, 60_000);
   const hostLimiter = new RateLimiter(10, 60_000);
+  opts.onStage?.('network');
 
   const app = Fastify({ logger: opts.logger ?? false, bodyLimit: 5 * 1024 * 1024, trustProxy: false, forceCloseConnections: true });
   await app.register(fastifyWebsocket, { options: { maxPayload: 64 * 1024 } });
@@ -404,11 +409,23 @@ export async function startServer(opts: ServerOptions) {
     lobby.detectedSsid = wifiDetected.ssid;
     return wifiDetected;
   };
+  /** The saved password of the detected network, as Windows hands it out without elevation (a
+   *  Mobile Hotspot's passphrase comes from Windows' tethering settings, R14-5). */
+  const readWifiPassword = async (): Promise<PasswordResult> => {
+    if (!wifiDetected.ssid) return { ok: false, reason: 'not-available' };
+    if (wifiDetected.kind === 'hotspot') {
+      const h = await hotspotConfig(true);
+      return h ? { ok: true, open: !h.passphrase, password: h.passphrase } : { ok: false, reason: 'not-available' };
+    }
+    return wifiPassword(wifiDetected.profile);
+  };
   /** The host's view: what is detected and shared — never the password itself. */
-  const wifiView = (passwordStatus?: 'not-available') => {
+  const wifiView = (passwordStatus?: 'not-available' | 'declined') => {
     const w = lobby.wifi;
     return {
-      detected: wifiDetected.ssid ? { ssid: wifiDetected.ssid, adapter: wifiDetected.adapter } : null,
+      detected: wifiDetected.ssid ? { ssid: wifiDetected.ssid, adapter: wifiDetected.adapter, kind: wifiDetected.kind } : null,
+      // R14-5: an elevated read can be offered (Windows, a saved Wi-Fi profile, nothing typed).
+      canElevate: process.platform === 'win32' && wifiDetected.ssid !== null && wifiDetected.kind === 'wifi' && !w.manualPassword && !w.manualSsid && w.autoPassword === undefined,
       reason: wifiDetected.ssid === null ? wifiDetected.reason : null,
       show: w.show,
       showPassword: w.showPassword,
@@ -442,7 +459,7 @@ export async function startServer(opts: ServerOptions) {
     let status: 'not-available' | undefined;
     // Read the saved password from Windows only when the host asks to show it.
     if (w.showPassword && !w.manualPassword && !w.manualSsid && wifiDetected.ssid && w.autoPassword === undefined) {
-      const r = await wifiPassword(wifiDetected.profile);
+      const r = await readWifiPassword();
       if (r.ok) w.autoPassword = r.open ? null : r.password;
       else status = 'not-available';
     }
@@ -454,11 +471,29 @@ export async function startServer(opts: ServerOptions) {
     if (!requireHost(req, reply)) return;
     const w = lobby.wifi;
     if (!w.manualPassword && !w.manualSsid && wifiDetected.ssid && w.autoPassword === undefined) {
-      const r = await wifiPassword(wifiDetected.profile);
+      const r = await readWifiPassword();
       if (r.ok) w.autoPassword = r.open ? null : r.password;
     }
     const password = w.manualPassword || (w.manualSsid ? '' : (w.autoPassword ?? ''));
     return { password, open: !w.manualPassword && w.autoPassword === null };
+  });
+  /** R14-5: the host approves reading the saved password with administrator rights: Windows' own
+   *  permission prompt opens on the game computer for netsh alone (never for the app); cancelled
+   *  or refused, the host types the password as before. Nothing is logged or stored on disk. */
+  app.post('/api/host/wifi/elevate', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    if (!lobby.lobby) return bad(reply, 'Open a lobby first', 409);
+    await detectWifi();
+    const w = lobby.wifi;
+    if (wifiDetected.ssid === null || wifiDetected.kind !== 'wifi') return bad(reply, 'No Wi-Fi network was found on this computer', 409);
+    const r = await wifiPasswordElevated(wifiDetected.profile);
+    let status: 'not-available' | 'declined' | undefined;
+    if (r.ok) {
+      w.autoPassword = r.open ? null : r.password;
+      audit(db, 'host', 'wifi.elevated-read');
+    } else status = r.reason === 'declined' ? 'declined' : 'not-available';
+    lobby.onChange();
+    return wifiView(status);
   });
 
   app.post('/api/host/revoke-devices', async (req, reply) => {
@@ -491,6 +526,8 @@ export async function startServer(opts: ServerOptions) {
     const wait = pinLimiter.check(`create:${req.ip}`);
     if (wait) return bad(reply, 'Too many requests, slow down', 429);
     if (!lobby.lobby) return bad(reply, 'There is no game to join right now', 409);
+    // R14-1: no hidden guest row for a seat that does not exist.
+    if (games.current && soloFull(games.current)) return bad(reply, 'This game is full', 409);
     const body = parse(guestSchema, req.body, reply);
     if (!body) return;
     const p = repo.insertGuest(db, { name: body.name, color: GUEST_COLORS[crypto.randomInt(GUEST_COLORS.length)], avatar: GUEST_AVATARS[crypto.randomInt(GUEST_AVATARS.length)] });

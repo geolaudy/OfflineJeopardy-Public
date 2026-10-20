@@ -50,7 +50,7 @@ test('survival: hearts on TV and host, a wrong answer costs a life, out of lives
   await expect(pc.getByTestId('host-score').filter({ hasText: 'Lou Lives' }).getByTestId('lives')).toHaveAttribute('aria-label', '2 of 3 lives left');
   await tv.screenshot({ path: 'test-results/screens/tv-survival.png' });
 
-  await pc.getByRole('button', { name: 'Game menu' }).click();
+  await pc.getByTestId('game-options').click(); // R14-9: the game menu is in Options during the game
   await pc.getByRole('button', { name: 'End game' }).click();
   await api.post('/api/games/close', { headers: H });
   await api.dispose();

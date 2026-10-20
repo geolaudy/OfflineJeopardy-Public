@@ -160,3 +160,12 @@ Rollback point: tag v0.16.0. See USER_FEEDBACK.md "Round 13"; statuses in FEATUR
 - **C — Category introduction:** R13-7. Categories in the header.
 - **D — Lobby and buzzer screens:** R13-9 … R13-12 (D97). TV join section; two-column iPad lobby; compact controllers; Buzzers tab / page.
 - **E — Animation parity:** R13-13 (D95). The preview renders the TV's `Stage`; tiles tapped through `HostBoardHits`.
+
+## Milestone 28 — User feedback round 14 → v0.17.0 release candidate (started 2026-10-20, session 17)
+
+Rollback point: tag v0.16.0. See USER_FEEDBACK.md "Round 14"; statuses in FEATURE_MATRIX.md. The owner tests the 0.17.0 release candidate on real hardware before it is published.
+- **A — Critical gameplay and layout:** R14-1 (12 entries, D98), R14-2 / R14-3 (score cards and fitted scores, D99), R14-4 (bot difficulty overlap), R14-12 (bot delay), R14-13 (clue picture flash). **Done.**
+- **B — Host controller polish:** R14-6 … R14-10, R14-14, R14-23 … R14-25. **Done** (status-bar colour depends on iPadOS — K55).
+- **C — Final Jeopardy!:** R14-15 … R14-22 (D100). **Done.**
+- **D — Lobby, profiles, Wi-Fi:** R14-5 (D101), R14-26 … R14-29. **Done** (elevated Wi-Fi read and hotspot untested on a Wi-Fi PC — K48).
+- **E — Windows start-up:** R14-11 (D102). **Done** (splash + zip portable; real start-up timed on this PC only — K56).

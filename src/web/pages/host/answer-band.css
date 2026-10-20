@@ -60,19 +60,22 @@
   line-height: 1.2;
   text-shadow: 0.08em 0.08em 0 #000000;
 }
+/* R14-23: the label, the category and the value share one size (the category's); the answer is a
+   little smaller than before (80 %), so the strip reads as one line of labels around the answer. */
 .host-answer-band-label,
 .host-answer-band-cat,
 .host-answer-band-value {
-  font-size: 0.8rem;
-  letter-spacing: 0.14em;
+  font-size: 1.15rem;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+.host-answer-band-label {
+  line-height: 1.05;
 }
 .host-answer-band-cat {
   display: -webkit-box;
   overflow: hidden;
   color: var(--b-cat-fg, #ffffff);
-  font-size: 1.15rem;
-  letter-spacing: 0.12em;
   text-align: left;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -82,8 +85,6 @@
   overflow: hidden;
   max-width: 100%;
   color: var(--b-tile-fg, #e8b64c);
-  font-size: 1.85rem;
-  letter-spacing: 0.04em;
   text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -92,7 +93,7 @@
    takes two smaller lines (AnswerBanner measures), and the All button shows what still does not fit. */
 .host-answer-band-text {
   overflow: hidden;
-  font-size: 2.05rem;
+  font-size: 1.64rem;
   letter-spacing: 0.05em;
   line-height: 1.08;
   text-overflow: ellipsis;
@@ -101,7 +102,7 @@
 }
 .host-answer-band-text.is-two {
   display: -webkit-box;
-  font-size: 1.4rem;
+  font-size: 1.12rem;
   white-space: normal;
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
@@ -109,25 +110,21 @@
   line-clamp: 2;
 }
 [data-compact='true'] .host-answer-band-text {
-  font-size: 1.35rem;
+  font-size: 1.08rem;
 }
 [data-compact='true'] .host-answer-band-text.is-two {
-  font-size: 1.05rem;
+  font-size: 0.84rem;
 }
-[data-compact='true'] .host-answer-band-value {
-  font-size: 1.3rem;
-}
+[data-compact='true'] .host-answer-band-label,
+[data-compact='true'] .host-answer-band-value,
 [data-compact='true'] .host-answer-band-cat {
   font-size: 0.9rem;
-}
-[data-compact='true'] .host-answer-band-label {
-  font-size: 0.65rem;
 }
 /* With notes the answer keeps to one line, so label, answer and notes fit the strip (All shows the rest). */
 .host-answer-band:not(.host-answer-full) .host-answer-band-in:has(.host-answer-band-notes) .host-answer-band-text {
   -webkit-line-clamp: 1;
   line-clamp: 1;
-  font-size: 1.4rem;
+  font-size: 1.12rem;
 }
 .host-answer-band-notes {
   display: -webkit-box;

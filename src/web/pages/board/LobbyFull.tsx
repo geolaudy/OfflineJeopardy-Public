@@ -219,7 +219,9 @@ function PersonCard({ p, av, size, isNew, animateAvatar }: { p: LobbyPerson; av:
   // R7-3: names are never cut off — they shrink and wrap, and the card's text shrinks as a whole
   // when a wrapped name would not fit the card's height.
   const textRef = useRef<HTMLDivElement>(null);
-  const fit = useFitScale(textRef, `${size}|${p.name}|${p.realName ?? ''}|${summaryText(p.summary) ?? ''}|${p.level ?? ''}|${p.device}|${p.ready}|${p.latencyMs ?? ''}`, 0.7);
+  // R14-27: the statistics and device lines shrink the text too when they are wider than the card
+  // (the streak was cut off); the streak is part of the key.
+  const fit = useFitScale(textRef, `${size}|${p.name}|${p.realName ?? ''}|${summaryText(p.summary) ?? ''}|${p.summary?.streak ?? ''}|${p.level ?? ''}|${p.device}|${p.ready}|${p.latencyMs ?? ''}`, 0.62, true);
   return (
     <motion.div
       layout="position"

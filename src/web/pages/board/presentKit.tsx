@@ -152,7 +152,7 @@ export function useBoxSize(ref: RefObject<HTMLElement | null>) {
 
 /** Type scale (`min`…1) that makes an overflow-hidden box's content fit it. Starts again from 1
  *  when `key` changes (content or box size), then shrinks until nothing is cut off. */
-export function useFitScale(ref: RefObject<HTMLElement | null>, key: string, min = 0.6) {
+export function useFitScale(ref: RefObject<HTMLElement | null>, key: string, min = 0.6, lines = false) {
   const [scale, setScale] = useState(1);
   useLayoutEffect(() => setScale(1), [key]);
   useLayoutEffect(() => {
@@ -160,8 +160,16 @@ export function useFitScale(ref: RefObject<HTMLElement | null>, key: string, min
     if (!el) return;
     const need = el.scrollHeight;
     const have = el.clientHeight;
-    if (have > 0 && need > have + 1) setScale((v) => Math.max(min, Math.floor(v * Math.max(0.9, have / need) * 100) / 100));
-  }, [ref, scale, key, min]);
+    let ratio = have > 0 && need > have + 1 ? have / need : 1;
+    // R14-27: `lines` — the block's single-line rows (statistics, device) must fit its width too:
+    // a row wider than the block shrinks the block as a whole, like a too-tall one.
+    if (lines && el.clientWidth > 0)
+      for (const row of el.children) {
+        const w = (row as HTMLElement).scrollWidth;
+        if (w > el.clientWidth + 1) ratio = Math.min(ratio, el.clientWidth / w);
+      }
+    if (ratio < 1) setScale((v) => Math.max(min, Math.floor(v * Math.max(0.9, ratio) * 100) / 100));
+  }, [ref, scale, key, min, lines]);
   return scale;
 }
 

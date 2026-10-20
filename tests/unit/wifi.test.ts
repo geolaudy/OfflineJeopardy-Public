@@ -92,3 +92,51 @@ describe('exported WLAN profile (R12-13)', () => {
     expect(p.open).toBe(false);
   });
 });
+
+describe('R14-5: hotspot and host-approved elevated read (fake PowerShell, no real network)', async () => {
+  const { elevatedExportScript, encodePowerShell, hotspotConfig, hotspotScript, isHotspotAdapter, wifiPasswordElevated } = await import('../../src/server/wifi');
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+
+  it('recognises the Mobile Hotspot adapter by its Windows name', () => {
+    expect(isHotspotAdapter('Local Area Connection* 10')).toBe(true);
+    expect(isHotspotAdapter('LAN-Verbindung* 3')).toBe(true);
+    expect(isHotspotAdapter('Wi-Fi')).toBe(false);
+    expect(isHotspotAdapter('Ethernet 2')).toBe(false);
+    expect(isHotspotAdapter(null)).toBe(false);
+  });
+
+  it('reads the hotspot name, and its passphrase only when asked', async () => {
+    const scripts: string[] = [];
+    const ps = async (s: string) => (scripts.push(s), { code: 0, stdout: JSON.stringify({ ssid: 'GAME-PC 1234', passphrase: s.includes('$c.Passphrase') ? 'hunter22' : null }) });
+    expect(await hotspotConfig(false, ps)).toEqual({ ssid: 'GAME-PC 1234', passphrase: null });
+    expect(await hotspotConfig(true, ps)).toEqual({ ssid: 'GAME-PC 1234', passphrase: 'hunter22' });
+    expect(hotspotScript(false)).not.toContain('Passphrase;');
+    expect(await hotspotConfig(true, async () => ({ code: 2, stdout: '' }))).toBeNull(); // no hotspot running
+  });
+
+  it('the elevated export runs netsh alone through Windows’ prompt, quoting the profile safely', () => {
+    const s = elevatedExportScript("Bob's Wi-Fi", 'C:\Temp\oj-wlan-x');
+    expect(s).toContain('-Verb RunAs');
+    expect(s).toContain("-FilePath 'netsh.exe'");
+    expect(s).toContain(`name="Bob''s Wi-Fi"`); // single quotes doubled inside the PowerShell string
+    expect(s).toContain('exit 1223'); // cancelled prompt
+    expect(Buffer.from(encodePowerShell(s), 'base64').toString('utf16le')).toBe(s);
+  });
+
+  it('a cancelled prompt is "declined"; an approved one hands back the password; nothing is left on disk', async () => {
+    expect(await wifiPasswordElevated('Home', async () => ({ code: 1223, stdout: '' }))).toEqual({ ok: false, reason: 'declined' });
+    let dir = '';
+    const approved = async (script: string) => {
+      dir = /folder="([^"]+)"/.exec(script)![1];
+      fs.writeFileSync(path.join(dir, 'Wi-Fi-Home.xml'), '<WLANProfile><SSIDConfig><SSID><name>Home</name></SSID></SSIDConfig><MSM><security><authEncryption><authentication>WPA2PSK</authentication><encryption>AES</encryption></authEncryption><sharedKey><keyType>passPhrase</keyType><protected>false</protected><keyMaterial>s3cret &amp; safe</keyMaterial></sharedKey></security></MSM></WLANProfile>');
+      return { code: 0, stdout: '' };
+    };
+    expect(await wifiPasswordElevated('Home', approved)).toEqual({ ok: true, open: false, password: 's3cret & safe' });
+    expect(fs.existsSync(dir)).toBe(false);
+    // Names netsh cannot take are refused before anything runs.
+    let ran = false;
+    expect(await wifiPasswordElevated('Bad"name', async () => ((ran = true), { code: 0, stdout: '' }))).toEqual({ ok: false, reason: 'not-available' });
+    expect(ran).toBe(false);
+  });
+});

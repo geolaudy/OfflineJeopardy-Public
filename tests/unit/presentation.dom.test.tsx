@@ -127,7 +127,7 @@ describe('Final Jeopardy! swipe (R5-6)', () => {
     expect(playCue).toHaveBeenCalledTimes(1);
   });
 
-  it('a judged answer: wager unchanged, a vector mark on the contestant chip (R7-9, R7-12)', () => {
+  it('a judged answer: wager unchanged, the contestant chip outline shows the verdict (R7-9, R14-20)', () => {
     const W = wrap();
     const shown = (judged: boolean, correct: boolean | null) =>
       game({
@@ -142,17 +142,17 @@ describe('Final Jeopardy! swipe (R5-6)', () => {
       });
     const view = render(<FinalScreen g={shown(false, null)} />, { wrapper: W });
     expect(screen.queryByTestId('score-delta')).toBeNull();
-    expect(screen.queryByTestId('verdict-mark')).toBeNull();
+    const chip = () => screen.getAllByTestId('tv-final-chip')[0];
+    expect(chip().dataset.state).toBe('current');
     view.rerender(<FinalScreen g={shown(true, false)} />);
     expect(screen.queryByTestId('score-delta')).toBeNull();
     expect(screen.getByTestId('tv-final-wager').textContent).toContain('$150');
-    const mark = screen.getByTestId('verdict-mark');
-    expect(mark.tagName.toLowerCase()).toBe('svg');
-    expect(mark.dataset.correct).toBe('false');
-    expect(mark.getAttribute('class')).toContain('is-down');
+    expect(chip().dataset.state).toBe('incorrect');
+    expect(chip().querySelector('svg')).toBeNull(); // no ✓/✗ symbol any more
+    expect(screen.getAllByTestId('tv-final-chip')[1].dataset.state).toBe('waiting');
     cleanup();
     render(<FinalScreen g={shown(true, true)} />, { wrapper: W });
-    expect(screen.getByTestId('verdict-mark').dataset.correct).toBe('true');
+    expect(screen.getAllByTestId('tv-final-chip')[0].dataset.state).toBe('correct');
   });
 });
 

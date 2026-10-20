@@ -102,7 +102,7 @@ for (const [label, dev] of [
     h.close();
   });
 
-for (const n of [2, 6, 10, 15])
+for (const n of [2, 6, 10, 12]) // R14-1: 12 players at most
   test(`score cards: ${n} players fit under the band, centred, clear of Undo, nothing scrolls (R13-5)`, async () => {
     test.setTimeout(120_000);
     const { h } = await startGame(n, `R13n${n}`);
@@ -246,7 +246,7 @@ for (const [n, pads] of [
   [2, 0],
   [6, 2],
   [10, 6],
-  [15, 15],
+  [12, 12], // R14-1: 12 players at most
 ] as const)
   test(`lobby on the iPad (landscape): ${n} players and ${pads} controllers without scrolling (R13-10, R13-11, R13-12)`, async () => {
     test.setTimeout(120_000);
@@ -301,7 +301,6 @@ test('TV lobby: Wi-Fi labelled under the steps, the join address centred under t
   expect(text.x).toBeGreaterThanOrEqual(qr.x - 1);
   expect(text.x + text.width).toBeLessThanOrEqual(qr.x + qr.width + 1);
   expect(Math.abs(text.x + text.width / 2 - (qr.x + qr.width / 2))).toBeLessThan(3);
-  await expect(tv.getByTestId('tv-lobby-side')).not.toContainText('Or open');
   // A long network name and password, shared by the host.
   const ssid = 'Extremely Long Family Network 5G'; // 32 characters, the most an SSID has
   await api.put('/api/host/wifi', { headers: H, data: { show: true, manualSsid: ssid, manualPassword: 'correct-horse-battery-staple-2026', showPassword: true } });
@@ -319,13 +318,13 @@ test('TV lobby: Wi-Fi labelled under the steps, the join address centred under t
   h.close();
 });
 
-test('the Buzzers page from the navigation fits 15 players and 15 controllers on the iPad (R13-12)', async () => {
+test('the Buzzers page from the navigation fits 12 players and 15 controllers on the iPad (R13-12)', async () => {
   test.setTimeout(120_000);
-  const { h, bridge } = await openLobby(15, 15);
+  const { h, bridge } = await openLobby(12, 15);
   const page = await (await wk.newContext({ ...devices['iPad Pro 11 landscape'] })).newPage();
   await page.goto(`${BASE}/host/buzzers`);
   await expect(page.getByTestId('controller-row')).toHaveCount(15);
-  await expect(page.getByTestId('assignment-row')).toHaveCount(15);
+  await expect(page.getByTestId('assignment-row')).toHaveCount(12);
   await page.waitForTimeout(300);
   await page.screenshot({ path: 'test-results/screens/r13-buzzers-page-15.png' });
   const fits = await page.evaluate(() => {

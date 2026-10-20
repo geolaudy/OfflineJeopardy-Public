@@ -91,21 +91,25 @@ export interface LivePreviewMessage {
 }
 
 /** R13-13: where the board's clue tiles are inside the preview (its own CSS pixels), sent back to
- *  the host so the tiles can be tapped through the preview, which itself takes no input. */
+ *  the host so the tiles can be tapped through the preview, which itself takes no input. R14-18: the
+ *  Final's player bubbles (`kind: 'final'`, id = the competitor) are reported the same way. */
 export interface PreviewTilesMessage {
   type: 'oj-preview-tiles';
-  tiles: { id: string; x: number; y: number; w: number; h: number }[];
+  tiles: { id: string; x: number; y: number; w: number; h: number; kind?: 'final' }[];
 }
 
-/** Reports the tiles' boxes to the host whenever they change (new round, resize, fill-in). */
-function useTileReport(active: boolean, dep: unknown) {
+/** Reports the tiles' (or bubbles') boxes to the host whenever they change (new round, resize,
+ *  fill-in) — again shortly after, for elements that are still sliding or fading in. */
+function useTileReport(what: 'board' | 'final' | null, dep: unknown) {
   const last = useRef('');
   useLayoutEffect(() => {
     const send = () => {
-      const tiles = active
-        ? [...document.querySelectorAll<HTMLElement>('[data-clue-id]')].map((el) => {
+      const sel = what === 'board' ? '[data-clue-id]' : what === 'final' ? '[data-final-chip]' : null;
+      const tiles = sel
+        ? [...document.querySelectorAll<HTMLElement>(sel)].map((el) => {
             const r = el.getBoundingClientRect();
-            return { id: el.dataset.clueId!, x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) };
+            const box = { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) };
+            return what === 'final' ? { id: el.dataset.finalChip!, kind: 'final' as const, ...box } : { id: el.dataset.clueId!, ...box };
           })
         : [];
       const key = JSON.stringify(tiles);
@@ -114,9 +118,13 @@ function useTileReport(active: boolean, dep: unknown) {
       window.parent?.postMessage({ type: 'oj-preview-tiles', tiles } satisfies PreviewTilesMessage, location.origin);
     };
     send();
+    const later = [400, 1000, 2000].map((ms) => setTimeout(send, ms));
     window.addEventListener('resize', send);
-    return () => window.removeEventListener('resize', send);
-  }, [active, dep]);
+    return () => {
+      later.forEach(clearTimeout);
+      window.removeEventListener('resize', send);
+    };
+  }, [what, dep]);
 }
 
 export default function BoardPreview() {
@@ -143,7 +151,8 @@ function LivePreview() {
   const reduced = !!look?.reducedMotion;
   const ctx = useMemo(() => presentationFor(look?.theme ?? 'classic', look?.custom ?? null, reduced, vh), [look?.theme, look?.custom, reduced, vh]);
   const fx = useMemo(() => (look?.tvFx ? normalizeTvFx(look.tvFx) : DEFAULT_TV_FX), [look?.tvFx]);
-  useTileReport(!!msg?.band && msg.game.phase === 'board' && !msg.game.intro, msg);
+  const fs = msg?.game.final?.stage;
+  useTileReport(!msg?.band ? null : msg.game.phase === 'board' && !msg.game.intro ? 'board' : msg.game.phase === 'final' && (fs === 'wagers' || fs === 'clue' || fs === 'closed') ? 'final' : null, msg);
   if (!msg) return <div className="h-screen w-screen bg-black" />;
   const g = msg.game;
   const root = themeRoot(look?.theme ?? 'classic', look?.custom ?? null);
@@ -152,7 +161,7 @@ function LivePreview() {
       <FxCtx.Provider value={fx}>
         <UserFonts fonts={look?.fonts} />
         <MotionConfig reducedMotion={reduced ? 'always' : 'never'}>
-          <div className={`board-theme relative flex h-screen w-screen flex-col overflow-hidden select-none${msg.band ? ' is-host-preview' : ''}`} data-theme={root.dataTheme} style={root.style} data-testid="live-preview-root">
+          <div className={`board-theme relative flex h-screen w-screen flex-col overflow-hidden select-none${msg.band ? ' is-host-preview' : ''}`} data-theme={root.dataTheme} style={root.style} data-testid="live-preview-root" data-host-stage={g.phase === 'final' ? 'final' : g.phase === 'clue' ? 'clue' : 'board'}>
             <div className="relative min-h-0 flex-1">
               {/* R13-13: the TV's own stage — board fill-in, clue zoom, introduction swipes, Final. */}
               <Stage g={g} quietStart />

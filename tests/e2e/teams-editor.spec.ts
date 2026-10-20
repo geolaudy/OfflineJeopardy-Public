@@ -148,9 +148,9 @@ test('import + edit a board, then a mixed-mode team game through the Final', asy
   await ipad.getByTestId('option-start-final').click();
   await expect(tv.getByText('Capitals')).toBeVisible();
   await expect(tv.getByText('Final Jeopardy!')).toBeVisible();
-  await expect(ipad.getByTestId('final-status')).toHaveCount(1);
-  await expect(ipad.getByLabel('Wager for this player')).toBeHidden(); // host entry only in the collapsed recovery section
+  await expect(ipad.getByLabel('Wager for this player')).toBeHidden(); // R14-18: host entry only from a player's bubble
   await ipad.getByTestId('final-next').click(); // open wagers
+  await expect(ipad.getByTestId('final-status')).toHaveCount(1); // one bubble (the TV's), tappable
   await taylorPhone.getByLabel('Your wager').fill('150');
   await taylorPhone.getByRole('button', { name: 'Submit wager' }).click();
   await expect(ipad.getByTestId('final-status')).toContainText('Wagered ✓');

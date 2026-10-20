@@ -589,6 +589,19 @@
   text-transform: uppercase;
   text-shadow: var(--bt-text-shadow);
 }
+/* R14-3: more than six podiums (narrow): the star sits on the box's corner instead of taking a slot
+   on each side of the name, so the name keeps room next to the picture. */
+.bt-scores[data-many] .bt-podium-name {
+  gap: 0.5vh;
+  padding-inline: 0.6vh;
+  font-size: 2.5vh;
+}
+.bt-scores[data-many] .bt-star-slot {
+  position: absolute;
+  top: 0.4vh;
+  left: 0.4vh;
+  font-size: 2.2vh;
+}
 /* R7-6: board-control star. Its slot (and a mirrored empty slot after the name) is always there, so
    the picture and the name never move when control changes. */
 .bt-star-slot {
@@ -645,7 +658,13 @@
   background: var(--bt-podium-score);
   font-family: var(--bt-money-font);
   font-weight: var(--bt-heavy);
-  font-size: 4.6vh;
+  /* R14-3: fitted once to the widest score the game can reach (Scoreboard, lib/scoreFit). The box
+     keeps the 4.6vh line height so the strip never changes height. */
+  font-size: var(--bt-score-fs, 4.6vh);
+  min-height: calc(4.6vh * 1.1 + 0.6vh);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
   text-shadow: var(--bt-text-shadow);
@@ -867,11 +886,31 @@
   box-shadow: 0 0 1.6vh rgba(34, 197, 94, 0.45);
 }
 .bt-final-card {
-  padding: 1.4vh 1.8vh;
+  padding: 1.2vh 1.8vh 1.4vh;
   border-radius: var(--b-radius);
   background: rgba(0, 0, 0, 0.35);
-  border-top: 0.5vh solid var(--pc, #64748b);
   text-align: center;
+}
+/* R14-21: the name row of a result card, as on the score cards (podium name row). */
+.bt-final-card-name {
+  padding: 0 0 0.2vh;
+}
+/* R14-20: the reveal order's outline — gray not yet, yellow being revealed, then green / red. */
+.bt-reveal-chip {
+  border: 0.45vh solid rgba(148, 163, 184, 0.75);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.bt-reveal-chip[data-state="current"] {
+  border-color: #facc15;
+  box-shadow: 0 0 1.6vh rgba(250, 204, 21, 0.5);
+}
+.bt-reveal-chip[data-state="correct"] {
+  border-color: #22c55e;
+  box-shadow: 0 0 1.6vh rgba(34, 197, 94, 0.45);
+}
+.bt-reveal-chip[data-state="incorrect"] {
+  border-color: #ef4444;
+  box-shadow: 0 0 1.6vh rgba(239, 68, 68, 0.45);
 }
 .bt-final-card.is-right {
   background: rgba(10, 120, 50, 0.75);
@@ -972,24 +1011,6 @@
 /* R10-3: the category's subheading line takes 3vh more above the picture. */
 .bt-final-q.has-media.has-sub {
   padding-top: 21.5vh;
-}
-/* R7-12: judged answers — sharp vector check / cross in the score-change colours. */
-.bt-verdict {
-  width: 1em;
-  height: 1em;
-  flex-shrink: 0;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 3.4;
-  stroke-linecap: square;
-  stroke-linejoin: miter;
-  filter: drop-shadow(0.06em 0.06em 0 rgba(0, 0, 0, 0.7));
-}
-.bt-verdict.is-up {
-  color: var(--bt-gain);
-}
-.bt-verdict.is-down {
-  color: var(--bt-loss);
 }
 .bt-results {
   display: flex;
@@ -1339,4 +1360,18 @@
    host's preview (it covered the top of the clue). */
 .is-host-preview .bt-winner {
   display: none;
+}
+/* R14-7: no "buzzers open" glow (or other open-buzzer cue) on the host's preview — the host's band
+   shows the buzzer state; the TV keeps its cue. */
+.is-host-preview [data-testid="tv-unlock-indicator"] > :not([role="status"]),
+.is-host-preview .bt-buzz-label {
+  display: none;
+}
+/* R14-6: the host preview's hidden score-strip slot takes the stage's colour, so no dark line shows
+   at the picture's lower edge during a clue or the Final. */
+.is-host-preview:is([data-host-stage="clue"], [data-host-stage="final"]) .bt-host-band-slot {
+  background: var(--bt-panel-color, var(--bt-panel));
+}
+.board-theme[data-theme="classic"].is-host-preview:is([data-host-stage="clue"], [data-host-stage="final"]) .bt-host-band-slot {
+  background: #0e1a86;
 }

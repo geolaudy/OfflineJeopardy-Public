@@ -14,7 +14,6 @@ import { playCue } from '../../lib/sound';
 import { competitorAvatar, competitorColor, competitorName, findCompetitor } from '../../lib/view';
 import { CategoryTitle, FitText, money, useBoard } from './common';
 import { TimerBar } from './TimerBar';
-import { VerdictMark } from './VerdictMark';
 import { SwipeStage, useSwipe, useTestId } from './Swipe';
 import { finalScreenKey, finalTransition } from './finalSwipe';
 import { EASE_OUT_ARR, T } from './timing';
@@ -54,10 +53,16 @@ export function FinalScreen({ g }: { g: GameView }) {
 /** One full Final screen (a swipe layer). A leaving layer keeps the state it last showed. */
 function FinalContent({ g }: { g: GameView }) {
   const f = g.final!;
-  const early = f.stage === 'category' || f.stage === 'wagers';
+  // The category reveal itself: the category alone, as large as the screen allows.
+  const intro = f.stage === 'category';
+  const wagers = f.stage === 'wagers';
   const revealing = f.stage === 'reveal' || f.stage === 'done';
   // R9-6.2: a picture or sound clue gets a smaller category line, so the picture can be larger.
   const mediaClue = (f.stage === 'clue' || f.stage === 'closed') && f.media.length > 0;
+  const sub = !!f.categorySubheading?.trim();
+  // R14-19: after the category reveal the category is 80 % of its former size and sits right under
+  // "Final Jeopardy!" (it was centred in the space down to the bubbles while wagering).
+  const max = intro ? 13 : wagers ? 10.4 : revealing || mediaClue ? 2.9 : 4;
   return (
     <>
       <p className="bt-kicker shrink-0">Final Jeopardy!</p>
@@ -66,14 +71,18 @@ function FinalContent({ g }: { g: GameView }) {
       <CategoryTitle
         name={f.category}
         subheading={f.categorySubheading}
-        max={early ? 13 : revealing || mediaClue ? 3.6 : 5}
-        min={early ? 4 : 2.2}
-        subEm={early ? 0.34 : 0.6}
-        subMin={early ? 2.6 : 1.8}
-        boxClassName={early ? 'min-h-0 flex-1' : f.categorySubheading?.trim() ? (revealing || mediaClue ? 'h-[9vh] shrink-0' : 'h-[12vh] shrink-0') : revealing || mediaClue ? 'h-[6vh] shrink-0' : 'h-[9vh] shrink-0'}
+        max={max}
+        min={intro ? 4 : wagers ? 3.2 : 1.8}
+        subEm={intro || wagers ? 0.34 : 0.6}
+        subMin={intro ? 2.6 : wagers ? 2.1 : 1.45}
+        boxClassName={cx(
+          intro ? 'min-h-0 flex-1' : 'shrink-0 -mt-[1.2vh]',
+          wagers && (sub ? 'h-[26vh]' : 'h-[20vh]'),
+          !intro && !wagers && (sub ? (revealing || mediaClue ? 'h-[7.5vh]' : 'h-[10vh]') : revealing || mediaClue ? 'h-[5vh]' : 'h-[7.5vh]'),
+        )}
         subTestId="final-subheading"
       />
-      {f.stage === 'wagers' && <SubmissionChips g={g} kind="wager" />}
+      {wagers && <SubmissionChips g={g} kind="wager" bottom />}
       {(f.stage === 'clue' || f.stage === 'closed') && (f.question?.trim() || f.media.length > 0) && (
         // R7-7: centred in the whole stage, not in the space left under the category; the header
         // band is mirrored at the bottom so long clues never run into it. With media (R9-6) the
@@ -104,7 +113,7 @@ function SubmissionChips({ g, kind, bottom }: { g: GameView; kind: 'wager' | 'an
       {f.entries.map((e) => {
         const done = kind === 'wager' ? e.hasWager : e.submitted;
         return (
-          <span key={e.competitorId} className={cx('bt-chip bt-name bt-submit-chip', done ? 'is-in' : 'is-out')} data-done={done ? 'true' : 'false'}>
+          <span key={e.competitorId} className={cx('bt-chip bt-name bt-submit-chip', done ? 'is-in' : 'is-out')} data-done={done ? 'true' : 'false'} data-final-chip={e.competitorId}>
             {competitorName(findCompetitor(g, e.competitorId), g)}
           </span>
         );
@@ -184,7 +193,8 @@ function Spotlight({ g }: { g: GameView }) {
   );
 }
 
-/** Reveal order along the bottom: done (with result), current, still to come. */
+/** Reveal order along the bottom. R14-20: the outline says where each contestant is — green
+ *  correct, red incorrect (only once the host has judged), yellow being revealed, gray not yet. */
 function RevealProgress({ g }: { g: GameView }) {
   const f = g.final!;
   const tid = useTestId();
@@ -196,12 +206,13 @@ function RevealProgress({ g }: { g: GameView }) {
         return (
           <span
             key={id}
-            className={cx('bt-chip bt-name', i === f.cursor && f.stage === 'reveal' && 'is-done', i > f.cursor && 'opacity-60')}
+            className="bt-chip bt-name bt-reveal-chip"
             data-testid={tid('tv-final-chip')}
             data-verdict={e?.judged ? (e.correct ? 'correct' : 'incorrect') : undefined}
+            data-state={e?.judged ? (e.correct ? 'correct' : 'incorrect') : i === f.cursor && f.stage === 'reveal' ? 'current' : 'waiting'}
           >
             {competitorName(c, g)}
-            {e?.judged && <VerdictMark correct={!!e.correct} />}
+            {e?.judged && <span className="sr-only">{e.correct ? ' (correct)' : ' (incorrect)'}</span>}
           </span>
         );
       })}
@@ -209,22 +220,23 @@ function RevealProgress({ g }: { g: GameView }) {
   );
 }
 
-/** After the last judgment: the correct response and everyone's result. */
+/** After the last judgment: the correct response and everyone's result. R14-21 / R14-22: no
+ *  "Correct response" label and no colour strip on the cards; the names look like the score cards'
+ *  (picture with the player's colour, the same name type). */
 function Summary({ g }: { g: GameView }) {
   const f = g.final!;
-  const { prefix } = useBoard();
+  const ctx = useBoard();
+  const { prefix } = ctx;
   return (
     <>
       {f.answerMedia.length > 0 ? (
         // R9-6.3: a picture (or sound) correct response gets the room above the result cards.
         <motion.div className="flex min-h-0 w-full flex-1 flex-col items-center gap-[0.8vh]" initial={{ opacity: 0, y: '3vh' }} animate={{ opacity: 1, y: 0 }} transition={{ duration: T.reveal, ease: EASE_OUT_ARR }} data-testid="tv-final-correct">
-          <span className="bt-final-label shrink-0 text-[2.4vh]">Correct response</span>
           <MediaStage g={g} mc={finalMedia(f, 'answer')} side="answer" />
         </motion.div>
       ) : (
         f.answer && (
           <motion.div className="flex shrink-0 flex-col items-center gap-[0.8vh]" initial={{ opacity: 0, y: '3vh' }} animate={{ opacity: 1, y: 0 }} transition={{ duration: T.reveal, ease: EASE_OUT_ARR }} data-testid="tv-final-correct">
-            <span className="bt-final-label text-[2.4vh]">Correct response</span>
             <p className="bt-answer">
               <RichText text={f.answer} />
             </p>
@@ -236,8 +248,15 @@ function Summary({ g }: { g: GameView }) {
           const e = f.entries.find((x) => x.competitorId === id)!;
           const c = findCompetitor(g, id);
           return (
-            <div key={id} className={cx('bt-final-card', e.judged && (e.correct ? 'is-right' : 'is-wrong'))} style={{ '--pc': competitorColor(c, g) } as CSSProperties}>
-              <div className="bt-name truncate text-[2.8vh]">{competitorName(c, g)}</div>
+            <div key={id} className={cx('bt-final-card', e.judged && (e.correct ? 'is-right' : 'is-wrong'))} style={{ '--pc': competitorColor(c, g) } as CSSProperties} data-testid="tv-final-card">
+              <div className="bt-podium-name bt-final-card-name">
+                {c && (
+                  <span className="bt-podium-ava is-ring">
+                    <Avatar profile={competitorAvatar(c, g)} size={Math.round(ctx.vh * 0.032)} ring={false} />
+                  </span>
+                )}
+                <span className="truncate">{competitorName(c, g)}</span>
+              </div>
               <div className="bt-question mt-[0.6vh] truncate text-[3vh]">{e.answer || '(no answer)'}</div>
               <div className="mt-[0.4vh] text-[2vh]">
                 <span className="bt-final-label">Wager</span> <span className="bt-money text-[2.4vh]">{money(prefix, e.wager ?? 0)}</span>

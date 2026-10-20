@@ -36,6 +36,13 @@ export function resolveLayout(layout: ClueLayout, hasMedia: boolean): Exclude<Cl
   return hasMedia ? 'media' : 'text';
 }
 
+/** R14-13: picture proportions already known (loaded once on this screen), so a picture shown again
+ *  is laid out and visible at once instead of hiding until its load event. */
+const aspects = new Map<string, number>();
+const noteAspect = (url: string, w: number, h: number) => {
+  if (w > 0 && h > 0) aspects.set(url, w / h);
+};
+
 /** Size of an element, updated only when it actually changes. */
 function useBoxSize(ref: RefObject<HTMLElement | null>) {
   const [size, setSize] = useState({ w: 0, h: 0 });
@@ -71,7 +78,10 @@ function useShownSide(clue: ClueView): Side {
       .map((m) => {
         const im = new Image();
         im.src = m.url;
-        return im.decode().catch(() => undefined);
+        return im.decode().then(
+          () => noteAspect(m.url, im.naturalWidth, im.naturalHeight),
+          () => undefined,
+        );
       });
     void Promise.race([Promise.all(loads), new Promise((r) => setTimeout(r, 1500))]).then(() => alive && setShown('answer'));
     return () => {
@@ -89,6 +99,12 @@ export function QuestionCard({ g, still }: { g: GameView; still?: boolean }) {
   const area = useBoxSize(areaRef);
   const slotRef = useRef<HTMLDivElement>(null);
   const lift = useAnswerLift(areaRef, slotRef, classic && clue.answerRevealed, `${clue.clueId}:${area.w}x${area.h}`);
+  // R14-13: a clue with media keeps its picture on screen through the reveal unless the answer brings
+  // its own (then the pictures cross-fade, as intended) — only the text cross-fades. Cross-fading two
+  // copies of the same picture, the new one hidden until it had loaded, made it flash on the TV and
+  // the host preview. (The TV learns about answer media only at the reveal, so the composition is
+  // keyed by what is shown, never by whether answer media exist.)
+  const mediaKey = side === 'answer' && clue.answerMedia.length > 0 ? 'answer' : 'clue';
   return (
     <div className={cx('bt-stage flex min-h-0 flex-1 flex-col items-center px-[4vw] pt-[5.5vh] pb-[7.5vh]', still && 'is-still')} data-testid="tv-stage">
       {/* R7-16: plain text clues mirror the answer slot above the text, so the clue is centred on
@@ -98,7 +114,7 @@ export function QuestionCard({ g, still }: { g: GameView; still?: boolean }) {
       <div ref={areaRef} className="bt-xfade min-h-0 w-full flex-1">
         <AnimatePresence initial={false}>
           <motion.div
-            key={side}
+            key={mediaKey}
             className="flex min-h-0 flex-col items-center justify-center"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -106,7 +122,7 @@ export function QuestionCard({ g, still }: { g: GameView; still?: boolean }) {
             transition={{ duration: T.reveal, ease: EASE_OUT_ARR }}
             data-testid={side === 'answer' ? 'answer-side' : 'clue-side'}
           >
-            {area.h > 0 && <Composition g={g} mc={clue} side={side} area={area} />}
+            {area.h > 0 && <Composition g={g} mc={clue} side={side} area={area} textFade={clue.media.length > 0} />}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -176,7 +192,7 @@ export function MediaStage({ g, mc, side, testId }: { g: GameView; mc: MediaClue
 }
 
 /** Media first (upper area) with the text beneath; the pair is centred as one composition. */
-function Composition({ g, mc: clue, side, area, inlineAudio, gapVh = 0 }: { g: GameView; mc: MediaClue; side: Side; area: { w: number; h: number }; inlineAudio?: boolean; gapVh?: number }) {
+function Composition({ g, mc: clue, side, area, inlineAudio, gapVh = 0, textFade }: { g: GameView; mc: MediaClue; side: Side; area: { w: number; h: number }; inlineAudio?: boolean; gapVh?: number; textFade?: boolean }) {
   const { scale, vh } = useBoard();
   const id = clue.clueId;
   // Answer side: answer media if the clue has some, otherwise keep the clue media on screen.
@@ -208,18 +224,34 @@ function Composition({ g, mc: clue, side, area, inlineAudio, gapVh = 0 }: { g: G
         row
       )}
       {audio.length > 0 && !beside && <AudioCue items={audio} g={g} clueId={id} side={mediaSide} height={audioH} big={!visual.length && !hasText} />}
-      {hasText && (
-        <FitText
-          text={text ?? ''}
-          max={(visual.length ? { media: 5, balanced: 6, text: 7 }[layout] : 8.2) * scale.clue}
-          min={2.2 * Math.min(1, scale.clue)}
-          className={side === 'answer' ? 'bt-question bt-answer-text' : 'bt-question'}
-          boxClassName="w-full shrink-0"
+      {hasText &&
+        (() => {
           // R10-5: a fixed gap above text that follows media, taken from the text's own share.
-          boxStyle={visual.length || audio.length ? { height: textH - (visual.length ? 0 : audioH) - (gapVh / 100) * vh, marginTop: (gapVh / 100) * vh } : { height: area.h }}
-          testId={side === 'answer' ? 'clue-answer' : 'clue-text'}
-        />
-      )}
+          const box = visual.length || audio.length ? { height: textH - (visual.length ? 0 : audioH) - (gapVh / 100) * vh, marginTop: (gapVh / 100) * vh } : { height: area.h };
+          const fit = (
+            <FitText
+              text={text ?? ''}
+              max={(visual.length ? { media: 5, balanced: 6, text: 7 }[layout] : 8.2) * scale.clue}
+              min={2.2 * Math.min(1, scale.clue)}
+              className={side === 'answer' ? 'bt-question bt-answer-text' : 'bt-question'}
+              boxClassName="w-full shrink-0"
+              boxStyle={textFade ? { height: box.height } : box}
+              testId={side === 'answer' ? 'clue-answer' : 'clue-text'}
+            />
+          );
+          if (!textFade) return fit;
+          // R14-13: the picture stays; the clue text and the answer cross-fade in one place.
+          return (
+            <div className="bt-xfade w-full shrink-0" style={box}>
+              {/* The answer arriving under a picture-only clue fades in too. */}
+              <AnimatePresence initial={side === 'answer'}>
+                <motion.div key={side} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: T.reveal, ease: EASE_OUT_ARR }}>
+                  {fit}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          );
+        })()}
     </>
   );
 }
@@ -252,15 +284,23 @@ function MediaRow({ items, g, clueId, side, maxW, maxH }: { items: Indexed[]; g:
 }
 
 function SizedMedia({ m, maxW, maxH, g, clueId, side, index }: { m: MediaRef; maxW: number; maxH: number; g: GameView; clueId: string; side: Side; index: number }) {
-  const [aspect, setAspect] = useState<number | null>(null);
+  const [aspect, setAspect] = useState<number | null>(() => (m.kind === 'image' ? (aspects.get(m.url) ?? null) : null));
   const [failed, setFailed] = useState(false);
+  // R14-13: once the picture is on screen, a change of its room (the answer text arriving under a
+  // picture-only clue) resizes it smoothly instead of in one jump.
+  const [shown, setShown] = useState(aspect != null);
+  useEffect(() => {
+    if (!aspect || shown) return;
+    const r = requestAnimationFrame(() => setShown(true));
+    return () => cancelAnimationFrame(r);
+  }, [aspect, shown]);
   let w = maxW;
   let h = maxH;
   if (aspect) {
     if (w / h > aspect) w = h * aspect;
     else h = w / aspect;
   }
-  const style: CSSProperties = { width: Math.round(w), height: Math.round(h), opacity: aspect || failed ? 1 : 0 };
+  const style: CSSProperties = { width: Math.round(w), height: Math.round(h), opacity: aspect || failed ? 1 : 0, transition: shown ? `width ${T.reveal}s, height ${T.reveal}s` : undefined };
   if (failed)
     return (
       <div className="bt-media-missing" style={style} role="img" aria-label="Media could not be loaded">
@@ -274,7 +314,10 @@ function SizedMedia({ m, maxW, maxH, g, clueId, side, index }: { m: MediaRef; ma
       alt={m.caption ?? ''}
       className="bt-media-img"
       style={style}
-      onLoad={(e) => setAspect(e.currentTarget.naturalWidth / Math.max(1, e.currentTarget.naturalHeight))}
+      onLoad={(e) => {
+        noteAspect(m.url, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight);
+        setAspect(e.currentTarget.naturalWidth / Math.max(1, e.currentTarget.naturalHeight));
+      }}
       onError={() => setFailed(true)}
       draggable={false}
       data-testid="clue-image"

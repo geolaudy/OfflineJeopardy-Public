@@ -15,7 +15,7 @@ import ControllersPanel, { AssignListener, ControllerChips } from '../../compone
 import BuzzCheckPanel from '../../components/BuzzCheckPanel';
 import { competitorAvatar, competitorName, profileName } from '../../lib/view';
 import { TEAM_AVATARS, avatarEmoji, PLAYER_COLORS } from '../../lib/avatars';
-import { BOT_LEVELS, BOT_NAMES, MAX_TEAMS, RULE_PRESETS, TEAM_COLORS, rulesFromPreset, type BotLevel } from '../../../shared/game';
+import { BOT_LEVELS, BOT_NAMES, MAX_ENTRIES, MAX_TEAMS, RULE_PRESETS, TEAM_COLORS, rulesFromPreset, type BotLevel } from '../../../shared/game';
 import { lobbyRules } from '../../../shared/rulesSummary';
 import { ArrowDown, ArrowUp, Eye, GripVertical, LayoutGrid, Play, RefreshCw, FlaskConical, Bot, X, Hand, BellRing, SlidersHorizontal, Star, User, Users, Scale, Shuffle } from 'lucide-react';
 import { BALANCED_TEAM_NAMES, balanceTeams } from '../../../shared/teamBalance';
@@ -24,6 +24,7 @@ import { usePresent } from './AppShell';
 import { ShowSettingsOnTv } from './ShowSettingsOnTv';
 import { LobbyGlow } from '../../lib/lobbyGlow';
 import { WifiShare } from './WifiShare';
+import { LobbyPlayerSheet } from './LobbyPlayerSheet';
 
 const run = async (a: Parameters<typeof act>[0]) => {
   const r = await act(a);
@@ -199,7 +200,7 @@ function LobbySettings({ g }: { g: GameView }) {
         </div>
         {/* R5-4.2: the limits that belong to the chosen mode, right under Play As. */}
         {g.mode === 'solo' ? (
-          <Stepper label="Maximum players" value={g.rules.maxPlayers} min={0} max={200} zeroLabel="No limit" onChange={(n) => void setRules({ maxPlayers: n })} testId="max-players" />
+          <Stepper label="Maximum players" value={Math.min(g.rules.maxPlayers || MAX_ENTRIES, MAX_ENTRIES)} min={1} max={MAX_ENTRIES} onChange={(n) => void setRules({ maxPlayers: n >= MAX_ENTRIES ? 0 : n })} testId="max-players" />
         ) : (
           <div className="space-y-2">
             <Stepper label="Number of teams" value={teams.length} min={1} max={MAX_TEAMS} onChange={(n) => void setTeams(n)} testId="team-count" />
@@ -461,6 +462,10 @@ function AddPlayerModal({ open, onClose, onPick, exclude }: { open: boolean; onC
 function SoloSetup({ g }: { g: GameView }) {
   const [adding, setAdding] = useState(false);
   const [addingBot, setAddingBot] = useState(false);
+  const [manage, setManage] = useState<string | null>(null);
+  // R14-1: at most MAX_ENTRIES seats (players, computer opponents and people waiting to be let in).
+  const seats = g.competitors.length + g.unassigned.length;
+  const full = seats >= MAX_ENTRIES;
   return (
     <div className="space-y-4">
       <PendingList g={g} />
@@ -471,12 +476,22 @@ function SoloSetup({ g }: { g: GameView }) {
       )}
       <Card className="p-3">
         <div className="mb-2 flex flex-wrap items-center gap-2">
-          <h3 className="flex-1 text-lg font-bold">Players ({g.competitors.length})</h3>
-          <Button variant="secondary" onClick={() => setAddingBot(true)} aria-label="Computer opponent" title="Add a computer opponent" data-testid="add-bot">
+          <h3 className="flex-1 text-lg font-bold" data-testid="solo-count">
+            Players ({g.competitors.length}
+            <span className="font-normal text-slate-500"> / {MAX_ENTRIES}</span>)
+          </h3>
+          <Button variant="secondary" disabled={full} onClick={() => setAddingBot(true)} aria-label="Computer opponent" title={full ? `The game is full (${MAX_ENTRIES} players)` : 'Add a computer opponent'} data-testid="add-bot">
             <Bot size={18} aria-hidden /> Computer
           </Button>
-          <Button onClick={() => setAdding(true)}>+ Add player</Button>
+          <Button disabled={full} onClick={() => setAdding(true)} title={full ? `The game is full (${MAX_ENTRIES} players)` : undefined}>
+            + Add player
+          </Button>
         </div>
+        {full && (
+          <p className="mb-2 rounded-lg bg-amber-50 px-3 py-1.5 text-sm text-amber-900" data-testid="game-full">
+            {seats > MAX_ENTRIES ? `At most ${MAX_ENTRIES} players can play — remove ${seats - MAX_ENTRIES} before starting.` : `The game is full: ${MAX_ENTRIES} players is the most. Remove someone to make room.`}
+          </p>
+        )}
         {/* R13-10: compact cards, as many per row as fit (15 players fit an iPad screen). */}
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(10.5rem,1fr))] gap-1.5">
           {g.competitors.map((c) => {
@@ -484,18 +499,42 @@ function SoloSetup({ g }: { g: GameView }) {
             return (
               <li key={c.id} className="relative flex min-h-12 items-center gap-2 rounded-xl bg-slate-50 py-1 pr-0.5 pl-2" data-testid={c.bot ? 'setup-bot' : 'setup-player'}>
                 <LobbyGlow id={c.profileId} />
-                {/* R13-10: a phone that is connected shows as a green dot on the picture. */}
-                <span className="relative shrink-0">
-                  <Avatar profile={competitorAvatar(c, g)} size={34} />
-                  {!c.bot && g.online?.includes(c.profileId!) && <span className="absolute -right-0.5 -bottom-0.5 h-3 w-3 rounded-full bg-green-600 ring-2 ring-slate-50" title="Phone connected" data-testid="phone-online" />}
-                </span>
-                <span className="min-w-0 flex-1">
-                  {c.bot || !c.profileId ? <span className="block truncate font-semibold">{name}</span> : <PersonName p={g.profiles[c.profileId]} className="leading-tight font-semibold [&>span]:truncate" realClassName="text-xs" />}
+                {/* R14-29: a person's picture and name open their sheet (nickname, profile). */}
+                {!c.bot && c.profileId ? (
+                  <button type="button" className="flex min-w-0 flex-1 items-center gap-2 self-stretch rounded-lg text-left active:bg-slate-200" onClick={() => setManage(c.profileId!)} aria-label={`Manage ${name}`} data-testid="lobby-player-open">
+                    {/* R13-10: a phone that is connected shows as a green dot on the picture. */}
+                    <span className="relative shrink-0">
+                      <Avatar profile={competitorAvatar(c, g)} size={34} />
+                      {g.online?.includes(c.profileId) && <span className="absolute -right-0.5 -bottom-0.5 h-3 w-3 rounded-full bg-green-600 ring-2 ring-slate-50" title="Phone connected" data-testid="phone-online" />}
+                    </span>
+                    <PersonName p={g.profiles[c.profileId]} className="min-w-0 flex-1 leading-tight font-semibold [&>span]:truncate" realClassName="text-xs" />
+                  </button>
+                ) : (
+                  <span className="relative shrink-0">
+                    <Avatar profile={competitorAvatar(c, g)} size={34} />
+                  </span>
+                )}
+                <span className={cx('min-w-0', c.bot || !c.profileId ? 'flex-1' : 'hidden')}>
+                  {(c.bot || !c.profileId) && <span className="block truncate font-semibold">{name}</span>}
                   {c.bot && (
-                    <span className="mt-0.5 flex flex-wrap items-center gap-2">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700" data-testid="bot-level-badge">
-                        <Bot size={12} aria-hidden /> Computer · {BOT_LEVELS[c.bot].label}
-                      </span>
+                    // R14-4: the difficulty is chosen inside the badge. A separate select beside the
+                    // name column took its width in a 10.5rem card, so the badge ran under the select.
+                    <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <label className="inline-flex max-w-full min-w-0 items-center gap-1 rounded-full border border-slate-300 bg-white py-0.5 pr-1 pl-2 text-xs font-semibold text-slate-700" data-testid="bot-level-badge">
+                        <Bot size={12} className="shrink-0" aria-hidden />
+                        <select
+                          className="min-h-7 min-w-0 cursor-pointer bg-transparent font-semibold"
+                          value={c.bot}
+                          onChange={(e) => run({ type: 'updateCompetitor', competitorId: c.id, botLevel: e.target.value as BotLevel })}
+                          aria-label={`${name} difficulty`}
+                        >
+                          {Object.entries(BOT_LEVELS).map(([k, v]) => (
+                            <option key={k} value={k}>
+                              {v.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
                       <label className="inline-flex items-center gap-1 text-xs text-slate-600">
                         <input type="checkbox" className="h-4 w-4 accent-blue-700" checked={!!c.botAi} onChange={(e) => run({ type: 'updateCompetitor', competitorId: c.id, botAi: e.target.checked })} aria-label={`${name} uses AI answers`} />
                         AI answers
@@ -503,20 +542,6 @@ function SoloSetup({ g }: { g: GameView }) {
                     </span>
                   )}
                 </span>
-                {c.bot ? (
-                  <select
-                    className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm"
-                    value={c.bot}
-                    onChange={(e) => run({ type: 'updateCompetitor', competitorId: c.id, botLevel: e.target.value as BotLevel })}
-                    aria-label={`${name} difficulty`}
-                  >
-                    {Object.entries(BOT_LEVELS).map(([k, v]) => (
-                      <option key={k} value={k}>
-                        {v.label}
-                      </option>
-                    ))}
-                  </select>
-                ) : null}
                 <button type="button" className="flex h-10 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-200" onClick={() => run({ type: 'removeCompetitor', competitorId: c.id })} aria-label={`Remove ${name}`}>
                   <X size={18} aria-hidden />
                 </button>
@@ -528,6 +553,7 @@ function SoloSetup({ g }: { g: GameView }) {
       </Card>
       <AddPlayerModal open={adding} onClose={() => setAdding(false)} exclude={g.competitors.flatMap((c) => c.memberIds)} onPick={(id) => run({ type: 'addPlayer', profileId: id })} />
       <AddBotModal open={addingBot} onClose={() => setAddingBot(false)} g={g} />
+      {manage && <LobbyPlayerSheet g={g} profileId={manage} onClose={() => setManage(null)} />}
     </div>
   );
 }
@@ -825,9 +851,11 @@ function MoveSheet({ g, profileId, onClose }: { g: GameView; profileId: string; 
   const go = async (a: Parameters<typeof run>[0]) => {
     if (await run(a)) onClose();
   };
+  // R14-29: the same sheet as a solo player's (nickname, profile), with the team moves under it.
   return (
-    <Modal open onClose={onClose} title={`Move ${profileName(g.profiles[profileId])}`}>
-      <div className="grid gap-2" data-testid="move-sheet">
+    <LobbyPlayerSheet g={g} profileId={profileId} onClose={onClose}>
+      <div className="grid gap-2 border-t border-slate-200 pt-3" data-testid="move-sheet">
+        <p className="text-sm font-semibold text-slate-700">Move to</p>
         {g.competitors
           .filter((c) => c.kind === 'team' && c.id !== team?.id)
           .map((c) => (
@@ -852,7 +880,7 @@ function MoveSheet({ g, profileId, onClose }: { g: GameView; profileId: string; 
           </div>
         )}
       </div>
-    </Modal>
+    </LobbyPlayerSheet>
   );
 }
 

@@ -11,7 +11,7 @@ import { profileName } from '../../lib/view';
 import { Lock, Monitor, Plus, Swords } from 'lucide-react';
 import HeadToHead, { type CompareData } from '../../components/HeadToHead';
 
-interface AdminProfile {
+export interface AdminProfile {
   id: string;
   name: string;
   nickname: string;
@@ -63,13 +63,12 @@ export default function Players() {
             <li key={p.id} className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm">
               <Avatar profile={p} size={44} />
               <div className="min-w-0 flex-1">
-                <div className="truncate font-bold">{profileName(p)}</div>
+                <div className="truncate font-bold">{p.name}</div>
                 <div className="truncate text-xs text-slate-500">
-                  {p.nickname ? p.name : ''}
-                  {dupNames.has(p.name.toLowerCase()) ? ' · same name as another player' : ''}
+                  {dupNames.has(p.name.toLowerCase()) ? 'Same name as another player' : ''}
                   {p.locked ? (
                   <>
-                    {' · '}
+                    {dupNames.has(p.name.toLowerCase()) ? ' · ' : ''}
                     <Lock size={12} className="inline align-[-1px]" aria-hidden /> locked (wrong PINs)
                   </>
                 ) : null}
@@ -123,7 +122,7 @@ export default function Players() {
   );
 }
 
-function StatsModal({ p, onClose }: { p: AdminProfile; onClose: () => void }) {
+export function StatsModal({ p, onClose }: { p: Pick<AdminProfile, 'id' | 'name' | 'nickname' | 'color' | 'avatar' | 'pictureUrl'>; onClose: () => void }) {
   const s = useFetch(() => hostApi<{ stats: unknown }>('GET', `/api/stats/profiles/${p.id}`), [p.id]);
   return (
     <Modal open onClose={onClose} title={`${profileName(p)} — statistics`} wide>
@@ -132,9 +131,11 @@ function StatsModal({ p, onClose }: { p: AdminProfile; onClose: () => void }) {
   );
 }
 
-function EditProfile({ p, onClose }: { p: AdminProfile; onClose: () => void }) {
+/** The host's profile editor (Players page and, R14-29, a lobby card). R14-28: no nickname field —
+ *  a nickname set here never reached the game (the lobby nickname is the one used in a game); a
+ *  saved profile nickname is kept as it is (it is no longer sent from here). */
+export function EditProfile({ p, onClose }: { p: AdminProfile; onClose: () => void }) {
   const [name, setName] = useState(p.name);
-  const [nickname, setNickname] = useState(p.nickname);
   const [color, setColor] = useState(p.color);
   const [avatar, setAvatar] = useState(p.avatar);
   const [pin, setPin] = useState('');
@@ -164,21 +165,16 @@ function EditProfile({ p, onClose }: { p: AdminProfile; onClose: () => void }) {
             }
           }}
         />
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Name">
-            <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} maxLength={30} />
-          </Field>
-          <Field label="Nickname">
-            <input className={inputCls} value={nickname} onChange={(e) => setNickname(e.target.value)} maxLength={30} />
-          </Field>
-        </div>
+        <Field label="Name">
+          <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} maxLength={30} />
+        </Field>
         <Field label="Preferred Color" group hint="Used in a game whenever nobody else has it.">
           <ColorPicker value={color} onChange={setColor} />
         </Field>
         <Button
           size="lg"
           onClick={async () => {
-            const r = await attempt(() => hostApi('PATCH', `/api/admin/profiles/${p.id}`, { name: name.trim(), nickname: nickname.trim(), color, avatar, ...(upload ? { usePicture } : {}) }), 'Saved');
+            const r = await attempt(() => hostApi('PATCH', `/api/admin/profiles/${p.id}`, { name: name.trim(), color, avatar, ...(upload ? { usePicture } : {}) }), 'Saved');
             if (r) onClose();
           }}
           disabled={!name.trim()}

@@ -318,10 +318,10 @@ describe('lobby colours (R4-13)', () => {
     expect([a, b, c].map((p) => g2!.profiles[p.id].color)).toEqual([a, b, c].map((p) => (p === others[0] ? '#0e7490' : g!.profiles[p.id].color)));
   });
 
-  it('never runs out: more players than palette colours still get distinct colours', async () => {
+  it('never runs out: more players than palette colours still get distinct colours (team games: no 12-player limit, R14-1)', async () => {
     const { applyAction, createGame } = await import('../../src/server/engine/engine');
     const { DEFAULT_RULES, LOBBY_COLORS } = await import('../../src/shared/game');
-    let st = createGame({ id: 'g', title: 't', boardId: null, board: SAMPLE_BOARD, mode: 'solo', rules: { ...DEFAULT_RULES, maxPlayers: 0 }, now: 1 });
+    let st = createGame({ id: 'g', title: 't', boardId: null, board: SAMPLE_BOARD, mode: 'team', rules: { ...DEFAULT_RULES, maxPlayers: 0 }, now: 1 });
     let n = 0;
     const ctx = { now: 1, newId: () => `id${n++}`, colorOf: () => '#1d4ed8' };
     for (let i = 0; i < LOBBY_COLORS.length + 6; i++) {
