@@ -4,11 +4,29 @@ Read this first, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "U
 
 **Before anything else: the development lock (`DEVELOPMENT_LOCK.md`).** `npm run dev:lock:status`, then `npm run dev:lock:acquire -- --task "…"`. Do not change files while another computer holds it.
 
-## Current state (session 15, 2026-10-19 — round 12 in progress, on DESKTOP-6HN0OQ4 / geolaudy)
+## Current state (session 15, 2026-10-19 — round 12 done, v0.16.0 released; on DESKTOP-6HN0OQ4 / geolaudy)
 
 - Started from `origin/main` e1aed4d (v0.15.0 released). This computer had 6 old unpushed commits (an earlier, superseded round-7 F attempt) — kept on the local branch `archive/machine-b-r7f-unpushed` only; `main` was reset to `origin/main`.
-- **Milestone 0 (R12-1) done:** development lock — `scripts/dev-lock.mjs`, `.githooks/`, `.claude/settings.json` hooks, `DEVELOPMENT_LOCK.md`, CLAUDE.md §36, tests `tests/integration/devLock.test.ts` (12/12).
-- Round 12 requirements: USER_FEEDBACK "Round 12"; references in `references/` (git-ignored — copy by hand; the four round-12 images are listed in USER_FEEDBACK "Round 12").
+- **Git:** `main` = `origin/main` (release commit "Release v0.16.0" after 9169e1a), pushed, clean tree. package.json **0.16.0**; CHANGELOG [0.16.0] = round 12, [Unreleased] empty.
+- **Round 12 (USER_FEEDBACK "Round 12", plan milestone 26, FEATURE_MATRIX "User feedback round 12") — all done and tested automatically:**
+  - R12-1 development lock (66e3238) — `scripts/dev-lock.mjs`, `.githooks/`, `.claude/settings.json` hooks, `DEVELOPMENT_LOCK.md`, CLAUDE.md §36; devLock 12/12; used for real this session.
+  - R12-3…8 host full screen redesign (D89) — edge-to-edge blue, top bar (menu / Options / minimise), slide-in menu, three-column answer band, button family, centred score cards, Reveal Answer in the Unlock slot while the timer runs, compact layout for phones in landscape.
+  - R12-9 iPad top edge (D93, `--safe-top`) — **awaiting real-iPad check (K47)**.
+  - R12-10 subheadings at 65 %. R12-11 Play as Guest (D90, migration v7). R12-12 lobby Test Buzzer (D91). R12-13 Wi-Fi details (D92) — **automatic name / password awaiting a Wi-Fi PC check (K48)**; this PC is wired.
+- **Release v0.16.0:** full Playwright **73/73**, Vitest **382/382**, verify-dist **17/17**; tag v0.16.0 → GitHub Actions publishes it (status: PROGRESS). **Local build (personal, includes new_sfx — never upload):** `release/OfflineJeopardy-Setup-0.16.0.exe`, `release/OfflineJeopardy-Portable-0.16.0.exe`.
+- **Before any Playwright run:** `npm run build:web` — the test server serves `dist/`; a stale build here once looked like a WebKit crash.
+- **References** (`references/`, git-ignored, not on GitHub — they contain the owner's photo; copy by hand): `0.15.0 host fullscreen board improved.png`, `0.15.0 host fullscreen clue improved.png`, `0.15.0 host fullscreen menu open example.png`, `topedge_fadeoff_example.png`.
+- **Owner to check on real devices:** the new full screen on the iPad (landscape / portrait, Home Screen app and Safari), nothing faded at the top of any page in the Home Screen app, Play as Guest + Test Buzzer on real phones, a Joy-Con press in the lobby lights its player's card, Wi-Fi name / password on the Wi-Fi game PC.
+
+### Single recommended next task (session 15)
+
+1. Acquire the development lock (top of this file), then: the owner's feedback on round 12 (record it as USER_FEEDBACK "Round 13").
+2. Without new feedback: real-device checks of K47 / K48 with the owner; then the older open items (accessibility audit O9, reading media lengths on the server K42).
+
+### Two development computers (from session 15)
+
+- **DESKTOP-6HN0OQ4** (geolaudy, original machine — session 15) and the **mvanwitz** machine. Only one works at a time: the development lock decides (DEVELOPMENT_LOCK.md). Release it at the end of a session; after a crash it expires 15 minutes after the last heartbeat.
+- The local branch `archive/machine-b-r7f-unpushed` on DESKTOP-6HN0OQ4 is an old, superseded round-7 F attempt — keep, don't merge.
 
 ## Current state (session 14, 2026-10-18 — rounds 10 + 11 done; v0.15.0 released)
 

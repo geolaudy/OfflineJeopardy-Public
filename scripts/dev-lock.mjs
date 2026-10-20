@@ -328,11 +328,10 @@ async function cmdAcquire(cwd, { task, heartbeat }) {
 }
 
 async function cmdRelease(cwd, { allowUnpushed }) {
-  const remote = readRemote(cwd);
   const st = readState(cwd);
-  if (!isMine(remote.record, st)) {
+  if (!isMine(readRemote(cwd).record, st)) {
     console.log('Refused: this clone does not own the development lock, so it cannot release it.');
-    console.log(describe(remote.record, (await serverNow(cwd)).ms));
+    console.log(describe(readRemote(cwd).record, (await serverNow(cwd)).ms));
     return EXIT_REFUSED;
   }
   const unpushed = git(['branch', '-r', '--contains', 'HEAD'], { cwd, allowFail: true }).out === '';
@@ -340,10 +339,26 @@ async function cmdRelease(cwd, { allowUnpushed }) {
     console.log('Refused: HEAD is not on any remote branch. Push your work first (or pass --allow-unpushed).');
     return EXIT_REFUSED;
   }
+  // Stop the heartbeat first; one of its pushes may still land meanwhile, so the release is a
+  // compare-and-swap that re-reads (and re-checks ownership) when the lock moved under it.
   stopHeartbeat(cwd);
-  const now = await serverNow(cwd);
-  const rec = { ...remote.record, ...workingInfo(cwd), status: 'released', releasedAt: iso(now.ms), clock: now.source };
-  writeRemote(rec, remote.sha, `lock: ${rec.computer} releases`, cwd);
+  let rec;
+  for (let attempt = 0; ; attempt++) {
+    const remote = readRemote(cwd);
+    if (!isMine(remote.record, st)) {
+      console.log('Refused: the lock changed hands while releasing.');
+      return EXIT_REFUSED;
+    }
+    const now = await serverNow(cwd);
+    rec = { ...remote.record, ...workingInfo(cwd), status: 'released', releasedAt: iso(now.ms), clock: now.source };
+    try {
+      writeRemote(rec, remote.sha, `lock: ${rec.computer} releases`, cwd);
+      break;
+    } catch (e) {
+      if (e.kind !== 'conflict' || attempt >= 4) throw e;
+      await new Promise((r) => setTimeout(r, 300));
+    }
+  }
   writeState(cwd, { status: 'released', confirmedAt: 0, message: 'Released.' });
   log(cwd, 'released');
   console.log(`Development lock RELEASED and verified on ${REMOTE} (${rec.releasedAt}).`);

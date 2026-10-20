@@ -6,6 +6,8 @@ their notes come from the matching section below (`scripts/release-notes.mjs`).
 
 ## [Unreleased]
 
+## [0.16.0] — 2026-10-19
+
 ### New Features
 - **Play as Guest**: players can join from their phone with just a nickname — no profile or PIN. They play normally, can change their nickname in the lobby, and their games are not added to anyone's profile, statistics or leaderboards.
 - **Test Buzzer in the lobby**: players can try their buzzer before the game; their card in the lobby lights up yellow for a moment on the TV, the host controller and the phones. Nothing counts and the game does not start.
@@ -16,6 +18,10 @@ their notes come from the matching section below (`scripts/release-notes.mjs`).
 - **Reveal Answer while the timer runs** takes the Unlock Buzzers button's place, so the host never has to look for it.
 - Category subheadings are smaller (about 65 %).
 - iPad Home Screen app: page titles and buttons now start below the faded area under the status bar.
+
+### Known Issues
+- The new host full screen, the top-edge spacing and guest / Test Buzzer were tested in device emulation, not yet on a real iPad or phones.
+- Reading the Wi-Fi name and password automatically was tested with sample Windows output only; if Windows does not hand out the password, type it in the lobby's join card.
 
 ## [0.15.0] — 2026-10-18
 
