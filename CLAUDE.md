@@ -862,3 +862,20 @@ Before ending a session, build the latest stable version (`npm run release:local
 GitHub Releases are for major milestones only, never for small fixes. Build commands and the release procedure are in the `windows-release` skill (`.claude/skills/windows-release/SKILL.md`).
 
 Never move or delete published tags, overwrite releases, force-push, or attach unverified binaries, API keys or player databases.
+
+## 36. DEVELOPMENT LOCK — ONE COMPUTER AT A TIME (permanent)
+
+Before changing anything in a session, run `npm run dev:lock:status` and then
+`npm run dev:lock:acquire -- --task "<task>"`. Continue only when it reports ACQUIRED (exit 0).
+
+If it prints OFFLINEJEOPARDY DEVELOPMENT LOCKED, another computer is developing: tell the user who
+holds it and since when, and do read-only work only (no file changes, commits, pushes or releases).
+Never take over an active lock. Recover an expired lock from another computer only after the user
+confirms that session has stopped (`npm run dev:lock:recover -- --confirm`).
+
+Run `npm run dev:lock:check` before each milestone, commit, push, release or destructive git
+command (the git hooks also enforce it). If ownership is lost or cannot be verified, stop changing
+files, keep local work, do not push, and tell the user. GitHub unreachable = fail closed.
+
+At the end of a session: tests, handoff docs, commit, push, verify, then `npm run dev:lock:release`.
+Details and recovery: `DEVELOPMENT_LOCK.md`.

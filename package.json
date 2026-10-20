@@ -81,7 +81,13 @@
     "dist": "npm run build && electron-builder --win nsis portable --publish never",
     "dist:verify": "node scripts/verify-dist.mjs",
     "release:local": "npm run typecheck && npm test && npm run dist && npm run dist:verify",
-    "dist:dir": "npm run build && electron-builder --win dir"
+    "dist:dir": "npm run build && electron-builder --win dir",
+    "dev:lock:status": "node scripts/dev-lock.mjs status",
+    "dev:lock:acquire": "node scripts/dev-lock.mjs acquire",
+    "dev:lock:release": "node scripts/dev-lock.mjs release",
+    "dev:lock:recover": "node scripts/dev-lock.mjs recover",
+    "dev:lock:check": "node scripts/dev-lock.mjs check",
+    "dev:lock:task": "node scripts/dev-lock.mjs task"
   },
   "build": {
     "appId": "app.offlinejeopardy.desktop",

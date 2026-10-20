@@ -1,6 +1,14 @@
 # Session handoff
 
-Read this first, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 11". Ready-to-paste resume prompts: `CONTINUE_PROMPT_SAME_COMPUTER.txt` / `CONTINUE_PROMPT_OTHER_COMPUTER.txt`.
+Read this first, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 12". Ready-to-paste resume prompts: `CONTINUE_PROMPT_SAME_COMPUTER.txt` / `CONTINUE_PROMPT_OTHER_COMPUTER.txt`.
+
+**Before anything else: the development lock (`DEVELOPMENT_LOCK.md`).** `npm run dev:lock:status`, then `npm run dev:lock:acquire -- --task "…"`. Do not change files while another computer holds it.
+
+## Current state (session 15, 2026-10-19 — round 12 in progress, on DESKTOP-6HN0OQ4 / geolaudy)
+
+- Started from `origin/main` e1aed4d (v0.15.0 released). This computer had 6 old unpushed commits (an earlier, superseded round-7 F attempt) — kept on the local branch `archive/machine-b-r7f-unpushed` only; `main` was reset to `origin/main`.
+- **Milestone 0 (R12-1) done:** development lock — `scripts/dev-lock.mjs`, `.githooks/`, `.claude/settings.json` hooks, `DEVELOPMENT_LOCK.md`, CLAUDE.md §36, tests `tests/integration/devLock.test.ts` (12/12).
+- Round 12 requirements: USER_FEEDBACK "Round 12"; references in `references/` (git-ignored — copy by hand; the four round-12 images are listed in USER_FEEDBACK "Round 12").
 
 ## Current state (session 14, 2026-10-18 — rounds 10 + 11 done; v0.15.0 released)
 

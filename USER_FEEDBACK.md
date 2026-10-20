@@ -368,3 +368,24 @@ Rollback point: tag **v0.14.0** (published, 3 assets). Statuses: FEATURE_MATRIX.
 | R11-6 | Only one buzz glow: remove the extra glow line above the timer (TV and host preview) | A |
 | R11-7 | iPad web app: consistent app-like pages (no page opening a Safari context), standalone display mode, safe-area-correct header; the OfflineJeopardy title not under the status bar / Liquid Glass on Boards; one shared header | C |
 | R11-9 | Final Jeopardy!: a setting for how answering closes — host closes answering (default) or automatically when the timer ends; Close Answer Submissions for the host; after time's up in manual mode submissions stay open; late submissions rejected after closing; status on phones and host; reveal flow unchanged | D |
+
+# User Feedback — Round 12 (received 2026-10-19, session 15, after v0.15.0; first session on this computer, DESKTOP-6HN0OQ4)
+
+Rollback point: tag **v0.15.0** (published). References (git-ignored, copy by hand): `references/0.15.0 host fullscreen board improved.png`, `… clue improved.png`, `… menu open example.png`, `topedge_fadeoff_example.png`. Statuses: FEATURE_MATRIX.md → "User feedback round 12".
+
+| ID | Requirement (summary) | Milestone |
+|---|---|---|
+| R12-1 | Multi-computer development lock on GitHub: atomic acquisition, heartbeat + expiry, fencing, safe recovery, fail closed offline, release, docs, tests; permanent workflow (CLAUDE.md §36, DEVELOPMENT_LOCK.md) | 0 |
+| R12-3.1 | Host full screen: no white border / margins / scrollbars; blue to the screen edges | A |
+| R12-3.2 | TV presentation fills the full screen at its own proportions (more blue on wide screens, never cropped) | A |
+| R12-3.3 | Layout as in the references: hamburger top-left, Options + minimise top-right on the blue, full-width message / answer bar, control band (status left, More + main action right), centred score cards, Undo bottom-right | B |
+| R12-4 | Full-screen pop-out menu: the host navigation slides over from the left (game not resized), "‹" to close, touch / mouse / keyboard (Esc), safe areas | B |
+| R12-5 | Restyled host buttons (theme, pressed / disabled states, touch size); Fullscreen / minimise placed as in the references; switching never resets the game | B |
+| R12-6 | Upper message bar redesigned: answer banner (correct-response label + prominent answer, category, value, notes, long answers) and "X is choosing a clue" in one design; nothing private reaches the TV | B |
+| R12-7 | Host score cards centred as a group, restyled, any number of players / teams / bots, no clipping | B |
+| R12-8 | Reveal Answer in the Unlock Buzzers button's place while the clue timer runs (existing reveal path, valid states only) | B |
+| R12-9 | iPad web app: nothing essential under the faded top edge (status-bar blur) on every host page, full screen and menus | C |
+| R12-10 | Category subheading text at ~65 % of its current size, still right under the name, everywhere it is shown | C |
+| R12-11 | Play as Guest: nickname only, no profile / PIN, rename in the lobby, normal play, reconnection without predictable ids, no persistent profile | D |
+| R12-12 | Lobby Test Buzzer on phones: the player's lobby card glows yellow ~1 s for everyone; no gameplay effect | E |
+| R12-13 | Wi-Fi name (auto) and password (auto where Windows allows without admin, else typed by the host) near the lobby QR; host-controlled visibility, masked by default, never logged or stored in plaintext | F |
