@@ -1,18 +1,19 @@
 {
   "project": "OfflineJeopardy",
   "schema": 1,
-  "status": "active",
+  "status": "released",
   "sessionId": "a5e834b3-d864-4d72-b289-895f30e02c6b",
   "generation": 3,
   "computer": "DESKTOP-6HN0OQ4",
   "developer": "geolaudy",
   "branch": "main",
-  "commit": "562973a",
+  "commit": "12bbb04",
   "startedAt": "2026-10-20T19:30:12.000Z",
   "lastHeartbeat": "2026-10-20T21:29:46.000Z",
   "expiresAt": "2026-10-20T21:44:46.000Z",
   "clock": "GitHub server time",
   "heartbeatSeconds": 180,
   "ttlSeconds": 900,
-  "currentTask": "v0.17.0 round 14: real-hardware feedback (score cards, 12 limit, bots, Final Jeopardy, lobby, Wi-Fi, splash)"
+  "currentTask": "v0.17.0 round 14: real-hardware feedback (score cards, 12 limit, bots, Final Jeopardy, lobby, Wi-Fi, splash)",
+  "releasedAt": "2026-10-20T21:31:21.000Z"
 }
