@@ -389,3 +389,23 @@ Rollback point: tag **v0.15.0** (published). References (git-ignored, copy by ha
 | R12-11 | Play as Guest: nickname only, no profile / PIN, rename in the lobby, normal play, reconnection without predictable ids, no persistent profile | D |
 | R12-12 | Lobby Test Buzzer on phones: the player's lobby card glows yellow ~1 s for everyone; no gameplay effect | E |
 | R12-13 | Wi-Fi name (auto) and password (auto where Windows allows without admin, else typed by the host) near the lobby QR; host-controlled visibility, masked by default, never logged or stored in plaintext | F |
+
+# User Feedback — Round 13 (received 2026-10-20, session 16, after playtesting v0.16.0; DESKTOP-6HN0OQ4)
+
+Rollback point: tag **v0.16.0** (published). Statuses: FEATURE_MATRIX.md → "User feedback round 13".
+
+| ID | Requirement (summary) | Milestone |
+|---|---|---|
+| R13-1 | Host TV preview as large as possible: in landscape full screen edge to edge horizontally, no black / white border, no side margins; the TV's aspect ratio kept (never stretched or cropped); the surrounding strips (answer strip, menu / Options / minimise strip, button band) thinner, gaps removed; any unavoidable limit documented | A |
+| R13-2 | Full screen and embedded use one layout (embedded = a smaller version of full screen); the Fullscreen / minimise button never jumps; no awkward gaps; switching never resets clue, timer, buzzers, media, scores, answer visibility, menu | A |
+| R13-3 | Portrait / other screen shapes: a deliberate strategy — content never squished; landscape keeps the TV's aspect ratio; proportional inner padding; media rules unchanged; the public TV unchanged | A |
+| R13-4 | Embedded mode: remove the white bar between the button row and the score cards (fix the cause) | B |
+| R13-5 | Score cards larger, using the space under them; the player colour as a ring around the picture instead of the bottom strip; 2 … 15 players; active / buzz highlights kept | B |
+| R13-6 | Larger text: "Read the clue, then unlock the buzzers"; answer strip category / Correct Response label / answer / value (while the strip gets thinner); "Introduce the Category" about as prominent as "[Player] is choosing" | B, C |
+| R13-7 | Category introduction: the clickable categories move into the header (replacing the redundant "[Category] — Category 1 of 6"), current one identifiable, no horizontal scrolling | C |
+| R13-8 | Colour harmony of the full screen (the awkward blue area above the red strip), the same principles in embedded mode; consistent button / icon styling (no needless boxes, e.g. the menu icon), shared design tokens | B |
+| R13-9 | TV lobby: Wi-Fi network / password move to where "or open [join URL]" was, labelled "Network:" / "Password:", room for long values, host visibility rules kept; the join URL moves under "Scan to Join", centred and sized to the QR code's width | D |
+| R13-10 | Pregame iPad host lobby: players, controllers, Wi-Fi, More Options and the main actions without scrolling (iPad landscape, up to 15 players / controllers), readable and touch-friendly | D |
+| R13-11 | Compact connected-controller display (identity, status, assigned player, battery where known, assignment, actions) | D |
+| R13-12 | Home screen Buzzers tab without scrolling (up to 15 players / controllers, iPad landscape) | D |
+| R13-13 | Host preview animations as on the TV: board-to-clue zoom, opening board fill — shared with the TV, never restarted by a mode switch or a late / reconnecting preview | E |

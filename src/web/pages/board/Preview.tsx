@@ -4,8 +4,8 @@
 // With ?live=1 the host controller embeds it instead (R5-12 / R5-14) and sends a game view: the
 // current category introduction (with the TV's swipes) or a revealed answer, exactly as the TV
 // formats it, and Final Jeopardy! (R9-6). Nothing here connects to the server or plays sound.
-import { useEffect, useMemo, useState } from 'react';
-import { AnimatePresence, MotionConfig } from 'motion/react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { MotionConfig } from 'motion/react';
 import type { GameView } from '../../../shared/views';
 import { DEFAULT_RULES } from '../../../shared/game';
 import { SAMPLE_BOARD } from '../../../shared/sampleBoards';
@@ -15,8 +15,7 @@ import { Grid } from './Grid';
 import { Scoreboard } from './Scoreboard';
 import { CluePanel } from './ClueZoom';
 import { Intro } from './Intro';
-import { FinalScreen } from './FinalScreen';
-import { ThemeLogo, UserFonts, type PublicSettings } from './BoardPage';
+import { Stage, ThemeLogo, UserFonts, type PublicSettings } from './BoardPage';
 import { FxCtx } from './fx';
 import { DEFAULT_TV_FX, normalizeTvFx } from '../../../shared/tvFx';
 import { configureSound } from '../../lib/sound';
@@ -91,6 +90,35 @@ export interface LivePreviewMessage {
   band?: boolean;
 }
 
+/** R13-13: where the board's clue tiles are inside the preview (its own CSS pixels), sent back to
+ *  the host so the tiles can be tapped through the preview, which itself takes no input. */
+export interface PreviewTilesMessage {
+  type: 'oj-preview-tiles';
+  tiles: { id: string; x: number; y: number; w: number; h: number }[];
+}
+
+/** Reports the tiles' boxes to the host whenever they change (new round, resize, fill-in). */
+function useTileReport(active: boolean, dep: unknown) {
+  const last = useRef('');
+  useLayoutEffect(() => {
+    const send = () => {
+      const tiles = active
+        ? [...document.querySelectorAll<HTMLElement>('[data-clue-id]')].map((el) => {
+            const r = el.getBoundingClientRect();
+            return { id: el.dataset.clueId!, x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) };
+          })
+        : [];
+      const key = JSON.stringify(tiles);
+      if (key === last.current) return;
+      last.current = key;
+      window.parent?.postMessage({ type: 'oj-preview-tiles', tiles } satisfies PreviewTilesMessage, location.origin);
+    };
+    send();
+    window.addEventListener('resize', send);
+    return () => window.removeEventListener('resize', send);
+  }, [active, dep]);
+}
+
 export default function BoardPreview() {
   const live = useMemo(() => new URLSearchParams(location.search).get('live') === '1', []);
   return live ? <LivePreview /> : <ThemePreview />;
@@ -115,6 +143,7 @@ function LivePreview() {
   const reduced = !!look?.reducedMotion;
   const ctx = useMemo(() => presentationFor(look?.theme ?? 'classic', look?.custom ?? null, reduced, vh), [look?.theme, look?.custom, reduced, vh]);
   const fx = useMemo(() => (look?.tvFx ? normalizeTvFx(look.tvFx) : DEFAULT_TV_FX), [look?.tvFx]);
+  useTileReport(!!msg?.band && msg.game.phase === 'board' && !msg.game.intro, msg);
   if (!msg) return <div className="h-screen w-screen bg-black" />;
   const g = msg.game;
   const root = themeRoot(look?.theme ?? 'classic', look?.custom ?? null);
@@ -125,9 +154,8 @@ function LivePreview() {
         <MotionConfig reducedMotion={reduced ? 'always' : 'never'}>
           <div className={`board-theme relative flex h-screen w-screen flex-col overflow-hidden select-none${msg.band ? ' is-host-preview' : ''}`} data-theme={root.dataTheme} style={root.style} data-testid="live-preview-root">
             <div className="relative min-h-0 flex-1">
-              <AnimatePresence>{g.phase === 'board' && g.intro && <Intro key="intro" g={g} />}</AnimatePresence>
-              {g.phase === 'clue' && g.clue && <CluePanel key={g.clue.clueId} g={g} closing={false} zoomIn={false} onClosed={() => {}} />}
-              {g.phase === 'final' && g.final && <FinalScreen g={g} />}
+              {/* R13-13: the TV's own stage — board fill-in, clue zoom, introduction swipes, Final. */}
+              <Stage g={g} quietStart />
             </div>
             {msg.band ? <div className="bt-host-band-slot" style={{ height: `${HOST_BAND * 100}vh` }} aria-hidden /> : msg.scoreboard && <Scoreboard g={g} />}
           </div>

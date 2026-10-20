@@ -96,11 +96,11 @@ test('full game: iPad host pairing, phone profiles + buzzing, private answers, l
   await expect(tv.getByTestId('board-tile')).toHaveCount(0);
   await ipad.getByTestId('intro-next').click();
   await expect(ipad.getByTestId('intro-now')).toContainText('History');
-  await expect(ipad.getByTestId('intro-now')).toContainText('Category 1 of 6');
+  await expect(ipad.getByTestId('intro-cat').nth(0)).toHaveAttribute('aria-current', 'step'); // R13-7: the header marks it; the TV says 'Category 1 of 6'
   await expect(ipad.getByTestId('host-tile')).toHaveCount(0); // R4-16: no clue board while categories are introduced
   await expect(tv.getByText('History', { exact: true })).toBeVisible();
   await ipad.getByTestId('intro-next').click();
-  await expect(ipad.getByTestId('intro-now')).toContainText('Category 2 of 6');
+  await expect(ipad.getByTestId('intro-cat').nth(1)).toHaveAttribute('aria-current', 'step');
   await ipad.getByTestId('intro-skip').click();
   await expect(ipad.getByTestId('game-options')).toBeVisible(); // replay lives in Options
   await expect(ipad.getByTestId('host-tile')).toHaveCount(30);

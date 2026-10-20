@@ -25,7 +25,7 @@ function useKnownKeys(keys: string[]) {
   return ref.current;
 }
 
-export function LobbyFull({ m, morphIn, url, roomCode }: { m: LobbyModel; morphIn: boolean; url: string | null; roomCode: string | null }) {
+export function LobbyFull({ m, morphIn, roomCode }: { m: LobbyModel; morphIn: boolean; roomCode: string | null }) {
   const ctx = useBoard();
   const wifi = useLive((s) => s.lobby?.wifi);
   const known = useKnownKeys([...m.people.map((p) => p.key), ...(m.teams ?? []).map((t) => t.key)]);
@@ -129,21 +129,8 @@ export function LobbyFull({ m, morphIn, url, roomCode }: { m: LobbyModel; morphI
               <ol className="tvp-steps">
                 <li>
                   <Wifi aria-hidden />
-                  {/* R12-13: the network (and the password, once the host reveals it) when shared. */}
-                  {wifi ? (
-                    <span className="tvp-wifi" data-testid="tv-wifi">
-                      <span>
-                        Join the Wi-Fi <b data-testid="tv-wifi-ssid">{wifi.ssid}</b>
-                      </span>
-                      {wifi.password && (
-                        <span>
-                          Password <b className="tvp-wifi-pw" data-testid="tv-wifi-password">{wifi.password}</b>
-                        </span>
-                      )}
-                    </span>
-                  ) : (
-                    <>Join this Wi-Fi.</>
-                  )}
+                  {/* R12-13 / R13-9: the network itself is spelled out under the steps when shared. */}
+                  {wifi ? <>Join the Wi-Fi below.</> : <>Join this Wi-Fi.</>}
                 </li>
                 {m.preparing ? (
                   <li>
@@ -162,7 +149,23 @@ export function LobbyFull({ m, morphIn, url, roomCode }: { m: LobbyModel; morphI
               </ol>
             </div>
             {!m.preparing && <div className="tvp-join-slot" aria-hidden />}
-            <JoinAddress url={m.preparing ? null : url} roomCode={roomCode} className="tvp-join-addr" />
+            {/* R13-9: the join address is under the code (Presenter's JoinCard); this row has the
+                Wi-Fi (and the password, once the host reveals it) and the room code. */}
+            {wifi && (
+              <dl className="tvp-wifi tvp-join-addr" data-testid="tv-wifi">
+                <dt>Network:</dt>
+                <dd data-testid="tv-wifi-ssid">{wifi.ssid}</dd>
+                {wifi.password && (
+                  <>
+                    <dt>Password:</dt>
+                    <dd className="tvp-wifi-pw" data-testid="tv-wifi-password">
+                      {wifi.password}
+                    </dd>
+                  </>
+                )}
+              </dl>
+            )}
+            <JoinAddress url={null} roomCode={roomCode} className="tvp-join-addr" />
           </section>
           {!m.preparing && m.rules.length > 0 && (
             <section ref={rulesRef} className="tvp-rules-sec" style={{ '--s': rulesScale } as CSSProperties} data-testid="tv-lobby-rules">

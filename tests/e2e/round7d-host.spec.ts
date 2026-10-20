@@ -196,14 +196,18 @@ test('iPad score editor: step, type, save, take back, remove player (R7-22)', as
   // R7-24: the private answer is a striped band across the top of the clue card, host only.
   g = await h.until((x) => x.phase === 'board');
   await h.act({ type: 'selectClue', clueId: g.rounds[0].categories[0].clues[0].id });
-  // R11-3.3: the band is the frame's top strip, right above the TV area, as wide as the frame.
+  // R11-3.3 / R13-1: the band is in the frame's header row, right above the TV area; the row (red
+  // with the band) is as wide as the frame.
   const band = ipad.getByTestId('game-strip').getByTestId('answer-banner');
   await expect(band).toHaveAttribute('data-variant', 'band');
   await expect(band).toContainText('Correct response');
   await expect(band.getByTestId('host-answer')).not.toBeEmpty();
   const [bandBox, frameBox, stageBox] = [(await band.boundingBox())!, (await ipad.getByTestId('clue-preview-box').boundingBox())!, (await ipad.getByTestId('game-stage').boundingBox())!];
-  expect(Math.abs(bandBox.y - frameBox.y)).toBeLessThanOrEqual(1);
-  expect(Math.abs(bandBox.width - frameBox.width)).toBeLessThanOrEqual(1);
+  const stripBox = (await ipad.getByTestId('game-strip').boundingBox())!;
+  expect(Math.abs(stripBox.y + stripBox.height - frameBox.y)).toBeLessThanOrEqual(1);
+  expect(Math.abs(stripBox.width - frameBox.width)).toBeLessThanOrEqual(1);
+  expect(bandBox.y).toBeGreaterThanOrEqual(stripBox.y - 1);
+  expect(bandBox.width).toBeGreaterThan(frameBox.width * 0.6);
   expect(bandBox.y + bandBox.height).toBeLessThanOrEqual(stageBox.y + 1);
 
   h.close();

@@ -228,8 +228,10 @@ for (const [label, browserName, ctxOpts] of [
     // embedded one, which scrolls with the page on a phone).
     expect((await box('game-stage')).height).toBeGreaterThan(clueStage.height - 2);
     const stageFull = await box('game-stage');
-    // Wider than the TV's proportions: blue at the sides, the content not stretched.
-    if (full.width / (full.height - 168) > STAGE + 0.05) expect(stageFull.width).toBeLessThan(full.width - 20);
+    // R13-1: the picture is either as wide as the frame or as tall as the room above the band allows
+    // (then blue at the sides) — never stretched.
+    const bandFull = Number(await ipad.getByTestId('clue-preview-box').getAttribute('data-band'));
+    expect(Math.abs(stageFull.width - full.width) <= 1.5 || Math.abs(stageFull.height - (full.height - bandFull)) <= 1.5).toBe(true);
     await expect(ipad.getByTestId('answer-banner')).toBeVisible();
     await expect(ipad.getByTestId('host-timer-line')).toBeVisible();
     const during = await h.until(() => true);

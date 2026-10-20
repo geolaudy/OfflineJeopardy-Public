@@ -12,16 +12,17 @@ Continue the existing OfflineJeopardy project in this repository. Do not restart
    - A blocked Edit/Write saying "DEVELOPMENT LOCK" means this clone has no confirmed lock: run the
      commands above. If GitHub is unreachable the lock fails closed (read-only work only).
 1. Read CLAUDE.md, then SESSION_HANDOFF.md (top section) and PROGRESS.md (top section), then
-   KNOWN_ISSUES.md and FEATURE_MATRIX.md "User feedback round 12".
+   KNOWN_ISSUES.md and FEATURE_MATRIX.md "User feedback round 13".
 2. Expect branch main = origin/main at the commit named at the top of SESSION_HANDOFF.md, clean tree.
 3. npm install (dependencies may have changed), then npx tsc -p . and npx vitest run for a baseline.
    IMPORTANT: Playwright serves the built web app from dist/ — run npm run build:web (or npm run
    build) before any e2e run, or the tests exercise an old build.
 4. State and next task: SESSION_HANDOFF.md ("Current state" and "Single recommended next task").
-   Round 12 (development lock, host full-screen redesign, guests, lobby Test Buzzer, Wi-Fi details,
-   subheadings at 65 %, iPad top edge) is described in USER_FEEDBACK.md "Round 12".
+   Round 13 (one host frame for embedded + full screen, larger TV preview and score cards, preview
+   animations = TV, TV lobby Wi-Fi / address, iPad lobby and Buzzers tab without scrolling) is
+   described in USER_FEEDBACK.md "Round 13"; round 12 in "Round 12".
 5. Reference images are git-ignored: references/ must be copied by hand from the owner. Round 12
-   used: "0.15.0 host fullscreen board improved.png", "0.15.0 host fullscreen clue improved.png",
+   (the last round with mock-ups) used: "0.15.0 host fullscreen board improved.png", "0.15.0 host fullscreen clue improved.png",
    "0.15.0 host fullscreen menu open example.png", "topedge_fadeoff_example.png".
 6. This machine: no Python (write Node edit scripts with the Write tool, not bash heredocs — bash
    quoting mangles backticks and apostrophes); Playwright needs chromium + webkit; new_sfx/ is

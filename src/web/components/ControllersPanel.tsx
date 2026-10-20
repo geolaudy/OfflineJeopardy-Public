@@ -1,10 +1,12 @@
 // Controller management: detected devices, assignment by button press, testing,
-// buzzer-button mapping and troubleshooting. Used in game setup and live menus.
+// buzzer-button mapping and troubleshooting. Used in game setup and live menus. R13-11: compact
+// cards in grids, so many controllers and players fit on one iPad screen.
 import { useEffect, useState } from 'react';
 import { controllerFx, send, useLive } from '../lib/socket';
 import { scanJoyCons, webHidAvailable } from '../lib/inputBridge';
 import type { GameView } from '../../shared/views';
 import type { BindingTarget } from '../../shared/game';
+import type { ControllerInfo } from '../../shared/protocol';
 import { Avatar, Button, Modal, cx } from './ui';
 import { competitorName, profileName } from '../lib/view';
 import { act } from '../lib/socket';
@@ -61,10 +63,9 @@ export function assignTo(target: BindingTarget) {
   send({ t: 'assignListen', target });
 }
 
-export default function ControllersPanel({ g }: { g: GameView | null }) {
-  const controllers = useLive((s) => s.controllers);
+/** The controller that was pressed a moment ago (its card lights up for 400 ms). */
+function useInputFlash() {
   const lastInput = useLive((s) => s.lastInput);
-  const [help, setHelp] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
   useEffect(() => {
     if (!lastInput) return;
@@ -72,14 +73,28 @@ export default function ControllersPanel({ g }: { g: GameView | null }) {
     const t = setTimeout(() => setFlash(null), 400);
     return () => clearTimeout(t);
   }, [lastInput]);
+  return flash;
+}
+
+/**
+ * R13-11: controllers as compact cards in a grid (connection, name, who it buzzes for, last
+ * press) — a tap opens that controller's settings (buzz button, Identify, Vibrate, Unassign,
+ * Forget). Then who uses which buzzer, also as a compact grid.
+ */
+export default function ControllersPanel({ g }: { g: GameView | null }) {
+  const controllers = useLive((s) => s.controllers);
+  const [help, setHelp] = useState(false);
+  const [open, setOpen] = useState<string | null>(null);
+  const flash = useInputFlash();
 
   const bindingFor = (id: string) => g?.bindings.find((b) => b.controllerId === id);
   const physical = controllers.filter((c) => c.kind !== 'phone');
+  const current = physical.find((c) => c.id === open) ?? null;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
-        <h3 className="flex-1 text-lg font-bold">Controllers</h3>
+        <h3 className="flex-1 text-base font-bold">Controllers ({physical.length})</h3>
         {webHidAvailable() && (
           <Button variant="secondary" size="sm" onClick={() => void scanJoyCons()}>
             Refresh devices
@@ -94,66 +109,42 @@ export default function ControllersPanel({ g }: { g: GameView | null }) {
           No controllers detected yet. Pair Joy-Cons with the game computer (Windows Settings → Bluetooth), then press a button. Keyboard keys on the game computer appear when pressed.
         </p>
       )}
-      <ul className="divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
-        {physical.map((c) => {
-          const b = bindingFor(c.id);
-          return (
-            <li key={c.id} className={cx('flex flex-wrap items-center gap-3 p-3 transition-colors', flash === c.id && 'bg-yellow-100')} data-testid="controller-row">
-              <span className={cx('h-3 w-3 rounded-full', c.connected ? 'bg-green-600' : 'bg-slate-300')} title={c.connected ? 'Connected' : 'Disconnected'} />
-              <div className="min-w-0 flex-1">
-                <div className="font-semibold">
-                  {c.label} <span className="text-xs font-normal text-slate-500">{c.connected ? '' : '(disconnected)'}</span>
-                </div>
-                <div className="text-xs text-slate-500">
-                  {b && g ? `Assigned to ${targetLabel(b.target, g)}` : 'Not assigned'} · Last input: {c.lastButton ?? '—'} · Presses: {c.presses}
-                </div>
-              </div>
-              <label className="text-xs text-slate-600">
-                Buzz button{' '}
-                <select
-                  className="rounded-lg border border-slate-300 px-2 py-1"
-                  value={c.buzzButtons}
-                  onChange={(e) => send({ t: 'controllerConfig', controllerId: c.id, buzzButtons: e.target.value })}
+      {physical.length > 0 && (
+        <ul className="grid grid-cols-[repeat(auto-fill,minmax(10.5rem,1fr))] gap-1.5">
+          {physical.map((c) => {
+            const b = bindingFor(c.id);
+            return (
+              <li key={c.id} data-testid="controller-row">
+                <button
+                  type="button"
+                  onClick={() => setOpen(c.id)}
+                  className={cx('flex min-h-11 w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 py-0.5 text-left transition-colors hover:bg-slate-50', flash === c.id && 'bg-yellow-100')}
+                  aria-label={`${c.label} settings`}
                 >
-                  {(BUTTON_CHOICES[c.kind] ?? ['any']).concat(BUTTON_CHOICES[c.kind]?.includes(c.buzzButtons) ? [] : [c.buzzButtons]).map((v) => (
-                    <option key={v} value={v}>
-                      {buttonChoiceLabel(c.kind, v)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {c.kind === 'joycon' && c.connected && (
-                <>
-                  {/* Routed through the server, so this works from the iPad as well as on the game computer. */}
-                  <Button variant="ghost" size="sm" onClick={() => controllerFx(c.id, 'identify')} title="Flash the lights on this Joy-Con" data-testid="identify-controller">
-                    <Lightbulb size={16} aria-hidden /> Identify
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => controllerFx(c.id, 'test')} title="Vibrate this Joy-Con" data-testid="vibrate-controller">
-                    <Vibrate size={16} aria-hidden /> Vibrate
-                  </Button>
-                </>
-              )}
-              {b && (
-                <Button variant="ghost" size="sm" onClick={() => act({ type: 'unbindController', controllerId: c.id })}>
-                  Unassign
-                </Button>
-              )}
-              {!c.connected && !b && (
-                <Button variant="ghost" size="sm" onClick={() => send({ t: 'controllerForget', controllerId: c.id })}>
-                  Forget
-                </Button>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+                  <span className={cx('h-2.5 w-2.5 shrink-0 rounded-full', c.connected ? 'bg-green-600' : 'bg-slate-300')} title={c.connected ? 'Connected' : 'Disconnected'} />
+                  <span className="min-w-0 flex-1 leading-tight">
+                    <span className="block truncate text-sm font-semibold">
+                      {c.label}
+                      {!c.connected && <span className="font-normal text-slate-500"> (off)</span>}
+                    </span>
+                    <span className={cx('block truncate text-xs', b ? 'text-blue-800' : 'text-slate-500')}>{b && g ? `→ ${targetLabel(b.target, g)}` : 'Not assigned'}</span>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
       {g ? <AssignmentTable g={g} /> : <p className="text-sm text-slate-500">Once a game is set up, players and teams appear here so you can assign their controllers.</p>}
+      <Modal open={!!current} onClose={() => setOpen(null)} title={current?.label ?? 'Controller'}>
+        {current && <ControllerSettings c={current} binding={bindingFor(current.id)} g={g} onDone={() => setOpen(null)} />}
+      </Modal>
       <Modal open={help} onClose={() => setHelp(false)} title="Connecting Joy-Cons" wide>
         <ol className="list-decimal space-y-2 pl-5 text-slate-700">
           <li>On the game computer open Windows Settings → Bluetooth &amp; devices → Add device → Bluetooth.</li>
           <li>Hold the small round sync button on the Joy-Con's rail until the green lights run back and forth.</li>
           <li>Pick "Joy-Con (L)" or "Joy-Con (R)" in the list. Each Joy-Con pairs separately and works as its own buzzer.</li>
-          <li>Back here, press any button on the Joy-Con — it appears in the list above. Use "Identify" to flash its lights.</li>
+          <li>Back here, press any button on the Joy-Con — it appears in the list above. Tap it and use "Identify" to flash its lights.</li>
           <li>Tap "Assign" next to a player (or team) and have them press a button on their Joy-Con.</li>
         </ol>
         <h3 className="mt-4 font-bold">Troubleshooting</h3>
@@ -175,8 +166,97 @@ export default function ControllersPanel({ g }: { g: GameView | null }) {
   );
 }
 
+/** One controller's settings: buzz button, Identify / Vibrate (Joy-Cons), Unassign, Forget. */
+function ControllerSettings({ c, binding: b, g, onDone }: { c: ControllerInfo; binding: GameView['bindings'][number] | undefined; g: GameView | null; onDone: () => void }) {
+  return (
+    <div className="space-y-4">
+      <p className="text-slate-600">
+        {c.connected ? 'Connected' : 'Disconnected'} · {b && g ? `buzzes for ${targetLabel(b.target, g)}` : 'not assigned'} · last input {c.lastButton ?? '—'} · {c.presses} presses
+      </p>
+      <label className="block text-sm font-semibold text-slate-700">
+        Buzz button
+        <select className="mt-1 block w-full rounded-xl border border-slate-300 px-3 py-2 text-base" value={c.buzzButtons} onChange={(e) => send({ t: 'controllerConfig', controllerId: c.id, buzzButtons: e.target.value })}>
+          {(BUTTON_CHOICES[c.kind] ?? ['any']).concat(BUTTON_CHOICES[c.kind]?.includes(c.buzzButtons) ? [] : [c.buzzButtons]).map((v) => (
+            <option key={v} value={v}>
+              {buttonChoiceLabel(c.kind, v)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="flex flex-wrap gap-2">
+        {c.kind === 'joycon' && c.connected && (
+          <>
+            {/* Routed through the server, so this works from the iPad as well as on the game computer. */}
+            <Button variant="secondary" onClick={() => controllerFx(c.id, 'identify')} title="Flash the lights on this Joy-Con" data-testid="identify-controller">
+              <Lightbulb size={16} aria-hidden /> Identify
+            </Button>
+            <Button variant="secondary" onClick={() => controllerFx(c.id, 'test')} title="Vibrate this Joy-Con" data-testid="vibrate-controller">
+              <Vibrate size={16} aria-hidden /> Vibrate
+            </Button>
+          </>
+        )}
+        {b && (
+          <Button variant="ghost" onClick={() => void act({ type: 'unbindController', controllerId: c.id }).then(onDone)}>
+            Unassign
+          </Button>
+        )}
+        {!c.connected && !b && (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              send({ t: 'controllerForget', controllerId: c.id });
+              onDone();
+            }}
+          >
+            Forget
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** R13-10 / R13-11: the lobby's players tab — the connected controllers as small chips (who each
+ *  buzzes for, a press lights it); the full settings are on the Buzzers tab. */
+export function ControllerChips({ g, onOpen }: { g: GameView; onOpen: () => void }) {
+  const physical = useLive((s) => s.controllers).filter((c) => c.kind !== 'phone');
+  const flash = useInputFlash();
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm" data-testid="controller-chips">
+      <div className="flex min-h-10 items-center gap-2">
+        <h3 className="flex-1 font-bold">
+          <Gamepad2 size={18} className="mr-1.5 inline align-[-3px] text-slate-500" aria-hidden />
+          Controllers ({physical.length})
+        </h3>
+        <Button size="sm" variant="ghost" onClick={onOpen} data-testid="controller-chips-open">
+          Assign &amp; test…
+        </Button>
+      </div>
+      {physical.length ? (
+        <ul className="mt-1 grid grid-cols-[repeat(auto-fill,minmax(10.5rem,1fr))] gap-1.5">
+          {physical.map((c) => {
+            const b = g.bindings.find((x) => x.controllerId === c.id);
+            return (
+              <li key={c.id} className={cx('flex min-h-10 items-center gap-2 rounded-xl bg-slate-50 px-2.5 py-1 transition-colors', flash === c.id && 'bg-yellow-100')} data-testid="controller-chip">
+                <span className={cx('h-2.5 w-2.5 shrink-0 rounded-full', c.connected ? 'bg-green-600' : 'bg-slate-300')} title={c.connected ? 'Connected' : 'Disconnected'} />
+                <span className="min-w-0 flex-1 leading-tight">
+                  <span className="block truncate text-sm font-semibold">{c.label}</span>
+                  <span className={cx('block truncate text-xs', b ? 'text-blue-800' : 'text-slate-500')}>{b ? `→ ${targetLabel(b.target, g)}` : 'Not assigned'}</span>
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="pb-1 text-sm text-slate-500">None yet — phones need no setup. Pair Joy-Cons in Windows Bluetooth, then press a button.</p>
+      )}
+    </section>
+  );
+}
+
+/** Who uses which buzzer: one compact card per player (or shared team buzzer), several per row. */
 function AssignmentTable({ g }: { g: GameView }) {
-  const rows: { key: string; label: string; avatar?: Parameters<typeof Avatar>[0]['profile']; target: BindingTarget; online?: boolean; note?: string }[] = [];
+  const rows: { key: string; label: string; team?: string; avatar?: Parameters<typeof Avatar>[0]['profile']; target: BindingTarget; online?: boolean }[] = [];
   for (const c of g.competitors) {
     if (c.kind === 'team' && c.buzzerMode === 'shared') {
       rows.push({ key: c.id, label: `${c.name} — shared team buzzer`, target: { kind: 'competitor', competitorId: c.id } });
@@ -184,7 +264,8 @@ function AssignmentTable({ g }: { g: GameView }) {
       for (const m of c.memberIds)
         rows.push({
           key: m,
-          label: profileName(g.profiles[m]) + (c.kind === 'team' ? ` (${c.name})` : ''),
+          label: profileName(g.profiles[m]),
+          team: c.kind === 'team' ? c.name : undefined,
           avatar: g.profiles[m],
           target: { kind: 'profile', profileId: m },
           online: g.online?.includes(m),
@@ -196,23 +277,31 @@ function AssignmentTable({ g }: { g: GameView }) {
   if (!rows.length) return null;
   return (
     <div>
-      <h3 className="mb-2 text-lg font-bold">Who uses which buzzer</h3>
-      <ul className="divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
+      <h3 className="mb-1.5 text-base font-bold">Who uses which buzzer</h3>
+      <ul className="grid grid-cols-[repeat(auto-fill,minmax(10.5rem,1fr))] gap-1.5">
         {rows.map((r) => {
           const b = bound(r.target);
+          const source = b.length ? b.map((x) => x.label).join(', ') : r.target.kind === 'profile' ? (r.online ? 'Phone · connected' : 'Phone (offline)') : 'No buzzer yet';
           return (
-            <li key={r.key} className="flex flex-wrap items-center gap-3 p-3" data-testid="assignment-row">
-              {r.avatar ? <Avatar profile={r.avatar} size={32} /> : <UsersRound size={28} className="text-slate-500" aria-hidden />}
-              <div className="min-w-0 flex-1">
-                <div className="font-semibold">{r.label}</div>
-                <div className="text-xs text-slate-500">
-                  {b.length ? b.map((x) => x.label).join(', ') : r.target.kind === 'profile' ? 'Phone buzzer' : 'No buzzer yet'}
-                  {r.target.kind === 'profile' ? (r.online ? ' · phone connected' : ' · phone not connected') : ''}
-                </div>
-              </div>
-              <Button size="sm" variant="secondary" onClick={() => assignTo(r.target)}>
-                {b.length ? 'Change' : 'Assign'} controller
-              </Button>
+            // R13-11: the whole card assigns (the name keeps the width a separate button would take).
+            <li key={r.key} data-testid="assignment-row">
+              <button
+                type="button"
+                onClick={() => assignTo(r.target)}
+                className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-slate-200 bg-white py-0.5 pr-2 pl-2 text-left hover:bg-slate-50 active:bg-slate-100"
+                aria-label={`${b.length ? 'Change' : 'Assign'} controller for ${r.label}`}
+                title={`${b.length ? 'Change' : 'Assign'} the controller`}
+              >
+                {r.avatar ? <Avatar profile={r.avatar} size={28} /> : <UsersRound size={26} className="shrink-0 text-slate-500" aria-hidden />}
+                <span className="min-w-0 flex-1 leading-tight">
+                  <span className="block truncate text-sm font-semibold">
+                    {r.label}
+                    {r.team && <span className="font-normal text-slate-500"> ({r.team})</span>}
+                  </span>
+                  <span className={cx('block truncate text-xs', b.length ? 'text-blue-800' : r.online ? 'text-green-700' : 'text-slate-500')}>{source}</span>
+                </span>
+                <Gamepad2 size={18} className={cx('shrink-0', b.length ? 'text-blue-700' : 'text-slate-400')} aria-hidden />
+              </button>
             </li>
           );
         })}

@@ -1,80 +1,11 @@
-/* The TV board grid on the host's iPad (R5-13). board.css sizes the TV with viewport units; the
-   replica is a 16:9 box of any size, so the spacing and shadows are re-expressed in container
-   units of that box (and, for clue values, of each tile). Colours and fonts come from the theme. */
-.host-tv.board-theme[data-theme] {
-  container-type: size;
-  --bt-gap: 0.55cqw;
-  --bt-pad: 0.8cqw;
-  --bt-cat-sep: 0px;
-  --bt-text-shadow: 0 0.25cqh 0.6cqh rgba(0, 0, 0, 0.45);
-  --bt-value-shadow: 0 1.6cqh 4cqh rgba(0, 0, 0, 0.45);
-}
-.host-tv.board-theme[data-theme="modern"],
-.host-tv.board-theme[data-theme="contrast"] {
-  --bt-text-shadow: none;
-  --bt-value-shadow: none;
-}
-/* R8-3: the classic board as the TV shows it (R7-5): columns 6 % of a tile's width apart, rows
-   10 % of a tile's height, black gutters, the category row a little further away, and the same
-   hard shadows (in em, so they already scale). In this 16:9 box that is 0.95 % of the width and
-   about 1.5 % of the height (6 rows: h = H / 6.78). */
-.host-tv.board-theme[data-theme="classic"] {
-  --bt-col-gap: 0.95cqw;
-  --bt-row-gap: 1.49cqh;
-  --bt-pad: 1.49cqh 0.95cqw;
-  --bt-cat-sep: 1.03cqh;
-  --bt-text-shadow: 0.34cqh 0.34cqh 0 #000, 0 0 0.9cqh rgba(0, 0, 0, 0.35);
-  --bt-value-shadow: var(--bt-hard-shadow);
-}
-.host-tv .bt-cat {
-  padding: 0.9cqh 0.7cqw;
-}
-.host-tv .host-tile {
-  border: 0;
-  padding: 0;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-}
-.host-tv .host-tile:disabled {
-  cursor: default;
-}
-.host-tv .host-tile.bt-tile:active {
-  filter: brightness(1.35);
-}
-.host-tv .host-tile:focus-visible {
-  outline: 3px solid var(--b-accent);
-  outline-offset: -3px;
-}
-.host-tv .host-dd-mark {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  display: flex;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.45);
-  padding: 2px;
-  color: #fff;
-}
-
+/* The host controller's live screen: shared surfaces, the band, the header, buttons and score cards
+   (R10-6 … R13). Colours and fonts of the TV come from the theme variables on the frame. */
 /* R10-6: the host's controls in the TV preview, where the TV has its score strip — dark like that
    strip, inside the preview's width. Text in the app's slate greys reads as white here; popovers
    that open from the band (class host-light) keep their light look. */
 .host-dark {
   background: linear-gradient(rgb(26 31 82 / 0.97), rgb(9 12 44 / 0.98));
   color: #ffffff;
-}
-.host-band {
-  border-top: 1px solid rgb(255 255 255 / 0.14);
-  padding: 0.375rem 0.5rem;
-}
-/* R11-3.3: the top strip — the correct-response band fills it; otherwise a status line. */
-.host-strip {
-  border-bottom: 1px solid rgb(255 255 255 / 0.14);
-}
-.host-strip > .host-answer-band {
-  flex: 1;
-  align-content: center;
 }
 .host-dark :is(.text-slate-400, .text-slate-500):not(.host-light *, button *, summary *, button, summary) {
   color: rgb(255 255 255 / 0.62);
@@ -145,52 +76,216 @@
   background: #ff4b3a;
 }
 
-/* ---------- R12: the redesigned host controller (references/0.15.0 host fullscreen *.png) ---------- */
+/* ---------- R12 / R13: the host controller's live screen (GameFrame.tsx) ----------
+   One design language for the embedded view and full screen: shared tokens, one header row, one
+   band, one score row. The colours step from the TV's blue (the picture) to two navies (header /
+   band, then the score row), so the picture stands out and the host's controls read as one frame;
+   the red correct-response strip is the only warm block. */
+.host-live {
+  --host-navy-1: rgb(24 30 82);
+  --host-navy-2: rgb(11 15 52);
+  --host-navy-3: rgb(6 9 34);
+  --host-line: rgb(255 255 255 / 0.1);
+  --host-red-1: #b01f1f;
+  --host-red-2: #971a1a;
+  background: var(--host-navy-3);
+}
+/* R10-6: dark like the TV's score strip (header and band). */
+.host-live .host-dark {
+  background: linear-gradient(var(--host-navy-1), var(--host-navy-2));
+}
+.host-band {
+  border-top: 1px solid var(--host-line);
+  padding: 0.375rem 0.75rem;
+}
 
-/* Full screen: the TV's blue reaches every edge (the root carries the theme background); the
-   safe areas (notch, home indicator, status bar) are kept clear inside the blue by the top bar and
-   the score row, never by a border around it. */
-.host-fullscreen.board-theme[data-theme] {
-  padding: 0;
-  margin: 0;
-}
-/* The top bar on the blue: the menu at the left, Options and minimise at the right. It clears the
-   status bar and the iPad's faded top edge (--safe-top, styles.css). */
-.host-fs-top {
-  min-height: calc(var(--safe-top) + 4.25rem);
-  padding: var(--safe-top) max(0.75rem, env(safe-area-inset-right)) 0.5rem max(0.75rem, env(safe-area-inset-left));
-}
-.host-fullscreen > .host-scores {
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
-}
-
-/* Square icon buttons on the dark / blue surfaces (menu, minimise, Fullscreen Preview). */
-.host-icon-btn {
+/* The header row: menu (full screen) · the stage's content · Options + Fullscreen / minimise. In
+   full screen it clears the status bar and the iPad's faded top edge (--safe-top, styles.css). */
+.host-head {
+  position: relative;
+  z-index: 25;
   display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.25rem;
+  /* A fixed height: what the stage puts in it never moves the picture (R13-2). */
+  height: var(--head);
+  overflow: hidden;
+  padding: 0 0.375rem;
+  border-bottom: 1px solid var(--host-line);
+  container-type: inline-size;
+}
+.host-fullscreen .host-head {
+  height: calc(var(--head) + var(--safe-top));
+  padding: var(--safe-top) max(0.375rem, env(safe-area-inset-right)) 0 max(0.375rem, env(safe-area-inset-left));
+}
+.host-head-main {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-self: stretch;
+  flex-direction: column;
+  justify-content: center;
+}
+.host-head-end {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.125rem;
+}
+/* The correct-response strip: the whole header turns red, its buttons sit on the stripes. */
+.host-live .host-head:has(.host-answer-band) {
+  background: repeating-linear-gradient(45deg, var(--host-red-1) 0 3px, var(--host-red-2) 3px 6px);
+  box-shadow: inset 0 -2px 0 rgb(0 0 0 / 0.3);
+  border-bottom-color: transparent;
+}
+.host-head .host-answer-band {
+  flex: 1;
+  align-content: center;
+  background: none;
+  box-shadow: none;
+  padding: 0.2rem 0.5rem;
+}
+.host-head-status {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 0.5rem;
+  text-align: center;
+}
+.host-head-title {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 1.75rem;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.host-head-sub {
+  max-width: 100%;
+  overflow: hidden;
+  color: rgb(255 255 255 / 0.66);
+  font-size: 0.95rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The band's status line (R13-6: "Read the clue, then unlock the buzzers."), large enough to read
+   at a glance. */
+.host-band-status {
+  font-size: 1.3rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+/* R13-7: the category introduction in the header — the title, then the categories as buttons. */
+.host-intro-head {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 0.25rem;
+}
+.host-intro-title {
+  flex: none;
+  max-width: 11rem;
+  font-size: 1.45rem;
+  line-height: 1.02;
+}
+.host-intro-auto {
+  color: #fcd34d;
+  font-size: 0.8em;
+}
+.host-intro-cats {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+  gap: 0.375rem;
+}
+.host-intro-cat {
+  display: flex;
+  width: 100%;
+  min-height: 2.9rem;
   align-items: center;
   justify-content: center;
-  border-radius: 0.75rem;
-  background: linear-gradient(rgb(30 36 92 / 0.92), rgb(10 14 48 / 0.95));
-  color: #ffffff;
-  box-shadow:
-    inset 0 0 0 1px rgb(255 255 255 / 0.28),
-    inset 0 1px 0 rgb(255 255 255 / 0.18),
-    0 3px 0 rgb(0 0 0 / 0.45);
-  transition:
-    transform 0.08s,
-    box-shadow 0.08s,
-    background-color 0.15s;
+  border-radius: 0.6rem;
+  background: rgb(255 255 255 / 0.1);
+  padding: 0.125rem 0.375rem;
+  color: #ffffff !important;
+  font-family: var(--b-font, inherit);
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  line-height: 1.1;
+  text-align: center;
+  text-transform: uppercase;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.2);
   -webkit-tap-highlight-color: transparent;
 }
-.host-icon-btn:hover {
-  background: linear-gradient(rgb(40 48 116 / 0.95), rgb(14 20 62 / 0.97));
+.host-intro-cat:active {
+  background: rgb(255 255 255 / 0.22);
 }
-.host-icon-btn:active {
-  transform: translateY(2px);
-  box-shadow:
-    inset 0 0 0 1px rgb(255 255 255 / 0.28),
-    0 1px 0 rgb(0 0 0 / 0.45);
+.host-intro-cat.is-done {
+  background: rgb(37 99 235 / 0.45);
+}
+.host-intro-cat.is-current {
+  background: #fcd34d;
+  color: #111827 !important;
+  box-shadow: 0 0 0 2px #f59e0b;
+}
+@container (max-width: 52rem) {
+  .host-intro-title {
+    max-width: 7.5rem;
+    font-size: 1.1rem;
+  }
+  .host-intro-cat {
+    font-size: 0.72rem;
+  }
+}
+
+/* Icon buttons on the dark / red surfaces (menu, minimise, Fullscreen Preview): no box — a white
+   icon with a touch-sized target and a soft round highlight when pressed (R13-8). */
+.host-icon-btn {
+  display: flex;
+  width: 3rem;
+  height: 3rem;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: transparent;
+  color: #ffffff !important;
+  transition: background-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+/* A labelled button on the same surfaces (Options): text and icon, no box. */
+.host-ghost-btn {
+  display: flex;
+  min-height: 3rem;
+  flex: none;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  padding: 0 0.875rem;
+  color: #ffffff !important;
+  font-size: 1.05rem;
+  font-weight: 700;
+  transition: background-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.host-icon-btn:hover,
+.host-ghost-btn:hover {
+  background: rgb(255 255 255 / 0.1);
+}
+.host-icon-btn:active,
+.host-ghost-btn:active {
+  background: rgb(255 255 255 / 0.2);
+}
+.host-icon-btn:focus-visible,
+.host-ghost-btn:focus-visible {
+  outline: 3px solid #fcd34d;
+  outline-offset: -3px;
 }
 
 /* R12-5: the host's buttons — one family: heavy type, a firm edge, a little depth that presses in,
@@ -221,7 +316,7 @@
 /* The band's main action (Unlock Buzzers / Reveal Answer / Return to Board …): one size and one
    place, so the host never looks for it (R12-8). */
 .host-btn-main {
-  min-height: 4rem;
+  min-height: 3.6rem;
   min-width: min(17rem, 42vw);
   padding-inline: 1.5rem;
   font-size: 1.35rem;
@@ -234,52 +329,89 @@
   }
 }
 
-/* R12-7: the score cards under the game, centred as a group; Undo at the right end with the same
-   width kept free on the left. */
+/* R12-7 / R13-5: the score cards under the band, centred as a group (Undo at the right end with
+   the same width kept free on the left). GameFrame sets --card-w / --card-h from the room left. */
 .host-scores {
-  background: linear-gradient(#05071c, #000000);
-  border-top: 1px solid rgb(255 255 255 / 0.1);
-  padding-bottom: max(0.25rem, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: var(--host-navy-3);
+  border-top: 1px solid var(--host-line);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.host-fullscreen .host-scores {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 .host-scores-grid {
   display: grid;
-  grid-template-columns: minmax(9.5rem, 1fr) minmax(0, auto) minmax(9.5rem, 1fr);
+  min-height: 0;
+  max-height: 100%;
+  grid-template-columns: 8.5rem minmax(0, 1fr) 8.5rem;
   align-items: center;
   gap: 0.25rem;
-  padding: 0.25rem 0.5rem;
+  padding: 0 0.5rem;
 }
-.host-scores-grid > .host-scores-row {
+.host-scores-row {
+  display: flex;
+  min-width: 0;
+  max-height: 100%;
   grid-column: 2;
+  flex-wrap: wrap;
+  align-content: center;
+  justify-content: center;
+  gap: 8px;
+  overflow-y: auto;
+  padding: 6px 4px;
 }
 .host-scores-grid > .host-scores-undo {
   grid-column: 3;
 }
 @container (max-width: 40rem) {
   .host-scores-grid {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) 8.5rem;
   }
-  .host-scores-grid > .host-scores-row {
+  .host-scores-row {
     grid-column: 1;
-    justify-content: flex-start;
   }
   .host-scores-grid > .host-scores-undo {
     grid-column: 2;
   }
 }
+/* Undo: one fixed width (the Undo column), what it would undo in small type underneath. */
+.host-undo {
+  width: 100%;
+  min-height: 3rem;
+  flex-direction: column;
+  gap: 0;
+  padding: 0.25rem 0.5rem;
+  line-height: 1.15;
+}
+.host-undo-what {
+  max-width: 100%;
+  overflow: hidden;
+  color: rgb(71 85 105);
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Cards share a line equally up to --card-w; a line breaks only below the minimum width the
+   frame planned with (GameFrame scoreGrid), so small rounding never adds a row. */
 .host-score-card {
   display: flex;
-  flex: 0 1 12rem;
-  min-width: 8.5rem;
+  min-width: min(var(--card-w, 12rem), var(--card-min, 9.375rem));
+  max-width: var(--card-w, 12rem);
+  height: var(--card-h, 4rem);
+  flex: 1 1 0;
   align-items: center;
-  gap: 0.5rem;
-  border-radius: 0.85rem;
+  gap: calc(var(--card-h, 4rem) * 0.12);
+  border-radius: 0.9rem;
   background: #ffffff;
-  padding: 0.4rem 0.75rem 0.45rem 0.5rem;
+  padding: 0 calc(var(--card-h, 4rem) * 0.16) 0 calc(var(--card-h, 4rem) * 0.1);
   color: #0f172a;
   text-align: left;
-  /* the player's colour along the bottom edge, a soft lift */
   box-shadow:
-    inset 0 -4px 0 var(--pc, #64748b),
     inset 0 0 0 2px rgb(15 23 42 / 0.08),
     0 2px 0 rgb(0 0 0 / 0.45);
   transition: box-shadow 0.2s;
@@ -287,35 +419,100 @@
 .host-score-card:active {
   filter: brightness(0.95);
 }
+/* R13-5: the player's colour as a ring around the picture (was a strip along the bottom). */
+.host-score-pic {
+  --ring: max(3px, calc(var(--card-h, 4rem) * 0.05));
+  display: flex;
+  flex: none;
+  margin: calc(var(--ring) + 2px);
+  border-radius: 999px;
+  box-shadow:
+    0 0 0 2px #ffffff,
+    0 0 0 calc(var(--ring) + 2px) var(--pc, #64748b);
+}
+.host-score-name {
+  display: block;
+  overflow: hidden;
+  font-size: clamp(0.8rem, calc(var(--card-h, 4rem) * 0.2), 1.2rem);
+  font-weight: 700;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.host-score-value {
+  display: block;
+  font-size: clamp(1.05rem, calc(var(--card-h, 4rem) * 0.36), 2.1rem);
+  font-weight: 900;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+.host-score-value.is-negative {
+  color: #b91c1c;
+}
 .host-score-card[data-highlight='pick'] {
   box-shadow:
-    inset 0 -4px 0 var(--pc, #64748b),
     inset 0 0 0 3px #fbbf24,
     0 2px 0 rgb(0 0 0 / 0.45);
 }
 .host-score-card[data-highlight='buzz'] {
   background: #fffbeb;
   box-shadow:
-    inset 0 -4px 0 var(--pc, #64748b),
     inset 0 0 0 3px #f59e0b,
     0 0 0 4px rgb(252 211 77 / 0.75),
     0 0 18px 4px rgb(251 191 36 / 0.55);
 }
 
-/* R12-3: full screen on a short screen (phone in landscape): smaller cards and buttons, so the
-   TV picture keeps as much height as possible. */
-.host-scores.is-compact .host-scores-grid {
-  padding-block: 0.125rem;
+/* R13-13: the board's tiles, tappable over the TV preview (the TV draws the tiles). */
+.host-hit {
+  position: absolute;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
-.host-scores.is-compact .host-score-card {
-  min-width: 7rem;
-  padding: 0.2rem 0.6rem 0.3rem 0.4rem;
+.host-hit:not(:disabled):active {
+  background: rgb(255 255 255 / 0.22);
 }
-.host-scores.is-compact .host-score-card .text-xl {
+.host-hit.is-used:not(:disabled):active {
+  background: rgb(255 255 255 / 0.08);
+}
+.host-hit:disabled {
+  cursor: default;
+}
+.host-hit:focus-visible {
+  outline: 3px solid #fcd34d;
+  outline-offset: -3px;
+}
+.host-hit .host-dd-mark {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.45);
+  padding: 2px;
+  color: #fff;
+}
+
+/* R12-3: short screens (phones in landscape): smaller header, band text and buttons, so the TV
+   picture keeps as much height as possible. */
+[data-compact='true'] .host-head-title {
+  font-size: 1.2rem;
+}
+[data-compact='true'] .host-head-sub {
+  font-size: 0.8rem;
+}
+[data-compact='true'] .host-icon-btn {
+  width: 2.75rem;
+  height: 2.75rem;
+}
+[data-compact='true'] .host-ghost-btn {
+  min-height: 2.75rem;
+}
+[data-compact='true'] .host-band-status {
   font-size: 1.05rem;
-}
-.host-scores.is-compact [data-testid='undo'] {
-  min-height: 2.5rem;
 }
 [data-compact='true'] .host-btn-main,
 [data-compact='true'] .host-btn {
@@ -324,4 +521,30 @@
 }
 [data-compact='true'] .host-band {
   padding-block: 0.25rem;
+}
+[data-compact='true'] .host-intro-cat {
+  min-height: 2.4rem;
+  font-size: 0.7rem;
+}
+
+/* R13-6: in the header row the value and its buttons (All, Picture) sit side by side, so the
+   correct-response strip never needs more than the row's height. */
+.host-head .host-answer-band-right {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+.host-head .host-answer-band {
+  max-height: 100%;
+}
+/* Narrow headers (phones in portrait): Options keeps only its icon (its name stays for screen readers). */
+@container (max-width: 34rem) {
+  .host-head-end .host-ghost-btn > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }

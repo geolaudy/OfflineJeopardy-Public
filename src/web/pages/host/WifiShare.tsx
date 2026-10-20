@@ -62,7 +62,7 @@ export function WifiShare() {
   const name = v.manualSsid || v.detected?.ssid || '';
   const needsTyping = !v.detected && !v.manualSsid;
   return (
-    <div className="space-y-2 rounded-xl bg-slate-50 p-3" data-testid="wifi-share">
+    <div className="space-y-1.5 rounded-xl bg-slate-50 px-2.5 py-1.5" data-testid="wifi-share">
       <label className="flex min-h-11 cursor-pointer items-center gap-3">
         <input type="checkbox" className="h-6 w-6 accent-blue-700" checked={v.show} disabled={busy} onChange={(e) => update({ show: e.target.checked })} data-testid="wifi-show" />
         <span className="text-sm">
@@ -70,6 +70,8 @@ export function WifiShare() {
           <b>Show Wi-Fi information</b> on the TV next to the QR code
         </span>
       </label>
+      {/* R13-10: what was found (or why nothing was) only matters once the host shares the Wi-Fi. */}
+      {(v.show || v.detected) && (
       <p className="text-sm text-slate-600" data-testid="wifi-detected">
         {v.detected ? (
           <>
@@ -79,10 +81,12 @@ export function WifiShare() {
           v.reason && REASONS[v.reason]
         )}
       </p>
-      <details open={needsTyping || !!v.manualSsid || v.hasManualPassword} className="text-sm">
-        <summary className="min-h-10 cursor-pointer content-center font-semibold text-blue-700">{v.detected ? 'Use another network name or password' : 'Network name and password'}</summary>
+      )}
+      {/* R13-10: the typing form opens by itself only when it is needed (shown on the TV, nothing found). */}
+      <details open={(v.show && needsTyping) || !!v.manualSsid || v.hasManualPassword} className="text-sm">
+        <summary className="min-h-9 cursor-pointer content-center font-semibold text-blue-700">{v.detected ? 'Use another network name or password' : 'Network name and password'}</summary>
         <form
-          className="mt-1 grid gap-2 sm:grid-cols-[1fr_1fr_auto]"
+          className="mt-1 grid grid-cols-[1fr_1fr_auto] gap-1.5"
           onSubmit={(e) => {
             e.preventDefault();
             void update({ manualSsid: ssid, ...(password ? { manualPassword: password } : {}) }).then(() => setPassword(''));

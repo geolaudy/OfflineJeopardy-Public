@@ -14,9 +14,8 @@ import { competitorAvatar, competitorName, findCompetitor, profileName, useTimer
 import { Trophy, Check, X, ChevronRight, LifeBuoy, Image as ImageIcon, Music, Timer } from 'lucide-react';
 import { AnswerBanner } from './AnswerBanner';
 import { RichText } from '../../components/RichText';
-import { GameFrame } from './GameFrame';
+import { FrameParts } from './GameFrame';
 import { FinalMediaControls, MediaThumbs } from './MediaControls';
-import { TvPreview } from './TvMirror';
 
 type Run = (a: HostAction) => Promise<{ ok: boolean }>;
 
@@ -33,18 +32,15 @@ export default function FinalControl({ g, run }: { g: GameView; run: Run }) {
   const hasAnswer = !!f.answer?.trim() || f.answerMedia.length > 0;
   return (
     <>
-      <GameFrame
-        timer={g.timer}
-        testId="final-control"
-        boxTestId="final-preview-box"
-        // R11-3.3: the correct-response band is the frame's top strip.
-        top={
+      <FrameParts
+        // R11-3.3: the correct-response band is the frame's header.
+        head={
           hasAnswer ? (
                 <AnswerBanner
                   answer={f.answer?.trim() ? <RichText text={f.answer} /> : undefined}
                   label="Correct response"
                   left={<RichText text={f.category} />}
-                  right="Final Jeopardy!"
+                  right={<span className="text-[0.62em]">Final Jeopardy!</span>}
                   band
                   aside={
                     f.answerMedia.length > 0 ? (
@@ -68,9 +64,8 @@ export default function FinalControl({ g, run }: { g: GameView; run: Run }) {
             </div>
           )
         }
-        preview={(size) => (
-          <div className="absolute inset-0" data-testid="host-final">
-            <TvPreview game={g} scoreboard={false} band title="TV preview" size={size} testId="final-preview" />
+        stage={() => (
+          <div className="pointer-events-none absolute inset-0" data-testid="host-final">
             {/* The preview is hidden from screen readers; the clue text is here for them. */}
             {f.question && (
               <p className="sr-only" data-testid="host-final-text">
@@ -135,7 +130,7 @@ function FinalOverlay({ g, run, who, setWho }: { g: GameView; run: Run; who: str
   if (!status && !playable && !credit && !preview) return null;
   return (
     <div
-      className="scroll-area absolute right-2 bottom-[calc(var(--band)+0.5rem)] z-20 flex max-h-[calc(100%-var(--band)-var(--strip)-1rem)] w-[min(24rem,calc(100%-1rem))] flex-col gap-2 overflow-y-auto rounded-xl bg-white/95 p-1 shadow-lg ring-1 ring-black/10"
+      className="scroll-area absolute right-2 bottom-[calc(var(--below)+0.5rem)] z-20 flex max-h-[calc(100%-var(--below)-1rem)] w-[min(24rem,calc(100%-1rem))] flex-col gap-2 overflow-y-auto rounded-xl bg-white/95 p-1 shadow-lg ring-1 ring-black/10"
       data-testid="final-overlay"
     >
       {preview && (

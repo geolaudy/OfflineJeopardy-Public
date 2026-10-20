@@ -1,10 +1,28 @@
 # Session handoff
 
-Read this first, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 12". Ready-to-paste resume prompts: `CONTINUE_PROMPT_SAME_COMPUTER.txt` / `CONTINUE_PROMPT_OTHER_COMPUTER.txt`.
+Read this first, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 13". Ready-to-paste resume prompts: `CONTINUE_PROMPT_SAME_COMPUTER.txt` / `CONTINUE_PROMPT_OTHER_COMPUTER.txt`.
 
 **Before anything else: the development lock (`DEVELOPMENT_LOCK.md`).** `npm run dev:lock:status`, then `npm run dev:lock:acquire -- --task "…"`. Do not change files while another computer holds it.
 
-## Current state (session 15, 2026-10-19 — round 12 done, v0.16.0 released; on DESKTOP-6HN0OQ4 / geolaudy)
+## Current state (session 16, 2026-10-20 — round 13 done, not released; on DESKTOP-6HN0OQ4 / geolaudy)
+
+- Started from `origin/main` 6649f66 (v0.16.0 released), clean. Development lock acquired (generation 2), kept through a usage-limit pause, **released at the end of session 16** (acquire it before you start).
+- **Git:** `main` = `origin/main` = the "Session 16 handoff" commit, pushed, clean tree. package.json still **0.16.0**; CHANGELOG [Unreleased] = round 13 (not released — round 13 is a layout round that should first be looked at on the real iPad; release it as 0.17.0 after the owner's check, with the windows-release skill).
+- **Round 13 (USER_FEEDBACK "Round 13", plan milestone 27, FEATURE_MATRIX "User feedback round 13", D94–D97) — all done and tested automatically:**
+  - Host live screen (R13-1 … R13-8): one persistent `GameFrame` for the embedded view and full screen (header row with menu · stage text / red answer strip · Options · Fullscreen; TV picture as wide as the screen allows; 72 px band; score cards in the height left). Stages fill it through portals (`FrameParts`). Full screen on an iPad in landscape is edge to edge (asserted). Larger score cards with a colour ring; larger texts; introduction categories in the header.
+  - Preview animations (R13-13): the host preview renders the TV's own `Stage` (board fill-in, clue zoom); `quietStart` for a preview opened mid-game; tiles are tapped through transparent `HostBoardHits` buttons placed from boxes the preview reports.
+  - Lobby (R13-9 … R13-12): TV Wi-Fi in a labelled box, the join address under the QR code (measured to its width); iPad lobby in two columns of the screen's height (15 players + 15 controllers without scrolling, solo mode); compact controller cards with a settings sheet; Buzzers tab / page fits, including after a buzzer check (order folded away).
+  - Fix found on the way: a Final Jeopardy! answer submitted within 0.7 s of typing could be un-submitted by the delayed draft autosave (`PlayTab.tsx`); the pending autosave is cancelled on submit.
+- **Tests:** full Playwright **88/88**, Vitest **382/382**, tsc clean. New spec `tests/e2e/round13.spec.ts`. Note: Playwright empties `test-results/` when it starts — keep run logs elsewhere.
+- **Local build:** see "Builds" at the end of PROGRESS session 16 / below.
+- **Owner to check on the real iPad (K52):** the host screen embedded and full screen (landscape + portrait, Safari tab and Home Screen app), score cards with your real player count, the lobby and Buzzers tab with real Joy-Cons, the TV lobby with Wi-Fi shown.
+
+### Single recommended next task (session 16)
+
+1. Acquire the development lock, then: the owner's feedback on round 13 (record it as USER_FEEDBACK "Round 14"). If the owner is happy: release 0.17.0 (windows-release skill).
+2. Without new feedback: K47 / K48 / K52 real-device checks with the owner; then O9 (accessibility audit) and K42.
+
+## Previous state (session 15, 2026-10-19 — round 12 done, v0.16.0 released; on DESKTOP-6HN0OQ4 / geolaudy)
 
 - Started from `origin/main` e1aed4d (v0.15.0 released). This computer had 6 old unpushed commits (an earlier, superseded round-7 F attempt) — kept on the local branch `archive/machine-b-r7f-unpushed` only; `main` was reset to `origin/main`.
 - **Git:** `main` = `origin/main` = the "Session 15 handoff" commit (after release commit fad0766), pushed, clean tree. **Development lock: released** at the end of session 15 (acquire it before you start). package.json **0.16.0**; CHANGELOG [0.16.0] = round 12, [Unreleased] empty.

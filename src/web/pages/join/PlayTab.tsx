@@ -272,11 +272,18 @@ function FinalForm({ me }: { me: Me }) {
   const editing = f.stage === 'clue' && !mine?.submitted;
   // While editing, the text is autosaved as a draft so nothing is lost when the think music ends
   // (it counts only if no answer was ever submitted, R5-19).
+  const draftTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => {
     if (!editing || !answer.trim() || answer.trim() === (mine?.draft ?? '')) return;
     const t = setTimeout(() => send({ t: 'finalAnswer', answer, submit: false }), 700);
+    draftTimer.current = t;
     return () => clearTimeout(t);
   }, [answer, editing, mine?.draft]);
+  // A draft still pending when Submit is tapped would arrive after it and un-submit the answer.
+  const submitAnswer = () => {
+    clearTimeout(draftTimer.current);
+    send({ t: 'finalAnswer', answer, submit: true });
+  };
   if (!entry) return <Idle text="Final Jeopardy! — you're watching this one. Good luck to the finalists!" />;
   const max = Math.max(0, myComp?.score ?? 0);
   const team = myComp?.kind === 'team';
@@ -334,7 +341,7 @@ function FinalForm({ me }: { me: Me }) {
           {editing ? (
             <>
               <textarea className={inputCls} rows={2} value={answer} onChange={(e) => setAnswer(e.target.value)} aria-label="Your answer" placeholder="Your answer" maxLength={200} data-testid="phone-final-answer" data-draft-saved={!!answer.trim() && answer.trim() === (mine?.draft ?? '') ? 'true' : 'false'} />
-              <Button size="lg" className="w-full" disabled={!answer.trim()} onClick={() => send({ t: 'finalAnswer', answer, submit: true })} data-testid="phone-final-answer-submit">
+              <Button size="lg" className="w-full" disabled={!answer.trim()} onClick={submitAnswer} data-testid="phone-final-answer-submit">
                 Submit answer
               </Button>
               {mine?.answer && <p className="text-center text-sm text-slate-500">Not submitted yet — your last answer “{mine.answer}” counts until you submit again.</p>}

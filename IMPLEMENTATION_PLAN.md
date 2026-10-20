@@ -151,3 +151,12 @@ Rollback point: tag v0.15.0. See USER_FEEDBACK.md "Round 12"; statuses in FEATUR
 - **D — Play as Guest:** R12-11 (D90). **Done.**
 - **E — Lobby Test Buzzer:** R12-12 (D91). **Done.**
 - **F — Wi-Fi details near the QR:** R12-13 (D92). **Done** (automatic detection untested on a Wi-Fi PC).
+
+## Milestone 27 — User feedback round 13 (started 2026-10-20, session 16)
+
+Rollback point: tag v0.16.0. See USER_FEEDBACK.md "Round 13"; statuses in FEATURE_MATRIX.md.
+- **A — Layout architecture and preview scaling:** R13-1, R13-2, R13-3 (D94, D96). One persistent GameFrame for both views; header row + picture + band + score cards; portrait keeps the TV's proportions.
+- **B — Visual redesign:** R13-4 … R13-6, R13-8 (D94). Score cards in the frame (no white bar), colour ring, larger texts, navy tokens, boxless icon buttons.
+- **C — Category introduction:** R13-7. Categories in the header.
+- **D — Lobby and buzzer screens:** R13-9 … R13-12 (D97). TV join section; two-column iPad lobby; compact controllers; Buzzers tab / page.
+- **E — Animation parity:** R13-13 (D95). The preview renders the TV's `Stage`; tiles tapped through `HostBoardHits`.

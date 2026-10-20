@@ -90,7 +90,8 @@ test('iPad host: preview without score strip, Previous | Next, full highlight ri
 
   // ---- R6-2.4: category text is the same share of its box on both screens ----
   const tvR = await catRatios(tv, 'board-category');
-  const ipadR = await catRatios(ipad, 'host-category');
+  await expect(preview.getByTestId('board-category')).toHaveCount(6);
+  const ipadR = await catRatios(preview, 'board-category'); // R13-13: the TV's own board in the preview
   await shot(tv, 'tv-board');
   await shot(ipad, 'ipad-board');
   for (let i = 0; i < tvR.length; i++) {

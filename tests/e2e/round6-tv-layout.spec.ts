@@ -89,7 +89,7 @@ test('TV lobby and menu pages: board header, one join + rules panel, compact cor
   const side = tv.getByTestId('tv-lobby-side');
   await expect(side.getByTestId('tv-lobby-rules')).toContainText('Time to buzz in');
   await expect(side).toContainText('Join the Game');
-  await expect(side).toContainText('/join'); // the address
+  await expect(tv.getByTestId('tv-join-url')).toContainText('/join'); // the address, under the QR code (R13-9)
 
   for (const s of SIZES) {
     await tv.setViewportSize(s);

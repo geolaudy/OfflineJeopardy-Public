@@ -10,12 +10,13 @@ export default function ControllersPage() {
   const settings = useFetch(() => hostApi<{ joyconRumble: boolean }>('GET', '/api/settings'), []);
   const rumble = settings.data?.joyconRumble ?? true;
   return (
-    <div className="mx-auto max-w-4xl space-y-4 p-6">
+    // R13-12: compact, wide enough for several controller and player cards per row.
+    <div className="mx-auto max-w-6xl space-y-3 p-4">
       <PageTitleBar
         title="Buzzers & controllers"
         subtitle="Joy-Cons, other game controllers and keyboard keys on the game computer can be buzzers. Players can always buzz from their phone too. Press a button on a controller to see it light up below."
       />
-      <label className="flex min-h-11 items-center gap-3 rounded-xl bg-white px-3 py-2 shadow-sm">
+      <label className="flex min-h-11 items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
         <input
           type="checkbox"
           className="h-6 w-6 accent-blue-700"

@@ -11,7 +11,7 @@ import type { AiStatus } from '../../../shared/ai';
 import { ActionButton, Avatar, Button, Card, ColorPicker, Field, Modal, QrImage, inputCls, toast, cx } from '../../components/ui';
 import { AvatarPicker, ProfileCreateForm } from '../../components/ProfileForm';
 import { PersonName } from '../../components/PersonName';
-import ControllersPanel, { AssignListener } from '../../components/ControllersPanel';
+import ControllersPanel, { AssignListener, ControllerChips } from '../../components/ControllersPanel';
 import BuzzCheckPanel from '../../components/BuzzCheckPanel';
 import { competitorAvatar, competitorName, profileName } from '../../lib/view';
 import { TEAM_AVATARS, avatarEmoji, PLAYER_COLORS } from '../../lib/avatars';
@@ -48,11 +48,16 @@ export default function Setup({ g }: { g: GameView }) {
     await run({ type: 'startGame' });
   };
   return (
-    <div className="mx-auto max-w-6xl p-3 sm:p-4" data-testid="lobby-manage">
-      <div className="grid gap-4 lg:grid-cols-[minmax(19rem,24rem)_1fr]">
-        <LobbySettings g={g} />
-        <div className="min-w-0 space-y-4">
-          <div className="flex flex-wrap items-center gap-2">
+    // R13-10: on a wide screen (iPad landscape) the lobby fits the screen — the settings column on the
+    // left, players / teams (or the buzzers) on the right; each column scrolls on its own only when
+    // something unusual (very many players, an opened section) needs more room than the screen has.
+    <div className="mx-auto max-w-7xl p-3 lg:h-full" data-testid="lobby-manage">
+      <div className="grid gap-3 lg:h-full lg:grid-cols-[minmax(18rem,21rem)_minmax(0,1fr)]">
+        <div className="scroll-area lg:min-h-0 lg:overflow-y-auto">
+          <LobbySettings g={g} />
+        </div>
+        <div className="flex min-w-0 flex-col gap-3 lg:min-h-0">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
             <div className="flex rounded-xl bg-white p-1 shadow-sm" role="tablist">
               {(['players', 'buzzers'] as const).map((t) => (
                 <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={cx('min-h-11 rounded-lg px-5 font-semibold', tab === t ? 'bg-blue-700 text-white' : 'text-slate-700')}>
@@ -70,12 +75,20 @@ export default function Setup({ g }: { g: GameView }) {
               {over.map((t) => `${t.name} has ${t.memberIds.length - max} too many`).join(' · ')} — move players before starting (up to {max} per team).
             </p>
           )}
-          {tab === 'players' ? g.mode === 'team' ? <TeamSetup g={g} /> : <SoloSetup g={g} /> : (
-            <>
-              <BuzzCheckPanel />
-              <ControllersPanel g={g} />
-            </>
-          )}
+          <div className="scroll-area space-y-2.5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto" data-testid="lobby-tab-body">
+            {tab === 'players' ? (
+              <>
+                {g.mode === 'team' ? <TeamSetup g={g} /> : <SoloSetup g={g} />}
+                {/* R13-10 / R13-11: the connected controllers at a glance; details on the Buzzers tab. */}
+                <ControllerChips g={g} onOpen={() => setTab('buzzers')} />
+              </>
+            ) : (
+              <>
+                <BuzzCheckPanel />
+                <ControllersPanel g={g} />
+              </>
+            )}
+          </div>
         </div>
       </div>
       <AssignListener g={g} />
@@ -151,14 +164,14 @@ function LobbySettings({ g }: { g: GameView }) {
   const summary = lobbyRules(g.rules, { mode: g.mode, teams: teams.length });
 
   return (
-    <div className="space-y-4" data-testid="lobby-controls">
-      <Card className="space-y-3">
-        <div className="flex items-start gap-3">
+    <div className="space-y-3" data-testid="lobby-controls">
+      <Card className="space-y-2 p-3">
+        <div className="flex items-center gap-2">
           <div className="min-w-0 flex-1">
             <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">Board</p>
-            <p className="truncate text-lg font-bold" data-testid="lobby-board">{board?.title ?? (g.boardId ? '…' : '(board no longer in the library)')}</p>
+            <p className="truncate text-base leading-tight font-bold" data-testid="lobby-board">{board?.title ?? (g.boardId ? '…' : '(board no longer in the library)')}</p>
             {board?.rounds && (
-              <p className="text-sm text-slate-500">
+              <p className="truncate text-xs text-slate-500">
                 {board.rounds.filter((r) => r.kind === 'standard').length} rounds · {board.clueCount} clues{board.rounds.some((r) => r.kind === 'final') ? ' · Final Jeopardy!' : ''}
               </p>
             )}
@@ -167,7 +180,7 @@ function LobbySettings({ g }: { g: GameView }) {
             <LayoutGrid size={18} aria-hidden /> Change
           </Button>
         </div>
-        <Field label="Play as" group>
+        <div role="group" aria-label="Play as">
           <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1">
             {(['solo', 'team'] as const).map((m) => (
               <button
@@ -175,7 +188,7 @@ function LobbySettings({ g }: { g: GameView }) {
                 onClick={() => void changeMode(m)}
                 disabled={m === 'team' && g.practice}
                 aria-pressed={g.mode === m}
-                className={cx('flex min-h-11 items-center justify-center gap-1.5 rounded-lg font-semibold disabled:opacity-40', g.mode === m ? 'bg-white text-blue-800 shadow-sm' : 'text-slate-600')}
+                className={cx('flex min-h-10 items-center justify-center gap-1.5 rounded-lg font-semibold disabled:opacity-40', g.mode === m ? 'bg-white text-blue-800 shadow-sm' : 'text-slate-600')}
                 data-testid={`mode-${m}`}
               >
                 {m === 'solo' ? <User size={18} aria-hidden /> : <Users size={18} aria-hidden />}
@@ -183,7 +196,7 @@ function LobbySettings({ g }: { g: GameView }) {
               </button>
             ))}
           </div>
-        </Field>
+        </div>
         {/* R5-4.2: the limits that belong to the chosen mode, right under Play As. */}
         {g.mode === 'solo' ? (
           <Stepper label="Maximum players" value={g.rules.maxPlayers} min={0} max={200} zeroLabel="No limit" onChange={(n) => void setRules({ maxPlayers: n })} testId="max-players" />
@@ -195,42 +208,47 @@ function LobbySettings({ g }: { g: GameView }) {
         )}
       </Card>
 
-      <Card className="space-y-3" data-testid="lobby-rules">
+      <Card className="space-y-2 p-3" data-testid="lobby-rules">
         <div className="flex items-center gap-2">
           <h3 className="min-w-0 flex-1 text-lg font-bold">Rules</h3>
           <ShowSettingsOnTv />
         </div>
-        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-          {summary.map((l) => (
-            <div key={l.label} className="contents">
-              <dt className="text-slate-500">{l.label}</dt>
-              <dd className="font-semibold">{l.value}</dd>
-            </div>
+        <div className="flex gap-2">
+        <select
+          className={cx(inputCls, 'min-w-0 flex-1')}
+          value={RULE_PRESETS[g.rules.preset] ? g.rules.preset : ''}
+          onChange={(e) => e.target.value && void run({ type: 'updateRules', rules: { ...rulesFromPreset(e.target.value), maxPlayers: g.rules.maxPlayers, maxPerTeam: g.rules.maxPerTeam, requireRoomCode: g.rules.requireRoomCode } })}
+          aria-label="Rules preset"
+          title={RULE_PRESETS[g.rules.preset]?.description}
+        >
+          {!RULE_PRESETS[g.rules.preset] && <option value="">Custom</option>}
+          {Object.entries(RULE_PRESETS).map(([k, p]) => (
+            <option key={k} value={k}>
+              {p.label}
+            </option>
           ))}
-        </dl>
-        <Button variant="secondary" className="w-full" onClick={() => setRulesOpen(true)} data-testid="customize-rules">
-          <SlidersHorizontal size={18} aria-hidden /> Customize Rules, Timers & Buzzers…
+        </select>
+        <Button variant="secondary" className="shrink-0 px-3" onClick={() => setRulesOpen(true)} aria-label="Customize Rules, Timers & Buzzers…" title="Customize Rules, Timers & Buzzers" data-testid="customize-rules">
+          <SlidersHorizontal size={18} aria-hidden /> Customize
         </Button>
-        <Field label="Rules" hint={RULE_PRESETS[g.rules.preset]?.description}>
-          <select
-            className={inputCls}
-            value={RULE_PRESETS[g.rules.preset] ? g.rules.preset : ''}
-            onChange={(e) => e.target.value && void run({ type: 'updateRules', rules: { ...rulesFromPreset(e.target.value), maxPlayers: g.rules.maxPlayers, maxPerTeam: g.rules.maxPerTeam, requireRoomCode: g.rules.requireRoomCode } })}
-            aria-label="Rules preset"
-          >
-            {!RULE_PRESETS[g.rules.preset] && <option value="">Custom</option>}
-            {Object.entries(RULE_PRESETS).map(([k, p]) => (
-              <option key={k} value={k}>
-                {p.label}
-              </option>
+        </div>
+        {/* R13-10: the summary folds away, so the lobby fits the iPad screen. */}
+        <details className="text-sm" data-testid="rules-summary">
+          <summary className="min-h-9 cursor-pointer content-center font-semibold text-blue-700">See all rules</summary>
+          <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+            {summary.map((l) => (
+              <div key={l.label} className="contents">
+                <dt className="text-slate-500">{l.label}</dt>
+                <dd className="font-semibold">{l.value}</dd>
+              </div>
             ))}
-          </select>
-        </Field>
+          </dl>
+        </details>
       </Card>
 
       <JoinHint g={g} />
 
-      <details className="rounded-2xl bg-white p-4 shadow-sm" data-testid="lobby-more">
+      <details className="rounded-2xl border border-slate-200 bg-white px-3 py-1 shadow-sm" data-testid="lobby-more">
         <summary className="min-h-11 cursor-pointer content-center font-bold">More options</summary>
         <div className="mt-3 space-y-3">
           <Field label="Game title">
@@ -331,16 +349,18 @@ function BoardChooser({ g, boards, onClose }: { g: GameView; boards: BoardOption
 function JoinHint({ g }: { g: GameView }) {
   const r = g.rules;
   return (
-    <Card className="flex flex-wrap items-center gap-4">
-      <QrImage target="join" className="h-24 w-24 shrink-0" />
-      <div className="min-w-0 flex-1 space-y-2">
-        <p className="text-sm text-slate-600">
-          Players can join by scanning the QR code on the TV with their phone, signing in to their profile and tapping <b>Join game</b>. You can also add them here.
+    <Card className="space-y-2 p-3" data-testid="lobby-join">
+      <div className="flex items-center gap-3">
+        <QrImage target="join" className="h-20 w-20 shrink-0" />
+        <p className="min-w-0 flex-1 text-sm text-slate-600">
+          Players scan the TV's code and tap <b>Join game</b> — or add them here.
         </p>
+      </div>
+      <div className="space-y-2">
         <label className="flex min-h-11 cursor-pointer items-center gap-3">
           <input type="checkbox" className="h-6 w-6 accent-blue-700" checked={r.requireRoomCode} onChange={(e) => run({ type: 'updateRules', rules: { ...r, requireRoomCode: e.target.checked } })} data-testid="require-room-code" />
           <span className="text-sm">
-            <b>Require the room code</b> to join (only people who can see the TV can join)
+            <b>Require the room code</b> (only people at the TV can join)
           </span>
         </label>
         {r.requireRoomCode && g.roomCode && (
@@ -449,23 +469,28 @@ function SoloSetup({ g }: { g: GameView }) {
           <FlaskConical size={16} className="mr-1 inline align-[-3px]" aria-hidden /><b>Practice game</b> — it is saved in history but does not count in statistics or the leaderboard. The buzzers open automatically after each question.
         </p>
       )}
-      <Card>
-        <div className="mb-3 flex flex-wrap items-center gap-2">
+      <Card className="p-3">
+        <div className="mb-2 flex flex-wrap items-center gap-2">
           <h3 className="flex-1 text-lg font-bold">Players ({g.competitors.length})</h3>
-          <Button variant="secondary" onClick={() => setAddingBot(true)} data-testid="add-bot">
-            <Bot size={18} aria-hidden /> Computer opponent
+          <Button variant="secondary" onClick={() => setAddingBot(true)} aria-label="Computer opponent" title="Add a computer opponent" data-testid="add-bot">
+            <Bot size={18} aria-hidden /> Computer
           </Button>
           <Button onClick={() => setAdding(true)}>+ Add player</Button>
         </div>
-        <ul className="grid gap-2 sm:grid-cols-2">
+        {/* R13-10: compact cards, as many per row as fit (15 players fit an iPad screen). */}
+        <ul className="grid grid-cols-[repeat(auto-fill,minmax(10.5rem,1fr))] gap-1.5">
           {g.competitors.map((c) => {
             const name = competitorName(c, g);
             return (
-              <li key={c.id} className="relative flex items-center gap-3 rounded-xl bg-slate-50 p-2" data-testid={c.bot ? 'setup-bot' : 'setup-player'}>
+              <li key={c.id} className="relative flex min-h-12 items-center gap-2 rounded-xl bg-slate-50 py-1 pr-0.5 pl-2" data-testid={c.bot ? 'setup-bot' : 'setup-player'}>
                 <LobbyGlow id={c.profileId} />
-                <Avatar profile={competitorAvatar(c, g)} size={40} />
+                {/* R13-10: a phone that is connected shows as a green dot on the picture. */}
+                <span className="relative shrink-0">
+                  <Avatar profile={competitorAvatar(c, g)} size={34} />
+                  {!c.bot && g.online?.includes(c.profileId!) && <span className="absolute -right-0.5 -bottom-0.5 h-3 w-3 rounded-full bg-green-600 ring-2 ring-slate-50" title="Phone connected" data-testid="phone-online" />}
+                </span>
                 <span className="min-w-0 flex-1">
-                  {c.bot || !c.profileId ? <span className="block truncate font-semibold">{name}</span> : <PersonName p={g.profiles[c.profileId]} className="font-semibold" realClassName="text-sm" />}
+                  {c.bot || !c.profileId ? <span className="block truncate font-semibold">{name}</span> : <PersonName p={g.profiles[c.profileId]} className="leading-tight font-semibold [&>span]:truncate" realClassName="text-xs" />}
                   {c.bot && (
                     <span className="mt-0.5 flex flex-wrap items-center gap-2">
                       <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700" data-testid="bot-level-badge">
@@ -491,12 +516,10 @@ function SoloSetup({ g }: { g: GameView }) {
                       </option>
                     ))}
                   </select>
-                ) : (
-                  <span className={cx('text-xs', g.online?.includes(c.profileId!) ? 'text-green-700' : 'text-slate-400')}>{g.online?.includes(c.profileId!) ? '● phone' : '○'}</span>
-                )}
-                <Button size="sm" variant="ghost" onClick={() => run({ type: 'removeCompetitor', competitorId: c.id })} aria-label={`Remove ${name}`}>
+                ) : null}
+                <button type="button" className="flex h-10 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-200" onClick={() => run({ type: 'removeCompetitor', competitorId: c.id })} aria-label={`Remove ${name}`}>
                   <X size={18} aria-hidden />
-                </Button>
+                </button>
               </li>
             );
           })}
@@ -693,7 +716,7 @@ function TeamSetup({ g }: { g: GameView }) {
           <h3 className="flex-1 font-bold">Unassigned Players ({unassigned.length})</h3>
           {unassigned.length > 0 && <span className="text-xs text-slate-500">Players can also pick a team on their phones</span>}
         </div>
-        {unassigned.length ? <ul className="grid gap-2 sm:grid-cols-2">{unassigned.map((u) => chip(u.profileId))}</ul> : <p className="text-sm text-slate-500">Everyone is on a team.</p>}
+        {unassigned.length ? <ul className="grid grid-cols-[repeat(auto-fill,minmax(12.5rem,1fr))] gap-1.5">{unassigned.map((u) => chip(u.profileId))}</ul> : <p className="text-sm text-slate-500">Everyone is on a team.</p>}
       </section>
       <BalanceTeams g={g} people={unassigned.map((u) => u.profileId)} />
       <div className="grid gap-3 md:grid-cols-2">

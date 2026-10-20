@@ -20,7 +20,7 @@ import { MediaControls } from './MediaControls';
 import { AnswerBanner } from './AnswerBanner';
 import { FitBox, TvPreview, useBoardLook } from './TvMirror';
 import { presentationFor, tileMoney } from '../board/common';
-import { GameFrame } from './GameFrame';
+import { FrameParts } from './GameFrame';
 import { RichText } from '../../components/RichText';
 import { plainText } from '../../../shared/richText';
 
@@ -70,15 +70,11 @@ export function ClueStage({ g, run }: { g: GameView; run: Run }) {
 
   return (
     <>
-      <GameFrame
-        timer={g.timer}
-        testId="clue-panel"
-        boxTestId="clue-preview-box"
-        // R11-3.3: the correct-response band is the frame's top strip (above the blue area).
-        top={<HostAnswer g={g} prefix={presentationFor(look.theme, look.custom, true, 0).prefix} onPicture={() => setLightbox(true)} />}
-        preview={(size) => (
-          <div className="absolute inset-0" data-testid="host-clue">
-            <TvPreview game={g} scoreboard={false} band title="TV preview" size={size} testId="clue-preview" />
+      <FrameParts
+        // R11-3.3: the correct-response band is the frame's header (above the blue area).
+        head={<HostAnswer g={g} prefix={presentationFor(look.theme, look.custom, true, 0).prefix} onPicture={() => setLightbox(true)} />}
+        stage={() => (
+          <div className="pointer-events-none absolute inset-0" data-testid="host-clue">
             {/* The preview is hidden from screen readers; the clue text is here for them. */}
             {clue.question && (
               <p className="sr-only" data-testid="host-clue-text">
@@ -91,7 +87,7 @@ export function ClueStage({ g, run }: { g: GameView; run: Run }) {
           side && (
             <div
               className={cx(
-                'scroll-area absolute right-2 bottom-[calc(var(--band)+0.5rem)] z-20 flex max-h-[calc(100%-var(--band)-var(--strip)-1rem)] flex-col gap-2 overflow-y-auto rounded-xl bg-white/95 p-1 shadow-lg ring-1 ring-black/10',
+                'scroll-area absolute right-2 bottom-[calc(var(--below)+0.5rem)] z-20 flex max-h-[calc(100%-var(--below)-1rem)] flex-col gap-2 overflow-y-auto rounded-xl bg-white/95 p-1 shadow-lg ring-1 ring-black/10',
                 wagerStage ? 'w-[min(26rem,calc(100%-1rem))]' : 'w-[min(24rem,calc(100%-1rem))]',
               )}
               data-testid="clue-overlay"
@@ -195,19 +191,19 @@ function ClueFooter({ g, run, responder, who, setWho }: { g: GameView; run: Run;
   const judge = (result: 'correct' | 'incorrect') => run({ type: 'judge', result, ...(responder?.kind === 'team' ? { profileId: who } : {}) });
 
   let status: ReactNode;
-  if (wagerStage) status = <p className="font-semibold text-slate-600">Daily Double! — lock the wager to show the clue on the TV.</p>;
+  if (wagerStage) status = <p className="host-band-status text-slate-600">Daily Double! — lock the wager to show the clue on the TV.</p>;
   else if (judging) status = <Answering g={g} c={responder!} who={who} setWho={setWho} />;
-  else if (clue.answerRevealed) status = <p className="font-semibold text-slate-600" data-testid="answer-shown">{clue.resolved ? 'Answer judged — it is on the TV.' : 'The answer is on the TV.'}</p>;
+  else if (clue.answerRevealed) status = <p className="host-band-status text-slate-600" data-testid="answer-shown">{clue.resolved ? 'Answer judged — it is on the TV.' : 'The answer is on the TV.'}</p>;
   else if (over)
     status = (
-      <p className="font-semibold text-slate-700" data-testid="answering-ended">
+      <p className="host-band-status text-slate-700" data-testid="answering-ended">
         {clue.resolved ? 'Answer judged.' : g.timer?.expired ? "Time's up — nobody buzzed in." : 'Nobody left to answer.'}
       </p>
     );
   else if (open) status = <BuzzersOpen g={g} />;
   else
     status = (
-      <p className="text-slate-600">
+      <p className="host-band-status flex items-center gap-3 text-slate-600" data-testid="clue-instruction">
         {clue.unlockMode !== 'host' && g.buzzer.openedAt == null ? 'Buzzers open by themselves for this clue.' : 'Read the clue, then unlock the buzzers.'}
         <TimerChip g={g} />
       </p>
@@ -250,8 +246,8 @@ function ClueFooter({ g, run, responder, who, setWho }: { g: GameView; run: Run;
   return (
     // Narrow footers (portrait, iPad mini) put the status on its own row above the actions.
     <div className="@container flex items-center" data-testid="clue-footer">
-      <div className="flex w-full flex-wrap items-center gap-2 @3xl:flex-nowrap">
-      <div className="min-w-0 basis-full px-1 @3xl:flex-1 @3xl:basis-auto">{status}</div>
+      <div className="flex w-full flex-wrap items-center gap-2 @2xl:flex-nowrap">
+      <div className="min-w-0 basis-full px-1 @2xl:flex-1 @2xl:basis-auto">{status}</div>
       <div className="ml-auto flex shrink-0 items-center gap-2">
         <More g={g} run={run} showReveal={!revealInFooter && !clue.answerRevealed && !wagerStage} pendingJudgement={pendingJudgement} practiceBuzz={practiceBuzz} />
         {primary}
@@ -340,7 +336,7 @@ function BuzzersOpen({ g }: { g: GameView }) {
         <span className="absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-60 motion-safe:animate-ping" />
         <span className="relative inline-flex h-3 w-3 rounded-full bg-green-600" />
       </span>
-      <span className="shrink-0 text-lg font-bold text-green-900">Buzzers open</span>
+      <span className="host-band-status shrink-0 font-bold text-green-900">Buzzers open</span>
       {/* R10-6.5: the seconds only — no timer bar on the iPad (the TV keeps its own). */}
       {t && ms != null && (
         <span className="host-band-title shrink-0 text-lg tabular-nums" role="timer" data-testid="host-timer">

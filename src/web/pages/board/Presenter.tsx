@@ -9,7 +9,7 @@
 // avatars share layout ids between the full roster and the compact strip; all other text
 // cross-fades.
 // Reduced motion: no movement, the card dips its opacity and everything else cross-fades.
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, LayoutGroup, motion, useAnimate } from 'motion/react';
 import type { GameView } from '../../../shared/views';
 import type { PresentationState, PublicLobby } from '../../../shared/presentation';
@@ -94,19 +94,44 @@ export function Presenter({
             {compact ? (
               <CompactLobby key="compact" m={model} roomCode={roomCode} />
             ) : (
-              <LobbyFull key="full" m={model} morphIn={switched.current} url={joinUrl} roomCode={roomCode} />
+              <LobbyFull key="full" m={model} morphIn={switched.current} roomCode={roomCode} />
             )}
           </AnimatePresence>
-          {!preparing && <JoinCard compact={compact} />}
+          {!preparing && <JoinCard compact={compact} url={joinUrl} />}
         </LayoutGroup>
       </div>
     </div>
   );
 }
 
+/** R13-9: "or open <address>" under the code, its type made smaller until it is no wider than the
+ *  code (measured, so any font and address length fit). */
+function JoinUrl({ url }: { url: string }) {
+  const ref = useRef<HTMLParagraphElement>(null);
+  useLayoutEffect(() => {
+    const p = ref.current;
+    if (!p) return;
+    const fit = () => {
+      p.style.fontSize = '';
+      const text = p.firstElementChild as HTMLElement;
+      if (text.offsetWidth > p.clientWidth) p.style.fontSize = `${(parseFloat(getComputedStyle(p).fontSize) * p.clientWidth * 0.98) / text.offsetWidth}px`;
+    };
+    fit();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(fit);
+    ro.observe(p);
+    return () => ro.disconnect();
+  }, [url]);
+  return (
+    <p ref={ref} className="tvp-qr-url" data-testid="tv-join-url">
+      <span>or open {url}</span>
+    </p>
+  );
+}
+
 /** Join QR: the code on a white tile (its quiet zone) and "Scan to join". Never remounted between
  *  layouts; it sits on the right-hand panel's background, not in a card of its own. */
-const JoinCard = memo(function JoinCard({ compact }: { compact: boolean }) {
+const JoinCard = memo(function JoinCard({ compact, url }: { compact: boolean; url: string | null }) {
   const { reduced } = useBoard();
   const [scope, animate] = useAnimate<HTMLDivElement>();
   const last = useRef(compact);
@@ -126,6 +151,8 @@ const JoinCard = memo(function JoinCard({ compact }: { compact: boolean }) {
       <div className="tvp-qr-in">
         <QrImage target="join" className="tvp-qr-img" />
         <p className="tvp-qr-cta">Scan to join</p>
+        {/* R13-9: or type the address — centred under the code, as wide as the code at most. */}
+        {url && <JoinUrl url={url} />}
       </div>
     </motion.div>
   );

@@ -81,7 +81,8 @@ export function PageTitleBar({ title, subtitle, actions }: { title: ReactNode; s
 
 export function Card({ children, className, ...rest }: { children: ReactNode; className?: string; 'data-testid'?: string }) {
   return (
-    <div className={cx('rounded-2xl border border-slate-200 bg-white p-4 shadow-sm', className)} {...rest}>
+    // An explicit padding in className replaces the default one (cx does not merge Tailwind classes).
+    <div className={cx('rounded-2xl border border-slate-200 bg-white shadow-sm', !/(^|\s)p[xy]?-/.test(className ?? '') && 'p-4', className)} {...rest}>
       {children}
     </div>
   );

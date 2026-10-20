@@ -75,7 +75,8 @@ test('category introduction: live preview, Previous, direct jump, Auto and Stop 
   await cats.nth(3).click();
   await expect(intro).toHaveAttribute('data-step', '3');
   await expect(intro).toHaveAttribute('data-dir', 'forward');
-  await expect(ipad.getByTestId('intro-now')).toContainText('Category 4 of 6');
+  // R13-7: the header no longer repeats the position — the TV preview shows it.
+  await expect(preview.getByText(/Category 4 of 6/i)).toBeVisible();
   await expect(tv.getByText(fourth, { exact: true })).toBeVisible();
   await expect(cats.nth(3)).toHaveAttribute('aria-current', 'step');
 
@@ -96,11 +97,11 @@ test('category introduction: live preview, Previous, direct jump, Auto and Stop 
   // Auto: the server advances every 3.5 s; Stop Auto keeps the current category.
   await ipad.getByTestId('intro-auto').click();
   await expect(ipad.getByTestId('intro-stop-auto')).toBeVisible();
-  await expect(ipad.getByTestId('intro-now')).toContainText('automatic');
+  await expect(ipad.getByTestId('intro-now')).toContainText('· auto');
   await expect(intro).toHaveAttribute('data-step', '1', { timeout: 6000 });
   await ipad.getByTestId('intro-stop-auto').click();
   await expect(ipad.getByTestId('intro-auto')).toBeVisible();
-  await expect(ipad.getByTestId('intro-now')).not.toContainText('automatic');
+  await expect(ipad.getByTestId('intro-now')).not.toContainText('· auto');
   await tv.waitForTimeout(4500); // longer than one automatic step
   await expect(intro).toHaveAttribute('data-step', '1');
   // A Previous tap during auto also takes over: nothing advances afterwards.
@@ -152,7 +153,8 @@ test('board replica and the clue footer flow on the iPad (R5-13, R5-14)', async 
   await expect(ipad.getByTestId('picks-next')).toHaveCount(0);
   await expect(ipad.getByText('Tap a clue to open it on the TV')).toHaveCount(0);
   await expect(ipad.getByTestId('host-tile')).toHaveCount(30);
-  await expect(ipad.getByTestId('host-category').first()).toHaveText('History');
+  // R13-13: the board is the TV's own, in the preview.
+  await expect(ipad.frameLocator('iframe[title="TV preview"]').getByTestId('board-category').first()).toHaveText('History');
   const box = (await ipad.getByTestId('host-board-box').boundingBox())!;
   const stage = (await ipad.getByTestId('game-stage').boundingBox())!;
   expect(Math.abs(stage.width / stage.height - 16 / 9 / 0.86)).toBeLessThan(0.02); // the TV's proportions (R11-3), not stretched

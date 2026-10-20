@@ -66,7 +66,7 @@ describe('board line (R6-10)', () => {
 
 describe('active lobby on the TV (R6-10, R6-11)', () => {
   it('header: eyebrow "Board", the board name once, the metadata row; no board card', () => {
-    render(<LobbyFull m={model()} morphIn={false} url="http://10.0.0.2:3210/join" roomCode={null} />, { wrapper: Wrap });
+    render(<LobbyFull m={model()} morphIn={false} roomCode={null} />, { wrapper: Wrap });
     const head = screen.getByTestId('tv-lobby-board');
     expect(within(head).getByText('Board')).toBeTruthy();
     expect(within(head).getByRole('heading', { level: 1 }).textContent).toBe('Starter Trivia Night');
@@ -77,12 +77,12 @@ describe('active lobby on the TV (R6-10, R6-11)', () => {
     expect(screen.getByTestId('tv-lobby-count').textContent).toBe('2 players');
   });
 
-  it('one right-hand panel: Join the Game (steps, address) and the Game Rules', () => {
-    render(<LobbyFull m={model()} morphIn={false} url="http://10.0.0.2:3210/join" roomCode="QXZW" />, { wrapper: Wrap });
+  it('one right-hand panel: Join the Game (steps, room code) and the Game Rules', () => {
+    render(<LobbyFull m={model()} morphIn={false} roomCode="QXZW" />, { wrapper: Wrap });
     const side = screen.getByTestId('tv-lobby-side');
     expect(side.textContent).toContain('Join the Game');
     expect(side.textContent).toContain('Scan the code.');
-    expect(side.textContent).toContain('http://10.0.0.2:3210/join');
+    expect(side.textContent).not.toContain('Or open'); // R13-9: the address is under the QR code (Presenter)
     expect(within(side).getByTestId('tv-room-code').textContent).toContain('QXZW');
     const rules = within(side).getByTestId('tv-lobby-rules');
     expect(rules.textContent).toContain('Game Rules');
@@ -91,7 +91,7 @@ describe('active lobby on the TV (R6-10, R6-11)', () => {
   });
 
   it('a different game title stays visible as a chip (the board name is not repeated)', () => {
-    render(<LobbyFull m={model({ title: 'Office Quiz' })} morphIn={false} url={null} roomCode={null} />, { wrapper: Wrap });
+    render(<LobbyFull m={model({ title: 'Office Quiz' })} morphIn={false} roomCode={null} />, { wrapper: Wrap });
     expect(screen.getByTestId('tv-lobby-board').textContent).toContain('Office Quiz');
     expect(screen.getAllByText('Starter Trivia Night')).toHaveLength(1);
   });

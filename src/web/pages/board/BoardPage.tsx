@@ -175,8 +175,10 @@ export default function BoardPage() {
  * Final. The grid stays mounted while a clue is open so the clue can zoom out of / back into its
  * tile. After the server closes a clue we keep the last clue snapshot only for the length of the
  * closing animation; any newer state (another clue, a new round, the Final) replaces it at once.
+ * R13-13: the host's preview renders this same stage; `quietStart` (a preview that opens mid-game)
+ * skips the fill-in of a board that is already showing, as the TV would not replay it either.
  */
-export function Stage({ g }: { g: GameView }) {
+export function Stage({ g, quietStart }: { g: GameView; quietStart?: boolean }) {
   const live = g.phase === 'clue' && g.clue ? g : null;
   const [prevLive, setPrevLive] = useState<GameView | null>(live);
   const [closing, setClosing] = useState<GameView | null>(null);
@@ -194,10 +196,15 @@ export function Stage({ g }: { g: GameView }) {
   const closingShown = closing && !live && g.phase === 'board' && !g.intro && g.roundIndex === closing.roundIndex && closing.clue ? closing : null;
   const shown = live ?? closingShown;
   const showGrid = (g.phase === 'board' && !g.intro) || g.phase === 'clue';
+  const gridKey = `${g.id}:${g.roundIndex}`;
+  // The grid mounted on the first render keeps quiet; any later mount (new round, after the
+  // introduction) fills in. Stable for a mount, so the fill never starts mid-game.
+  const quiet = useRef(quietStart && showGrid ? gridKey : null);
+  if (quiet.current && (!showGrid || quiet.current !== gridKey)) quiet.current = null;
 
   return (
     <>
-      {showGrid && <Grid key={`${g.id}:${g.roundIndex}`} g={g} activeId={shown?.clue?.clueId ?? null} activeOpen={!!live} fillIn />}
+      {showGrid && <Grid key={gridKey} g={g} activeId={shown?.clue?.clueId ?? null} activeOpen={!!live} fillIn={quiet.current !== gridKey} />}
       <AnimatePresence>{g.phase === 'board' && g.intro && <Intro key="intro" g={g} />}</AnimatePresence>
       {shown && (
         <CluePanel

@@ -2,18 +2,18 @@
 // - TvPreview: the real TV components (board/Preview.tsx?live=1) in a 1280×720 iframe scaled to
 //   fit, fed the game over postMessage. Inside the iframe vh/vw are the iframe's own, so the
 //   proportions are exactly the TV's. Nothing is sent to the server or the TV; no sound plays.
-// - HostBoardGrid: the TV board grid (same classes and theme) with tappable tiles.
+// - HostBoardHits: tap targets over the preview's board tiles (R13-13).
 // - FitBox: the largest box of a given aspect ratio that fits the available space.
 // Both screens have square corners, like the TV they stand for (R7-23).
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Dices } from 'lucide-react';
 import type { GameView } from '../../../shared/views';
-import type { LivePreviewMessage } from '../board/Preview';
+import type { LivePreviewMessage, PreviewTilesMessage } from '../board/Preview';
 import type { PublicSettings } from '../board/BoardPage';
 import { api } from '../../lib/api';
 import { useLive } from '../../lib/socket';
 import { cx } from '../../components/ui';
-import { CategoryText, money, presentationFor, themeRoot, tileMoney } from '../board/common';
+
 import '../board/fonts.css';
 import '../board/board.css';
 import './host-tv.css';
@@ -97,14 +97,21 @@ const H = 720;
  * The TV presentation of `game`, scaled into its parent box (which must have a 16:9 size).
  * `scoreboard` adds the TV's score strip, as on the real screen.
  */
-export function TvPreview({ game, scoreboard, band, title, size, testId }: { game: GameView; scoreboard: boolean; band?: boolean; title: string; size: { w: number; h: number }; testId?: string }) {
+export type PreviewTile = PreviewTilesMessage['tiles'][number];
+
+export function TvPreview({ game, scoreboard, band, frameless, title, size, testId, onTiles }: { game: GameView; scoreboard: boolean; band?: boolean; frameless?: boolean; title: string; size: { w: number; h: number }; testId?: string; onTiles?: (tiles: PreviewTile[]) => void }) {
   const ref = useRef<HTMLIFrameElement>(null);
   const [ready, setReady] = useState(false);
   const look = useBoardLook();
   const offset = useLive((s) => s.offset);
+  const tilesCb = useRef(onTiles);
+  tilesCb.current = onTiles;
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
-      if (e.origin === location.origin && e.source === ref.current?.contentWindow && (e.data as { type?: string })?.type === 'oj-preview-ready') setReady(true);
+      if (e.origin !== location.origin || e.source !== ref.current?.contentWindow) return;
+      const type = (e.data as { type?: string })?.type;
+      if (type === 'oj-preview-ready') setReady(true);
+      if (type === 'oj-preview-tiles') tilesCb.current?.((e.data as PreviewTilesMessage).tiles);
     };
     window.addEventListener('message', onMsg);
     return () => window.removeEventListener('message', onMsg);
@@ -117,7 +124,8 @@ export function TvPreview({ game, scoreboard, band, title, size, testId }: { gam
   }, [ready, look, offset, mirror, scoreboard, band]);
   const scale = size.w / W;
   return (
-    <div className="absolute inset-0 overflow-hidden bg-black shadow-sm ring-1 ring-black/10" data-testid={testId} data-ready={ready ? 'true' : 'false'}>
+    // R13-1: no frame of its own in the host's preview (the blue around it is the TV's own background).
+    <div className={cx('absolute inset-0 overflow-hidden', !frameless && 'bg-black shadow-sm ring-1 ring-black/10')} data-testid={testId} data-ready={ready ? 'true' : 'false'}>
       <iframe
         ref={ref}
         src="/board/preview?live=1"
@@ -132,48 +140,40 @@ export function TvPreview({ game, scoreboard, band, title, size, testId }: { gam
   );
 }
 
-/** The TV's board grid with tappable tiles (host names: "History for 200"). */
-export function HostBoardGrid({ g, onTile }: { g: GameView; onTile: (clueId: string, used: boolean) => void }) {
-  const look = useBoardLook();
+/**
+ * R13-13: the board's tiles made tappable over the live preview, which shows the TV's own board (its
+ * fill-in and its zoom into the clue). The preview reports where its tiles are; each gets a clear
+ * button of exactly that size (host names: "History for 200") and the host-only Daily Double! mark.
+ */
+export function HostBoardHits({ g, tiles, scale, onTile }: { g: GameView; tiles: PreviewTile[]; scale: number; onTile: (clueId: string, used: boolean) => void }) {
   const round = g.rounds[g.roundIndex];
-  const root = themeRoot(look.theme, look.custom);
-  const { prefix, scale } = presentationFor(look.theme, look.custom, true, 0);
   if (!round) return null;
-  const cols = round.categories.length;
-  const rows = Math.max(0, ...round.categories.map((c) => c.clues.length));
+  const clues = new Map(round.categories.flatMap((c) => c.clues.map((q) => [q.id, { c, q }] as const)));
   return (
-    <div className="board-theme host-tv absolute inset-0 overflow-hidden shadow-sm" data-theme={root.dataTheme} style={root.style} data-testid="host-board">
-      <div className="bt-grid" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gridTemplateRows: `var(--bt-cat-row, 1.3fr) repeat(${rows}, minmax(0, 1fr))` }}>
-        {round.categories.map((c) => (
-          <div key={c.id} className="bt-cell bt-cat" data-testid="host-category">
-            <CategoryText name={c.name} subheading={c.subheading} scale={scale.category} min={1.2} />
-          </div>
-        ))}
-        {Array.from({ length: rows }).map((_, r) =>
-          round.categories.map((c) => {
-            const q = c.clues[r];
-            if (!q) return <div key={`${c.id}-${r}`} className="bt-cell bt-used" aria-hidden />;
-            return (
-              <button
-                key={q.id}
-                type="button"
-                disabled={g.phase !== 'board'}
-                onClick={() => onTile(q.id, q.used)}
-                className={cx('bt-cell host-tile', q.used ? 'bt-used' : 'bt-tile')}
-                aria-label={`${c.name} for ${q.value}${q.used ? ' (played)' : ''}${q.dailyWager ? ' — Daily Double!' : ''}`}
-                data-testid="host-tile"
-              >
-                {!q.used && <span className="bt-value">{tileMoney(prefix, q.value)}</span>}
-                {q.dailyWager && !q.used && (
-                  <span className="host-dd-mark" title="Daily Double! (only you see this)" aria-hidden>
-                    <Dices size={14} />
-                  </span>
-                )}
-              </button>
-            );
-          }),
-        )}
-      </div>
+    <div className="absolute inset-0" data-testid="host-board">
+      {tiles.map((t) => {
+        const hit = clues.get(t.id);
+        if (!hit) return null;
+        const { c, q } = hit;
+        return (
+          <button
+            key={t.id}
+            type="button"
+            disabled={g.phase !== 'board'}
+            onClick={() => onTile(q.id, q.used)}
+            className={cx('host-hit', q.used && 'is-used')}
+            style={{ left: t.x * scale, top: t.y * scale, width: t.w * scale, height: t.h * scale }}
+            aria-label={`${c.name} for ${q.value}${q.used ? ' (played)' : ''}${q.dailyWager ? ' — Daily Double!' : ''}`}
+            data-testid="host-tile"
+          >
+            {q.dailyWager && !q.used && (
+              <span className="host-dd-mark" title="Daily Double! (only you see this)" aria-hidden>
+                <Dices size={Math.round(Math.max(9, Math.min(16, t.h * scale * 0.24)))} />
+              </span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }

@@ -6,6 +6,21 @@ their notes come from the matching section below (`scripts/release-notes.mjs`).
 
 ## [Unreleased]
 
+### Improvements
+- **Bigger TV preview on the host controller**: in full screen on an iPad in landscape the TV picture now reaches both edges of the screen. The menu, Options and minimise buttons share one thin row with the red correct-response strip, the button band is slimmer, and nothing is stretched or cropped.
+- **One layout for the embedded view and full screen**: the full-screen button, Options and the menu stay in the same place, the white bar between the buttons and the score cards is gone, and switching never changes anything about the game.
+- **Larger score cards** that use the space under the controls, with the player's colour as a ring around their picture; 2 to 15 players fit (more rows, then narrower cards).
+- **Larger texts** for the instructions ("Read the clue, then unlock the buzzers"), the correct response, its category and value, and the category introduction.
+- **Category introduction**: the categories to tap are now in the header; the TV preview shows which one is on screen.
+- **The preview animates like the TV**: the board fills in and clues zoom out of their tile, exactly as on the TV (the preview now runs the TV's own presentation). Opening the controller mid-game or switching to full screen never restarts an animation.
+- **Calmer colours and buttons**: the awkward blue strip above the answer is gone; icon buttons have no boxes; header, controls and score row share one navy palette.
+- **TV lobby**: the Wi-Fi network and password are shown in a labelled box with room for long names; "or open <address>" moved under "Scan to join", centred on the QR code and never wider than it.
+- **Lobby on the iPad without scrolling**: settings, players, controllers, Wi-Fi and More options fit on one screen in landscape (up to 15 players and 15 controllers); controllers are shown as compact cards (tap one for its settings). The Buzzers tab and page are compact too.
+- **Buzzer check results in one line**: who has not pressed stays in view ("Everyone pressed ✓" when all did); the order and timings fold away under "Order" once the check ends.
+
+### Fixes
+- Final Jeopardy!: an answer submitted on a phone less than a second after typing it could be turned back into an unsubmitted draft (the delayed autosave arrived after the submit). The pending autosave is now cancelled when the player submits.
+
 ## [0.16.0] — 2026-10-19
 
 ### New Features

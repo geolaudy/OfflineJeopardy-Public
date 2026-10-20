@@ -118,7 +118,7 @@ test('subheadings under the name, answer under the clue, Final media gap, next r
   expect(csub.y - (cname.y + cname.height)).toBeLessThan(cname.height * 0.35);
   const mid = (cname.y + csub.y + csub.height) / 2;
   expect(Math.abs(mid - (cell.y + cell.height / 2))).toBeLessThan(cell.height * 0.06);
-  await expect(ipad.getByTestId('host-category').first().getByTestId('category-subheading')).toHaveText('Name the empire');
+  await expect(ipad.frameLocator('iframe[title="TV preview"]').getByTestId('board-category').first().getByTestId('category-subheading')).toHaveText('Name the empire');
   await shot(tv, 'board-subheading');
 
   // A plain clue: the answer appears a fixed gap under the clue's text; the clue stays put.
@@ -283,11 +283,12 @@ test('iPad: large fixed 16:9 preview, controls in the score-strip band, answer b
     await expect(ipad.getByTestId('host-clue-category')).toHaveText('Ancient Empires');
     await expect(ipad.getByTestId('host-clue-value')).toHaveText('$400');
     await expect(ipad.getByTestId('clue-head')).toHaveCount(0); // no header line above the preview
-    // The banner overlays the preview (inside its box), its stripes run the other way (45°).
+    // R13-1: the banner is in the header row right above the preview, which turns red with it; its
+    // stripes run the other way (45°).
     const bb = (await banner.boundingBox())!;
-    expect(bb.y).toBeGreaterThanOrEqual(boxes.clue.y - 1);
+    expect(bb.y + bb.height).toBeLessThanOrEqual(boxes.clue.y + 1);
     expect(bb.height).toBeLessThan(boxes.clue.height * 0.25);
-    expect(await banner.evaluate((e) => getComputedStyle(e).backgroundImage)).toContain('45deg');
+    expect(await ipad.getByTestId('game-strip').evaluate((e) => getComputedStyle(e).backgroundImage)).toContain('45deg');
     // One typography: the answer and notes use the label's font and shadow.
     // (The shadow is in em, so its pixel size follows the text size; its colour is the same.)
     const style = (sel: string) => ipad.locator(sel).first().evaluate((e) => [getComputedStyle(e).fontFamily, getComputedStyle(e).fontWeight, getComputedStyle(e).textShadow.startsWith('rgb(0, 0, 0)')]);

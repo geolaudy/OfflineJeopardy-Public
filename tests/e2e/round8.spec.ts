@@ -3,7 +3,7 @@
 // - R8-3: the iPad's board replica has the TV board's proportions (gaps per tile) and shadow;
 // - R8-5: a long Final Jeopardy! answer shrinks inside its fixed card — nothing above it moves;
 // - R8-6.4: the minimized lobby moves with the page when one menu page replaces another.
-import { test, expect, chromium, webkit, devices, request, type Browser, type Page } from '@playwright/test';
+import { test, expect, chromium, webkit, devices, request, type Browser, type Frame, type Page } from '@playwright/test';
 import WebSocket from 'ws';
 import { hostSocket } from './hostSocket';
 
@@ -46,7 +46,7 @@ async function setup(name: string) {
 }
 
 /** Gap between neighbouring tiles as a share of the tile (columns: of its width, rows: of its height). */
-async function gapRatios(p: Page, tile: string) {
+async function gapRatios(p: Page | Frame, tile: string) {
   return p.evaluate((sel) => {
     const tiles = [...document.querySelectorAll<HTMLElement>(sel)];
     const r = tiles.map((t) => t.getBoundingClientRect());
@@ -76,7 +76,9 @@ test('clue text never flickers; the iPad board has the TV board proportions (R8-
   await ipad.goto(`${BASE}/host`);
   await expect(ipad.getByTestId('host-tile')).toHaveCount(30);
   const tvR = await gapRatios(tv, '[data-testid="board-tile"]');
-  const padR = await gapRatios(ipad, '[data-testid="host-tile"]');
+  // R13-13: the iPad shows the TV's own board in its preview.
+  await expect(ipad.frameLocator('iframe[title="TV preview"]').getByTestId('board-tile').first()).toBeVisible();
+  const padR = await gapRatios(ipad.frames().find((f) => f.url().includes('/board/preview'))!, '[data-testid="board-tile"]');
   expect(Math.abs(padR.col - tvR.col)).toBeLessThan(0.012);
   expect(Math.abs(padR.row - tvR.row)).toBeLessThan(0.02);
   expect(padR.shadowLayers).toBe(tvR.shadowLayers); // the TV's single hard shadow, no extra blur
@@ -230,7 +232,7 @@ test('rich clue text and a category subheading: editor, TV and iPad (R8-7, R8-8,
   await expect(tv.getByTestId('board-category').first().getByTestId('category-subheading')).toHaveText('Name the empire');
   const ipad = await (await wk.newContext({ ...devices['iPad Pro 11 landscape'] })).newPage();
   await ipad.goto(`${BASE}/host`);
-  await expect(ipad.getByTestId('host-category').first().getByTestId('category-subheading')).toHaveText('Name the empire');
+  await expect(ipad.frameLocator('iframe[title="TV preview"]').getByTestId('board-category').first().getByTestId('category-subheading')).toHaveText('Name the empire');
   await tv.waitForTimeout(1500);
   await shot(tv, 'tv-subheading');
   await shot(ipad, 'ipad-subheading');

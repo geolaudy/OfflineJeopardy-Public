@@ -63,7 +63,7 @@
 .host-answer-band-label,
 .host-answer-band-cat,
 .host-answer-band-value {
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
@@ -71,7 +71,7 @@
   display: -webkit-box;
   overflow: hidden;
   color: var(--b-cat-fg, #ffffff);
-  font-size: 0.95rem;
+  font-size: 1.15rem;
   letter-spacing: 0.12em;
   text-align: left;
   -webkit-box-orient: vertical;
@@ -82,36 +82,59 @@
   overflow: hidden;
   max-width: 100%;
   color: var(--b-tile-fg, #e8b64c);
-  font-size: 1.3rem;
+  font-size: 1.85rem;
   letter-spacing: 0.04em;
   text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* The answer: the label's typography, larger; up to two lines across the band's whole width. */
+/* The answer: the label's typography, larger (R13-6). One large line when it fits; a longer answer
+   takes two smaller lines (AnswerBanner measures), and the All button shows what still does not fit. */
 .host-answer-band-text {
-  display: -webkit-box;
   overflow: hidden;
-  font-size: 1.5rem;
+  font-size: 2.05rem;
   letter-spacing: 0.05em;
   line-height: 1.08;
+  text-overflow: ellipsis;
   text-transform: uppercase;
+  white-space: nowrap;
+}
+.host-answer-band-text.is-two {
+  display: -webkit-box;
+  font-size: 1.4rem;
+  white-space: normal;
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
 }
+[data-compact='true'] .host-answer-band-text {
+  font-size: 1.35rem;
+}
+[data-compact='true'] .host-answer-band-text.is-two {
+  font-size: 1.05rem;
+}
+[data-compact='true'] .host-answer-band-value {
+  font-size: 1.3rem;
+}
+[data-compact='true'] .host-answer-band-cat {
+  font-size: 0.9rem;
+}
+[data-compact='true'] .host-answer-band-label {
+  font-size: 0.65rem;
+}
 /* With notes the answer keeps to one line, so label, answer and notes fit the strip (All shows the rest). */
 .host-answer-band:not(.host-answer-full) .host-answer-band-in:has(.host-answer-band-notes) .host-answer-band-text {
   -webkit-line-clamp: 1;
   line-clamp: 1;
+  font-size: 1.4rem;
 }
 .host-answer-band-notes {
   display: -webkit-box;
   overflow: hidden;
   margin-top: 0.1rem;
   color: #fde2e2;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   font-weight: 700;
   letter-spacing: 0.03em;
   overflow-wrap: anywhere;
@@ -150,6 +173,7 @@
 .host-answer-full .host-answer-band-text,
 .host-answer-full .host-answer-band-notes {
   display: block;
+  white-space: normal;
   overflow: visible;
   -webkit-line-clamp: unset;
   line-clamp: none;

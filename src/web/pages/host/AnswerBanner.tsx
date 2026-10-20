@@ -78,6 +78,36 @@ function useClamped(refs: RefObject<HTMLElement | null>[], root: RefObject<HTMLE
   return clamped;
 }
 
+/** R13-6: whether the answer needs its two-line (smaller) form — it is tried on one large line
+ *  first, again whenever the text or the band's width changes. */
+function useTwoLines(text: RefObject<HTMLElement | null>, root: RefObject<HTMLElement | null>) {
+  const [two, setTwo] = useState(false);
+  const seen = useRef('');
+  useLayoutEffect(() => {
+    const el = text.current;
+    if (!el) return;
+    const key = `${el.textContent}|${root.current?.clientWidth ?? 0}`;
+    if (key !== seen.current) {
+      seen.current = key;
+      if (two) return setTwo(false); // measure again on one line
+    }
+    if (!two && el.scrollWidth > el.clientWidth + 1) setTwo(true);
+  });
+  useLayoutEffect(() => {
+    const el = root.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    let w = el.clientWidth;
+    const ro = new ResizeObserver(() => {
+      if (el.clientWidth === w) return;
+      w = el.clientWidth;
+      setTwo(false);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [root]);
+  return two;
+}
+
 /** The theme's font and colour variables at `el` — for the sheet, which is rendered outside the preview. */
 function themeVarsOf(el: HTMLElement | null): CSSProperties | undefined {
   if (!el) return undefined;
@@ -90,6 +120,7 @@ function Band({ answer, label, left, right, notes, aside, className, children }:
   const notesRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+  const two = useTwoLines(textRef, rootRef);
   const clamped = useClamped([textRef, notesRef], rootRef);
   return (
     <>
@@ -107,7 +138,7 @@ function Band({ answer, label, left, right, notes, aside, className, children }:
           </p>
           <span className="sr-only">{label}: </span>
           {answer != null && (
-            <div ref={textRef} className="host-answer-band-text" data-testid="host-answer">
+            <div ref={textRef} className={cx('host-answer-band-text', two && 'is-two')} data-testid="host-answer" data-lines={two ? 2 : 1}>
               {answer}
             </div>
           )}

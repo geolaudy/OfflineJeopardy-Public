@@ -1,13 +1,13 @@
-// Live game control for the host (iPad landscape first, portrait supported).
-// Board: a replica of the TV board (R5-13). Clue: HostClue.tsx (R5-14). Introduction: category
-// list, live TV preview and Next / Previous / Auto / Stop Auto / Skip (R5-12).
-import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
+// Live game control for the host (iPad landscape first, portrait supported): one frame for the
+// whole game (GameFrame.tsx) with the TV preview, the stage's controls and the score cards.
+// Board: the TV's board, tappable (R5-13, R13-13). Clue: HostClue.tsx (R5-14). Introduction: the
+// categories in the header, Next / Previous / Auto / Stop Auto / Skip in the band (R5-12, R13-7).
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import type { CompetitorView, GameView } from '../../../shared/views';
 import type { HostAction } from '../../../shared/actions';
 import { ActionButton, Avatar, Button, Lives, Modal, inputCls, cx, fmtScore, toast } from '../../components/ui';
 import { hostApi } from '../../lib/api';
 import { attempt, useMediaQuery } from '../../lib/hooks';
-import { themeRoot } from '../board/common';
 import { HostNavFooter, HostNavList, HostNavTitle } from './AppShell';
 import { competitorAvatar, competitorColor, competitorHighlight, competitorName, findCompetitor } from '../../lib/view';
 import ControllersPanel, { AssignListener } from '../../components/ControllersPanel';
@@ -16,9 +16,9 @@ import { HOST_SHORTCUTS, useHostShortcuts } from './shortcuts';
 import { Undo2, Gamepad2, Play, Pause, ChevronLeft, ChevronRight, ChevronsRight, Square, SlidersHorizontal, QrCode, Flag, Menu as MenuIcon, Save, ScrollText } from 'lucide-react';
 import { AnswerBanner } from './AnswerBanner';
 import { ClueStage } from './HostClue';
-import { HostBoardGrid, TvPreview, useBoardLook } from './TvMirror';
+import { HostBoardHits, TvPreview, type PreviewTile } from './TvMirror';
 import ScoreEditor from './ScoreEditor';
-import { FullscreenButton, GameFrame, HostFullscreenCtx } from './GameFrame';
+import { FrameParts, FullscreenButton, GameFrame, HostFullscreenCtx, type FrameKind } from './GameFrame';
 import { RichText } from '../../components/RichText';
 
 type Run = (a: HostAction) => Promise<{ ok: boolean }>;
@@ -115,83 +115,72 @@ export default function Live({ g, run, menu }: { g: GameView; run: Run; menu?: L
   const [adjust, setAdjust] = useState<CompetitorView | null>(null);
   const [devices, setDevices] = useState(false);
   const [nav, setNav] = useState(false);
+  const [tiles, setTiles] = useState<PreviewTile[]>([]);
   useHostShortcuts(g, run);
   const rootRef = useRef<HTMLDivElement>(null);
   const full = useHostFullscreen(rootRef);
-  // A short screen (a phone in landscape) has no room for a top bar above the game (R12-3).
+  // A short screen (a phone in landscape) gets the compact header, band and cards (R12-3).
   const compact = useMediaQuery('(max-height: 560px)');
-  useEffect(() => {
-    if (!full.on) setNav(false);
-  }, [full.on]);
-  const look = useBoardLook();
-  const theme = themeRoot(look.theme, look.custom);
+  useEffect(() => setNav(false), [full.on]);
   const onDevices = useCallback(() => setDevices(true), []);
-  const menuButton = (
-    <button type="button" className={cx('host-icon-btn shrink-0', compact ? 'h-11 w-11' : 'h-12 w-12')} onClick={() => setNav(true)} aria-label="Open menu" aria-expanded={nav} data-testid="fs-menu-toggle">
-      <MenuIcon size={26} strokeWidth={2.4} aria-hidden />
-    </button>
-  );
-  const topRight = (
-    <>
-      <GameOptions g={g} run={run} onDevices={onDevices} menu={menu} all compact={compact} />
-      <FullscreenButton className={compact ? 'h-11 w-11' : 'h-12 w-12'} />
-    </>
-  );
-  const fs = { ...full, compact, corners: compact ? { left: menuButton, right: <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">{topRight}</div> } : undefined };
+  const fs = useMemo(() => ({ ...full, compact }), [full, compact]);
+  const kind: FrameKind = g.phase === 'final' && g.final ? 'final' : g.phase === 'board' && g.intro ? 'intro' : g.phase === 'clue' && g.clue ? 'clue' : 'board';
   return (
     <HostFullscreenCtx.Provider value={fs}>
-    <div
-      ref={rootRef}
-      // R12-3: full screen is edge to edge — the TV's blue behind everything, no page margin, no
-      // scroll container.
-      className={cx('flex h-full flex-col', fs.on && 'host-fullscreen board-theme fixed inset-0 z-[45] overflow-hidden')}
-      data-theme={fs.on ? theme.dataTheme : undefined}
-      style={fs.on ? theme.style : undefined}
-      data-testid="host-live"
-      data-fullscreen={fs.on ? 'true' : 'false'}
-    >
-      {fs.on && !compact && (
-        <div className="host-fs-top flex shrink-0 items-center gap-2" data-testid="fs-top">
-          {menuButton}
-          <div className="flex-1" />
-          {topRight}
-        </div>
-      )}
-      <div className={cx('min-h-0 flex-1', fs.on ? 'relative overflow-hidden' : 'overflow-auto p-2 sm:p-3')}>
-        {g.phase === 'final' ? (
-          <FinalControl g={g} run={run} />
-        ) : g.phase === 'board' && g.intro ? (
-          <IntroStage g={g} run={run} />
-        ) : g.phase === 'clue' && g.clue ? (
-          <ClueStage g={g} run={run} />
-        ) : (
-          <BoardStage g={g} run={run} onDevices={onDevices} menu={menu} />
-        )}
+      <div
+        ref={rootRef}
+        // R12-3 / R13-2: the same frame in both views; full screen only gives it the whole screen
+        // (fixed, edge to edge, the safe areas kept clear inside the header and the score row).
+        className={cx('host-live flex h-full flex-col', fs.on ? 'host-fullscreen fixed inset-0 z-[45] overflow-hidden' : 'relative')}
+        data-testid="host-live"
+        data-fullscreen={fs.on ? 'true' : 'false'}
+      >
+        <GameFrame
+          kind={kind}
+          timer={g.timer}
+          scoreCount={g.competitors.length}
+          // The one TV preview of the game (R13-13): the TV's own board, introduction, clue and Final.
+          preview={(size, testId) => <TvPreview game={g} scoreboard={false} band frameless title="TV preview" size={size} testId={testId} onTiles={setTiles} />}
+          scores={(m) => <ScoreCards g={g} run={run} onAdjust={setAdjust} {...m} />}
+          // R13-2: the same header in both views — the menu slides over the game in either.
+          start={
+            <button type="button" className="host-icon-btn" onClick={() => setNav(true)} aria-label="Open menu" aria-expanded={nav} data-testid="fs-menu-toggle">
+              <MenuIcon size={28} strokeWidth={2.4} aria-hidden />
+            </button>
+          }
+          end={
+            <>
+              <GameOptions g={g} run={run} onDevices={onDevices} menu={menu} all={fs.on} compact={compact} />
+              <FullscreenButton />
+            </>
+          }
+        >
+          {kind === 'final' ? <FinalControl g={g} run={run} /> : kind === 'intro' ? <IntroStage g={g} run={run} /> : kind === 'clue' ? <ClueStage g={g} run={run} /> : <BoardStage g={g} run={run} tiles={tiles} />}
+        </GameFrame>
+        {nav && <FullscreenMenu onClose={() => setNav(false)} />}
+        {adjust && <ScoreEditor g={g} c={g.competitors.find((x) => x.id === adjust.id) ?? adjust} run={run} onClose={() => setAdjust(null)} />}
+        <Modal open={devices} onClose={() => setDevices(false)} title="Buzzers & controllers" wide>
+          <ControllersPanel g={g} />
+        </Modal>
+        <AssignListener g={g} />
       </div>
-      <ScoreCards g={g} run={run} onAdjust={setAdjust} compact={fs.on && compact} />
-      {fs.on && nav && <FullscreenMenu onClose={() => setNav(false)} />}
-      {adjust && <ScoreEditor g={g} c={g.competitors.find((x) => x.id === adjust.id) ?? adjust} run={run} onClose={() => setAdjust(null)} />}
-      <Modal open={devices} onClose={() => setDevices(false)} title="Buzzers & controllers" wide>
-        <ControllersPanel g={g} />
-      </Modal>
-      <AssignListener g={g} />
-    </div>
     </HostFullscreenCtx.Provider>
   );
 }
 
 /**
- * R12-7: the score cards, centred as a group under the game (Undo at the right end, the same width
- * kept free at the left so the group stays centred). Many players: the cards get narrower, then
- * the row scrolls sideways — names and scores are never cut by the screen edge.
+ * R12-7 / R13-5: the score cards, centred as a group under the game (Undo at the right end, the same
+ * width kept free at the left so the group stays centred). The frame sizes them from the room
+ * left under the band: bigger cards when there is height, more rows for many players; the player's
+ * colour is the ring around their picture.
  */
-function ScoreCards({ g, run, onAdjust, compact }: { g: GameView; run: Run; onAdjust: (c: CompetitorView) => void; compact?: boolean }) {
+function ScoreCards({ g, run, onAdjust, cardW, cardH, cardMin, rows }: { g: GameView; run: Run; onAdjust: (c: CompetitorView) => void; cardW: number; cardH: number; cardMin: number; rows: number }) {
   return (
-    <footer className={cx('host-scores @container shrink-0', compact && 'is-compact')} data-testid="host-scores">
+    <footer className="host-scores @container h-full" style={{ '--card-w': `${cardW}px`, '--card-h': `${cardH}px`, '--card-min': `${cardMin}px` } as CSSProperties} data-testid="host-scores" data-rows={rows}>
       <div className="host-scores-grid">
         {/* The scroller clips everything outside its padding box: the padding leaves room for the
             highlight ring (R6-2.2), which is never shrunk to fit. */}
-        <div className="host-scores-row flex min-w-0 items-stretch justify-center-safe gap-2 overflow-x-auto p-1.5" data-testid="host-score-row">
+        <div className="host-scores-row" data-testid="host-score-row">
           {g.competitors.map((c) => {
             const hl = competitorHighlight(g, c.id);
             return (
@@ -205,19 +194,24 @@ function ScoreCards({ g, run, onAdjust, compact }: { g: GameView; run: Run; onAd
                 data-testid="host-score"
                 data-highlight={hl ?? undefined}
               >
-                <Avatar profile={competitorAvatar(c, g)} size={compact ? 26 : 34} />
-                <div className="min-w-0">
-                  <div className="truncate text-sm leading-tight font-semibold">{competitorName(c, g)}</div>
-                  <div className={cx('text-xl leading-tight font-black tabular-nums', c.score < 0 && 'text-red-700')}>{fmtScore(c.score)}</div>
+                <span className="host-score-pic" data-testid="host-score-pic">
+                  <Avatar profile={competitorAvatar(c, g)} size={Math.round(Math.max(24, Math.min(64, cardH * 0.62)))} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="host-score-name">{competitorName(c, g)}</span>
+                  <span className={cx('host-score-value', c.score < 0 && 'is-negative')}>{fmtScore(c.score)}</span>
                   {c.lives !== undefined && (c.lives > 0 ? <Lives lives={c.lives} max={g.rules.survivalLives} size={13} /> : <span className="text-xs font-bold text-slate-500 uppercase">Out</span>)}
-                </div>
+                </span>
               </button>
             );
           })}
         </div>
         <div className="host-scores-undo flex items-center justify-end">
-          <ActionButton variant="secondary" disabled={!g.undoLabel} onAction={() => run({ type: 'undo' })} className="host-btn min-h-12 shrink-0 px-4" data-testid="undo">
-            <Undo2 size={18} aria-hidden /> Undo{g.undoLabel ? <span className="hidden text-sm font-normal text-slate-500 @5xl:inline">({g.undoLabel})</span> : null}
+          <ActionButton variant="secondary" disabled={!g.undoLabel} onAction={() => run({ type: 'undo' })} className="host-btn host-undo" title={g.undoLabel ? `Undo: ${g.undoLabel}` : undefined} data-testid="undo">
+            <span className="flex items-center gap-1.5">
+              <Undo2 size={18} aria-hidden /> Undo
+            </span>
+            {g.undoLabel && <span className="host-undo-what">{g.undoLabel}</span>}
           </ActionButton>
         </div>
       </div>
@@ -225,9 +219,9 @@ function ScoreCards({ g, run, onAdjust, compact }: { g: GameView; run: Run; onAd
   );
 }
 
-/** R12-4: the host's navigation sliding over the full-screen game from the left (the game keeps its
- *  size); ‹, Esc or a tap beside it closes it. Inside the full-screen element, so it also shows when
- *  the browser's own full screen is on. */
+/** R12-4: the host's navigation sliding over the game from the left (the game keeps its size); ‹,
+ *  Esc or a tap beside it closes it. Inside the live screen (and so inside the full-screen element,
+ *  where it also shows when the browser's own full screen is on). */
 function FullscreenMenu({ onClose }: { onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const close = useRef(onClose);
@@ -258,48 +252,45 @@ function FullscreenMenu({ onClose }: { onClose: () => void }) {
   );
 }
 
-/** R5-13: "{Player} is choosing a clue" above a replica of the TV board (tiles are buttons). */
-function BoardStage({ g, run, onDevices, menu }: { g: GameView; run: Run; onDevices: () => void; menu?: LiveMenu }) {
+/** R5-13 / R13-13: "{Player} is choosing a clue" in the header; the TV's own board in the preview,
+ *  its tiles tappable through HostBoardHits. */
+function BoardStage({ g, run, tiles }: { g: GameView; run: Run; tiles: PreviewTile[] }) {
   const round = g.rounds[g.roundIndex];
   const [played, setPlayed] = useState<string | null>(null);
-  const fs = useContext(HostFullscreenCtx);
-  const { standard, hasFinal, remaining, next } = roundInfo(g);
+  const { hasFinal, remaining, next } = roundInfo(g);
   const picker = findCompetitor(g, g.controlCompetitorId);
   if (!round || round.kind !== 'standard') return null;
   const q = played ? round.categories.flatMap((c) => c.clues).find((x) => x.id === played) : null;
   return (
     <>
-      <GameFrame
-        boxTestId="host-board-box"
-        // R11-3.3: who is choosing, in the top strip; the board in the TV's blue area.
-        top={
-          <div className="flex min-w-0 flex-1 flex-col items-center justify-center px-3 text-center">
-            <h2 className="host-band-title max-w-full truncate text-2xl" data-testid="choosing">
+      <FrameParts
+        // R11-3.3: who is choosing, in the header; the board in the TV's blue area.
+        head={
+          <div className="host-head-status">
+            <h2 className="host-band-title host-head-title" data-testid="choosing">
               {remaining === 0 ? 'This round is complete' : picker ? `${competitorName(picker, g)} is choosing a clue` : 'Choose a clue'}
             </h2>
-            <p className="max-w-full truncate text-sm text-slate-500">
+            <p className="host-head-sub">
               {round.name} · {remaining === 0 ? 'every clue has been played' : `${remaining} ${remaining === 1 ? 'clue' : 'clues'} left`}
               {picker?.bot && remaining > 0 ? ' · picks by itself' : ''}
             </p>
           </div>
         }
-        preview={() => <HostBoardGrid g={g} onTile={(id, used) => (used ? setPlayed(id) : run({ type: 'selectClue', clueId: id }))} />}
+        stage={(size) => <HostBoardHits g={g} tiles={tiles} scale={size.w / 1280} onTile={(id, used) => (used ? setPlayed(id) : run({ type: 'selectClue', clueId: id }))} />}
         bar={
           <div className="flex flex-wrap items-center gap-2">
-            <p className="min-w-0 flex-1 px-1 text-slate-600">{remaining === 0 ? 'Every clue in this round has been played.' : 'Tap a clue on the board to open it.'}</p>
+            <p className="host-band-status min-w-0 flex-1 px-1">{remaining === 0 ? 'Every clue in this round has been played.' : 'Tap a clue on the board to open it.'}</p>
             {/* The next step appears only when the round is finished; earlier it lives in Options. */}
             {remaining === 0 && next && (
-              <ActionButton size="lg" onAction={() => run({ type: 'setRound', roundIndex: next.i })} data-testid="next-round">
+              <ActionButton size="lg" className="host-btn host-btn-main" onAction={() => run({ type: 'setRound', roundIndex: next.i })} data-testid="next-round">
                 Next: {next.name} <ChevronRight size={20} aria-hidden />
               </ActionButton>
             )}
             {remaining === 0 && !next && hasFinal && (
-              <ActionButton size="lg" onAction={() => run({ type: 'startFinal' })} data-testid="start-final">
+              <ActionButton size="lg" className="host-btn host-btn-main" onAction={() => run({ type: 'startFinal' })} data-testid="start-final">
                 <Flag size={20} aria-hidden /> Start Final Jeopardy!
               </ActionButton>
             )}
-            {/* Full screen: Options is at the top right of the screen (R12-3.3). */}
-            {!fs.on && <GameOptions g={g} run={run} onDevices={onDevices} menu={menu} />}
           </div>
         }
       />
@@ -350,9 +341,9 @@ function GameOptions({ g, run, onDevices, menu, all, compact }: { g: GameView; r
   const [options, setOptions] = useState(false);
   return (
     <>
-      <Button size="lg" variant="secondary" className={cx('host-btn', all && (compact ? 'min-h-11 px-3' : 'min-h-12 px-4'))} onClick={() => setOptions(true)} aria-label="Options" data-testid="game-options">
-        <SlidersHorizontal size={18} aria-hidden /> <span className={cx(compact && 'sr-only')}>Options</span>
-      </Button>
+      <button type="button" className="host-ghost-btn" onClick={() => setOptions(true)} aria-label="Options" data-testid="game-options">
+        <SlidersHorizontal size={22} strokeWidth={2.4} aria-hidden /> <span className={cx(compact && 'sr-only')}>Options</span>
+      </button>
       <Modal open={options} onClose={() => setOptions(false)} title="Game options">
         <div className="grid gap-2">
           {all && (
@@ -506,10 +497,11 @@ function GameOptions({ g, run, onDevices, menu, all, compact }: { g: GameView; r
 }
 
 /**
- * Category introduction (R4-16, R5-12): while it runs the clue board is hidden from the host, so
- * no clue can be opened by accident. Tap a category to show it on the TV (one swipe, forward or
- * back); Next / Previous; Auto (server-paced) / Stop Auto; Skip. Below the list: a live preview
- * of the TV.
+ * Category introduction (R4-16, R5-12, R13-7): while it runs the clue board is hidden from the host,
+ * so no clue can be opened by accident. The header says what is happening and holds the categories
+ * — tap one to show it on the TV (one swipe, forward or back); the TV preview shows which one is on
+ * screen, so the header does not repeat it. The band: Previous | Next, Auto (server-paced) / Stop
+ * Auto, Skip.
  */
 function IntroStage({ g, run }: { g: GameView; run: Run }) {
   const intro = g.intro!;
@@ -517,72 +509,58 @@ function IntroStage({ g, run }: { g: GameView; run: Run }) {
   if (!round) return null;
   const n = round.categories.length;
   const nextLabel = intro.step < 0 ? 'Show the first category' : intro.step >= n - 1 ? 'Done — show the board' : 'Next Category';
-  const current = intro.step < 0 ? round.name : round.categories[intro.step]?.name || `Category ${intro.step + 1}`;
   return (
-    <GameFrame
-      testId="intro-controls"
-      boxTestId="intro-preview-box"
-      // R6-2.1 / R10-6: the presentation; the host's controls where the TV has its scores.
-      top={
-        <div className="flex min-w-0 flex-1 flex-col items-center justify-center px-3 text-center" data-testid="intro-now">
-          <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">Introduce the categories{intro.auto ? ' · automatic' : ''}</p>
-          <p className="flex max-w-full min-w-0 items-baseline gap-3">
-            <span className="host-band-title min-w-0 truncate text-2xl">{current}</span>
-            <span className="shrink-0 text-sm text-slate-600">{intro.step < 0 ? 'The round title is on the TV.' : `Category ${intro.step + 1} of ${n}`}</span>
-          </p>
+    <FrameParts
+      head={
+        <div className="host-intro-head" data-testid="intro-now">
+          <h2 className="host-band-title host-intro-title">
+            Introduce the categories{intro.auto ? <span className="host-intro-auto"> · auto</span> : null}
+          </h2>
+          <ol className="host-intro-cats" style={{ '--n': n } as CSSProperties} aria-label="Categories — tap one to show it on the TV">
+            {round.categories.map((c, i) => (
+              <li key={c.id} className="min-w-0">
+                <button
+                  onClick={() => run({ type: 'introGoto', step: i })}
+                  aria-current={i === intro.step ? 'step' : undefined}
+                  aria-label={`Show ${c.name || `Category ${i + 1}`} on the TV`}
+                  className={cx('host-intro-cat', i === intro.step ? 'is-current' : i < intro.step && 'is-done')}
+                  data-testid="intro-cat"
+                >
+                  <span className="line-clamp-2 [overflow-wrap:normal] hyphens-auto">{c.name || `Category ${i + 1}`}</span>
+                </button>
+              </li>
+            ))}
+          </ol>
         </div>
       }
-      preview={(size) => <TvPreview game={g} scoreboard={false} band title="TV preview" size={size} testId="intro-preview" />}
-      bar={<IntroBar g={g} run={run} n={n} nextLabel={nextLabel} />}
+      bar={<IntroBar g={g} run={run} nextLabel={nextLabel} />}
     />
   );
 }
 
-/** The introduction's controls: tap a category to show it, then Previous | Next, Auto, Skip. */
-function IntroBar({ g, run, n, nextLabel }: { g: GameView; run: Run; n: number; nextLabel: string }) {
+/** The introduction's band: Previous | Next, Auto, Skip (R6-2.3). */
+function IntroBar({ g, run, nextLabel }: { g: GameView; run: Run; nextLabel: string }) {
   const intro = g.intro!;
-  const round = g.rounds[intro.roundIndex]!;
   return (
-    <div className="flex flex-col gap-2">
-      <ol className={cx('grid shrink-0 gap-2', n <= 6 ? 'grid-cols-6' : 'grid-cols-4 @5xl:grid-cols-6')} aria-label="Categories — tap one to show it on the TV">
-        {round.categories.map((c, i) => (
-          <li key={c.id} className="min-w-0">
-            <button
-              onClick={() => run({ type: 'introGoto', step: i })}
-              aria-current={i === intro.step ? 'step' : undefined}
-              aria-label={`Show ${c.name || `Category ${i + 1}`} on the TV`}
-              className={cx(
-                'flex min-h-10 w-full items-center justify-center rounded-xl px-2 py-1 text-center text-sm leading-tight font-bold uppercase',
-                i === intro.step ? 'bg-amber-300 text-black ring-2 ring-amber-500' : i < intro.step ? 'bg-blue-800 text-white active:bg-blue-900' : 'bg-white text-slate-600 shadow-sm ring-1 ring-slate-200 active:bg-slate-100',
-              )}
-              data-testid="intro-cat"
-            >
-              <span className="line-clamp-2 [overflow-wrap:normal] hyphens-auto">{c.name || `Category ${i + 1}`}</span>
-            </button>
-          </li>
-        ))}
-      </ol>
-      {/* R6-2.3: Previous Category | Next Category. */}
-      <div className="grid shrink-0 grid-cols-[1.5fr_2fr_1fr_1fr] gap-2">
-        <ActionButton size="lg" variant="secondary" className="px-3 text-lg" disabled={intro.step < 0} onAction={() => run({ type: 'introPrev' })} data-testid="intro-prev">
-          <ChevronLeft size={22} aria-hidden /> Previous Category
+    <div className="grid grid-cols-[1.5fr_2fr_1fr_1fr] gap-2">
+      <ActionButton size="lg" variant="secondary" className="host-btn px-3 text-lg" disabled={intro.step < 0} onAction={() => run({ type: 'introPrev' })} data-testid="intro-prev">
+        <ChevronLeft size={22} aria-hidden /> Previous Category
+      </ActionButton>
+      <ActionButton size="lg" className="host-btn px-3 text-lg" onAction={() => run({ type: 'introNext' })} data-testid="intro-next">
+        {nextLabel} <ChevronRight size={22} aria-hidden />
+      </ActionButton>
+      {!intro.auto ? (
+        <Button size="lg" variant="secondary" className="host-btn px-3 text-lg" onClick={() => run({ type: 'startIntro', auto: true })} title="Play the introduction automatically" data-testid="intro-auto">
+          Auto <ChevronsRight size={20} aria-hidden />
+        </Button>
+      ) : (
+        <ActionButton size="lg" variant="warning" className="host-btn px-3 text-lg" onAction={() => run({ type: 'introStopAuto' })} data-testid="intro-stop-auto">
+          <Square size={18} aria-hidden /> Stop Auto
         </ActionButton>
-        <ActionButton size="lg" className="px-3 text-lg" onAction={() => run({ type: 'introNext' })} data-testid="intro-next">
-          {nextLabel} <ChevronRight size={22} aria-hidden />
-        </ActionButton>
-        {!intro.auto ? (
-          <Button size="lg" variant="secondary" className="px-3 text-lg" onClick={() => run({ type: 'startIntro', auto: true })} title="Play the introduction automatically" data-testid="intro-auto">
-            Auto <ChevronsRight size={20} aria-hidden />
-          </Button>
-        ) : (
-          <ActionButton size="lg" variant="warning" className="px-3 text-lg" onAction={() => run({ type: 'introStopAuto' })} data-testid="intro-stop-auto">
-            <Square size={18} aria-hidden /> Stop Auto
-          </ActionButton>
-        )}
-        <ActionButton size="lg" variant="ghost" className="px-3 text-lg" onAction={() => run({ type: 'introSkip' })} data-testid="intro-skip">
-          Skip
-        </ActionButton>
-      </div>
+      )}
+      <ActionButton size="lg" variant="ghost" className="host-btn px-3 text-lg" onAction={() => run({ type: 'introSkip' })} data-testid="intro-skip">
+        Skip
+      </ActionButton>
     </div>
   );
 }
