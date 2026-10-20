@@ -3,6 +3,7 @@ import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify';
 import fastifyWebsocket from '@fastify/websocket';
 import fastifyStatic from '@fastify/static';
 import fastifyMultipart from '@fastify/multipart';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
@@ -27,6 +28,7 @@ import { GameManager } from './gameManager.js';
 import { ControllerRegistry } from './controllers.js';
 import { Hub } from './hub.js';
 import { lanAddresses, pickAddress } from './network.js';
+import { hostingWifi, wifiPassword, type HostingWifi } from './wifi.js';
 import { ImageError, MAX_UPLOAD_BYTES, processClueImage, processProfilePicture, safeJoin, sniffMedia } from './images.js';
 import * as stats from './stats.js';
 import { createZip, isZip, readZip, ZipError, type ZipEntry } from './zip.js';
@@ -38,7 +40,7 @@ import { PACK_ID, SoundPacks } from './soundPacks.js';
 import { DEFAULT_THRESHOLDS, type Thresholds } from '../shared/leaderboard.js';
 import { ratingOf } from '../shared/teamBalance.js';
 import * as tour from './tournaments.js';
-import { defaultTeamCount, normalizeRules, rulesFromPreset, RULE_PRESETS, type GameRules } from '../shared/game.js';
+import { defaultTeamCount, normalizeRules, PLAYER_COLORS, rulesFromPreset, RULE_PRESETS, type GameRules } from '../shared/game.js';
 import { humanCount } from './engine/engine.js';
 import { customThemeSchema, isPreset, newThemeData, type ThemeFile } from '../shared/themes.js';
 import { rulesSchema } from '../shared/actions.js';
@@ -74,6 +76,9 @@ export interface ServerOptions {
 const COLOR = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 const NAME = z.string().trim().min(1).max(30);
 const AVATAR = z.string().regex(/^[a-z0-9-]{1,24}$/);
+/** R12-11: a guest gets a random colour and animal (they can change their lobby colour like anyone). */
+const GUEST_COLORS = PLAYER_COLORS;
+const GUEST_AVATARS = ['fox', 'panda', 'frog', 'owl', 'octopus', 'lion', 'tiger', 'koala', 'monkey', 'turtle', 'whale', 'unicorn'];
 
 export async function startServer(opts: ServerOptions) {
   const dataDir = path.resolve(opts.dataDir);
@@ -120,6 +125,7 @@ export async function startServer(opts: ServerOptions) {
     debounceMs: () => games.current?.rules.buzzDebounceMs ?? 120,
   });
   const hub = new Hub(db, games, controllers);
+  games.onLobbyBuzz = (b) => hub.lobbyBuzz(b.competitorId, b.profileId);
   games.onBuzzWinner = (w) => {
     if (w.sourceKind === 'joycon' && getSetting(db, 'joyconRumble', true)) hub.controllerFx(w.controllerId, 'buzzWin');
   };
@@ -386,9 +392,75 @@ export async function startServer(opts: ServerOptions) {
     lobby.close();
     // The game (if any) stays saved; the TV goes back to its start screen.
     games.unload();
+    repo.pruneGuests(db);
     audit(db, 'host', 'lobby.close');
     return { ok: true };
   });
+  // ---------- R12-13: Wi-Fi details for the lobby (host only; password never logged) ----------
+  let wifiDetected: HostingWifi = { ssid: null, reason: 'unsupported' };
+  const detectWifi = async () => {
+    const adapter = lanAddresses().find((a) => a.address === pickAddress(getSetting<string | null>(db, 'preferredAddress', null)))?.name ?? null;
+    wifiDetected = await hostingWifi(adapter);
+    lobby.detectedSsid = wifiDetected.ssid;
+    return wifiDetected;
+  };
+  /** The host's view: what is detected and shared — never the password itself. */
+  const wifiView = (passwordStatus?: 'not-available') => {
+    const w = lobby.wifi;
+    return {
+      detected: wifiDetected.ssid ? { ssid: wifiDetected.ssid, adapter: wifiDetected.adapter } : null,
+      reason: wifiDetected.ssid === null ? wifiDetected.reason : null,
+      show: w.show,
+      showPassword: w.showPassword,
+      manualSsid: w.manualSsid,
+      hasManualPassword: !!w.manualPassword,
+      autoPassword: w.autoPassword === undefined ? 'unknown' : w.autoPassword === null ? 'open' : 'known',
+      ...(passwordStatus ? { passwordStatus } : {}),
+      shared: lobby.sharedWifi() ? { ssid: lobby.sharedWifi()!.ssid, password: !!lobby.sharedWifi()!.password } : null,
+    };
+  };
+  app.get('/api/host/wifi', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    await detectWifi();
+    return wifiView();
+  });
+  const wifiSchema = z.object({
+    show: z.boolean().optional(),
+    showPassword: z.boolean().optional(),
+    manualSsid: z.string().max(32).optional(),
+    manualPassword: z.string().max(63).optional(),
+  });
+  app.put('/api/host/wifi', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    if (!lobby.lobby) return bad(reply, 'Open a lobby first', 409);
+    const body = parse(wifiSchema, req.body, reply);
+    if (!body) return;
+    const w = lobby.wifi;
+    for (const k of ['show', 'showPassword', 'manualSsid', 'manualPassword'] as const) if (body[k] !== undefined) (w as unknown as Record<string, unknown>)[k] = body[k];
+    if (body.manualSsid !== undefined) w.manualSsid = body.manualSsid.trim();
+    await detectWifi();
+    let status: 'not-available' | undefined;
+    // Read the saved password from Windows only when the host asks to show it.
+    if (w.showPassword && !w.manualPassword && !w.manualSsid && wifiDetected.ssid && w.autoPassword === undefined) {
+      const r = await wifiPassword(wifiDetected.profile);
+      if (r.ok) w.autoPassword = r.open ? null : r.password;
+      else status = 'not-available';
+    }
+    lobby.onChange();
+    return wifiView(status);
+  });
+  /** The password for the host's own screen (an eye button), never part of any other response. */
+  app.post('/api/host/wifi/reveal', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const w = lobby.wifi;
+    if (!w.manualPassword && !w.manualSsid && wifiDetected.ssid && w.autoPassword === undefined) {
+      const r = await wifiPassword(wifiDetected.profile);
+      if (r.ok) w.autoPassword = r.open ? null : r.password;
+    }
+    const password = w.manualPassword || (w.manualSsid ? '' : (w.autoPassword ?? ''));
+    return { password, open: !w.manualPassword && w.autoPassword === null };
+  });
+
   app.post('/api/host/revoke-devices', async (req, reply) => {
     if (!requireHost(req, reply)) return;
     db.prepare(`DELETE FROM sessions WHERE kind = 'host' AND token_hash <> ?`).run(tokenHash(bearer(req)!));
@@ -411,6 +483,22 @@ export async function startServer(opts: ServerOptions) {
     return { token, profile: repo.toPrivate(p) };
   });
 
+  // R12-11: Play as Guest — a nickname, no profile or PIN. Only while a lobby is open (the portal is
+  // for joining a game); the bearer token is the guest's only key (random, not derivable from
+  // anything public), so reconnecting works and nobody can take a guest's place by name.
+  const guestSchema = z.object({ name: NAME });
+  app.post('/api/guests', async (req, reply) => {
+    const wait = pinLimiter.check(`create:${req.ip}`);
+    if (wait) return bad(reply, 'Too many requests, slow down', 429);
+    if (!lobby.lobby) return bad(reply, 'There is no game to join right now', 409);
+    const body = parse(guestSchema, req.body, reply);
+    if (!body) return;
+    const p = repo.insertGuest(db, { name: body.name, color: GUEST_COLORS[crypto.randomInt(GUEST_COLORS.length)], avatar: GUEST_AVATARS[crypto.randomInt(GUEST_AVATARS.length)] });
+    const token = createSession(db, 'profile', p.id, 'Guest device');
+    hub.profilesChanged();
+    return { token, profile: repo.toPrivate(p) };
+  });
+
   app.post('/api/profiles/:id/login', async (req, reply) => {
     const { id } = req.params as { id: string };
     const wait = pinLimiter.check(`pin:${req.ip}`);
@@ -418,7 +506,7 @@ export async function startServer(opts: ServerOptions) {
     const body = parse(z.object({ pin: z.string().regex(PIN_RE, 'PIN must be 4 digits') }), req.body, reply);
     if (!body) return;
     const p = repo.getProfile(db, id);
-    if (!p) return bad(reply, 'Profile not found', 404);
+    if (!p || p.guest) return bad(reply, 'Profile not found', 404);
     const now = Date.now();
     if (p.locked_until > now)
       return reply.code(429).send({ error: `Too many wrong PINs. Try again in ${Math.ceil((p.locked_until - now) / 1000)}s or ask the host.`, retryAfterMs: p.locked_until - now });
@@ -482,6 +570,7 @@ export async function startServer(opts: ServerOptions) {
     const body = parse(z.object({ currentPin: z.string().regex(PIN_RE), newPin: z.string().regex(PIN_RE) }), req.body, reply);
     if (!body) return;
     if (pinLimiter.check(`pin:${req.ip}`)) return bad(reply, 'Too many attempts', 429);
+    if (p.guest) return bad(reply, 'Guests have no PIN', 400);
     if (!verifyPin(body.currentPin, p.pin_hash)) return bad(reply, 'Current PIN is incorrect', 401);
     repo.updateProfile(db, p.id, { pinHash: hashPin(body.newPin) });
     return { ok: true };

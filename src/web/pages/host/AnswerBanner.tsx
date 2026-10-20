@@ -93,34 +93,36 @@ function Band({ answer, label, left, right, notes, aside, className, children }:
   const clamped = useClamped([textRef, notesRef], rootRef);
   return (
     <>
+      {/* R12-6: three columns as in the references — the category on the left, the label with the
+          answer (and notes) in the middle, the value (and the All / Picture buttons) on the right. */}
       <div ref={rootRef} className={cx('host-answer-band', className)} data-testid="answer-banner" data-variant="band">
-        <div className="host-answer-band-head">
+        <div className="host-answer-band-left">
           <span className="host-answer-band-cat" data-testid="host-clue-category">
             {left}
           </span>
+        </div>
+        <div className="host-answer-band-in">
           <p className="host-answer-band-label" aria-hidden>
             {label}
           </p>
+          <span className="sr-only">{label}: </span>
+          {answer != null && (
+            <div ref={textRef} className="host-answer-band-text" data-testid="host-answer">
+              {answer}
+            </div>
+          )}
+          {notes != null && (
+            <div ref={notesRef} className="host-answer-band-notes" data-testid="host-notes">
+              <NotebookPen size={13} className="mr-1 inline align-[-1px]" aria-hidden />
+              {notes}
+            </div>
+          )}
+          {children}
+        </div>
+        <div className="host-answer-band-right">
           <span className="host-answer-band-value" data-testid="host-clue-value">
             {right}
           </span>
-        </div>
-        <div className="host-answer-band-body">
-          <div className="host-answer-band-in">
-            <span className="sr-only">{label}: </span>
-            {answer != null && (
-              <div ref={textRef} className="host-answer-band-text" data-testid="host-answer">
-                {answer}
-              </div>
-            )}
-            {notes != null && (
-              <div ref={notesRef} className="host-answer-band-notes" data-testid="host-notes">
-                <NotebookPen size={13} className="mr-1 inline align-[-1px]" aria-hidden />
-                {notes}
-              </div>
-            )}
-            {children}
-          </div>
           {(aside || clamped) && (
             <div className="host-answer-band-aside">
               {clamped && (

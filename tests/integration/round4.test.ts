@@ -373,6 +373,7 @@ describe('saved boards are renamed to Final Jeopardy! (R4-7, migration v5)', () 
     db.prepare('INSERT INTO board_versions (board_id, title, content_json, saved_at) VALUES (?, ?, ?, 1)').run('b1', 'Old board', content);
     db.exec('DELETE FROM schema_migrations WHERE version >= 5');
     db.exec('ALTER TABLE profiles DROP COLUMN picture_off'); // v6 runs again too
+    db.exec('ALTER TABLE profiles DROP COLUMN guest'); // and v7
     migrate(db);
     const b = JSON.parse((db.prepare('SELECT content_json AS c FROM boards WHERE id = ?').get('b1') as { c: string }).c);
     expect(b.rounds.map((r: { name: string }) => r.name)).toEqual(['Round 1', 'Final Jeopardy!']);

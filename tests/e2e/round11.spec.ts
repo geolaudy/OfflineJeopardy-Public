@@ -196,7 +196,8 @@ for (const [label, browserName, ctxOpts] of [
       expect(stage.x).toBeGreaterThanOrEqual(f.x - 0.5);
       expect(stage.x + stage.width).toBeLessThanOrEqual(f.x + f.width + 0.5);
       expect(stage.y).toBeGreaterThanOrEqual(strip.y + strip.height - 0.5); // under the red band
-      expect(stage.y + stage.height).toBeLessThanOrEqual(f.y + f.height - 79); // above the controls
+      const band = Number(await ipad.getByTestId(frameId).getAttribute('data-band')); // R12-3: thinner in compact full screen
+      expect(stage.y + stage.height).toBeLessThanOrEqual(f.y + f.height - band + 1); // above the controls
       expect(Math.abs(stage.x + stage.width / 2 - (f.x + f.width / 2)), `${what}: centred`).toBeLessThan(1.5);
       expect(await ipad.getByTestId('game-bar').evaluate((e) => e.scrollWidth <= e.clientWidth + 1), `${what}: no horizontal overflow`).toBe(true);
       return f;
@@ -208,6 +209,7 @@ for (const [label, browserName, ctxOpts] of [
     await expect(ipad.getByTestId('clue-preview-box')).toBeVisible();
     await ipad.waitForTimeout(300);
     const clue = await check('clue-preview-box', 'clue');
+    const clueStage = await box('game-stage');
     expect(clue).toEqual(board); // the same frame in every state
     await ipad.getByTestId('unlock').click();
     await h.act({ type: 'timerStart', kind: 'buzz', seconds: 60 });
@@ -222,7 +224,9 @@ for (const [label, browserName, ctxOpts] of [
     await ipad.waitForTimeout(400);
     const full = await check('clue-preview-box', 'full screen');
     expect(full.width).toBeGreaterThan(vw.width - 40); // the whole width (minus the page margin)
-    expect(full.height).toBeGreaterThan(clue.height - 1);
+    // R12-3: the TV picture is never smaller in full screen (the frame itself may be shorter than the
+    // embedded one, which scrolls with the page on a phone).
+    expect((await box('game-stage')).height).toBeGreaterThan(clueStage.height - 2);
     const stageFull = await box('game-stage');
     // Wider than the TV's proportions: blue at the sides, the content not stretched.
     if (full.width / (full.height - 168) > STAGE + 0.05) expect(stageFull.width).toBeLessThan(full.width - 20);

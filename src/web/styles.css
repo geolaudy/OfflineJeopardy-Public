@@ -62,23 +62,37 @@ html:has(.app-screen) body {
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
+/* R12-9: the top of the screen that content must stay below. In a Home Screen web app iPadOS draws
+   the status bar over the page and softly fades / blurs the page under it — further down than the
+   status bar itself (references/topedge_fadeoff_example.png: text ~40 px under a 24 px status bar
+   was washed out). Pages cannot switch that effect off, so in a web app with a status bar inset,
+   content starts 2.75rem below the inset. (min(…, inset × 100) is 0 when there is no inset: a
+   Safari tab, a desktop browser, the Electron window, or the browser's own full screen.) */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+@media (display-mode: standalone), (display-mode: fullscreen) {
+  :root {
+    --safe-top: calc(env(safe-area-inset-top, 0px) + min(2.75rem, env(safe-area-inset-top, 0px) * 100));
+  }
+}
 /* Safe areas (notch, home indicator, landscape side insets) — viewport-fit=cover is set.
    These are unlayered, so they override Tailwind padding utilities: only use them on elements
    without their own padding on that side (use max(…, env(safe-area-inset-*)) otherwise). */
 .safe-top {
-  padding-top: env(safe-area-inset-top);
+  padding-top: var(--safe-top);
 }
 /* R11-7: one rule for the top safe area of the host's pages (status bar, the iPad's Liquid Glass):
    narrow screens — their top bar takes it; wide screens (side navigation) — the page area and the
    navigation take it, on every page alike. --safe-extra keeps the element's own top padding. */
 @media (max-width: 1023.98px) {
   .safe-top-narrow {
-    padding-top: calc(env(safe-area-inset-top) + var(--safe-extra, 0px));
+    padding-top: calc(var(--safe-top) + var(--safe-extra, 0px));
   }
 }
 @media (min-width: 1024px) {
   .safe-top-wide {
-    padding-top: calc(env(safe-area-inset-top) + var(--safe-extra, 0px));
+    padding-top: calc(var(--safe-top) + var(--safe-extra, 0px));
   }
 }
 .safe-bottom {
@@ -325,4 +339,34 @@ button {
 .rich-editor-box:focus-within {
   border-color: #2563eb;
   box-shadow: 0 0 0 2px #bfdbfe;
+}
+
+/* R12-12: a lobby buzzer test — the player's card glows yellow (the board's buzz-in yellow) and
+   fades out within a second. The overlay sits inside a card with position: relative. */
+.lobby-glow {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 3px #facc15,
+    0 0 0 3px #fde047,
+    0 0 22px 6px rgb(250 204 21 / 0.85);
+  background: rgb(254 240 138 / 0.28);
+  animation: lobby-glow 1s ease-out forwards;
+}
+@keyframes lobby-glow {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lobby-glow {
+    animation-timing-function: steps(1, end);
+  }
 }

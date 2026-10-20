@@ -12,6 +12,8 @@ import { DeviceTag, Fade, JoinAddress, SharedAvatar, StackedName, fitCards, useB
 import { COMPACT_AVATARS } from './CompactLobby';
 import { useBoard, vhPx } from './common';
 import { EASE_OUT_ARR, T } from './timing';
+import { LobbyGlow } from '../../lib/lobbyGlow';
+import { useLive } from '../../lib/socket';
 
 const MAX_PEOPLE = 30;
 
@@ -25,6 +27,7 @@ function useKnownKeys(keys: string[]) {
 
 export function LobbyFull({ m, morphIn, url, roomCode }: { m: LobbyModel; morphIn: boolean; url: string | null; roomCode: string | null }) {
   const ctx = useBoard();
+  const wifi = useLive((s) => s.lobby?.wifi);
   const known = useKnownKeys([...m.people.map((p) => p.key), ...(m.teams ?? []).map((t) => t.key)]);
   const rosterRef = useRef<HTMLDivElement>(null);
   const box = useBoxSize(rosterRef);
@@ -125,7 +128,22 @@ export function LobbyFull({ m, morphIn, url, roomCode }: { m: LobbyModel; morphI
               <p className="tvp-side-kicker">Join the Game</p>
               <ol className="tvp-steps">
                 <li>
-                  <Wifi aria-hidden /> Join this Wi-Fi.
+                  <Wifi aria-hidden />
+                  {/* R12-13: the network (and the password, once the host reveals it) when shared. */}
+                  {wifi ? (
+                    <span className="tvp-wifi" data-testid="tv-wifi">
+                      <span>
+                        Join the Wi-Fi <b data-testid="tv-wifi-ssid">{wifi.ssid}</b>
+                      </span>
+                      {wifi.password && (
+                        <span>
+                          Password <b className="tvp-wifi-pw" data-testid="tv-wifi-password">{wifi.password}</b>
+                        </span>
+                      )}
+                    </span>
+                  ) : (
+                    <>Join this Wi-Fi.</>
+                  )}
                 </li>
                 {m.preparing ? (
                   <li>
@@ -211,6 +229,7 @@ function PersonCard({ p, av, size, isNew, animateAvatar }: { p: LobbyPerson; av:
       data-testid="tv-lobby-player"
     >
       <Fade className="tvp-person-bg" />
+      <LobbyGlow id={p.pid} />
       <span className="tvp-av-wrap">
         <SharedAvatar p={p} size={av} animateIn={animateAvatar} />
         <Marks p={p} />

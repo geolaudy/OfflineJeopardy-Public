@@ -22,6 +22,8 @@ import { BALANCED_TEAM_NAMES, balanceTeams } from '../../../shared/teamBalance';
 import RulesEditor from './RulesEditor';
 import { usePresent } from './AppShell';
 import { ShowSettingsOnTv } from './ShowSettingsOnTv';
+import { LobbyGlow } from '../../lib/lobbyGlow';
+import { WifiShare } from './WifiShare';
 
 const run = async (a: Parameters<typeof act>[0]) => {
   const r = await act(a);
@@ -351,6 +353,7 @@ function JoinHint({ g }: { g: GameView }) {
             </Button>
           </div>
         )}
+        <WifiShare />
       </div>
     </Card>
   );
@@ -458,7 +461,8 @@ function SoloSetup({ g }: { g: GameView }) {
           {g.competitors.map((c) => {
             const name = competitorName(c, g);
             return (
-              <li key={c.id} className="flex items-center gap-3 rounded-xl bg-slate-50 p-2" data-testid={c.bot ? 'setup-bot' : 'setup-player'}>
+              <li key={c.id} className="relative flex items-center gap-3 rounded-xl bg-slate-50 p-2" data-testid={c.bot ? 'setup-bot' : 'setup-player'}>
+                <LobbyGlow id={c.profileId} />
                 <Avatar profile={competitorAvatar(c, g)} size={40} />
                 <span className="min-w-0 flex-1">
                   {c.bot || !c.profileId ? <span className="block truncate font-semibold">{name}</span> : <PersonName p={g.profiles[c.profileId]} className="font-semibold" realClassName="text-sm" />}
@@ -653,10 +657,11 @@ function TeamSetup({ g }: { g: GameView }) {
   const chip = (pid: string, index?: number) => (
     <li
       key={pid}
-      className={cx('flex min-h-12 items-center gap-1 rounded-xl bg-white py-1 pr-1 pl-1 shadow-sm ring-1 ring-slate-200', drag.dragging === pid && 'opacity-40')}
+      className={cx('relative flex min-h-12 items-center gap-1 rounded-xl bg-white py-1 pr-1 pl-1 shadow-sm ring-1 ring-slate-200', drag.dragging === pid && 'opacity-40')}
       data-member-index={index}
       data-testid="team-player"
     >
+      <LobbyGlow id={pid} />
       <button
         className="flex h-10 w-8 shrink-0 cursor-grab touch-none items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 active:cursor-grabbing"
         aria-label={`Drag ${label(pid)}`}

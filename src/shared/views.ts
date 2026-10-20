@@ -40,6 +40,8 @@ export interface ProfilePublic {
   color: string;
   avatar: string; // built-in avatar id
   pictureUrl: string | null;
+  /** R12-11: a guest (nickname only, no PIN): kept out of profile lists, leaderboards and statistics. */
+  guest?: true;
 }
 
 export interface ClueCell {

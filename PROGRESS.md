@@ -1,5 +1,17 @@
 # Progress
 
+## Session 15 — 2026-10-19 (original computer DESKTOP-6HN0OQ4, geolaudy; round 12)
+
+- **Restore:** this checkout was at an old state (v0.11-era) with 6 unpushed commits — an earlier round-7 F attempt that origin had since re-done (ca9e9e4). Kept on the local branch `archive/machine-b-r7f-unpushed`; `main` reset to `origin/main` (e1aed4d, v0.15.0). The other computer's last push was ~27 h earlier ("waiting for owner feedback"). New feedback: USER_FEEDBACK "Round 12", plan milestone 26.
+- **Milestone 0 — development lock (R12-1, D88):** `scripts/dev-lock.mjs` + `.githooks` + Claude Code hooks + DEVELOPMENT_LOCK.md + CLAUDE.md §36. Lock acquired for real (generation 1) and used all session; commits and pushes went through the hooks. Tests: devLock 12/12. Commit 66e3238.
+- **Found on the way:** Playwright serves `dist/`; a stale v0.11 build in this checkout made the round-11 full-screen test "crash" WebKit — rebuilding fixed it (handoff + prompts now say to build before e2e).
+- **Milestones A + B — host full screen redesign (R12-3…R12-8, D89):** edge-to-edge blue with a top bar (menu, Options, minimise), slide-in host menu, three-column answer band, restyled buttons, centred score cards with Undo, Reveal Answer in the Unlock Buzzers slot while the timer runs; compact layout for short screens (buttons beside the picture). Options in full screen also carries the game menu.
+- **Milestone C (R12-9, R12-10, D93):** `--safe-top` keeps content below the iPad web app's faded top edge on every host page; subheadings at 65 % (SUBHEADING_SCALE).
+- **Milestone D — Play as Guest (R12-11, D90):** migration v7, hidden guest rows, /api/guests, guest portal, rename in the lobby, cleanup when the lobby closes.
+- **Milestone E — lobby Test Buzzer (R12-12, D91):** lobby presses become `lobbyBuzz` broadcasts (nothing dispatched); 1 s yellow glow on TV, host and phone cards.
+- **Milestone F — Wi-Fi details (R12-13, D92):** netsh-based detection (hosting adapter only), password only on request and never stored or logged, manual fallback, host-controlled visibility, TV line in the join step.
+- Tests: tsc clean; Vitest **382/382** (new: devLock 12, round12 3, wifi 7; schema-version tests moved to v7). Playwright: round12 (3, new: iPad + iPhone full-screen screens, guest + Test Buzzer + Wi-Fi), host batch 36/38 → the 2 failures tested replaced behaviour (host-ipad: Reveal Answer used to wait in More; round11 iPhone landscape: frame height instead of picture height) — updated, passing; lobby / phone / TV batch 20/23 → mobile ×3 failed only after round12 left its lobby open (round12 now cleans up) — passing.
+
 ## Session 14 (continued) — round 11
 
 - v0.14.0 confirmed: tag v0.14.0 = f5508c5 (release commit), published with 3 assets. New feedback: USER_FEEDBACK "Round 11", plan milestone 25.

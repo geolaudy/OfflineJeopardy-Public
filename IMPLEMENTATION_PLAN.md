@@ -141,3 +141,13 @@ Rollback point: tag v0.14.0. See USER_FEEDBACK.md "Round 11"; statuses in FEATUR
 - **B — Fullscreen host preview:** R11-3 (shared fitting for fullscreen and embedded). **Done** (D85).
 - **C — iPad web app:** R11-7. **Done** (D86).
 - **D — Final answer closing:** R11-9. **Done** (D87).
+
+## Milestone 26 — User feedback round 12 (started 2026-10-19, session 15)
+
+Rollback point: tag v0.15.0. See USER_FEEDBACK.md "Round 12"; statuses in FEATURE_MATRIX.md.
+- **0 — Development lock:** R12-1. **Done** (D88; DEVELOPMENT_LOCK.md).
+- **A + B — Host full screen redesign:** R12-3 … R12-8. **Done** (D89).
+- **C — iPad top edge + subheadings:** R12-9 (D93, needs the real iPad), R12-10. **Done.**
+- **D — Play as Guest:** R12-11 (D90). **Done.**
+- **E — Lobby Test Buzzer:** R12-12 (D91). **Done.**
+- **F — Wi-Fi details near the QR:** R12-13 (D92). **Done** (automatic detection untested on a Wi-Fi PC).

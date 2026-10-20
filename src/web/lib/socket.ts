@@ -34,6 +34,8 @@ interface LiveState {
   buzzCheck: { view: BuzzCheckView | null; connections: ConnectionRow[] } | null;
   /** Players: a buzzer check is running / this phone already pressed. */
   myCheck: { active: boolean; endsAt: number; pressed: boolean } | null;
+  /** R12-12: lobby buzzer tests — profile id → when (local clock) its card started glowing. */
+  lobbyGlow: Record<string, number>;
 }
 
 export const useLive = create<LiveState>(() => ({
@@ -55,6 +57,7 @@ export const useLive = create<LiveState>(() => ({
   rtt: null,
   buzzCheck: null,
   myCheck: null,
+  lobbyGlow: {},
 }));
 
 let ws: WebSocket | null = null;
@@ -194,6 +197,14 @@ function handle(m: ServerMessage) {
     case 'controllerInput':
       useLive.setState({ lastInput: { controllerId: m.controllerId, button: m.button, at: m.at } });
       break;
+    case 'lobbyBuzz': {
+      // A shared team buzzer lights every member of the team.
+      const g = useLive.getState().game;
+      const ids = m.profileId ? [m.profileId] : (g?.competitors.find((c) => c.id === m.competitorId)?.memberIds ?? []);
+      const at = Date.now();
+      useLive.setState((s) => ({ lobbyGlow: { ...s.lobbyGlow, ...Object.fromEntries(ids.map((id) => [id, at])) } }));
+      break;
+    }
     case 'buzzResult':
       useLive.setState({ lastBuzz: { ok: m.ok, info: m.info, at: Date.now() } });
       break;

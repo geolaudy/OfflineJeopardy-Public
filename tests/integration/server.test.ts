@@ -657,7 +657,7 @@ describe('custom TV themes (O5)', () => {
     await api(s, 'DELETE', `/api/themes/${t.id}`, undefined, host);
     expect((await api(s, 'GET', '/api/settings/public')).data).toMatchObject({ theme: 'classic', custom: null });
     const { schemaVersion } = await import('../../src/server/db/db');
-    expect(schemaVersion(s.db)).toBe(6); // v6: profile picture can be switched off (R5-16)
+    expect(schemaVersion(s.db)).toBe(7); // v7: guest profiles (R12-11)
   });
 });
 

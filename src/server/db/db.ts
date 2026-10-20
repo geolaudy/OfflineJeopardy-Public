@@ -264,6 +264,14 @@ WHERE content_json LIKE '%"Final Wager"%';
     name: 'profile-picture-off',
     sql: `ALTER TABLE profiles ADD COLUMN picture_off INTEGER NOT NULL DEFAULT 0;`,
   },
+  {
+    // R12-11: guests play with a nickname only. Their row gives the game a stable identity (buzzers,
+    // scores, history) but is hidden from profile lists, sign-in, leaderboards and statistics, and
+    // removed when nothing refers to it any more.
+    version: 7,
+    name: 'guest-profiles',
+    sql: `ALTER TABLE profiles ADD COLUMN guest INTEGER NOT NULL DEFAULT 0;`,
+  },
 ];
 
 export function openDatabase(file: string): DB {

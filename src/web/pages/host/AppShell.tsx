@@ -75,7 +75,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const status = useLive((s) => s.status);
   const lobby = useLive((s) => s.lobby);
   const phase = useLive((s) => s.game?.phase);
-  const tvPage = useLive((s) => s.presentation?.page);
   const [menu, setMenu] = useState(false);
   const [pref, setPref] = useState<boolean | null>(readPref);
   // Default: present while a lobby is open (the intuitive behaviour for lobby hosting).
@@ -118,57 +117,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const current = sub?.title ?? HOST_NAV.find((n) => (n.end ? location.pathname === n.to || location.pathname === `${n.to}/` : location.pathname.startsWith(n.to)))?.label ?? 'Host';
 
-  const nav = (
-    <ul className="space-y-1">
-      {HOST_NAV.map(({ to, label, icon: Icon, end, id }) => (
-        <li key={to}>
-          <NavLink
-            to={to}
-            end={end}
-            data-testid={`hostnav-${id === 'leaderboards' ? 'leaderboard' : label.toLowerCase()}`}
-            className={({ isActive }) => cx('flex min-h-11 items-center gap-3 rounded-xl px-3 font-semibold', isActive ? 'bg-blue-50 text-blue-800' : 'text-slate-700 hover:bg-slate-50')}
-          >
-            <Icon size={20} strokeWidth={1.9} aria-hidden />
-            {label}
-          </NavLink>
-        </li>
-      ))}
-    </ul>
-  );
-
-  const presentSwitch = lobby?.open ? (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={enabled}
-      onClick={() => setEnabled(!enabled)}
-      disabled={playing}
-      title={playing ? 'During play the TV shows the game' : enabled ? 'The TV follows what you open here' : 'Browse privately — the TV stays as it is'}
-      className={cx('flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left font-semibold disabled:opacity-50', enabled ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-700')}
-      data-testid="present-toggle"
-    >
-      {enabled ? <Monitor size={20} aria-hidden /> : <MonitorOff size={20} aria-hidden />}
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm leading-tight">{enabled ? 'Present on TV' : 'Private view'}</span>
-        <span className={cx('block text-xs font-normal', enabled ? 'text-blue-100' : 'text-slate-500')}>{playing ? 'TV shows the game' : `TV: ${tvPage ? PAGE_LABELS[tvPage] : 'Lobby'}`}</span>
-      </span>
-    </button>
-  ) : null;
-
-  const footer = (
-    <div className="space-y-2">
-      {presentSwitch}
-      {isGameComputer() && (
-        <a href="/desk" className="flex min-h-11 items-center gap-3 rounded-xl px-3 font-semibold text-slate-700 hover:bg-slate-50" data-testid="back-to-start">
-          <ArrowLeft size={20} aria-hidden /> Back to start
-        </a>
-      )}
-      <div className="px-3">
-        <ConnectionBadge status={status} />
-      </div>
-    </div>
-  );
-
   return (
     <Ctx.Provider value={ctx}>
       <div className="app-screen flex flex-col bg-slate-100 lg:flex-row">
@@ -192,18 +140,19 @@ export default function AppShell({ children }: { children: ReactNode }) {
         {/* R11-7: the title clears the status bar by the same margin on every page. */}
         <nav className="safe-top-wide hidden w-60 shrink-0 flex-col gap-3 border-r border-slate-200 bg-white p-3 lg:flex" aria-label="Host navigation" style={{ paddingLeft: 'max(0.75rem, env(safe-area-inset-left))', '--safe-extra': '0.75rem' } as CSSProperties} data-testid="host-nav">
           <div className="px-2">
-            <div className="text-lg font-black">OfflineJeopardy</div>
-            <div className="truncate text-xs text-slate-500" data-testid="lobby-status">
-              {lobby?.open ? `Lobby: ${lobby.name}` : 'No lobby open'}
-            </div>
+            <HostNavTitle />
           </div>
-          <div className="scroll-area min-h-0 flex-1">{nav}</div>
-          {footer}
+          <div className="scroll-area min-h-0 flex-1">
+            <HostNavList />
+          </div>
+          <HostNavFooter />
         </nav>
         <Drawer open={menu} onClose={() => setMenu(false)} title={<span className="font-black">OfflineJeopardy</span>}>
           <div className="flex h-full flex-col gap-4">
-            {nav}
-            <div className="mt-auto">{footer}</div>
+            <HostNavList />
+            <div className="mt-auto">
+              <HostNavFooter />
+            </div>
           </div>
         </Drawer>
         <main ref={mainRef} className={cx('scroll-area safe-x safe-top-wide relative min-h-0 min-w-0 flex-1', homeBar && 'safe-top-narrow')} data-testid="host-main">
@@ -211,5 +160,77 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </main>
       </div>
     </Ctx.Provider>
+  );
+}
+
+/** The app's title and the lobby line, at the top of the navigation (side bar, drawer, full-screen menu). */
+export function HostNavTitle() {
+  const lobby = useLive((s) => s.lobby);
+  return (
+    <>
+      <div className="text-lg font-black">OfflineJeopardy</div>
+      <div className="truncate text-xs text-slate-500" data-testid="lobby-status">
+        {lobby?.open ? `Lobby: ${lobby.name}` : 'No lobby open'}
+      </div>
+    </>
+  );
+}
+
+/** The host's pages in the shared order (side bar, drawer and the full-screen menu, R12-4). */
+export function HostNavList() {
+  return (
+    <ul className="space-y-1">
+      {HOST_NAV.map(({ to, label, icon: Icon, end, id }) => (
+        <li key={to}>
+          <NavLink
+            to={to}
+            end={end}
+            data-testid={`hostnav-${id === 'leaderboards' ? 'leaderboard' : label.toLowerCase()}`}
+            className={({ isActive }) => cx('flex min-h-11 items-center gap-3 rounded-xl px-3 font-semibold', isActive ? 'bg-blue-50 text-blue-800' : 'text-slate-700 hover:bg-slate-50')}
+          >
+            <Icon size={20} strokeWidth={1.9} aria-hidden />
+            {label}
+          </NavLink>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Present on TV, Back to start (game computer) and the connection, under the navigation. */
+export function HostNavFooter() {
+  const { enabled, setEnabled, playing } = usePresent();
+  const status = useLive((s) => s.status);
+  const lobby = useLive((s) => s.lobby);
+  const tvPage = useLive((s) => s.presentation?.page);
+  return (
+    <div className="space-y-2">
+      {lobby?.open && (
+        <button
+          type="button"
+          role="switch"
+          aria-checked={enabled}
+          onClick={() => setEnabled(!enabled)}
+          disabled={playing}
+          title={playing ? 'During play the TV shows the game' : enabled ? 'The TV follows what you open here' : 'Browse privately — the TV stays as it is'}
+          className={cx('flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left font-semibold disabled:opacity-50', enabled ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-700')}
+          data-testid="present-toggle"
+        >
+          {enabled ? <Monitor size={20} aria-hidden /> : <MonitorOff size={20} aria-hidden />}
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm leading-tight">{enabled ? 'Present on TV' : 'Private view'}</span>
+            <span className={cx('block text-xs font-normal', enabled ? 'text-blue-100' : 'text-slate-500')}>{playing ? 'TV shows the game' : `TV: ${tvPage ? PAGE_LABELS[tvPage] : 'Lobby'}`}</span>
+          </span>
+        </button>
+      )}
+      {isGameComputer() && (
+        <a href="/desk" className="flex min-h-11 items-center gap-3 rounded-xl px-3 font-semibold text-slate-700 hover:bg-slate-50" data-testid="back-to-start">
+          <ArrowLeft size={20} aria-hidden /> Back to start
+        </a>
+      )}
+      <div className="px-3">
+        <ConnectionBadge status={status} />
+      </div>
+    </div>
   );
 }

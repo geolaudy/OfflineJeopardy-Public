@@ -5,30 +5,50 @@
    category and value sit on the label line (R10-9); the stripes run the other way. */
 .host-answer-band {
   position: relative;
-  display: flex;
+  display: grid;
   flex: none;
-  flex-direction: column;
-  padding: 0.3rem 0.75rem 0.4rem;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 3fr) minmax(0, 1fr);
+  grid-template-areas: 'left in right';
+  align-items: center;
+  column-gap: 0.75rem;
+  padding: 0.45rem 0.9rem 0.5rem;
   color: #ffffff;
   background: repeating-linear-gradient(45deg, #b01f1f 0 3px, #981a1a 3px 6px);
-  box-shadow: inset 0 -2px 0 rgb(0 0 0 / 0.25);
+  box-shadow:
+    inset 0 -2px 0 rgb(0 0 0 / 0.3),
+    inset 0 1px 0 rgb(255 255 255 / 0.12);
+  container-type: inline-size;
 }
-.host-answer-band-head {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: baseline;
-  gap: 0.75rem;
-}
-.host-answer-band-body {
-  display: flex;
+.host-answer-band-left {
+  grid-area: left;
   min-width: 0;
-  align-items: center;
-  gap: 0.5rem;
+}
+.host-answer-band-right {
+  display: flex;
+  grid-area: right;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.3rem;
 }
 .host-answer-band-in {
+  grid-area: in;
   min-width: 0;
-  flex: 1;
+  align-self: center;
   text-align: center;
+}
+/* Narrow bands (phones, portrait): the category and value share the top line, the answer below. */
+@container (max-width: 34rem) {
+  .host-answer-band {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'left right'
+      'in in';
+  }
+  .host-answer-band-right {
+    flex-direction: row;
+    align-items: center;
+  }
 }
 .host-answer-band-label,
 .host-answer-band-cat,
@@ -48,17 +68,22 @@
   text-transform: uppercase;
 }
 .host-answer-band-cat {
+  display: -webkit-box;
   overflow: hidden;
   color: var(--b-cat-fg, #ffffff);
+  font-size: 0.95rem;
+  letter-spacing: 0.12em;
   text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 .host-answer-band-value {
   overflow: hidden;
+  max-width: 100%;
   color: var(--b-tile-fg, #e8b64c);
-  font-size: 0.85rem;
-  letter-spacing: 0.06em;
+  font-size: 1.3rem;
+  letter-spacing: 0.04em;
   text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -67,14 +92,19 @@
 .host-answer-band-text {
   display: -webkit-box;
   overflow: hidden;
-  font-size: 1.3rem;
+  font-size: 1.5rem;
   letter-spacing: 0.05em;
-  line-height: 1.12;
+  line-height: 1.08;
   text-transform: uppercase;
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
+}
+/* With notes the answer keeps to one line, so label, answer and notes fit the strip (All shows the rest). */
+.host-answer-band:not(.host-answer-full) .host-answer-band-in:has(.host-answer-band-notes) .host-answer-band-text {
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
 }
 .host-answer-band-notes {
   display: -webkit-box;
@@ -113,6 +143,7 @@
 }
 /* The whole correct response (long answers / notes), in a sheet. */
 .host-answer-full {
+  display: block;
   border-radius: 0.75rem;
   padding: 1rem;
 }

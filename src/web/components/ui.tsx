@@ -260,7 +260,7 @@ export function Modal({ open, onClose, title, children, wide, xl, vars }: { open
       className="fade-in fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 sm:items-center sm:p-4"
       // R10-4: with the keyboard open the overlay covers only the visible part of the screen, so
       // the sheet (and its Save / Cancel) sits right above the keyboard.
-      style={{ ...vars, paddingTop: 'max(env(safe-area-inset-top), 12px)', ...(kb ? { top: kb.top, bottom: 'auto', height: kb.height } : {}) }}
+      style={{ ...vars, paddingTop: 'max(var(--safe-top), 12px)', ...(kb ? { top: kb.top, bottom: 'auto', height: kb.height } : {}) }}
       data-keyboard={kb ? 'open' : undefined}
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
@@ -272,8 +272,8 @@ export function Modal({ open, onClose, title, children, wide, xl, vars }: { open
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={cx('safe-x flex max-h-[calc(100dvh-max(env(safe-area-inset-top),12px))] w-full flex-col rounded-t-2xl bg-white shadow-xl outline-none sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl', xl ? 'sm:max-w-6xl' : wide ? 'sm:max-w-3xl' : 'sm:max-w-md')}
-        style={kb ? { maxHeight: `calc(${kb.height}px - max(env(safe-area-inset-top), 12px))` } : undefined}
+        className={cx('safe-x flex max-h-[calc(100dvh-max(var(--safe-top),12px))] w-full flex-col rounded-t-2xl bg-white shadow-xl outline-none sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl', xl ? 'sm:max-w-6xl' : wide ? 'sm:max-w-3xl' : 'sm:max-w-md')}
+        style={kb ? { maxHeight: `calc(${kb.height}px - max(var(--safe-top), 12px))` } : undefined}
       >
         <div className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-100 px-5 py-3">
           <h2 className="text-xl font-bold">{title}</h2>

@@ -1,20 +1,24 @@
 // Live game control for the host (iPad landscape first, portrait supported).
 // Board: a replica of the TV board (R5-13). Clue: HostClue.tsx (R5-14). Introduction: category
 // list, live TV preview and Next / Previous / Auto / Stop Auto / Skip (R5-12).
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import type { CompetitorView, GameView } from '../../../shared/views';
 import type { HostAction } from '../../../shared/actions';
-import { ActionButton, Avatar, Button, Lives, Modal, inputCls, cx, fmtScore } from '../../components/ui';
-import { competitorAvatar, competitorHighlight, competitorName, findCompetitor } from '../../lib/view';
+import { ActionButton, Avatar, Button, Lives, Modal, inputCls, cx, fmtScore, toast } from '../../components/ui';
+import { hostApi } from '../../lib/api';
+import { attempt, useMediaQuery } from '../../lib/hooks';
+import { themeRoot } from '../board/common';
+import { HostNavFooter, HostNavList, HostNavTitle } from './AppShell';
+import { competitorAvatar, competitorColor, competitorHighlight, competitorName, findCompetitor } from '../../lib/view';
 import ControllersPanel, { AssignListener } from '../../components/ControllersPanel';
 import FinalControl from './FinalControl';
 import { HOST_SHORTCUTS, useHostShortcuts } from './shortcuts';
-import { Undo2, Gamepad2, Play, ChevronLeft, ChevronRight, ChevronsRight, Square, SlidersHorizontal, QrCode, Flag } from 'lucide-react';
+import { Undo2, Gamepad2, Play, Pause, ChevronLeft, ChevronRight, ChevronsRight, Square, SlidersHorizontal, QrCode, Flag, Menu as MenuIcon, Save, ScrollText } from 'lucide-react';
 import { AnswerBanner } from './AnswerBanner';
 import { ClueStage } from './HostClue';
-import { HostBoardGrid, TvPreview } from './TvMirror';
+import { HostBoardGrid, TvPreview, useBoardLook } from './TvMirror';
 import ScoreEditor from './ScoreEditor';
-import { GameFrame, HostFullscreenCtx } from './GameFrame';
+import { FullscreenButton, GameFrame, HostFullscreenCtx } from './GameFrame';
 import { RichText } from '../../components/RichText';
 
 type Run = (a: HostAction) => Promise<{ ok: boolean }>;
@@ -101,21 +105,59 @@ function useHostFullscreen(ref: RefObject<HTMLElement | null>) {
   return useMemo(() => ({ on, toggle }), [on, toggle]);
 }
 
-export default function Live({ g, run }: { g: GameView; run: Run }) {
+/** The game menu's dialogs, which live on the host's home page (HostPage.tsx). */
+export interface LiveMenu {
+  rules: () => void;
+  log: () => void;
+}
+
+export default function Live({ g, run, menu }: { g: GameView; run: Run; menu?: LiveMenu }) {
   const [adjust, setAdjust] = useState<CompetitorView | null>(null);
   const [devices, setDevices] = useState(false);
+  const [nav, setNav] = useState(false);
   useHostShortcuts(g, run);
   const rootRef = useRef<HTMLDivElement>(null);
-  const fs = useHostFullscreen(rootRef);
+  const full = useHostFullscreen(rootRef);
+  // A short screen (a phone in landscape) has no room for a top bar above the game (R12-3).
+  const compact = useMediaQuery('(max-height: 560px)');
+  useEffect(() => {
+    if (!full.on) setNav(false);
+  }, [full.on]);
+  const look = useBoardLook();
+  const theme = themeRoot(look.theme, look.custom);
+  const onDevices = useCallback(() => setDevices(true), []);
+  const menuButton = (
+    <button type="button" className={cx('host-icon-btn shrink-0', compact ? 'h-11 w-11' : 'h-12 w-12')} onClick={() => setNav(true)} aria-label="Open menu" aria-expanded={nav} data-testid="fs-menu-toggle">
+      <MenuIcon size={26} strokeWidth={2.4} aria-hidden />
+    </button>
+  );
+  const topRight = (
+    <>
+      <GameOptions g={g} run={run} onDevices={onDevices} menu={menu} all compact={compact} />
+      <FullscreenButton className={compact ? 'h-11 w-11' : 'h-12 w-12'} />
+    </>
+  );
+  const fs = { ...full, compact, corners: compact ? { left: menuButton, right: <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">{topRight}</div> } : undefined };
   return (
     <HostFullscreenCtx.Provider value={fs}>
     <div
       ref={rootRef}
-      className={cx('flex h-full flex-col', fs.on && 'host-fullscreen fixed inset-0 z-[45] bg-slate-100')}
+      // R12-3: full screen is edge to edge — the TV's blue behind everything, no page margin, no
+      // scroll container.
+      className={cx('flex h-full flex-col', fs.on && 'host-fullscreen board-theme fixed inset-0 z-[45] overflow-hidden')}
+      data-theme={fs.on ? theme.dataTheme : undefined}
+      style={fs.on ? theme.style : undefined}
       data-testid="host-live"
       data-fullscreen={fs.on ? 'true' : 'false'}
     >
-      <div className="min-h-0 flex-1 overflow-auto p-2 sm:p-3">
+      {fs.on && !compact && (
+        <div className="host-fs-top flex shrink-0 items-center gap-2" data-testid="fs-top">
+          {menuButton}
+          <div className="flex-1" />
+          {topRight}
+        </div>
+      )}
+      <div className={cx('min-h-0 flex-1', fs.on ? 'relative overflow-hidden' : 'overflow-auto p-2 sm:p-3')}>
         {g.phase === 'final' ? (
           <FinalControl g={g} run={run} />
         ) : g.phase === 'board' && g.intro ? (
@@ -123,43 +165,11 @@ export default function Live({ g, run }: { g: GameView; run: Run }) {
         ) : g.phase === 'clue' && g.clue ? (
           <ClueStage g={g} run={run} />
         ) : (
-          <BoardStage g={g} run={run} onDevices={() => setDevices(true)} />
+          <BoardStage g={g} run={run} onDevices={onDevices} menu={menu} />
         )}
       </div>
-      <footer className="shrink-0 border-t border-slate-200 bg-white px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-        {/* The scroller clips everything outside its padding box: the padding leaves room for the
-            highlight ring (R6-2.2), which is never shrunk to fit. */}
-        <div className="-m-1 flex items-stretch gap-2 overflow-x-auto p-1">
-          {g.competitors.map((c) => {
-            const hl = competitorHighlight(g, c.id);
-            return (
-            <button
-              key={c.id}
-              onClick={() => setAdjust(c)}
-              className={cx(
-                'flex min-w-36 shrink-0 items-center gap-2 rounded-xl border-2 px-3 py-2 text-left',
-                hl === 'buzz' ? 'border-amber-400 bg-amber-50 ring-4 ring-amber-300' : hl === 'pick' ? 'border-amber-400 ring-2 ring-amber-300' : 'border-slate-200',
-                c.lives === 0 && 'opacity-50',
-              )}
-              aria-label={`Adjust score for ${competitorName(c, g)}`}
-              data-testid="host-score"
-              data-highlight={hl ?? undefined}
-            >
-              <Avatar profile={competitorAvatar(c, g)} size={32} />
-              <div className="min-w-0">
-                <div className="truncate text-sm font-semibold">{competitorName(c, g)}</div>
-                <div className={cx('text-lg font-black tabular-nums', c.score < 0 && 'text-red-700')}>{fmtScore(c.score)}</div>
-                {c.lives !== undefined && (c.lives > 0 ? <Lives lives={c.lives} max={g.rules.survivalLives} size={13} /> : <span className="text-xs font-bold text-slate-500 uppercase">Out</span>)}
-              </div>
-            </button>
-            );
-          })}
-          <div className="flex-1" />
-          <ActionButton variant="secondary" size="lg" disabled={!g.undoLabel} onAction={() => run({ type: 'undo' })} className="shrink-0" data-testid="undo">
-            <Undo2 size={18} aria-hidden /> Undo{g.undoLabel ? <span className="hidden text-sm font-normal text-slate-500 xl:inline">({g.undoLabel})</span> : null}
-          </ActionButton>
-        </div>
-      </footer>
+      <ScoreCards g={g} run={run} onAdjust={setAdjust} compact={fs.on && compact} />
+      {fs.on && nav && <FullscreenMenu onClose={() => setNav(false)} />}
       {adjust && <ScoreEditor g={g} c={g.competitors.find((x) => x.id === adjust.id) ?? adjust} run={run} onClose={() => setAdjust(null)} />}
       <Modal open={devices} onClose={() => setDevices(false)} title="Buzzers & controllers" wide>
         <ControllersPanel g={g} />
@@ -170,14 +180,90 @@ export default function Live({ g, run }: { g: GameView; run: Run }) {
   );
 }
 
+/**
+ * R12-7: the score cards, centred as a group under the game (Undo at the right end, the same width
+ * kept free at the left so the group stays centred). Many players: the cards get narrower, then
+ * the row scrolls sideways — names and scores are never cut by the screen edge.
+ */
+function ScoreCards({ g, run, onAdjust, compact }: { g: GameView; run: Run; onAdjust: (c: CompetitorView) => void; compact?: boolean }) {
+  return (
+    <footer className={cx('host-scores @container shrink-0', compact && 'is-compact')} data-testid="host-scores">
+      <div className="host-scores-grid">
+        {/* The scroller clips everything outside its padding box: the padding leaves room for the
+            highlight ring (R6-2.2), which is never shrunk to fit. */}
+        <div className="host-scores-row flex min-w-0 items-stretch justify-center-safe gap-2 overflow-x-auto p-1.5" data-testid="host-score-row">
+          {g.competitors.map((c) => {
+            const hl = competitorHighlight(g, c.id);
+            return (
+              <button
+                key={c.id}
+                onClick={() => onAdjust(c)}
+                className={cx('host-score-card', c.lives === 0 && 'opacity-50')}
+                style={{ '--pc': competitorColor(c, g) } as CSSProperties}
+                aria-label={`Adjust score for ${competitorName(c, g)}`}
+                title={competitorName(c, g)}
+                data-testid="host-score"
+                data-highlight={hl ?? undefined}
+              >
+                <Avatar profile={competitorAvatar(c, g)} size={compact ? 26 : 34} />
+                <div className="min-w-0">
+                  <div className="truncate text-sm leading-tight font-semibold">{competitorName(c, g)}</div>
+                  <div className={cx('text-xl leading-tight font-black tabular-nums', c.score < 0 && 'text-red-700')}>{fmtScore(c.score)}</div>
+                  {c.lives !== undefined && (c.lives > 0 ? <Lives lives={c.lives} max={g.rules.survivalLives} size={13} /> : <span className="text-xs font-bold text-slate-500 uppercase">Out</span>)}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+        <div className="host-scores-undo flex items-center justify-end">
+          <ActionButton variant="secondary" disabled={!g.undoLabel} onAction={() => run({ type: 'undo' })} className="host-btn min-h-12 shrink-0 px-4" data-testid="undo">
+            <Undo2 size={18} aria-hidden /> Undo{g.undoLabel ? <span className="hidden text-sm font-normal text-slate-500 @5xl:inline">({g.undoLabel})</span> : null}
+          </ActionButton>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+/** R12-4: the host's navigation sliding over the full-screen game from the left (the game keeps its
+ *  size); ‹, Esc or a tap beside it closes it. Inside the full-screen element, so it also shows when
+ *  the browser's own full screen is on. */
+function FullscreenMenu({ onClose }: { onClose: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const close = useRef(onClose);
+  close.current = onClose;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close.current();
+    window.addEventListener('keydown', onKey);
+    ref.current?.querySelector<HTMLElement>('button')?.focus({ preventScroll: true });
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+  return (
+    <div className="absolute inset-0 z-[60]" onPointerDown={(e) => e.target === e.currentTarget && onClose()} data-testid="fs-menu-backdrop">
+      <div ref={ref} role="dialog" aria-modal="true" aria-label="Menu" className="host-fs-menu drawer-panel flex h-full w-[min(20rem,85vw)] flex-col gap-3 bg-white p-3 text-slate-900 shadow-2xl" style={{ paddingTop: 'max(0.75rem, var(--safe-top))', paddingLeft: 'max(0.75rem, env(safe-area-inset-left))', paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }} data-testid="fs-menu">
+        <div className="flex items-start gap-2 px-2">
+          <div className="min-w-0 flex-1">
+            <HostNavTitle />
+          </div>
+          <button type="button" onClick={onClose} className="-mt-1 -mr-2 flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-slate-800 hover:bg-slate-100 active:bg-slate-200" aria-label="Close menu" data-testid="fs-menu-close">
+            <ChevronLeft size={34} strokeWidth={2.6} aria-hidden />
+          </button>
+        </div>
+        <div className="scroll-area min-h-0 flex-1">
+          <HostNavList />
+        </div>
+        <HostNavFooter />
+      </div>
+    </div>
+  );
+}
+
 /** R5-13: "{Player} is choosing a clue" above a replica of the TV board (tiles are buttons). */
-function BoardStage({ g, run, onDevices }: { g: GameView; run: Run; onDevices: () => void }) {
+function BoardStage({ g, run, onDevices, menu }: { g: GameView; run: Run; onDevices: () => void; menu?: LiveMenu }) {
   const round = g.rounds[g.roundIndex];
   const [played, setPlayed] = useState<string | null>(null);
-  const standard = g.rounds.map((r, i) => ({ name: r.name, kind: r.kind, i })).filter((r) => r.kind === 'standard');
-  const hasFinal = g.rounds.some((r) => r.kind === 'final');
-  const remaining = round?.categories.reduce((a, c) => a + c.clues.filter((q) => !q.used).length, 0) ?? 0;
-  const next = standard.find((r) => r.i > g.roundIndex);
+  const fs = useContext(HostFullscreenCtx);
+  const { standard, hasFinal, remaining, next } = roundInfo(g);
   const picker = findCompetitor(g, g.controlCompetitorId);
   if (!round || round.kind !== 'standard') return null;
   const q = played ? round.categories.flatMap((c) => c.clues).find((x) => x.id === played) : null;
@@ -212,7 +298,8 @@ function BoardStage({ g, run, onDevices }: { g: GameView; run: Run; onDevices: (
                 <Flag size={20} aria-hidden /> Start Final Jeopardy!
               </ActionButton>
             )}
-            <GameOptions g={g} run={run} onDevices={onDevices} remaining={remaining} next={next} standard={standard} hasFinal={hasFinal} />
+            {/* Full screen: Options is at the top right of the screen (R12-3.3). */}
+            {!fs.on && <GameOptions g={g} run={run} onDevices={onDevices} menu={menu} />}
           </div>
         }
       />
@@ -240,32 +327,40 @@ function BoardStage({ g, run, onDevices }: { g: GameView; run: Run; onDevices: (
   );
 }
 
-function GameOptions({
-  g,
-  run,
-  onDevices,
-  remaining,
-  next,
-  standard,
-  hasFinal,
-}: {
-  g: GameView;
-  run: Run;
-  onDevices: () => void;
-  remaining: number;
-  next: { name: string; i: number } | undefined;
-  standard: { name: string; i: number }[];
-  hasFinal: boolean;
-}) {
+/** The round's progress: playable rounds, the next one, the Final, clues left in this one. */
+function roundInfo(g: GameView) {
+  const round = g.rounds[g.roundIndex];
+  const standard = g.rounds.map((r, i) => ({ name: r.name, kind: r.kind, i })).filter((r) => r.kind === 'standard');
+  return {
+    standard,
+    hasFinal: g.rounds.some((r) => r.kind === 'final'),
+    remaining: round?.categories.reduce((a, c) => a + c.clues.filter((q) => !q.used).length, 0) ?? 0,
+    next: standard.find((r) => r.i > g.roundIndex),
+  };
+}
+
+/**
+ * Options: round changes (on the board only), buzzers, the join QR, the introduction. `all` (full
+ * screen, R12-3.3 — the page's own header with Pause and the game menu is covered there) adds Pause
+ * / Resume, Rules & timers, Event history, Save now and End game.
+ */
+function GameOptions({ g, run, onDevices, menu, all, compact }: { g: GameView; run: Run; onDevices: () => void; menu?: LiveMenu; all?: boolean; compact?: boolean }) {
+  const { standard, hasFinal, remaining, next } = roundInfo(g);
+  const onBoard = g.phase === 'board' && !g.intro;
   const [options, setOptions] = useState(false);
   return (
     <>
-      <Button size="lg" variant="secondary" onClick={() => setOptions(true)} data-testid="game-options">
-        <SlidersHorizontal size={18} aria-hidden /> Options
+      <Button size="lg" variant="secondary" className={cx('host-btn', all && (compact ? 'min-h-11 px-3' : 'min-h-12 px-4'))} onClick={() => setOptions(true)} aria-label="Options" data-testid="game-options">
+        <SlidersHorizontal size={18} aria-hidden /> <span className={cx(compact && 'sr-only')}>Options</span>
       </Button>
       <Modal open={options} onClose={() => setOptions(false)} title="Game options">
         <div className="grid gap-2">
-          {next && (
+          {all && (
+            <ActionButton size="lg" variant={g.paused ? 'warning' : 'secondary'} onAction={() => run({ type: g.paused ? 'resumeGame' : 'pauseGame' })} data-testid="option-pause">
+              {g.paused ? <Play size={18} aria-hidden /> : <Pause size={18} aria-hidden />} {g.paused ? 'Resume game' : 'Pause game'}
+            </ActionButton>
+          )}
+          {onBoard && next && (
             <ActionButton
               size="lg"
               variant="secondary"
@@ -279,7 +374,7 @@ function GameOptions({
               Next round: {next.name} <ChevronRight size={18} aria-hidden />
             </ActionButton>
           )}
-          {standard.length > 1 && (
+          {onBoard && standard.length > 1 && (
             <label className="text-sm font-semibold text-slate-600">
               Jump to round
               <select
@@ -301,7 +396,7 @@ function GameOptions({
               </select>
             </label>
           )}
-          {hasFinal && (
+          {onBoard && hasFinal && (
             <ActionButton
               size="lg"
               variant="secondary"
@@ -328,17 +423,68 @@ function GameOptions({
           <Button size="lg" variant="secondary" onClick={() => run({ type: 'showJoinQr', show: !g.showJoinQr })} data-testid="option-qr">
             <QrCode size={18} aria-hidden /> {g.showJoinQr ? 'Hide' : 'Show'} join QR code on TV
           </Button>
-          <Button
-            size="lg"
-            variant="secondary"
-            onClick={async () => {
-              setOptions(false);
-              await run({ type: 'startIntro' });
-            }}
-            data-testid="intro-start"
-          >
-            <Play size={18} aria-hidden /> Replay the category introduction
-          </Button>
+          {onBoard && (
+            <Button
+              size="lg"
+              variant="secondary"
+              onClick={async () => {
+                setOptions(false);
+                await run({ type: 'startIntro' });
+              }}
+              data-testid="intro-start"
+            >
+              <Play size={18} aria-hidden /> Replay the category introduction
+            </Button>
+          )}
+          {all && menu && (
+            <>
+              <Button
+                size="lg"
+                variant="secondary"
+                onClick={() => {
+                  setOptions(false);
+                  menu.rules();
+                }}
+              >
+                <SlidersHorizontal size={18} aria-hidden /> Rules & timers
+              </Button>
+              <Button
+                size="lg"
+                variant="secondary"
+                onClick={() => {
+                  setOptions(false);
+                  menu.log();
+                }}
+              >
+                <ScrollText size={18} aria-hidden /> Event history
+              </Button>
+            </>
+          )}
+          {all && (
+            <>
+              <Button
+                size="lg"
+                variant="secondary"
+                onClick={async () => {
+                  if (await attempt(() => hostApi<{ savedAt: number }>('POST', '/api/games/save'))) toast('Game saved', 'success');
+                }}
+              >
+                <Save size={18} aria-hidden /> Save now <span className="text-sm font-normal text-slate-500">(also saves automatically)</span>
+              </Button>
+              <Button
+                size="lg"
+                variant="danger"
+                onClick={async () => {
+                  if (!confirm('End the game now and show the results?')) return;
+                  setOptions(false);
+                  await run({ type: 'endGame' });
+                }}
+                data-testid="option-end-game"
+              >
+                <Flag size={18} aria-hidden /> End game
+              </Button>
+            </>
+          )}
           <p className="text-sm text-slate-500">To give board control to someone else, tap their score at the bottom of the screen.</p>
           <details className="hidden rounded-xl border border-slate-200 p-3 text-sm text-slate-600 [@media(pointer:fine)]:block">
             <summary className="cursor-pointer font-semibold">⌨ Keyboard shortcuts</summary>

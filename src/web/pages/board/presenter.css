@@ -1978,3 +1978,20 @@
   padding-bottom: 0.16em;
   margin-bottom: -0.16em;
 }
+
+/* R12-13: the Wi-Fi to join (and its password once the host reveals it), in the first step. */
+.tvp-wifi {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.2vh;
+}
+.tvp-wifi b {
+  overflow-wrap: anywhere;
+  color: #ffffff;
+  font-weight: 800;
+}
+.tvp-wifi-pw {
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  letter-spacing: 0.04em;
+}

@@ -25,6 +25,18 @@ export interface SettingsDraft {
   tournamentId: string | null;
 }
 
+/** R12-13: Wi-Fi details the host shares on the TV. In memory only; gone when the lobby closes. */
+export interface WifiShare {
+  show: boolean;
+  showPassword: boolean;
+  /** Typed by the host (they win over what Windows reports). */
+  manualSsid: string;
+  manualPassword: string;
+  /** Read from Windows when the host asked to show the password (null: open network). */
+  autoPassword?: string | null;
+}
+const NO_WIFI: WifiShare = { show: false, showPassword: false, manualSsid: '', manualPassword: '' };
+
 export interface LobbySession {
   name: string;
   createdAt: number;
@@ -36,6 +48,9 @@ const scoreText = (v: number | null) => formatValue(v, 'score');
 
 export class LobbyManager {
   lobby: LobbySession | null = null;
+  wifi: WifiShare = { ...NO_WIFI };
+  /** The detected network of the hosting adapter (refreshed by the host's Wi-Fi settings). */
+  detectedSsid: string | null = null;
   presentation: PresentationState = { page: 'lobby', rev: 0 };
   private request: PresentRequest = { page: 'lobby' };
   /** What the TV showed before the current page (host "Back" on the TV). */
@@ -54,6 +69,7 @@ export class LobbyManager {
   ) {}
 
   create(name?: string) {
+    this.wifi = { ...NO_WIFI };
     this.lobby = { name: name?.trim() || 'Game night', createdAt: Date.now(), pairingCode: newPairingCode() };
     this.save();
     this.present({ page: 'lobby' });
@@ -80,6 +96,7 @@ export class LobbyManager {
   /** Closing the lobby invalidates its pairing code (already paired hosts keep their session). */
   close() {
     this.lobby = null;
+    this.wifi = { ...NO_WIFI };
     this.save();
     this.draft = null;
     this.previous = null;
@@ -115,7 +132,16 @@ export class LobbyManager {
   }
 
   publicLobby(hostConnected: boolean): PublicLobby | null {
-    return this.lobby ? { open: true, name: this.lobby.name, hostConnected, createdAt: this.lobby.createdAt } : null;
+    return this.lobby ? { open: true, name: this.lobby.name, hostConnected, createdAt: this.lobby.createdAt, ...(this.sharedWifi() ? { wifi: this.sharedWifi()! } : {}) } : null;
+  }
+
+  /** What the TV may show: the network name, and the password only when the host revealed it. */
+  sharedWifi(): { ssid: string; password?: string } | null {
+    const w = this.wifi;
+    const ssid = w.manualSsid.trim() || this.detectedSsid;
+    if (!w.show || !ssid) return null;
+    const password = w.manualPassword || (w.manualSsid.trim() ? '' : (w.autoPassword ?? ''));
+    return w.showPassword && password ? { ssid, password } : { ssid };
   }
 
   present(input: PresentRequest) {

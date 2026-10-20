@@ -61,7 +61,7 @@
    strip, inside the preview's width. Text in the app's slate greys reads as white here; popovers
    that open from the band (class host-light) keep their light look. */
 .host-dark {
-  background: linear-gradient(rgb(12 18 66 / 0.96), rgb(5 8 34 / 0.97));
+  background: linear-gradient(rgb(26 31 82 / 0.97), rgb(9 12 44 / 0.98));
   color: #ffffff;
 }
 .host-band {
@@ -74,7 +74,7 @@
 }
 .host-strip > .host-answer-band {
   flex: 1;
-  justify-content: center;
+  align-content: center;
 }
 .host-dark :is(.text-slate-400, .text-slate-500):not(.host-light *, button *, summary *, button, summary) {
   color: rgb(255 255 255 / 0.62);
@@ -144,7 +144,184 @@
 .host-timer-line.is-low .host-timer-line-fill {
   background: #ff4b3a;
 }
-/* R11-3: the window-filling full-screen layout keeps clear of the notch / home indicator. */
-.host-fullscreen {
-  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+
+/* ---------- R12: the redesigned host controller (references/0.15.0 host fullscreen *.png) ---------- */
+
+/* Full screen: the TV's blue reaches every edge (the root carries the theme background); the
+   safe areas (notch, home indicator, status bar) are kept clear inside the blue by the top bar and
+   the score row, never by a border around it. */
+.host-fullscreen.board-theme[data-theme] {
+  padding: 0;
+  margin: 0;
+}
+/* The top bar on the blue: the menu at the left, Options and minimise at the right. It clears the
+   status bar and the iPad's faded top edge (--safe-top, styles.css). */
+.host-fs-top {
+  min-height: calc(var(--safe-top) + 4.25rem);
+  padding: var(--safe-top) max(0.75rem, env(safe-area-inset-right)) 0.5rem max(0.75rem, env(safe-area-inset-left));
+}
+.host-fullscreen > .host-scores {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Square icon buttons on the dark / blue surfaces (menu, minimise, Fullscreen Preview). */
+.host-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  background: linear-gradient(rgb(30 36 92 / 0.92), rgb(10 14 48 / 0.95));
+  color: #ffffff;
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.28),
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    0 3px 0 rgb(0 0 0 / 0.45);
+  transition:
+    transform 0.08s,
+    box-shadow 0.08s,
+    background-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.host-icon-btn:hover {
+  background: linear-gradient(rgb(40 48 116 / 0.95), rgb(14 20 62 / 0.97));
+}
+.host-icon-btn:active {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.28),
+    0 1px 0 rgb(0 0 0 / 0.45);
+}
+
+/* R12-5: the host's buttons — one family: heavy type, a firm edge, a little depth that presses in,
+   a clear disabled state. Colours stay the app's (green = go, blue = next, red / green = judge). */
+.host-btn {
+  border-radius: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.22),
+    inset 0 0 0 1px rgb(0 0 0 / 0.12),
+    0 3px 0 rgb(0 0 0 / 0.38);
+  transition:
+    transform 0.08s,
+    box-shadow 0.08s,
+    background-color 0.15s;
+}
+.host-btn:not(:disabled):active {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.15),
+    inset 0 0 0 1px rgb(0 0 0 / 0.12),
+    0 1px 0 rgb(0 0 0 / 0.38);
+}
+.host-btn:disabled {
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.2);
+}
+/* The band's main action (Unlock Buzzers / Reveal Answer / Return to Board …): one size and one
+   place, so the host never looks for it (R12-8). */
+.host-btn-main {
+  min-height: 4rem;
+  min-width: min(17rem, 42vw);
+  padding-inline: 1.5rem;
+  font-size: 1.35rem;
+  letter-spacing: 0.04em;
+}
+@container (max-width: 40rem) {
+  .host-btn-main {
+    min-width: 0;
+    font-size: 1.15rem;
+  }
+}
+
+/* R12-7: the score cards under the game, centred as a group; Undo at the right end with the same
+   width kept free on the left. */
+.host-scores {
+  background: linear-gradient(#05071c, #000000);
+  border-top: 1px solid rgb(255 255 255 / 0.1);
+  padding-bottom: max(0.25rem, env(safe-area-inset-bottom));
+}
+.host-scores-grid {
+  display: grid;
+  grid-template-columns: minmax(9.5rem, 1fr) minmax(0, auto) minmax(9.5rem, 1fr);
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+}
+.host-scores-grid > .host-scores-row {
+  grid-column: 2;
+}
+.host-scores-grid > .host-scores-undo {
+  grid-column: 3;
+}
+@container (max-width: 40rem) {
+  .host-scores-grid {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .host-scores-grid > .host-scores-row {
+    grid-column: 1;
+    justify-content: flex-start;
+  }
+  .host-scores-grid > .host-scores-undo {
+    grid-column: 2;
+  }
+}
+.host-score-card {
+  display: flex;
+  flex: 0 1 12rem;
+  min-width: 8.5rem;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.85rem;
+  background: #ffffff;
+  padding: 0.4rem 0.75rem 0.45rem 0.5rem;
+  color: #0f172a;
+  text-align: left;
+  /* the player's colour along the bottom edge, a soft lift */
+  box-shadow:
+    inset 0 -4px 0 var(--pc, #64748b),
+    inset 0 0 0 2px rgb(15 23 42 / 0.08),
+    0 2px 0 rgb(0 0 0 / 0.45);
+  transition: box-shadow 0.2s;
+}
+.host-score-card:active {
+  filter: brightness(0.95);
+}
+.host-score-card[data-highlight='pick'] {
+  box-shadow:
+    inset 0 -4px 0 var(--pc, #64748b),
+    inset 0 0 0 3px #fbbf24,
+    0 2px 0 rgb(0 0 0 / 0.45);
+}
+.host-score-card[data-highlight='buzz'] {
+  background: #fffbeb;
+  box-shadow:
+    inset 0 -4px 0 var(--pc, #64748b),
+    inset 0 0 0 3px #f59e0b,
+    0 0 0 4px rgb(252 211 77 / 0.75),
+    0 0 18px 4px rgb(251 191 36 / 0.55);
+}
+
+/* R12-3: full screen on a short screen (phone in landscape): smaller cards and buttons, so the
+   TV picture keeps as much height as possible. */
+.host-scores.is-compact .host-scores-grid {
+  padding-block: 0.125rem;
+}
+.host-scores.is-compact .host-score-card {
+  min-width: 7rem;
+  padding: 0.2rem 0.6rem 0.3rem 0.4rem;
+}
+.host-scores.is-compact .host-score-card .text-xl {
+  font-size: 1.05rem;
+}
+.host-scores.is-compact [data-testid='undo'] {
+  min-height: 2.5rem;
+}
+[data-compact='true'] .host-btn-main,
+[data-compact='true'] .host-btn {
+  min-height: 2.9rem;
+  font-size: 1.05rem;
+}
+[data-compact='true'] .host-band {
+  padding-block: 0.25rem;
 }

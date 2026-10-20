@@ -1,22 +1,31 @@
-OFFLINEJEOPARDY — RESUME ON THIS COMPUTER (mvanwitz machine)
+OFFLINEJEOPARDY — RESUME ON THE SECOND COMPUTER (mvanwitz machine)
 
 Continue the existing OfflineJeopardy project in this repository. Do not restart or rewrite it.
 
-1. Read CLAUDE.md, then SESSION_HANDOFF.md (top section) and PROGRESS.md (top section), then KNOWN_ISSUES.md.
-2. Run: git fetch origin && git status -sb && git log --oneline -5
-   - Branch: main (tracks origin/main). Expect a clean tree at the latest commit listed in SESSION_HANDOFF.md.
-   - If origin/main is ahead (the other computer pushed), pull first (git pull --ff-only) and re-read the handoff.
-3. Current state: v0.15.0 is released on GitHub (verified; full Playwright 70/70, Vitest 360/360).
-   Rounds 10 and 11 (USER_FEEDBACK.md: host full screen with one fitting for every screen shape,
-   host timer line, one buzz glow, web-app manifests + safe areas, Final answering closed by the
-   host, Buzzinga picture-clue text) are done and pushed.
-4. Exact next task (SESSION_HANDOFF.md "Single recommended next task"): record the owner's next
-   feedback round and implement it; otherwise the open items listed there. The round-6 socket timing
-   test is flaky under load (KNOWN_ISSUES K43) — re-run it alone before treating it as a failure.
-5. This machine: no Python (write Node edit scripts with the Write tool, not bash heredocs);
-   Playwright needs chromium + webkit (already installed here); new_sfx/ and references/ are
-   git-ignored and present. If a full Playwright run is stopped for low memory, close other programs
-   and run it once more.
-6. Work in small steps; after each stable sub-task run the relevant tests, update FEATURE_MATRIX /
-   PROGRESS, commit and push. Only stop near the token limit, and then update SESSION_HANDOFF.md,
-   PROGRESS.md and both CONTINUE_PROMPT_*.txt files, commit and push.
+0. DEVELOPMENT LOCK FIRST (DEVELOPMENT_LOCK.md, CLAUDE.md §36). Pull first so you have the scripts:
+     git fetch origin && git status -sb && git pull --ff-only
+     npm run dev:lock:status
+   - If it prints OFFLINEJEOPARDY DEVELOPMENT LOCKED: another computer is working. Tell the user who
+     holds it and since when, and do read-only work only. Never take over an active lock. If it has
+     EXPIRED and the user confirms the other session has stopped: npm run dev:lock:recover -- --confirm
+   - Otherwise: npm run dev:lock:acquire -- --task "<what you will do>"   (must say ACQUIRED)
+   - A blocked Edit/Write saying "DEVELOPMENT LOCK" means this clone has no confirmed lock: run the
+     commands above. If GitHub is unreachable the lock fails closed (read-only work only).
+1. Read CLAUDE.md, then SESSION_HANDOFF.md (top section) and PROGRESS.md (top section), then
+   KNOWN_ISSUES.md and FEATURE_MATRIX.md "User feedback round 12".
+2. Expect branch main = origin/main at the commit named at the top of SESSION_HANDOFF.md, clean tree.
+3. npm install (dependencies may have changed), then npx tsc -p . and npx vitest run for a baseline.
+   IMPORTANT: Playwright serves the built web app from dist/ — run npm run build:web (or npm run
+   build) before any e2e run, or the tests exercise an old build.
+4. State and next task: SESSION_HANDOFF.md ("Current state" and "Single recommended next task").
+   Round 12 (development lock, host full-screen redesign, guests, lobby Test Buzzer, Wi-Fi details,
+   subheadings at 65 %, iPad top edge) is described in USER_FEEDBACK.md "Round 12".
+5. Reference images are git-ignored: references/ must be copied by hand from the owner. Round 12
+   used: "0.15.0 host fullscreen board improved.png", "0.15.0 host fullscreen clue improved.png",
+   "0.15.0 host fullscreen menu open example.png", "topedge_fadeoff_example.png".
+6. This machine: no Python (write Node edit scripts with the Write tool, not bash heredocs — bash
+   quoting mangles backticks and apostrophes); Playwright needs chromium + webkit; new_sfx/ is
+   git-ignored (personal sounds — never commit or upload).
+7. Work in small steps; after each stable sub-task run the relevant tests, update FEATURE_MATRIX /
+   PROGRESS, commit and push (the git hooks check the lock). At the end: tests, SESSION_HANDOFF.md,
+   PROGRESS.md and both CONTINUE_PROMPT_*.txt, commit, push, verify, then npm run dev:lock:release.

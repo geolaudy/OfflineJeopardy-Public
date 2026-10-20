@@ -94,6 +94,8 @@ export type ServerMessage =
   /** To the window reading this controller: play feedback (lights / vibration). */
   | { t: 'controllerFx'; controllerId: string; fx: 'identify' | 'test' | 'buzzWin' | 'early' }
   | { t: 'buzzResult'; ok: boolean; info?: string }
+  // R12-12: a buzzer test in the lobby — the competitor's lobby card glows for about a second.
+  | { t: 'lobbyBuzz'; competitorId: string; profileId: string | null; at: number }
   /** R6-22: clock probe; answer at once with {t:'syncR', n, c: performance.now(), e: epoch}. */
   | { t: 'sync'; n: number }
   | { t: 'profilesChanged' }

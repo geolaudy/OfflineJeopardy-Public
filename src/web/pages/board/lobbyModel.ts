@@ -13,6 +13,8 @@ const realOf = (p: { name: string; nickname: string } | undefined) => (p && p.ni
 export interface LobbyPerson {
   /** Stable React / shared-layout key (derived from team and name; never shown). */
   key: string;
+  /** Profile id (players; for the lobby buzzer-test glow, R12-12). */
+  pid?: string;
   name: string;
   /** Profile name shown after a lobby nickname, in parentheses (R5-17.6). */
   realName?: string;
@@ -141,6 +143,7 @@ export function buildLobbyModel(g: GameView | null, lobby: PublicLobby | null, r
     const rows = roster.rows;
     const personFrom = (r: (typeof rows)[number]): LobbyPerson => ({
       key: key(r.team, r.name),
+      pid: r.profileId,
       name: r.name,
       realName: r.realName,
       color: r.color,
@@ -169,6 +172,7 @@ export function buildLobbyModel(g: GameView | null, lobby: PublicLobby | null, r
               const name = profileName(p);
               return {
                 key: key(c.name, name),
+                pid: m,
                 name,
                 realName: realOf(p),
                 color: p?.color ?? c.color,
@@ -224,7 +228,7 @@ export function buildLobbyModel(g: GameView | null, lobby: PublicLobby | null, r
       const members = c.memberIds.map((m) => {
         const p = g.profiles[m];
         const name = profileName(p);
-        return { key: key(c.name, name), name, color: p?.color ?? c.color, avatar: p?.avatar ?? 'fox', pictureUrl: p?.pictureUrl ?? null, device: '', ready: online.has(m), bot: false };
+        return { key: key(c.name, name), pid: m, name, color: p?.color ?? c.color, avatar: p?.avatar ?? 'fox', pictureUrl: p?.pictureUrl ?? null, device: '', ready: online.has(m), bot: false };
       });
       people.push(...members);
       return { key: `team|${c.name}`, name: c.name, color: c.color, avatar: c.avatar ?? 'shield', members, shared: null };
@@ -237,7 +241,7 @@ export function buildLobbyModel(g: GameView | null, lobby: PublicLobby | null, r
       }
       const p = c.profileId ? g.profiles[c.profileId] : undefined;
       const name = profileName(p);
-      people.push({ key: key(null, name), name, color: p?.color ?? c.color, avatar: p?.avatar ?? 'fox', pictureUrl: p?.pictureUrl ?? null, device: '', ready: !!c.profileId && online.has(c.profileId), bot: false });
+      people.push({ key: key(null, name), pid: c.profileId ?? undefined, name, color: p?.color ?? c.color, avatar: p?.avatar ?? 'fox', pictureUrl: p?.pictureUrl ?? null, device: '', ready: !!c.profileId && online.has(c.profileId), bot: false });
     }
   }
   const humans = new Set([...g.competitors.filter((c) => !c.bot).flatMap((c) => c.memberIds), ...g.unassigned.map((u) => u.profileId)]);

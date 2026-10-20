@@ -1,11 +1,13 @@
 // The player's lobby on the phone (R5-17): no buzzer before the game — who is here, the teams
 // (pick / leave / switch, rename and recolour your own), the board and rules, your buzzer, and a
 // nickname for this lobby. Tapping another player opens their public statistics.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Gamepad2, Keyboard, LogOut, Pencil, Smartphone, Users } from 'lucide-react';
-import { send, useLive } from '../../lib/socket';
-import { Avatar, Button, Modal, cx, inputCls } from '../../components/ui';
+import { BellRing, Gamepad2, Keyboard, LogOut, Pencil, Smartphone, Users } from 'lucide-react';
+import { pressStamp, send, useLive } from '../../lib/socket';
+import { meApi } from '../../lib/api';
+import { unlockAudio } from '../../lib/sound';
+import { Avatar, Button, Modal, cx, inputCls, toast } from '../../components/ui';
 import { PersonName } from '../../components/PersonName';
 import { competitorAvatar } from '../../lib/view';
 import { avatarEmoji } from '../../lib/avatars';
@@ -13,6 +15,7 @@ import { TEAM_COLORS } from '../../../shared/game';
 import { lobbyRules } from '../../../shared/rulesSummary';
 import type { GameView } from '../../../shared/views';
 import type { Me } from './JoinPage';
+import { LobbyGlow, useLobbyGlow } from '../../lib/lobbyGlow';
 
 /** Sends a lobby message and reports the server's answer (errors arrive as 'oj-error'). */
 function useLobbyError() {
@@ -59,7 +62,8 @@ export function PlayerLobby({ me, join }: { me: Me; join: React.ReactNode }) {
 
   return (
     <div className="space-y-4" data-testid="player-lobby">
-      <section className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm">
+      <section className="relative flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm" data-testid="my-lobby-card">
+        <LobbyGlow id={me.id} />
         <Avatar profile={{ ...profile, color: ctx?.color?.current ?? profile.color }} size={52} />
         <div className="min-w-0 flex-1">
           <PersonName p={profile} className="text-lg font-bold" realClassName="text-sm" />
@@ -69,7 +73,7 @@ export function PlayerLobby({ me, join }: { me: Me; join: React.ReactNode }) {
             </p>
           )}
         </div>
-        {inGame && <NicknameButton current={profile.nickname ?? ''} />}
+        {inGame && (me.guest ? <GuestNameButton name={profile.name} /> : <NicknameButton current={profile.nickname ?? ''} />)}
       </section>
 
       <section className="rounded-2xl bg-white p-4 shadow-sm">
@@ -98,9 +102,12 @@ export function PlayerLobby({ me, join }: { me: Me; join: React.ReactNode }) {
       ) : !inGame ? (
         join
       ) : (
-        <p className="rounded-2xl bg-green-50 p-3 text-center font-semibold text-green-800 ring-1 ring-green-200" data-testid="lobby-joined">
-          You’re in! The buzzer appears when the game starts.
-        </p>
+        <div className="space-y-2">
+          <p className="rounded-2xl bg-green-50 p-3 text-center font-semibold text-green-800 ring-1 ring-green-200" data-testid="lobby-joined">
+            You’re in! The buzzer appears when the game starts.
+          </p>
+          <TestBuzzer me={me} />
+        </div>
       )}
       {error && (
         <p className="rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-800" role="alert">
@@ -137,7 +144,8 @@ export function PlayerLobby({ me, join }: { me: Me; join: React.ReactNode }) {
                   <ul className="mt-2 flex flex-wrap gap-1.5">
                     {t.memberIds.map((m) => (
                       <li key={m}>
-                        <button className="flex min-h-9 items-center gap-1.5 rounded-full bg-slate-100 py-0.5 pr-3 pl-0.5 text-sm" onClick={() => open(m)} data-testid="phone-lobby-player">
+                        <button className="relative flex min-h-9 items-center gap-1.5 rounded-full bg-slate-100 py-0.5 pr-3 pl-0.5 text-sm" onClick={() => open(m)} data-testid="phone-lobby-player">
+                          <LobbyGlow id={m} />
                           <Avatar profile={g.profiles[m]} size={28} />
                           <PersonName p={g.profiles[m]} className="font-semibold" realClassName="text-xs" />
                         </button>
@@ -170,7 +178,8 @@ function People({ g, ids, bots = [], title, onOpen }: { g: GameView; ids: string
       <ul className="grid gap-1.5">
         {ids.map((id) => (
           <li key={id}>
-            <button className="flex min-h-12 w-full items-center gap-2 rounded-xl px-1 text-left hover:bg-slate-50" onClick={() => onOpen(id)} data-testid="phone-lobby-player">
+            <button className="relative flex min-h-12 w-full items-center gap-2 rounded-xl px-1 text-left hover:bg-slate-50" onClick={() => onOpen(id)} data-testid="phone-lobby-player">
+              <LobbyGlow id={id} />
               <Avatar profile={g.profiles[id]} size={36} />
               <PersonName p={g.profiles[id]} className="flex-1 font-semibold" realClassName="text-sm" />
               {g.online?.includes(id) && <span className="text-xs text-green-700">● online</span>}
@@ -189,6 +198,114 @@ function People({ g, ids, bots = [], title, onOpen }: { g: GameView; ids: string
         })}
       </ul>
     </section>
+  );
+}
+
+/**
+ * R12-12: try the buzzer before the game — the in-game buzzer, always "open". A press goes to the
+ * server as a normal buzz; in the lobby the server only lights this player's lobby card on every
+ * screen (no score, timer, lockout or statistic). The phone confirms at once, then again when the
+ * server's glow comes back.
+ */
+function TestBuzzer({ me }: { me: Me }) {
+  const [open, setOpen] = useState(false);
+  const [pressed, setPressed] = useState(false);
+  const [count, setCount] = useState(0);
+  const lastSent = useRef(-Infinity);
+  const glowing = useLobbyGlow(me.id) != null;
+  useEffect(() => {
+    if (!open) setCount(0);
+  }, [open]);
+  const press = (ev: { timeStamp: number }) => {
+    const now = performance.now();
+    if (now - lastSent.current < 300) return; // finger bounce, as in the game
+    lastSent.current = now;
+    unlockAudio();
+    setPressed(true);
+    setTimeout(() => setPressed(false), 180);
+    navigator.vibrate?.(30);
+    setCount((n) => n + 1);
+    send({ t: 'buzz', ...pressStamp(ev.timeStamp) });
+  };
+  return (
+    <>
+      <Button size="lg" variant="secondary" className="w-full" onClick={() => setOpen(true)} data-testid="test-buzzer-open">
+        <BellRing size={20} aria-hidden /> Test Buzzer
+      </Button>
+      {open && (
+        <div className="fade-in fixed inset-0 z-50 flex flex-col gap-3 bg-slate-950 p-4 pt-[max(1rem,var(--safe-top))] pb-[max(1rem,env(safe-area-inset-bottom))] text-white" role="dialog" aria-modal="true" aria-label="Test your buzzer" data-testid="test-buzzer">
+          <div className="flex items-center gap-3">
+            <p className="min-w-0 flex-1 text-lg font-bold">Test your buzzer</p>
+            <Button variant="secondary" onClick={() => setOpen(false)} data-testid="test-buzzer-done">
+              Done
+            </Button>
+          </div>
+          <p className="text-sm text-white/70">Press it like in the game. Your card in the lobby lights up yellow for everyone — nothing counts and the game does not start.</p>
+          <button
+            onPointerDown={press}
+            onContextMenu={(e) => e.preventDefault()}
+            className={cx(
+              'relative flex min-h-[13rem] w-full flex-1 flex-col items-center justify-center gap-2 rounded-[2rem] bg-yellow-400 px-4 font-black text-yellow-950 shadow-[0_8px_0_#a16207] transition-[transform,filter] duration-75 select-none [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] [touch-action:none]',
+              pressed && 'scale-[0.985] brightness-90',
+            )}
+            aria-label="Test buzzer"
+            data-testid="test-buzzer-button"
+          >
+            <span className="text-[clamp(2.5rem,12vw,4.5rem)] leading-none tracking-wide">BUZZ!</span>
+            <span className="text-base font-bold opacity-90 sm:text-lg">Test</span>
+          </button>
+          <p className="h-14 text-center text-lg font-semibold" role="status" data-testid="test-buzzer-status">
+            {count === 0 ? 'Tap the buzzer' : glowing ? 'Your card is glowing on the TV!' : `Pressed ${count} ${count === 1 ? 'time' : 'times'}`}
+          </p>
+        </div>
+      )}
+    </>
+  );
+}
+
+/** R12-11: a guest's name is their only name, so renaming changes it everywhere at once. */
+function GuestNameButton({ name }: { name: string }) {
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState(name);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => setValue(name), [name, open]);
+  const ok = value.trim().length > 0 && value.trim().length <= 30;
+  const save = async () => {
+    if (!ok || busy) return;
+    setBusy(true);
+    try {
+      await meApi('PATCH', '/api/me', { name: value.trim() });
+      setOpen(false);
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <>
+      <Button size="sm" variant="secondary" onClick={() => setOpen(true)} data-testid="nickname-open">
+        <Pencil size={14} aria-hidden /> Nickname
+      </Button>
+      <Modal open={open} onClose={() => setOpen(false)} title="Your nickname">
+        <div className="space-y-3">
+          <p className="text-sm text-slate-600">Shown on the TV and the scoreboard.</p>
+          <div className="flex flex-wrap gap-2" data-keep-visible>
+            <div className="min-w-0 flex-[1_1_12rem]">
+              <input className={inputCls} value={value} maxLength={30} onChange={(e) => setValue(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void save()} enterKeyHint="done" aria-label="Nickname" data-testid="nickname-input" autoFocus />
+            </div>
+            <div className="flex flex-[1_1_10rem] gap-2">
+              <Button size="lg" variant="secondary" className="flex-1" onClick={() => setOpen(false)} data-testid="nickname-cancel">
+                Cancel
+              </Button>
+              <Button size="lg" className="flex-1" onClick={() => void save()} disabled={!ok} busy={busy} data-testid="nickname-save">
+                Save
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Modal>
+    </>
   );
 }
 

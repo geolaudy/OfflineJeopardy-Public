@@ -203,14 +203,17 @@ test('board replica and the clue footer flow on the iPad (R5-13, R5-14)', async 
   await ipad.getByTestId('back-to-board').click();
   await expect(ipad.getByTestId('choosing')).toHaveText('Wizards is choosing a clue');
 
-  // Clue 2: nobody buzzes. With a buzz timer, Reveal Answer waits in "More" until time is up,
-  // then becomes the main footer action.
+  // Clue 2: nobody buzzes. R12-8: while the buzz timer runs, Reveal Answer is the main footer
+  // action in Unlock Buzzers' place and size (it was in "More" before round 12).
   await ipad.getByRole('button', { name: 'Geography for 400' }).click();
+  const ub2 = (await ipad.getByTestId('unlock').boundingBox())!;
   await ipad.getByTestId('unlock').click();
   await expect(ipad.getByTestId('buzzers-open')).toBeVisible();
-  await expect(ipad.getByTestId('reveal-answer')).toBeHidden(); // inside the closed More menu
-  await ipad.getByTestId('clue-more').click();
   await expect(ipad.getByTestId('reveal-answer')).toBeVisible();
+  const rb = (await ipad.getByTestId('reveal-answer').boundingBox())!;
+  for (const k of ['x', 'y', 'width', 'height'] as const) expect(Math.abs(rb[k] - ub2[k]), k).toBeLessThan(2);
+  await ipad.getByTestId('clue-more').click();
+  await expect(ipad.getByTestId('reveal-answer')).toHaveCount(1); // not also in More
   await expect(ipad.getByTestId('skip-clue')).toBeVisible();
   await shot(ipad, 'landscape-clue-more');
   await ipad.getByTestId('clue-more').click(); // close it again

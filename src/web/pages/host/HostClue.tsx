@@ -157,18 +157,18 @@ function NextStageButton({ g, run }: { g: GameView; run: Run }) {
   const next = nextStage(g);
   if (next.kind === 'round')
     return (
-      <ActionButton size="lg" variant="primary" onAction={() => run({ type: 'setRound', roundIndex: next.index })} data-testid="clue-next-round">
+      <ActionButton size="lg" variant="primary" className="host-btn host-btn-main" onAction={() => run({ type: 'setRound', roundIndex: next.index })} data-testid="clue-next-round">
         Start {next.name} <ChevronRight size={22} aria-hidden />
       </ActionButton>
     );
   if (next.kind === 'final')
     return (
-      <ActionButton size="lg" variant="primary" onAction={() => run({ type: 'startFinal' })} data-testid="clue-start-final">
+      <ActionButton size="lg" variant="primary" className="host-btn host-btn-main" onAction={() => run({ type: 'startFinal' })} data-testid="clue-start-final">
         <Flag size={22} aria-hidden /> Start Final Jeopardy!
       </ActionButton>
     );
   return (
-    <ActionButton size="lg" variant="success" onAction={() => run({ type: 'endGame' })} data-testid="clue-end-game">
+    <ActionButton size="lg" variant="success" className="host-btn host-btn-main" onAction={() => run({ type: 'endGame' })} data-testid="clue-end-game">
       <Flag size={22} aria-hidden /> End Game &amp; Show Results
     </ActionButton>
   );
@@ -186,9 +186,12 @@ function ClueFooter({ g, run, responder, who, setWho }: { g: GameView; run: Run;
   const canUnlock = !clue.resolved && !clue.isDailyWager && !clue.answerRevealed && !clue.answeringEnded && g.buzzer.status === 'locked' && !winner;
   // Without a running buzz timer nothing ends the clue by itself: Reveal Answer is the next step.
   const untimed = open && !g.timer;
-  const revealInFooter = !clue.answerRevealed && !wagerStage && !pendingJudgement && (over || untimed);
   const humans = g.competitors.filter((c) => !c.bot && !g.buzzer.attemptedCompetitors.includes(c.id));
   const practiceBuzz = g.practice && open && humans.length > 0;
+  // R12-8: while the buzz timer runs (buzzers open, nobody buzzed in yet) Reveal Answer takes the
+  // Unlock Buzzers button's place — the same reveal as from More (the server ends answering).
+  const timedOpen = open && !!g.timer && !practiceBuzz;
+  const revealInFooter = !clue.answerRevealed && !wagerStage && !pendingJudgement && (over || untimed || timedOpen);
   const judge = (result: 'correct' | 'incorrect') => run({ type: 'judge', result, ...(responder?.kind === 'team' ? { profileId: who } : {}) });
 
   let status: ReactNode;
@@ -215,30 +218,30 @@ function ClueFooter({ g, run, responder, who, setWho }: { g: GameView; run: Run;
   if (clue.answerRevealed && cluesLeft(g) === 0) primary = <NextStageButton g={g} run={run} />;
   else if (clue.answerRevealed)
     primary = (
-      <ActionButton size="lg" variant="primary" onAction={() => run({ type: 'closeClue', clueId: id })} data-testid="back-to-board">
+      <ActionButton size="lg" variant="primary" className="host-btn host-btn-main" onAction={() => run({ type: 'closeClue', clueId: id })} data-testid="back-to-board">
         <ArrowLeft size={22} aria-hidden /> Return to Board
       </ActionButton>
     );
   else if (judging)
     primary = (
       <div className="grid grid-cols-2 gap-2">
-        <ActionButton size="lg" variant="success" className="min-w-36" onAction={() => judge('correct')} data-testid="correct">
+        <ActionButton size="lg" variant="success" className="host-btn min-h-16 min-w-36 text-xl" onAction={() => judge('correct')} data-testid="correct">
           <Check size={24} aria-hidden /> Correct
         </ActionButton>
-        <ActionButton size="lg" variant="danger" className="min-w-36" onAction={() => judge('incorrect')} data-testid="incorrect">
+        <ActionButton size="lg" variant="danger" className="host-btn min-h-16 min-w-36 text-xl" onAction={() => judge('incorrect')} data-testid="incorrect">
           <X size={24} aria-hidden /> Incorrect
         </ActionButton>
       </div>
     );
   else if (canUnlock)
     primary = (
-      <ActionButton size="lg" variant="success" onAction={() => run({ type: 'unlockBuzzers' })} data-testid="unlock">
+      <ActionButton size="lg" variant="success" className="host-btn host-btn-main" onAction={() => run({ type: 'unlockBuzzers' })} data-testid="unlock">
         <LockOpen size={22} aria-hidden /> Unlock Buzzers
       </ActionButton>
     );
   else if (revealInFooter)
     primary = (
-      <ActionButton size="lg" variant="primary" onAction={() => run({ type: 'revealAnswer', clueId: id })} data-testid="reveal-answer">
+      <ActionButton size="lg" variant="primary" className="host-btn host-btn-main" onAction={() => run({ type: 'revealAnswer', clueId: id })} data-testid="reveal-answer">
         <Eye size={22} aria-hidden /> Reveal Answer
       </ActionButton>
     );
@@ -379,7 +382,7 @@ function More({ g, run, showReveal, pendingJudgement, practiceBuzz }: { g: GameV
   }, []);
   return (
     <details ref={ref} className="relative" data-testid="clue-tools">
-      <summary className="flex min-h-14 cursor-pointer list-none items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-lg font-semibold text-slate-700 select-none active:bg-slate-100 [&::-webkit-details-marker]:hidden" data-testid="clue-more">
+      <summary className="host-btn flex min-h-14 cursor-pointer list-none items-center gap-2 bg-white px-4 text-lg text-slate-700 select-none active:bg-slate-100 [&::-webkit-details-marker]:hidden" data-testid="clue-more">
         <Wrench size={18} aria-hidden /> More
         {early.length > 0 && (
           <span className="rounded-full bg-amber-200 px-2 text-sm font-bold text-amber-900" data-testid="early-count">
@@ -567,7 +570,7 @@ function AnswerLightbox({ g, onClose }: { g: GameView; onClose: () => void }) {
     clue: { ...clue, stage: 'question', answerRevealed: true, answeringEnded: true, submission: null },
   };
   return (
-    <div className="fade-in fixed inset-0 z-50 flex flex-col bg-slate-950/85 p-3 pt-[max(env(safe-area-inset-top),12px)] pb-[max(env(safe-area-inset-bottom),12px)]" role="dialog" aria-modal="true" aria-label="Answer picture (only you)" data-testid="answer-lightbox" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="fade-in fixed inset-0 z-50 flex flex-col bg-slate-950/85 p-3 pt-[max(var(--safe-top),12px)] pb-[max(env(safe-area-inset-bottom),12px)]" role="dialog" aria-modal="true" aria-label="Answer picture (only you)" data-testid="answer-lightbox" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="flex shrink-0 items-center gap-3 pb-3 text-white">
         <p className="min-w-0 flex-1 text-sm font-semibold text-slate-200">Only you see this — the TV still shows the clue.</p>
         <button ref={ref} onClick={onClose} className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white/15 text-white ring-1 ring-white/40 active:bg-white/25" aria-label="Close" data-testid="answer-lightbox-close">

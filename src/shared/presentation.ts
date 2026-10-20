@@ -34,6 +34,8 @@ export interface PublicLobby {
   /** At least one host controller is connected. */
   hostConnected: boolean;
   createdAt: number;
+  /** R12-13: the Wi-Fi to join, near the join QR — only what the host chose to show. */
+  wifi?: { ssid: string; password?: string };
 }
 
 export interface PresentedLeaderRow {

@@ -291,6 +291,12 @@ export class Hub {
     return [...new Set([...this.clients].filter((c) => c.role === 'player' && c.profileId).map((c) => c.profileId!))];
   }
 
+  /** R12-12: a buzzer test in the lobby — every screen lights that player's (or team's) lobby card. */
+  lobbyBuzz(competitorId: string, profileId: string | null) {
+    const m: ServerMessage = { t: 'lobbyBuzz', competitorId, profileId, at: Date.now() };
+    for (const c of this.clients) if (c.role) this.send(c, m);
+  }
+
   /** Feedback on a physical controller, sent only to the trusted window(s) that read it. */
   controllerFx(controllerId: string, fx: 'identify' | 'test' | 'buzzWin' | 'early') {
     for (const c of this.clients) if (c.trusted && c.deviceIds.has(controllerId)) this.send(c, { t: 'controllerFx', controllerId, fx });

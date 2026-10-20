@@ -41,6 +41,8 @@ export class GameManager {
   buzzDevices: (mode: BuzzFairness) => BuzzDevice[] = () => [];
   /** Someone won the buzz (any device, after the arbitration window): e.g. Joy-Con rumble. */
   onBuzzWinner: (w: BuzzWinner) => void = () => {};
+  /** R12-12: a buzzer pressed in the lobby (a test — never reaches the engine). */
+  onLobbyBuzz: (b: { competitorId: string; profileId: string | null; kind: InputKind }) => void = () => {};
   /** Delay between automatic category-introduction steps. */
   introStepMs = 3500;
   onChange: () => void = () => {};
@@ -273,6 +275,15 @@ export class GameManager {
     const s = this.current;
     if (!s) return { ok: false as const, info: 'no-game' };
     const r = resolveInput(s, { controllerId: input.controllerId, profileId: input.profileId });
+    // R12-12: in the lobby every press is a buzzer test: the player's lobby card glows on every
+    // screen (also before they picked a team). Nothing is dispatched, so no score, timer, lockout,
+    // statistic or event comes of it.
+    if (s.phase === 'lobby') {
+      const waiting = !r.ok && !!input.profileId && s.unassigned.some((u) => u.profileId === input.profileId && !u.pending);
+      if (!r.ok && !waiting) return { ok: false as const, info: r.reason };
+      this.onLobbyBuzz(r.ok ? { competitorId: r.competitorId, profileId: r.profileId ?? null, kind: input.kind } : { competitorId: '', profileId: input.profileId!, kind: input.kind });
+      return { ok: true as const, info: 'lobby-test' };
+    }
     if (!r.ok) return { ok: false as const, info: r.reason };
     const now = this.clock();
     const pressAt = now - Math.max(0, input.timing?.compMs ?? 0);

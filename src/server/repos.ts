@@ -33,6 +33,8 @@ export interface ProfileRow {
   created_at: number;
   updated_at: number;
   deleted_at: number | null;
+  /** 1 = a guest (R12-11). */
+  guest: number;
 }
 
 export interface ProfilePrivate extends ProfilePublic {
@@ -57,7 +59,7 @@ export function pictureUrl(row: Pick<ProfileRow, 'picture_file'> & { picture_off
 }
 
 export function toPublic(r: ProfileRow): ProfilePublic {
-  return { id: r.id, name: r.display_name, nickname: r.nickname, color: r.color, avatar: r.avatar, pictureUrl: pictureUrl(r) };
+  return { id: r.id, name: r.display_name, nickname: r.nickname, color: r.color, avatar: r.avatar, pictureUrl: pictureUrl(r), ...(r.guest ? { guest: true as const } : {}) };
 }
 
 export function toPrivate(r: ProfileRow): ProfilePrivate {
@@ -79,7 +81,7 @@ export function getProfile(db: DB, id: string): ProfileRow | undefined {
 }
 
 export function listProfiles(db: DB): ProfileRow[] {
-  return db.prepare('SELECT * FROM profiles WHERE deleted_at IS NULL ORDER BY display_name COLLATE NOCASE').all() as unknown as ProfileRow[];
+  return db.prepare('SELECT * FROM profiles WHERE deleted_at IS NULL AND guest = 0 ORDER BY display_name COLLATE NOCASE').all() as unknown as ProfileRow[];
 }
 
 export function profilesByIds(db: DB, ids: string[]): Record<string, ProfilePublic> {
@@ -130,6 +132,36 @@ export function updateProfile(db: DB, id: string, patch: Record<string, unknown>
   sets.push('updated_at = ?');
   vals.push(Date.now());
   db.prepare(`UPDATE profiles SET ${sets.join(', ')} WHERE id = ?`).run(...vals, id);
+}
+
+/** R12-11: a guest — a hidden row with a nickname and no usable PIN ('!' never verifies). */
+export function insertGuest(db: DB, p: { name: string; color: string; avatar: string }): ProfileRow {
+  const id = newId();
+  const now = Date.now();
+  db.prepare(`INSERT INTO profiles (id, display_name, nickname, color, avatar, pin_hash, guest, created_at, updated_at) VALUES (?, ?, '', ?, ?, '!', 1, ?, ?)`).run(id, p.name, p.color, p.avatar, now, now);
+  return getProfile(db, id)!;
+}
+
+/**
+ * R12-11: guests that nothing refers to any more — not in `keep` (the loaded game) and in no
+ * saved game, team or event — are removed with their sessions. Guests who played a game stay as
+ * hidden rows, so that game's history keeps the right name.
+ */
+export function pruneGuests(db: DB, keep: string[] = []) {
+  const ids = (db.prepare(`SELECT id FROM profiles WHERE guest = 1`).all() as { id: string }[]).map((r) => r.id).filter((id) => !keep.includes(id));
+  let removed = 0;
+  for (const id of ids) {
+    const used = db
+      .prepare(
+        `SELECT 1 FROM game_competitors WHERE profile_id = ?1 UNION ALL SELECT 1 FROM game_participants WHERE profile_id = ?1
+         UNION ALL SELECT 1 FROM team_members WHERE profile_id = ?1 UNION ALL SELECT 1 FROM gameplay_events WHERE profile_id = ?1 LIMIT 1`,
+      )
+      .get(id);
+    if (used) continue;
+    db.prepare('DELETE FROM profiles WHERE id = ?').run(id); // sessions cascade
+    removed++;
+  }
+  return removed;
 }
 
 /** Soft delete: history keeps referencing the stable id; personal data is cleared. */

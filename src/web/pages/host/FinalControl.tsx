@@ -371,7 +371,7 @@ function AnswerMediaSheet({ g, onClose }: { g: GameView; onClose: () => void }) 
   }, [onClose]);
   return (
     <div
-      className="fade-in fixed inset-0 z-50 flex flex-col bg-slate-950/90 p-3 pt-[max(env(safe-area-inset-top),12px)] pb-[max(env(safe-area-inset-bottom),12px)] text-white"
+      className="fade-in fixed inset-0 z-50 flex flex-col bg-slate-950/90 p-3 pt-[max(var(--safe-top),12px)] pb-[max(env(safe-area-inset-bottom),12px)] text-white"
       role="dialog"
       aria-modal="true"
       aria-label="Correct response media (only you)"

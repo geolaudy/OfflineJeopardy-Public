@@ -117,6 +117,10 @@ export const HOST_BAND = 0.14;
  *  the proportion the iPad replica already had; long names still shrink to fit. */
 export const CATEGORY_TEXT_SHARE = 0.34;
 
+/** R12-10: category subheadings are drawn at 65 % of their earlier size (board, iPad replica,
+ *  introduction, Final and the editor previews), their minimum sizes included. */
+export const SUBHEADING_SCALE = 0.65;
+
 /** R8-9: a category header on the board (TV and iPad replica): the name — the same size as
  *  without a subheading — with a smaller subheading under it when the category has one. R10-3:
  *  the two lines are one group, centred together, the subheading directly under the name. */
@@ -126,7 +130,7 @@ export function CategoryText({ name, subheading, scale, min }: { name: string; s
     <FitStack
       lines={[
         { text: name, em: 1, className: 'bt-cat-text' },
-        { text: subheading, em: 0.55, minVh: 0.9 * scale, className: 'bt-cat-sub', testId: 'category-subheading' },
+        { text: subheading, em: 0.55 * SUBHEADING_SCALE, minVh: 0.9 * SUBHEADING_SCALE * scale, className: 'bt-cat-sub', testId: 'category-subheading' },
       ]}
       max={4.4 * scale}
       maxBox={CATEGORY_TEXT_SHARE * scale}
@@ -142,7 +146,7 @@ export function CategoryTitle({ name, subheading, max, min, subEm, subMin, boxCl
     <FitStack
       lines={[
         { text: name, em: 1, className: 'bt-intro-cat' },
-        { text: subheading, em: subEm, minVh: subMin, className: 'bt-intro-sub', testId: subTestId },
+        { text: subheading, em: subEm * SUBHEADING_SCALE, minVh: subMin * SUBHEADING_SCALE, className: 'bt-intro-sub', testId: subTestId },
       ]}
       max={max}
       min={min}

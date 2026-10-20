@@ -107,7 +107,7 @@ function HostLogin({ onDone, initialCode }: { onDone: () => void; initialCode: s
     if (next.length === 6) void submit(next);
   };
   return (
-    <div className="app-screen scroll-area flex items-center justify-center px-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+    <div className="app-screen scroll-area flex items-center justify-center px-6 pt-[max(1.5rem,var(--safe-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <div className="my-auto w-full max-w-sm rounded-3xl bg-white p-6 shadow-lg">
         <h1 className="text-center text-2xl font-black">Host controller</h1>
         <p className="mt-2 text-center text-slate-600">{busy && initialCode ? 'Pairing with the game computer…' : 'Enter the 6-digit host code shown on the game computer after you create a lobby.'}</p>
@@ -254,7 +254,7 @@ function HostHome() {
         </div>
       </header>
       <div className="scroll-area min-h-0 flex-1">
-        {!ready ? <div className="p-6 text-center text-slate-500">Connecting to the game computer…</div> : !game ? <HostLanding /> : game.phase === 'lobby' ? <Setup g={game} /> : game.phase === 'ended' ? <Results g={game} /> : <Live g={game} run={run} />}
+        {!ready ? <div className="p-6 text-center text-slate-500">Connecting to the game computer…</div> : !game ? <HostLanding /> : game.phase === 'lobby' ? <Setup g={game} /> : game.phase === 'ended' ? <Results g={game} /> : <Live g={game} run={run} menu={{ rules: () => setRules(true), log: () => setLog(true) }} />}
       </div>
       <Drawer
         open={menu}

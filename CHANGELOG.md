@@ -6,6 +6,17 @@ their notes come from the matching section below (`scripts/release-notes.mjs`).
 
 ## [Unreleased]
 
+### New Features
+- **Play as Guest**: players can join from their phone with just a nickname — no profile or PIN. They play normally, can change their nickname in the lobby, and their games are not added to anyone's profile, statistics or leaderboards.
+- **Test Buzzer in the lobby**: players can try their buzzer before the game; their card in the lobby lights up yellow for a moment on the TV, the host controller and the phones. Nothing counts and the game does not start.
+- **Wi-Fi details next to the join QR code**: the host can show the Wi-Fi name on the TV (found automatically when the game runs over Wi-Fi on Windows, or typed in) and, if they choose, its password (read from Windows where it allows it, or typed in). Off by default; the password stays hidden until the host reveals it and is never saved.
+
+### Improvements
+- **Redesigned host full screen**: the TV's blue reaches every edge; menu, Options and minimise sit on the blue at the top; a new red answer band (category · correct response · value) or "who is choosing" bar; restyled buttons; score cards centred along the bottom with Undo at the right; the host menu slides in over the game. Phones in landscape get a compact version with a larger picture.
+- **Reveal Answer while the timer runs** takes the Unlock Buzzers button's place, so the host never has to look for it.
+- Category subheadings are smaller (about 65 %).
+- iPad Home Screen app: page titles and buttons now start below the faded area under the status bar.
+
 ## [0.15.0] — 2026-10-18
 
 ### New Features

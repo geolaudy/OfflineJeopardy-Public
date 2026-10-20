@@ -6,7 +6,7 @@ import { NavLink, Navigate, Route, Routes, matchPath, useLocation, useNavigate }
 import { api, ApiError, meApi, tokens } from '../../lib/api';
 import { connect, disconnect, useLive } from '../../lib/socket';
 import { useFetch, useProfiles } from '../../lib/hooks';
-import { Avatar, Drawer, Modal, PageHeader, PinPad, cx, toast, type NavItem } from '../../components/ui';
+import { Avatar, Button, Drawer, Modal, PageHeader, PinPad, cx, inputCls, toast, type NavItem } from '../../components/ui';
 import { ProfileCreateForm } from '../../components/ProfileForm';
 import { profileName } from '../../lib/view';
 import type { ProfilePublic } from '../../../shared/views';
@@ -14,7 +14,7 @@ import PlayTab from './PlayTab';
 import ProfileTab from './ProfileTab';
 import { ProfileStats } from '../../components/StatsView';
 import Tournaments from './Tournaments';
-import { BellRing, CircleUserRound, ChartColumn, History, Trophy, Users, Settings, LogOut, Medal } from 'lucide-react';
+import { BellRing, CircleUserRound, ChartColumn, History, Trophy, Users, Settings, LogOut, Medal, UserRound } from 'lucide-react';
 
 const Leaderboard = lazy(() => import('./Leaderboard'));
 const PlayersList = lazy(() => import('./Players').then((m) => ({ default: m.PlayersList })));
@@ -110,6 +110,7 @@ function SignIn({ onSignedIn }: { onSignedIn: (m: Me) => void }) {
   const profiles = useProfiles();
   const [picked, setPicked] = useState<ProfilePublic | null>(null);
   const [creating, setCreating] = useState(false);
+  const [guest, setGuest] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState('');
@@ -153,6 +154,11 @@ function SignIn({ onSignedIn }: { onSignedIn: (m: Me) => void }) {
               </button>
             ))}
           </div>
+          {/* R12-11: join with a nickname only — no profile, no PIN. */}
+          <button onClick={() => setGuest(true)} className="mt-4 flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border-2 border-slate-300 bg-white px-4 text-lg font-bold text-slate-800 active:bg-slate-100" data-testid="play-as-guest">
+            <UserRound size={22} aria-hidden /> Play as Guest
+          </button>
+          <p className="mt-1 text-center text-xs text-slate-500">No profile needed — your scores just aren't saved to a profile.</p>
           {profiles.error && <p className="mt-4 text-center text-red-700">{profiles.error}</p>}
         </div>
       </main>
@@ -174,6 +180,20 @@ function SignIn({ onSignedIn }: { onSignedIn: (m: Me) => void }) {
             <p className="text-center text-xs text-slate-500">Forgot your PIN? Ask the host to reset it.</p>
           </div>
         )}
+      </Modal>
+      <Modal open={guest} onClose={() => setGuest(false)} title="Play as Guest">
+        <GuestForm busy={busy} onSubmit={async (name) => {
+          setBusy(true);
+          try {
+            const r = await api<{ token: string; profile: Me }>('POST', '/api/guests', { name });
+            tokens.profile = r.token;
+            onSignedIn(r.profile);
+          } catch (e) {
+            toast((e as Error).message, 'error');
+          } finally {
+            setBusy(false);
+          }
+        }} />
       </Modal>
       <Modal open={creating} onClose={() => setCreating(false)} title="Create your profile">
         <ProfileCreateForm
@@ -202,6 +222,33 @@ function SignIn({ onSignedIn }: { onSignedIn: (m: Me) => void }) {
     </>
   );
 }
+
+/** R12-11: the guest's nickname (the same rules as a profile name: 1–30 characters). */
+function GuestForm({ busy, onSubmit }: { busy: boolean; onSubmit: (name: string) => void }) {
+  const [name, setName] = useState('');
+  const ok = name.trim().length > 0 && name.trim().length <= 30;
+  return (
+    <form
+      className="space-y-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (ok && !busy) onSubmit(name.trim());
+      }}
+    >
+      <label className="block text-sm font-semibold text-slate-700">
+        Your nickname
+        <input className={cx(inputCls, 'mt-1 text-lg')} value={name} maxLength={30} autoFocus autoComplete="off" enterKeyHint="go" onChange={(e) => setName(e.target.value)} data-testid="guest-name" />
+      </label>
+      <p className="text-sm text-slate-500">You can change it in the lobby. Guest games are not added to a profile, statistics or leaderboards.</p>
+      <Button type="submit" size="lg" className="w-full" disabled={!ok} busy={busy} data-testid="guest-join">
+        Join as guest
+      </Button>
+    </form>
+  );
+}
+
+/** Pages a guest has (R12-11): no profile, statistics or own history. */
+const GUEST_NAV = new Set(['/join', '/join/leaderboard', '/join/tournaments', '/join/players']);
 
 function Portal({ me, setMe, signOut }: { me: Me; setMe: (m: Me) => void; signOut: (forget: boolean) => void }) {
   const [menu, setMenu] = useState(false);
@@ -238,6 +285,10 @@ function Portal({ me, setMe, signOut }: { me: Me; setMe: (m: Me) => void; signOu
             <NavLink to="/join" className="mr-1 flex min-h-11 items-center rounded-full bg-red-600 px-4 text-sm font-bold text-white" data-testid="back-to-buzzer">
               <BellRing size={16} className="mr-1.5" aria-hidden /> Buzzer
             </NavLink>
+          ) : me.guest ? (
+            <span className="mr-1 flex h-11 w-11 items-center justify-center" data-testid="guest-badge" title="Playing as a guest">
+              <Avatar profile={shown} size={34} />
+            </span>
           ) : (
             <NavLink to="/join/profile" aria-label="My profile" className="mr-1 flex h-11 w-11 items-center justify-center rounded-full">
               <Avatar profile={shown} size={34} />
@@ -254,8 +305,9 @@ function Portal({ me, setMe, signOut }: { me: Me; setMe: (m: Me) => void; signOu
           <Suspense fallback={<p className="text-slate-500">Loading…</p>}>
             <Routes>
               <Route index element={<PlayTab me={me} />} />
-              <Route path="profile" element={<ProfileTab me={me} setMe={setMe} signOut={signOut} view="profile" />} />
-              <Route path="settings" element={<ProfileTab me={me} setMe={setMe} signOut={signOut} view="settings" />} />
+              {/* Guests have no profile page or profile settings (R12-11). */}
+              <Route path="profile" element={me.guest ? <Navigate to="/join" replace /> : <ProfileTab me={me} setMe={setMe} signOut={signOut} view="profile" />} />
+              <Route path="settings" element={me.guest ? <Navigate to="/join" replace /> : <ProfileTab me={me} setMe={setMe} signOut={signOut} view="settings" />} />
               <Route path="stats" element={<MyStats />} />
               <Route path="history" element={<HistoryPage me={me} />} />
               <Route path="history/:gameId" element={<GameDetailPage me={me} />} />
@@ -276,13 +328,13 @@ function Portal({ me, setMe, signOut }: { me: Me; setMe: (m: Me) => void; signOu
             <Avatar profile={shown} size={40} />
             <div className="min-w-0">
               <div className="truncate font-bold">{profileName(me)}</div>
-              <div className="text-xs text-slate-500">{status === 'open' ? 'Connected' : 'Reconnecting…'}</div>
+              <div className="text-xs text-slate-500">{me.guest ? 'Guest · ' : ''}{status === 'open' ? 'Connected' : 'Reconnecting…'}</div>
             </div>
           </div>
         }
       >
         <ul className="space-y-1">
-          {JOIN_NAV.map((n) => (
+          {JOIN_NAV.filter((n) => !me.guest || GUEST_NAV.has(n.to)).map((n) => (
             <li key={n.to}>
               <NavLink
                 to={n.to}
@@ -303,7 +355,7 @@ function Portal({ me, setMe, signOut }: { me: Me; setMe: (m: Me) => void; signOu
             <span aria-hidden className="w-6 text-center text-xl">
               <LogOut size={20} className="mx-auto" />
             </span>
-            Sign out
+            {me.guest ? 'Leave (guest)' : 'Sign out'}
           </button>
         </div>
       </Drawer>
