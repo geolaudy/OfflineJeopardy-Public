@@ -1,19 +1,18 @@
 {
   "project": "OfflineJeopardy",
   "schema": 1,
-  "status": "released",
-  "sessionId": "85235315-0e6d-4098-9205-2ec7fec75cf8",
-  "generation": 1,
+  "status": "active",
+  "sessionId": "cb533704-f878-4e21-8ed5-422dbd983fc2",
+  "generation": 2,
   "computer": "DESKTOP-6HN0OQ4",
   "developer": "geolaudy",
   "branch": "main",
   "commit": "6649f66",
-  "startedAt": "2026-10-20T01:47:29.000Z",
-  "lastHeartbeat": "2026-10-20T03:57:45.000Z",
-  "expiresAt": "2026-10-20T04:12:45.000Z",
+  "startedAt": "2026-10-20T05:07:04.000Z",
+  "lastHeartbeat": "2026-10-20T05:07:04.000Z",
+  "expiresAt": "2026-10-20T05:22:04.000Z",
   "clock": "GitHub server time",
   "heartbeatSeconds": 180,
   "ttlSeconds": 900,
-  "currentTask": "Release v0.16.0 (round 12)",
-  "releasedAt": "2026-10-20T03:59:35.000Z"
+  "currentTask": "Round 13: host TV preview maximization, layout unification, lobby no-scroll, animation parity"
 }
