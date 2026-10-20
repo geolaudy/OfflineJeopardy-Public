@@ -12,6 +12,8 @@
 - **Milestone F — Wi-Fi details (R12-13, D92):** netsh-based detection (hosting adapter only), password only on request and never stored or logged, manual fallback, host-controlled visibility, TV line in the join step.
 - Tests: tsc clean; Vitest **382/382** (new: devLock 12, round12 3, wifi 7; schema-version tests moved to v7). Playwright: round12 (3, new: iPad + iPhone full-screen screens, guest + Test Buzzer + Wi-Fi), host batch 36/38 → the 2 failures tested replaced behaviour (host-ipad: Reveal Answer used to wait in More; round11 iPhone landscape: frame height instead of picture height) — updated, passing; lobby / phone / TV batch 20/23 → mobile ×3 failed only after round12 left its lobby open (round12 now cleans up) — passing.
 - **Release v0.16.0 (round 12):** full Playwright run **73/73** (16.7 min); `release:local` (tsc, Vitest **382/382**, dist, verify-dist **17/17**), CHANGELOG [0.16.0]. Found on the way: `dev-lock release` could lose its compare-and-swap to a heartbeat push that landed at the same moment (exit 2; seen once under full-suite load) — release now stops the heartbeat first and retries, re-checking ownership (devLock 3× green).
+- v0.16.0 published by GitHub Actions: run 39366260048 succeeded; 3 assets verified via the API: installer, portable, SHA256SUMS.txt (https://github.com/geolaudy/OfflineJeopardy/releases/tag/v0.16.0).
+- **End of session:** handoff updated, everything pushed, development lock released.
 
 ## Session 14 (continued) — round 11
 
