@@ -18,7 +18,7 @@ their notes come from the matching section below (`scripts/release-notes.mjs`).
 - **Lobby on the iPad without scrolling**: settings, players, controllers, Wi-Fi and More options fit on one screen in landscape (up to 15 players and 15 controllers); controllers are shown as compact cards (tap one for its settings). The Buzzers tab and page are compact too.
 - **Buzzer check results in one line**: who has not pressed stays in view ("Everyone pressed ✓" when all did); the order and timings fold away under "Order" once the check ends.
 
-### Fixes
+### Bug Fixes
 - Final Jeopardy!: an answer submitted on a phone less than a second after typing it could be turned back into an unsubmitted draft (the delayed autosave arrived after the submit). The pending autosave is now cancelled when the player submits.
 
 ## [0.16.0] — 2026-10-19
