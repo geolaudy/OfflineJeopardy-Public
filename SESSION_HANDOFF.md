@@ -1,8 +1,28 @@
 # Session handoff
 
-Read this first, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 13". Ready-to-paste resume prompts: `CONTINUE_PROMPT_SAME_COMPUTER.txt` / `CONTINUE_PROMPT_OTHER_COMPUTER.txt`.
+Read this first, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 14". Ready-to-paste resume prompts: `CONTINUE_PROMPT_SAME_COMPUTER.txt` / `CONTINUE_PROMPT_OTHER_COMPUTER.txt`.
 
 **Before anything else: the development lock (`DEVELOPMENT_LOCK.md`).** `npm run dev:lock:status`, then `npm run dev:lock:acquire -- --task "…"`. Do not change files while another computer holds it.
+
+## Current state (session 17, 2026-10-20 — round 14 done; 0.17.0 RELEASE CANDIDATE built, NOT published; on DESKTOP-6HN0OQ4 / geolaudy)
+
+- Started from `origin/main` 58940e1 (round 13, unreleased), clean. Development lock acquired (generation 3), **released at the end of session 17** (acquire it before you start).
+- **Git:** `main` = `origin/main` = the "Session 17 handoff" commit (after the round 14 commit 562973a), pushed, clean tree. package.json **0.17.0-rc.1**; CHANGELOG [Unreleased] = rounds 13 + 14 (the future [0.17.0] section). No tag.
+- **Round 14 (USER_FEEDBACK "Round 14", plan milestone 28, FEATURE_MATRIX "User feedback round 14", D98–D102) — all milestones A–E done:** 12 players / teams; fixed-height score cards (1 row ≤ 6, 2 rows of 6) with fitted score fonts on TV and host; bot difficulty overlap; bot "delay out of range" fix; no picture flash on reveal; preview colours / no glow / centred answer / one Options menu / status-bar colour / menu slide-out / banner and band sizes; Final: Preview Clue, host bubbles to enter wagers and answers, TV verdict outlines, results like score cards; Wi-Fi password via host-approved elevation + Mobile Hotspot; TV "or open" line; lobby player sheet; Players editor without nickname; Windows splash + zip portable.
+- **Layout budget (keep!):** band 80 px + minimum score section 108 px is exactly what keeps the full-screen iPad Pro 11 landscape picture edge to edge (owner-verified in round 13, asserted by round13.spec). See D99.
+- **Tests:** tsc clean; Vitest **393/393**; full Playwright **100/100** (99 in the run + survival re-run after a disk-full error); new `tests/e2e/round14.spec.ts`.
+- **Release candidate (`npm run release:local`: tsc, Vitest 393/393, dist, verify-dist 17/17; personal build — includes new_sfx, never upload):**
+  - `release/OfflineJeopardy-Setup-0.17.0-rc.1.exe` (110 MB) — SHA-256 62075f2352170df25efd317ed8d3c85a1b4e52f53c6ea285ee666c86e721420f
+  - `release/OfflineJeopardy-Portable-0.17.0-rc.1.exe` (155 MB) — SHA-256 d2163e6326ffec202d68489191b58b84c6d7f454342b9d453e3e66ea913f73ce
+  - Started once here: ~7.6 s unpacking + 2.5 s to the window (~10 s; the 0.16.0 portable took ~17–19 s).
+- **Note:** the owner's 0.16.0 portable from `release/` was running all session with its data in `release/OfflineJeopardyData` (left running). My one RC timing start briefly used the same data folder (no schema change in round 14; closed after 30 s).
+- **Disk:** C: had < 0.5 GB free (a Playwright run failed with ENOSPC). Old local builds 0.1–0.11 were **moved** (not deleted) to `D:\OfflineJeopardy-old-builds\`; ~2.6 GB free now. Leftover portable unpack folders in %TEMP% (`3K…`, ~235 MB each, from earlier days) can be cleared by the owner when no OfflineJeopardy is running.
+- **Owner to check on real hardware before v0.17.0 is published:** (1) iPad host embedded + full screen, landscape + portrait, Safari tab and Home Screen app: score cards with 1 … 12 players, centred correct response, Options menu, menu slide-out, status-bar colour (K55); (2) TV: score sizes, Final bubbles / outlines / results, lobby "or open"; (3) Final with a phone that "fails": tap its bubble on the iPad, enter wager and answer; (4) bots with an AI provider (no "delay" error); (5) a picture clue → reveal (no flash); (6) Wi-Fi PC: name, "Read it with administrator approval" (UAC), Mobile Hotspot (K48); (7) Windows: installer and portable start-up, splash, time to window (K56); (8) Joy-Cons / phones as usual.
+
+### Single recommended next task (session 17)
+
+1. Acquire the development lock. Get the owner's verdict on the 0.17.0 RC. **Only after explicit approval:** set package.json to 0.17.0, rename CHANGELOG [Unreleased] → [0.17.0] — date, build + verify, commit, push, tag v0.17.0 (windows-release skill), verify the GitHub release assets.
+2. If the owner reports problems: record them as USER_FEEDBACK "Round 15" and fix first.
 
 ## Current state (session 16, 2026-10-20 — round 13 done, not released; on DESKTOP-6HN0OQ4 / geolaudy)
 
