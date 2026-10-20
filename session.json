@@ -1,18 +1,19 @@
 {
   "project": "OfflineJeopardy",
   "schema": 1,
-  "status": "active",
+  "status": "released",
   "sessionId": "cb533704-f878-4e21-8ed5-422dbd983fc2",
   "generation": 2,
   "computer": "DESKTOP-6HN0OQ4",
   "developer": "geolaudy",
   "branch": "main",
-  "commit": "348643f",
+  "commit": "58940e1",
   "startedAt": "2026-10-20T05:07:04.000Z",
   "lastHeartbeat": "2026-10-20T11:27:21.000Z",
   "expiresAt": "2026-10-20T11:42:21.000Z",
   "clock": "GitHub server time",
   "heartbeatSeconds": 180,
   "ttlSeconds": 900,
-  "currentTask": "Round 13: finish (docs, commit, push, local build)"
+  "currentTask": "Round 13: finish (docs, commit, push, local build)",
+  "releasedAt": "2026-10-20T11:29:34.000Z"
 }
