@@ -9,10 +9,10 @@
   "branch": "main",
   "commit": "e1aed4d",
   "startedAt": "2026-10-20T01:47:29.000Z",
-  "lastHeartbeat": "2026-10-20T01:47:29.000Z",
-  "expiresAt": "2026-10-20T02:02:29.000Z",
+  "lastHeartbeat": "2026-10-20T01:48:53.000Z",
+  "expiresAt": "2026-10-20T02:03:53.000Z",
   "clock": "GitHub server time",
   "heartbeatSeconds": 180,
   "ttlSeconds": 900,
-  "currentTask": "Bootstrap dev lock; then v0.15 feedback round 12 (host fullscreen redesign)"
+  "currentTask": "\"…\"\\"
 }
