@@ -1,7 +1,7 @@
 {
   "project": "OfflineJeopardy",
   "schema": 1,
-  "status": "active",
+  "status": "released",
   "sessionId": "fea7e748-8fa9-46d2-97df-ff75821e1bc2",
   "generation": 5,
   "computer": "DESKTOP-6HN0OQ4",
@@ -14,5 +14,6 @@
   "clock": "GitHub server time",
   "heartbeatSeconds": 180,
   "ttlSeconds": 900,
-  "currentTask": "claude doctor cleanup: CLAUDE.md trim, agent model, local skill overrides"
+  "currentTask": "claude doctor cleanup: CLAUDE.md trim, agent model, local skill overrides",
+  "releasedAt": "2026-10-21T16:24:13.000Z"
 }
