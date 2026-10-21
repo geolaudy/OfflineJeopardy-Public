@@ -239,7 +239,6 @@ function useStatusBarColour(on: boolean, head: RefObject<HTMLElement | null>) {
     if (!on) {
       if (saved.current) {
         document.documentElement.style.background = saved.current.bg;
-        document.documentElement.style.removeProperty('--status-bg');
         if (meta && saved.current.theme != null) meta.content = saved.current.theme;
         saved.current = null;
       }
@@ -248,7 +247,6 @@ function useStatusBarColour(on: boolean, head: RefObject<HTMLElement | null>) {
     saved.current ??= { bg: document.documentElement.style.background, theme: meta?.content ?? null };
     const colour = head.current?.querySelector('.host-answer-band') ? HEAD_RED : HEAD_NAVY;
     document.documentElement.style.background = colour;
-    document.documentElement.style.setProperty('--status-bg', colour);
     if (meta && meta.content !== colour) meta.content = colour;
   });
   useLayoutEffect(
@@ -256,7 +254,6 @@ function useStatusBarColour(on: boolean, head: RefObject<HTMLElement | null>) {
       const s = saved.current;
       if (!s) return;
       document.documentElement.style.background = s.bg;
-      document.documentElement.style.removeProperty('--status-bg');
       const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
       if (meta && s.theme != null) meta.content = s.theme;
     },

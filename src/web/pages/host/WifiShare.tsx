@@ -106,6 +106,8 @@ export function WifiShare() {
         <summary className="min-h-9 cursor-pointer content-center font-semibold text-blue-700">{v.detected ? 'Use another network name or password' : 'Network name and password'}</summary>
         <form
           className="mt-1 grid grid-cols-[1fr_1fr_auto] gap-1.5"
+          // R16-5: the name, the password and Save come into view together above the keyboard.
+          data-keep-visible
           onSubmit={(e) => {
             e.preventDefault();
             void update({ manualSsid: ssid, ...(password ? { manualPassword: password } : {}) }).then(() => setPassword(''));

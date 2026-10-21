@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type ButtonHTMLAttributes, type CSSProperties, type ReactNode, type RefObject } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from 'react';
+import { keyboardState, subscribeKeyboard } from '../lib/keyboard';
 import { createPortal } from 'react-dom';
 import { create } from 'zustand';
 import { avatarEmoji, PLAYER_COLORS, readableOn, contrastRatio } from '../lib/avatars';
@@ -190,51 +191,15 @@ function useScrollLock(active: boolean) {
 const isTouch = () => typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
 
 /**
- * R10-4: the part of the screen not covered by the on-screen keyboard. iOS Safari (and Chrome on
- * Android, which resizes only the visual viewport) leave a `fixed inset-0` overlay full height when
- * the keyboard opens, so a bottom sheet would sit under the keyboard. While `active`, returns the
- * visual viewport's top and height when it is smaller than the window (keyboard open), else null.
+ * R10-4 / R16-4: the part of the screen not covered by the on-screen keyboard (lib/keyboard.ts —
+ * one tracker for the whole app). iOS Safari and Chrome on Android leave a `fixed inset-0` overlay
+ * full height when the keyboard opens, so a bottom sheet would sit under the keyboard. While
+ * `active`, returns the visible area's top and height while the keyboard is open, else null.
+ * The focused field is brought into view by the tracker itself.
  */
 export function useKeyboardViewport(active: boolean) {
-  const [box, setBox] = useState<{ top: number; height: number } | null>(null);
-  useEffect(() => {
-    const vv = typeof window !== 'undefined' ? window.visualViewport : null;
-    if (!active || !vv) return setBox(null);
-    const read = () => {
-      // A keyboard, not a browser bar — and not a pinch zoom (R15-30: a zoomed page's visual
-      // viewport is small too; following it moved an open sheet on every pan, so it flickered).
-      const covered = vv.scale <= 1.01 && window.innerHeight - vv.height > 80;
-      setBox((b) => (!covered ? null : b && b.top === vv.offsetTop && b.height === vv.height ? b : { top: vv.offsetTop, height: vv.height }));
-    };
-    read();
-    vv.addEventListener('resize', read);
-    vv.addEventListener('scroll', read);
-    return () => {
-      vv.removeEventListener('resize', read);
-      vv.removeEventListener('scroll', read);
-    };
-  }, [active]);
-  return box;
-}
-
-/** R10-4: keeps a focused field inside `ref` visible (after the keyboard has finished opening). */
-function useKeepFocusVisible(ref: RefObject<HTMLElement | null>, active: boolean, dep: unknown) {
-  useEffect(() => {
-    const root = ref.current;
-    if (!active || !root) return;
-    const show = () => {
-      const el = document.activeElement;
-      // A field's own row (marked data-keep-visible) comes into view with it — e.g. its Save button.
-      if (el instanceof HTMLElement && root.contains(el) && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) (el.closest('[data-keep-visible]') ?? el).scrollIntoView({ block: 'nearest' });
-    };
-    const t = window.setTimeout(show, 60);
-    const onFocus = () => window.setTimeout(show, 300);
-    root.addEventListener('focusin', onFocus);
-    return () => {
-      window.clearTimeout(t);
-      root.removeEventListener('focusin', onFocus);
-    };
-  }, [ref, active, dep]);
+  const kb = useSyncExternalStore(subscribeKeyboard, keyboardState, keyboardState);
+  return active && kb.open ? kb : null;
 }
 
 export function Modal({ open, onClose, title, children, wide, xl, vars }: { open: boolean; onClose: () => void; title: string; children: ReactNode; wide?: boolean; xl?: boolean; vars?: CSSProperties }) {
@@ -242,7 +207,6 @@ export function Modal({ open, onClose, title, children, wide, xl, vars }: { open
   const close = useLatest(onClose);
   useScrollLock(open);
   const kb = useKeyboardViewport(open);
-  useKeepFocusVisible(ref, open, kb?.height);
   // Runs only when the dialog opens — NOT on every re-render. (It used to depend on the inline
   // onClose, so every live state update re-focused the first input and popped the iPad keyboard.)
   useEffect(() => {

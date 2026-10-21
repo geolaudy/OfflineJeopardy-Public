@@ -51,6 +51,15 @@ body {
   inset: 0;
   overflow: hidden;
 }
+/* R16-4 … R16-6: while the on-screen keyboard is open for a field inside the shell, the shell covers
+   only the visible area above the keyboard (lib/keyboard.ts sets the variables), so its scroll areas
+   can bring the field into view whatever they were scrolled to. A field in a dialog lifts the dialog
+   instead (Modal); the shell behind it keeps its size. */
+html[data-keyboard="open"] .app-screen:has(:focus) {
+  top: var(--vv-top, 0px);
+  bottom: auto;
+  height: var(--vv-height, 100%);
+}
 html:has(.app-screen),
 html:has(.app-screen) body {
   height: 100%;
@@ -77,24 +86,6 @@ html:has(.app-screen) body {
 @media (display-mode: standalone), (display-mode: fullscreen) {
   :root {
     --safe-top: calc(env(safe-area-inset-top, 0px) + min(2.75rem, env(safe-area-inset-top, 0px) * 100));
-  }
-}
-/* R15-31 (K55): in a Home Screen web app the status bar is transparent (black-translucent,
-   index.html) with white indicators, so the page paints the top safe area itself: the host
-   controller's navy (--status-bg; red with the full-screen correct-response strip, GameFrame), over
-   the pages' own top padding. The full-screen host header (z 45) covers it with its own colour.
-   Safari tabs are unaffected (Safari draws its own bar there). */
-@media (display-mode: standalone) {
-  body::before {
-    position: fixed;
-    top: 0;
-    right: 0;
-    left: 0;
-    z-index: 40;
-    height: var(--safe-top);
-    background: var(--status-bg, #181e52);
-    content: "";
-    pointer-events: none;
   }
 }
 /* Safe areas (notch, home indicator, landscape side insets) — viewport-fit=cover is set.
