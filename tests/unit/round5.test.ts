@@ -144,7 +144,8 @@ describe('Daily Double! wager from the phone (R5-20)', () => {
     let s = run(soloGame(), { type: 'selectClue', clueId: 'hist_5' }, { type: 'unlockBuzzers' });
     s = buzz(s, 'alex');
     s = run(s, { type: 'judge', result: 'correct' }, { type: 'closeClue' }); // Alex picks next
-    return run(s, { type: 'selectClue', clueId: 'sci_4' });
+    // R16-7: the host unlocks the wager after announcing the Daily Double!.
+    return run(s, { type: 'selectClue', clueId: 'sci_4' }, { type: 'openDailyWager' });
   }
 
   it('only the picking player can wager, within limits; the host locks it and only then the clue shows', () => {
@@ -179,7 +180,7 @@ describe('Daily Double! wager from the phone (R5-20)', () => {
       { type: 'introSkip' },
     );
     const wiz = cid(s, 'alex');
-    s = run(s, { type: 'setControl', competitorId: wiz }, { type: 'selectClue', clueId: 'sci_4' });
+    s = run(s, { type: 'setControl', competitorId: wiz }, { type: 'selectClue', clueId: 'sci_4' }, { type: 'openDailyWager' });
     expect(playerContext(s, 'jordan', clock).dailyWager?.mine).toBe(true);
     s = act(s, { type: 'submitDailyWager', competitorId: wiz, profileId: 'alex', amount: 300 }, 'profile:alex');
     expect(playerContext(s, 'jordan', clock).dailyWager).toMatchObject({ pending: 300, pendingBy: 'alex', mine: false });

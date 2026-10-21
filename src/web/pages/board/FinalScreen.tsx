@@ -83,9 +83,9 @@ function FinalHeading({ g }: { g: GameView }) {
 }
 
 /** One full Final screen before the reveal (a swipe layer). A leaving layer keeps the state it last
- *  showed. R15-24 / R15-25: the category reveal and the wagering share one layout — the category
- *  keeps its size and place when wagering opens; "Enter your wagers now" (its space reserved from
- *  the start) and the player bubbles fade in under it. */
+ *  showed. R15-24: the category reveal and the wagering share one layout — the category keeps its
+ *  size and place when wagering opens. R16-11: "Enter your wagers now" fades in with the player
+ *  bubbles, above them (not under the category — the category's box is the same in both screens). */
 function FinalContent({ g }: { g: GameView }) {
   const f = g.final!;
   const intro = f.stage === 'category' || f.stage === 'wagers';
@@ -103,11 +103,13 @@ function FinalContent({ g }: { g: GameView }) {
           subMin={2.6}
           boxClassName="min-h-0 flex-1 pb-[12vh]"
           subTestId="final-subheading"
-          cue={{ text: 'Enter your wagers now', shown: wagers, testId: 'final-wager-cue' }}
         />
         <AnimatePresence>
           {wagers && (
             <motion.div key="chips" className="bt-final-chips" initial={{ opacity: 0, y: '1.5vh' }} animate={{ opacity: 1, y: 0 }} transition={{ duration: T.fade, ease: EASE_OUT_ARR, delay: 0.1 }}>
+              <p className="bt-intro-sub bt-final-cue" data-testid="final-wager-cue">
+                Enter your wagers now
+              </p>
               <SubmissionChips g={g} kind="wager" />
             </motion.div>
           )}

@@ -637,10 +637,52 @@
   align-items: flex-end;
   line-height: 1.05;
 }
+/* R16-10: "Daily Double" in the category's size and spacing (it was 0.72em), whole — its column
+   is widened for it while a Daily Double! shows (below). */
 .host-dd-value-label {
-  font-size: 0.72em;
-  letter-spacing: 0.06em;
+  font-size: 1em;
   white-space: nowrap;
+}
+.host-dd-value-label svg {
+  width: 0.85em;
+  height: 0.85em;
+}
+.host-head .host-answer-band:has(.host-dd-value) {
+  --side: calc(max(var(--head-l, 3rem), var(--head-r, 3rem)) + var(--head-gap) + 13rem);
+}
+/* R16-10: in a narrower header (the embedded view beside the side navigation, portrait) the full-size
+   label on one line would squeeze the correct response into three lines: "Daily" over "Double" and
+   Options as its icon (its name stays for screen readers) — the response keeps its one line and its
+   place in the middle. */
+@container (max-width: 70rem) {
+  .host-head .host-answer-band:has(.host-dd-value) {
+    --side: calc(max(var(--head-l, 3rem), var(--head-r, 3rem)) + var(--head-gap) + 7.5rem);
+  }
+  .host-head .host-dd-value-label {
+    width: min-content;
+    white-space: normal;
+    text-align: right;
+  }
+  .host-head .host-dd-value-label svg {
+    display: none;
+  }
+  /* The locked wager beside the label (three lines would not fit the header's height). */
+  .host-head .host-dd-value:has(> span + span) {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5em;
+  }
+  .host-head .host-answer-band:has(.host-dd-value > span + span) {
+    --side: calc(max(var(--head-l, 3rem), var(--head-r, 3rem)) + var(--head-gap) + 11rem);
+  }
+  .host-head:has(.host-dd-value) .host-head-end .host-ghost-btn > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 .host-head .host-answer-band-value:has(.host-dd-value) {
   overflow: visible;
@@ -686,7 +728,9 @@
    scale and lined up with the picture's (--grain, --grain-at), so the surroundings continue the
    picture's surface instead of a smooth flat colour. */
 .host-stage-bg[data-theme="classic"] .host-stage-panel {
-  background: var(--bt-panel-noise) var(--grain-at, 0 0) / var(--grain, 160px) repeat, #071483;
+  /* R16-17: the panel's grain and gradient in the picture's coordinates come inline (GameFrame
+     classicPanelSurface); this is the colour before the first layout. */
+  background-color: #071483;
 }
 
 /* R14-18: the Final's player bubbles on the preview, tappable (round, like the bubbles). */

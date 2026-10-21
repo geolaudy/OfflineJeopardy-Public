@@ -63,6 +63,7 @@ export function projectState(s: GameState, role: ViewRole, rawProfiles: Record<I
       media: hideQuestion ? [] : (f?.clue.media ?? []),
       wager: s.clue.wager,
       wagerBy: s.clue.wagerBy ?? null,
+      wagerOpen: !!s.clue.wagerOpen,
       pendingWager: s.clue.pendingWager ? { competitorId: s.clue.pendingWager.competitorId, amount: host ? s.clue.pendingWager.amount : null, profileId: s.clue.pendingWager.profileId } : null,
       answerRevealed: s.clue.answerRevealed,
       resolved: s.clue.resolved,
@@ -242,7 +243,7 @@ export function playerContext(s: GameState, profileId: Id, now: number): PlayerC
     buzzTiming: s.phase === 'clue' ? buzzTimingFor(s, profileId) : null,
     dailyWager: c && s.phase === 'clue' && s.clue?.isDailyWager && s.clue.stage === 'wager' && s.clue.wagerBy === c.id ? (() => {
       const p = s.clue!.pendingWager;
-      return { min: s.rules.dailyWagerMin, max: Math.max(scoresOf(s.events)[c.id] ?? 0, roundMaxValue(s)), pending: p?.amount ?? null, pendingBy: p?.profileId ?? null, mine: !p || !p.profileId || p.profileId === profileId };
+      return { min: s.rules.dailyWagerMin, max: Math.max(scoresOf(s.events)[c.id] ?? 0, roundMaxValue(s)), pending: p?.amount ?? null, pendingBy: p?.profileId ?? null, mine: !p || !p.profileId || p.profileId === profileId, open: !!s.clue!.wagerOpen };
     })() : null,
   };
 }

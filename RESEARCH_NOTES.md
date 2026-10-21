@@ -164,3 +164,15 @@ Question: could the host connect Claude, Gemini or ChatGPT by signing in with an
 - **Local AI (Ollama / LM Studio)** needs no sign-in, no key and no internet — the recommended offline option.
 
 Decision: no sign-in connection now; API keys (Gemini's free tier for the easiest start) and local AI stay. Revisit Google OAuth if the owner wants "Sign in with Google", and ChatGPT sign-in if OpenAI opens it to developers.
+
+## iPadOS status bar in a Home Screen web app (round 16, R16-16, 2026-10-21)
+
+Question: can the host controller's Home Screen app show a navy status bar on iPadOS 26 (as the owner has seen elsewhere), with supported mechanisms only? Desk research by the research agent (about five searches and two page fetches; moderate confidence). No Apple documentation or Safari 26.x release note covers it.
+
+- `apple-mobile-web-app-status-bar-style`: `default` = opaque bar with dark text (what the owner sees: white); `black` = opaque black bar, white text; `black-translucent` = clear bar, white text, the page drawn underneath (the classic way to a coloured bar: the header's background under the bar with `padding-top: env(safe-area-inset-top)`).
+- theme-color (meta or manifest) is reported as **not applied** to a Home Screen app's bar on iOS 26 (zenn.dev/timelab/articles/b471d6beed9f6e; older Apple forum thread 649131). One Glide community thread claims the colour still changes on 26.1 without saying how (community.glideapps.com/t/85272).
+- **WebKit bug 301994** (bugs.webkit.org/show_bug.cgi?id=301994): since iOS 26.1 Home Screen apps no longer draw under the status bar — `env(safe-area-inset-top)` reports 0 and the system draws its own rectangle there, even with `viewport-fit=cover` and `display: standalone`; fixed in 26.2, **regressed again in 26.5.x and the iOS 27 beta, reopened 2026-08-04 (P2)**. This matches what the owner saw with rc.2 (a strip / gradient and content pushed down).
+- The colour is reported as cached and updated after a relaunch; the status-bar style is read when the app starts from its icon — **remove and re-add the Home Screen icon after any change**.
+- Nothing web-specific was found on the iOS 26 top-edge fade's colour (only SwiftUI's scrollEdgeEffectStyle).
+
+Decision (D112): keep the plain `default` bar (white) — the only predictable result. A future attempt, once 301994 is fixed on the owner's iPadOS: `black-translucent`, html / body and the header in navy, `padding-top: env(safe-area-inset-top)` only (no extra 2.75rem, no painted strip), checked on the device with a temporary inset readout. K55 stays open.

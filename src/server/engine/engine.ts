@@ -58,6 +58,7 @@ export type EngineResult =
 const UNDOABLE = new Set([
   'selectClue',
   'setDailyWager',
+  'openDailyWager',
   'revealAnswer',
   'hideAnswer',
   'unlockBuzzers',
@@ -200,6 +201,11 @@ function makeTimer(kind: TimerState['kind'], seconds: number, now: number): Time
   return { kind, durationMs: ms, remainingMs: ms, startedAt: now, running: true, expired: false };
 }
 
+/** R16-8: a Daily Double! wager has been sent or entered — its timer stops (nothing else changes). */
+function stopWagerTimer(s: GameState) {
+  if (s.timer?.kind === 'wager' && s.phase === 'clue') s.timer = null;
+}
+
 function maybeAutoTimer(s: GameState, kind: TimerState['kind'], now: number) {
   const t = s.rules.timers;
   const secs =
@@ -316,6 +322,7 @@ export function undoLabel(type: string): string {
   const labels: Record<string, string> = {
     selectClue: 'open clue',
     setDailyWager: 'Daily Double!',
+    openDailyWager: 'Unlock Wager',
     revealAnswer: 'reveal answer',
     hideAnswer: 'hide answer',
     unlockBuzzers: 'unlock buzzers',
@@ -876,6 +883,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
         stage: dw ? 'wager' : 'question',
         wager: null,
         wagerBy: dw ? s.controlCompetitorId : null,
+        wagerOpen: false,
         pendingWager: null,
         answerRevealed: false,
         resolved: false,
@@ -887,8 +895,8 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       s.phase = 'clue';
       s.timer = null;
       s.media = null;
-      // R15-18: a Daily Double!'s wager timer waits for the host (Start Wager Timer → timerStart),
-      // who first announces it and explains the wager.
+      // R15-18 / R16-7: a Daily Double!'s wagering (and its timer) waits for the host, who first
+      // announces it and then unlocks the wager (openDailyWager).
       if (!dw && s.clue.unlockMode === 'immediate') openBuzzers(s, now);
       emit(tx, { type: 'clue_open', clueId: a.clueId, roundIndex: f.r, result: dw ? 'daily_wager' : 'standard' });
       return;
@@ -918,6 +926,17 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       });
       return;
     }
+    case 'openDailyWager': {
+      // R16-7: Unlock Wager — the wagering player (phone or computer player) may now send a wager;
+      // the wager timer starts once, here (none when the rules have no wager time).
+      const clue = activeClue(s);
+      if (!clue.isDailyWager || clue.stage !== 'wager') fail('Wagering is not open');
+      if (clue.wagerOpen) return { ignored: true };
+      clue.wagerOpen = true;
+      const secs = s.rules.timers.wagerSeconds;
+      s.timer = secs > 0 ? makeTimer('wager', secs, now) : null;
+      return;
+    }
     case 'enterDailyWager': {
       // R15-21: the host types the wager for the player (or team) — pending, like a phone's entry.
       const clue = activeClue(s);
@@ -927,6 +946,9 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       const max = Math.max(score, roundMaxValue(s));
       if (!Number.isInteger(a.amount) || a.amount < s.rules.dailyWagerMin || a.amount > max) fail(`Wager must be between ${s.rules.dailyWagerMin} and ${max}`);
       clue.pendingWager = { competitorId: c.id, amount: a.amount, profileId: attribution(c, a.profileId, null), at: now };
+      // R16-8: a wager is in — the wager timer stops (the host still locks it to show the clue).
+      clue.wagerOpen = true;
+      stopWagerTimer(s);
       return;
     }
     case 'submitDailyWager': {
@@ -936,6 +958,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       if (!clue.isDailyWager || clue.stage !== 'wager') fail('Wagering is not open');
       const owner = clue.wagerBy ?? null;
       if (!owner || owner !== a.competitorId) fail('It is not your Daily Double!');
+      if (!clue.wagerOpen) fail('Wait for the host to unlock the wager');
       const c = competitorOf(s, a.competitorId);
       const prev = clue.pendingWager;
       if (prev && c.kind === 'team' && prev.profileId && a.profileId && prev.profileId !== a.profileId) fail('A teammate already entered your team’s wager');
@@ -943,6 +966,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       const max = Math.max(score, roundMaxValue(s));
       if (!Number.isInteger(a.amount) || a.amount < s.rules.dailyWagerMin || a.amount > max) fail(`Wager must be between ${s.rules.dailyWagerMin} and ${max}`);
       clue.pendingWager = { competitorId: c.id, amount: a.amount, profileId: attribution(c, a.profileId, null), at: now };
+      stopWagerTimer(s); // R16-8
       return;
     }
     case 'revealAnswer': {

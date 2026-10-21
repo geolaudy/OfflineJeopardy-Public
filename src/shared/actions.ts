@@ -92,6 +92,8 @@ export const hostActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('startGame') }),
   z.object({ type: z.literal('selectClue'), clueId: id }),
   z.object({ type: z.literal('setDailyWager'), competitorId: id, amount: int, profileId: id.nullable().optional() }),
+  // R16-7: the host unlocks Daily Double! wagering after announcing it (starts the wager timer).
+  z.object({ type: z.literal('openDailyWager') }),
   // R15-21: the host enters a Daily Double! wager for a player without a device — the same pending
   // wager (and limits) as the phone's; the host still locks it (setDailyWager) to show the clue.
   z.object({ type: z.literal('enterDailyWager'), competitorId: id, amount: int, profileId: id.nullable().optional() }),

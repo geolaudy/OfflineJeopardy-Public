@@ -221,7 +221,7 @@ test('Daily Double!: no wager timer until the host starts it, Preview Clue over 
     // The wager's information and actions are in the band; nothing over the preview.
     await expect(ipad.getByTestId('host-dd-who')).toContainText('is wagering');
     await expect(ipad.getByTestId('clue-overlay')).toHaveCount(0);
-    await expect(ipad.getByTestId('host-dd-lock')).toBeDisabled();
+    await expect(ipad.getByTestId('host-dd-unlock')).toBeVisible(); // R16-7: Lock appears after the unlock
     // Preview Clue: the clue, only on the iPad, exactly the picture's height, centred on it.
     await ipad.getByTestId('host-dd-preview').click();
     await expect(ipad.getByTestId('host-dd-clue-text')).not.toBeEmpty();
@@ -241,13 +241,13 @@ test('Daily Double!: no wager timer until the host starts it, Preview Clue over 
     s = await h.until(() => true);
     expect(s.clue.stage).toBe('wager');
     expect(s.timer).toBeNull();
-    // Start the wager timer.
-    await ipad.getByTestId('host-dd-timer').click();
+    // R16-7: Unlock Wager starts the wager timer (round 15: a separate Start Timer button).
+    await ipad.getByTestId('host-dd-unlock').click();
     s = await h.until((x) => !!x.timer);
     expect(s.timer.kind).toBe('wager');
     expect(s.timer.running).toBe(true);
     expect(s.clue.stage).toBe('wager');
-    await expect(ipad.getByTestId('host-dd-timer')).toHaveCount(0);
+    await expect(ipad.getByTestId('host-dd-unlock')).toHaveCount(0);
     // Host entry: an invalid wager is refused, a valid one waits for Lock.
     await ipad.getByTestId('host-dd-enter').click();
     await ipad.getByLabel('Wager amount').fill('9999999');
@@ -259,6 +259,7 @@ test('Daily Double!: no wager timer until the host starts it, Preview Clue over 
     await expect(ipad.getByTestId('host-dd-pending')).toContainText('100');
     s = await h.until((x) => x.clue?.pendingWager?.amount === 100);
     expect(s.clue.stage).toBe('wager');
+    expect(s.timer).toBeNull(); // R16-8: the wager stopped the timer
     // Lock Wager & Show Clue sits where Unlock Buzzers does.
     const lock = await rect(ipad, 'host-dd-lock');
     const bar = await rect(ipad, 'game-bar');
@@ -287,10 +288,9 @@ test('Final: the category stays put from its reveal to the wagers, "Enter your w
   await tv.waitForTimeout(900);
   const catBox = () => tv.locator('[data-swipe-layer="current"] .bt-intro-cat').evaluate((e) => ({ ...(e.getBoundingClientRect().toJSON() as DOMRect), fs: getComputedStyle(e).fontSize }));
   const before = await catBox();
-  await expect(tv.getByTestId('final-wager-cue')).toHaveCSS('opacity', '0');
+  await expect(tv.getByTestId('final-wager-cue')).toHaveCount(0); // R16-11: comes with the bubbles
   await h.act({ type: 'finalNext' }); // wagers
   await expect(tv.getByTestId('final-wager-cue')).toHaveText(/Enter your wagers now/i);
-  await expect(tv.getByTestId('final-wager-cue')).not.toHaveCSS('opacity', '0');
   await expect(tv.locator('[data-final-chip]')).toHaveCount(3);
   await tv.waitForTimeout(800);
   const after = await catBox();

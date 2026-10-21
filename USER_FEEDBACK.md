@@ -508,3 +508,55 @@ Rollback point: tag **v0.16.0** (published); the tested candidate is commit 12bb
 | R15-30 | Flicker / shaking when zooming (host, menus, other screens; TV-preview text) — find and fix the cause, keep zoom available | G |
 | R15-31 | iOS status bar white in full screen (K55) — supported iPadOS behaviour, closest reliable result, document limits | G |
 | R15-32 | One cohesive host design (minimal boxes, shared rules) | all |
+
+# User Feedback — Round 16 (received 2026-10-21, session 19, after testing the 0.17.0-rc.2 release candidate on real hardware; DESKTOP-6HN0OQ4)
+
+The owner's prompt calls the tested build "0.17.1-rc.2"; the repository's last candidate is **0.17.0-rc.2** (commit 56acd72, built in session 18 — no 0.17.1 exists), so that is the build these results are for. The next candidate is 0.17.0-rc.3. Rollback point: tag **v0.16.0** (published). Statuses: FEATURE_MATRIX.md → "User feedback round 16".
+
+## Real-hardware results of 0.17.0-rc.2 (reported by the owner — not automatic results)
+
+| Area | Feature | Owner's result |
+|---|---|---|
+| iPad host | Embedded / full-screen host controller, landscape and portrait | WORKING |
+| iPad host | Score cards with 1, 3, 9 and 12 players (R15-11) | FIXED — keep the layout |
+| iPad host | Navy player score cards (R15-12) | FIXED — the owner likes them |
+| iPad host | Centred "[Player] is choosing a clue" (R15-10) | FIXED |
+| iPad host | Thin lines under the host banners (R15-13) | FIXED |
+| iPad host | Clue value spacing beside Options (R15-22) | FIXED |
+| iPad host | Sliding timer above the footer (R15-23) | FIXED |
+| iPad host | iOS status bar (K55, R15-31) | NOT IMPLEMENTED CORRECTLY — the navy strip / gradient and the downward shift are rejected → R16-15, R16-16 |
+| Daily Double! | Host starts the wager timer; Preview Clue; host enters a wager; Lock Wager & Show Clue; phone wager | WORKING (the sequence is changed on request → R16-7, R16-8) |
+| Final | Category stays put into wagering (R15-24) | FIXED |
+| Final | "Enter your wagers now" | WORKING (moved on request → R16-11) |
+| Final | Only the contestant's elements move during reveals (R15-26) | PARTIALLY WORKING — they disappear before the screen edge → R16-13 |
+| Bots | Chosen tile outlined before the zoom (R15-29) | WORKING (restyled on request → R16-14) |
+| Bots | Bot answer under the host's answer banner (R15-28) | WORKING |
+| Bots | Bot wagering | BROKEN (newly reported) → R16-9 |
+| Zoom | iPad pinch zoom without jumping / flicker (K60, R15-30) | FIXED |
+| Preview | Host preview background during the clue zoom (R15-14 … R15-16) | PARTIALLY WORKING → R16-17 … R16-19 |
+| Wi-Fi | Wi-Fi credentials / Mobile Hotspot (K48) | NOT TESTED |
+| TV lobby / phone | Lobby columns with nicknames, no shuffling, test-buzz glow, phone Test Buzzer back arrow (R15-4 … R15-8) | NOT REPORTED — still to be confirmed |
+
+Previously verified and to be kept: TV score fitting, 12 entries, centred answer, Options, menu slide-out, Final bubbles and results, host Final entry, AI bot timing, picture reveals without a flash, Windows splash / installer / portable, Joy-Cons, phone buzzers, offline multiplayer.
+
+## New requests (the round-16 prompt's items; IDs follow the item numbers)
+
+| ID | Requirement (summary) | Milestone |
+|---|---|---|
+| R16-4 | **Critical:** the phone's nickname sheet must stay above the on-screen keyboard (input, Save / Cancel visible; no jump under the keyboard) | A |
+| R16-5 | **Critical:** iPad lobby Wi-Fi name / password above the keyboard in landscape, whether the left column was scrolled or not; no manual scrolling, no arbitrary padding | A |
+| R16-6 | Every text field of the app above the keyboard (one shared solution, no new zoom flicker) | A |
+| R16-7 | Daily Double!: wagering locked until the host presses the green **Unlock Wager** (main action), which starts the wager timer; then **Lock Wager & Show Clue** (enabled once a wager is in) | B |
+| R16-8 | A wager (phone, host entry, bot) stops the wager timer; the clue is still shown only by the host; time running out invents nothing | B |
+| R16-9 | Bots wager again (Daily Double! after the host's unlock, Final), legally, by difficulty | B |
+| R16-10 | "Daily Double" in the red banner in the category's size, whole, beside Options | B |
+| R16-11 | Final: "Enter your wagers now" above the player bubbles (not under the category), category unmoved | C |
+| R16-12 | TV: "[Player] is wagering…" lower, in the clue text's area, away from the category (the line is on the TV's Daily Double! screen — the Final shows no such line) | C |
+| R16-13 | Final reveals: the contestant's part swipes to the screen's edges (it vanished early, clipped by a container) | C |
+| R16-14 | Bot's chosen tile: a glow like the lobby's test-buzz glow, from behind, square corners; two short blinks, a longer third, then the zoom; reduced motion respected | D |
+| R16-15 | Status bar: remove the rc.2 gradient / navy strip and the downward shift; back to rc.1's plain white bar | E |
+| R16-16 | Status bar: research a supported way to a blue bar; only if reliable; keep K55 open | E |
+| R16-17 | Preview: the blue above / below the clue continues the clue background (colour, gradient, grain) — one surface | F |
+| R16-18 | Preview: no thin black lines between the picture and the blue around it | F |
+| R16-19 | Preview: the blue around the picture zooms with the clue (it filled in before the clue reached the edges) | F |
+| R16-20 | Keep everything verified so far (score cards, navy cards, K60, …) | all |

@@ -144,8 +144,14 @@ function LivePreview() {
       setMsg(m);
     };
     window.addEventListener('message', onMsg);
+    // R16-19: the clue zoom's start, for the host's surroundings of this preview (GameFrame).
+    const onZoom = (e: Event) => window.parent?.postMessage({ type: 'oj-preview-zoom', zoom: (e as CustomEvent).detail }, location.origin);
+    window.addEventListener('oj-tv-zoom', onZoom);
     window.parent?.postMessage({ type: 'oj-preview-ready' }, location.origin);
-    return () => window.removeEventListener('message', onMsg);
+    return () => {
+      window.removeEventListener('message', onMsg);
+      window.removeEventListener('oj-tv-zoom', onZoom);
+    };
   }, []);
   const look = msg?.look;
   const reduced = !!look?.reducedMotion;

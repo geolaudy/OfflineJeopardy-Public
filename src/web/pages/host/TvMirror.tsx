@@ -106,12 +106,16 @@ export function TvPreview({ game, scoreboard, band, frameless, title, size, test
   const offset = useLive((s) => s.offset);
   const tilesCb = useRef(onTiles);
   tilesCb.current = onTiles;
+  const bandRef = useRef(band);
+  bandRef.current = band;
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
       if (e.origin !== location.origin || e.source !== ref.current?.contentWindow) return;
       const type = (e.data as { type?: string })?.type;
       if (type === 'oj-preview-ready') setReady(true);
       if (type === 'oj-preview-tiles') tilesCb.current?.((e.data as PreviewTilesMessage).tiles);
+      // R16-19: the preview's clue zoom starts — GameFrame's surroundings follow it.
+      if (type === 'oj-preview-zoom' && bandRef.current) window.dispatchEvent(new CustomEvent('oj-preview-zoom', { detail: (e.data as { zoom: unknown }).zoom }));
     };
     window.addEventListener('message', onMsg);
     return () => window.removeEventListener('message', onMsg);

@@ -180,3 +180,13 @@ Rollback point: tag v0.16.0 (0.17.0-rc.1 = commit 12bbb04, tested by the owner).
 - **E — Preview fill and zoom transition:** R15-14 … R15-16. **Done** (grain only, see FEATURE_MATRIX).
 - **F — Bots:** R15-28, R15-29 (D105). **Done.**
 - **G — Zoom and status bar:** R15-30, R15-31 (D107). **Done** — both need the owner's iPad (K55, K60).
+
+## Milestone 30 — User feedback round 16 → v0.17.0-rc.3 (started 2026-10-21, session 19)
+
+Rollback point: tag v0.16.0 (0.17.0-rc.2 = commit 56acd72, tested by the owner). See USER_FEEDBACK.md "Round 16"; statuses in FEATURE_MATRIX.md.
+- **A — Keyboard and input visibility:** R16-4 … R16-6 (D108). **Done.**
+- **B — Daily Double! and bot wagering:** R16-7 … R16-10 (D109, D110). **Done.**
+- **C — Final presentation:** R16-11 … R16-13. **Done.**
+- **D — Bot pick glow:** R16-14. **Done.**
+- **E — iPadOS status bar:** R16-15, R16-16 (D112). **Done** — reverted; K55 stays open.
+- **F — Preview surroundings and zoom:** R16-17 … R16-19 (D111). **Done.**

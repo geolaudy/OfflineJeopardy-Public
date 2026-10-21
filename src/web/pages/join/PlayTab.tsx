@@ -407,7 +407,12 @@ function DailyWagerForm() {
     <div className="space-y-4 rounded-2xl bg-amber-50 p-4 shadow-sm ring-2 ring-amber-400" data-testid="phone-daily-wager">
       <p className="text-center text-2xl font-black text-amber-900">Daily Double!</p>
       <p className="text-center text-sm text-slate-600">{g.clue?.categoryName}</p>
-      {showInput ? (
+      {!dw.open && dw.pending == null ? (
+        // R16-7: the host announces the Daily Double! first, then unlocks the wager.
+        <p className="text-center text-lg font-semibold text-slate-700" data-testid="phone-dd-locked">
+          It's your Daily Double! Wait for the host to unlock your wager…
+        </p>
+      ) : showInput ? (
         <>
           <p className="text-center text-slate-700">
             Wager between {dw.min.toLocaleString()} and {dw.max.toLocaleString()}.

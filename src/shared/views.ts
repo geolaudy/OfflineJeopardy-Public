@@ -72,6 +72,8 @@ export interface ClueView {
   wager: { competitorId: Id; amount: number; profileId: Id | null } | null;
   /** Daily Double!: who wagers (R5-20). */
   wagerBy?: Id | null;
+  /** R16-7: Daily Double!: the host has unlocked wagering. */
+  wagerOpen?: boolean;
   /** Daily Double!: wager sent from a phone, not locked yet. The amount is for the host only. */
   pendingWager?: { competitorId: Id; amount: number | null; profileId: Id | null } | null;
   answerRevealed: boolean;
@@ -196,5 +198,6 @@ export interface PlayerContext {
    *  `confident` = larger than the timing uncertainty (show the number), else "very close". */
   buzzTiming?: { result: 'won' | 'late'; otherCompetitorId: Id | null; otherProfileId: Id | null; gapMs: number | null; confident: boolean; teammateWon: boolean } | null;
   /** Daily Double! wager stage for this player's competitor (R5-20). */
-  dailyWager?: { min: number; max: number; pending: number | null; pendingBy: Id | null; mine: boolean } | null;
+  /** `open`: the host has unlocked wagering (R16-7) — the phone shows the entry only then. */
+  dailyWager?: { min: number; max: number; pending: number | null; pendingBy: Id | null; mine: boolean; open: boolean } | null;
 }

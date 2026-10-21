@@ -176,27 +176,48 @@
 .bt-used {
   background: var(--b-used);
 }
-/* R15-29: the tile a computer player chose — a quiet outline in the board's accent, held about a
-   second before the clue zooms out of it (Grid: g.pickHint). */
+/* R15-29 / R16-14: the tile a computer player chose (Grid: g.pickHint) glows like a lobby card's
+   test buzz (styles.css .lobby-glow): a soft yellow halo radiating from behind the tile over the
+   grid lines — with the tile's square corners. It blinks twice briefly, then a third time and holds
+   (the server waits 1.4 s, bots.ts hintMs) until the clue zooms out of it. The dips stay soft
+   (never fully dark) so it reads as a pulse, not a strobe. */
 .bt-tile.is-picked {
   position: relative;
+  z-index: 2;
+  /* .bt-cell clips its content; the halo lies outside the tile. */
+  overflow: visible;
 }
 .bt-tile.is-picked::after {
   position: absolute;
   inset: 0;
-  z-index: 1;
+  z-index: -1;
   content: "";
   box-shadow:
-    inset 0 0 0 0.5vh var(--b-accent, #e8b64c),
-    inset 0 0 2.4vh rgb(232 182 76 / 0.35);
+    0 0 0 0.3vh rgb(250 204 21 / 0.9),
+    0 0 2.2vh 0.5vh rgb(250 204 21 / 0.5);
   pointer-events: none;
-  animation: bt-picked-in 0.3s ease-out both;
+  animation: bt-picked-blink 1.25s ease-in-out both;
 }
-@keyframes bt-picked-in {
-  from {
+@keyframes bt-picked-blink {
+  0% {
     opacity: 0;
   }
-  to {
+  8%,
+  16% {
+    opacity: 1;
+  }
+  24% {
+    opacity: 0.12;
+  }
+  32%,
+  40% {
+    opacity: 1;
+  }
+  48% {
+    opacity: 0.12;
+  }
+  56%,
+  100% {
     opacity: 1;
   }
 }
@@ -398,6 +419,14 @@
   text-transform: uppercase;
   letter-spacing: 0.03em;
   text-shadow: var(--bt-text-shadow);
+}
+/* R16-12: the shown line, lower — in the clue text's area, well clear of the category. */
+.bt-dw-who-low {
+  position: absolute;
+  top: 66%;
+  right: 6vw;
+  left: 6vw;
+  overflow-wrap: anywhere;
 }
 .bt-dw-who {
   font-family: var(--bt-label-font);
@@ -912,19 +941,28 @@
 .bt-cue.is-shown {
   opacity: 0.88;
 }
-/* R15-24: the wager bubbles at the bottom, outside the category's box (absolute: they move nothing). */
+/* R15-24: the wager bubbles at the bottom, outside the category's box (absolute: they move nothing).
+   R16-11: "Enter your wagers now" centred above them. */
 .bt-final-chips {
   position: absolute;
   right: 5vw;
   bottom: 10vh;
   left: 5vw;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 3vh;
+}
+.bt-final-cue {
+  font-size: 4.6vh;
 }
 /* R15-26: the reveal's contestant part — the only part of the screen that swipes. */
+/* R16-13: as wide as the screen — out through .bt-final's side padding — so a contestant swipes all
+   the way to the screen's edges; clipped at the padding, it vanished 5vw before the edge. */
 .bt-final-spot-stage {
   position: relative;
-  width: 100%;
+  width: calc(100% + 10vw);
+  margin-inline: -5vw;
   min-height: 0;
   flex: 1;
   /* Clipped at the sides only (the swipe), never at the top or bottom (the picture's ring). */
@@ -1285,10 +1323,17 @@
   .is-in .bt-dw-title {
     animation: none;
   }
+  /* R16-14: the computer player's chosen tile glows steadily (no blinking). */
+  .bt-tile.is-picked::after {
+    animation: none;
+  }
   .bt-delta,
   .bt-swap-v.is-settle {
     animation-name: bt-swap-fade;
   }
+}
+.reduce-motion .bt-tile.is-picked::after {
+  animation: none;
 }
 .reduce-motion .is-in .bt-dw-title {
   animation: none;
@@ -1436,4 +1481,10 @@
 }
 .board-theme[data-theme="classic"].is-host-preview:is([data-host-stage="clue"], [data-host-stage="final"]) .bt-host-band-slot {
   background: #0e1a86;
+}
+/* R16-18: nothing black behind the clue at the picture's edges either — the preview's stage ends on a
+   fractional pixel (86 % of 720), and a scaled picture's edge rows mix in what lies behind the
+   panel; on a real iPad that showed as a thin dark line between the picture and the blue around it. */
+.is-host-preview:is([data-host-stage="clue"], [data-host-stage="final"]) {
+  background: var(--bt-panel-color, #071483);
 }

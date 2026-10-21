@@ -369,6 +369,9 @@ export interface ActiveClue {
   wager: { competitorId: Id; amount: number; profileId: Id | null } | null;
   /** Daily Double!: who wagers (the competitor in control when it was picked, R5-20). */
   wagerBy?: Id | null;
+  /** R16-7: Daily Double!: the host has unlocked wagering (Unlock Wager; starts the wager timer).
+   *  Until then nobody can send a wager — the host first announces the Daily Double!. */
+  wagerOpen?: boolean;
   /** Daily Double!: the wager sent from a phone, waiting for the host to lock it (R5-20). */
   pendingWager?: { competitorId: Id; amount: number; profileId: Id | null; at: number } | null;
   answerRevealed: boolean;

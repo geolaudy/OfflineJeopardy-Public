@@ -200,7 +200,12 @@ describe('computer opponents (O3, R3-9…R3-13)', () => {
     ok({ type: 'adjustScore', competitorId: bot('Robo Rita').id, delta: 1000 });
     ok({ type: 'selectClue', clueId: 'sci_4' }); // Daily Wager on the sample board
     expect(s().clue?.isDailyWager).toBe(true);
+    // R16-7 / R16-9: the host unlocks the wager, the bot sends one, the host locks it.
+    ok({ type: 'openDailyWager' });
     await wait(3500);
+    const pending = s().clue!.pendingWager!;
+    expect(pending.competitorId).toBe(bot('Robo Rita').id);
+    ok({ type: 'setDailyWager', competitorId: pending.competitorId, amount: pending.amount });
     expect(s().clue?.wager?.competitorId).toBe(bot('Robo Rita').id);
     await wait(6000);
     expect(s().clue?.submission?.competitorId).toBe(bot('Robo Rita').id);

@@ -93,7 +93,13 @@ describe('wagering permissions (R5-18) and Final answers (R5-19, R5-15)', () => 
     await h.act({ type: 'selectClue', clueId: 'sci_4' }); // the sample board's Daily Double!
     await pa.waitState((_g, me) => !!me?.dailyWager);
     expect(ps.me?.dailyWager ?? null).toBeNull();
-    let r = result(ps);
+    // R16-7: locked until the host unlocks the wager.
+    let r = result(pa);
+    pa.send({ t: 'dailyWager', amount: 400 });
+    expect(await r).toMatchObject({ ok: false });
+    await h.act({ type: 'openDailyWager' });
+    await pa.waitState((_g, me) => !!me?.dailyWager?.open);
+    r = result(ps);
     ps.send({ t: 'dailyWager', amount: 100 }); // not Sam's Daily Double!
     expect(await r).toMatchObject({ ok: false });
     r = result(pa);

@@ -153,13 +153,63 @@ function useSafeBottom() {
 /**
  * R14-6 / R15-14 … R15-16: the presentation area around the TV picture continues the stage. A base
  * layer in the board's own background (the classic theme's black grid, another theme's background)
- * and over it the clue panel's surface (its colour and grain, the grain lined up with the picture's)
- * during a clue or the Final. The panel layer moves with the TV: when a clue zooms out of its tile
- * the layer opens from that tile's place to the whole area in the zoom's time and curve, so the
- * surroundings fill in with the zoom instead of changing colour before it; on the way back it closes
- * into the tile with the TV's shrink. The Final fades in (as on the TV).
+ * and over it the clue panel's surface during a clue or the Final.
+ *
+ * R16-17: one surface with the picture — the classic panel's grain and its gradient (the radial
+ * glows and the diagonal shade, board.css --bt-panel) are drawn in the picture's own coordinates
+ * across the whole area, so they run on past the picture's edges instead of stopping there (a flat
+ * colour around the gradient showed the picture's edges as bars).
+ * R16-19: one zoom with the picture — the preview reports when its clue panel starts zooming, from
+ * which tile and to which box (ClueZoom → board/Preview.tsx → TvMirror: 'oj-preview-zoom'); the
+ * panel layer then runs the TV panel's own transform applied to the whole area, from that moment, in
+ * the zoom's time and curve. Its edges therefore move in proportion with the clue's (they used to
+ * open from the tile to the outer edges while the clue only reached the picture's: the bars filled
+ * in early). Without a report (another theme's fade, a preview that missed it) it falls back after
+ * a moment. The Final fades in (as on the TV).
  */
-function StageFill({ kind, root, height, stage, tiles, clueId, reduced }: { kind: FrameKind; root: ReturnType<typeof themeRoot>; height: number; stage: { left: number; top: number; scale: number }; tiles: PreviewTile[]; clueId: string | null; reduced: boolean }) {
+type Box = { x: number; y: number; w: number; h: number };
+export type PreviewZoom = { clueId: string; dir: 'open' | 'close'; panel: Box; tile: Box | null };
+
+/** The classic clue panel's surface (board.css --bt-panel) for a picture box `p` inside an area of
+ *  `W` × `H` px: the same layers, positioned in the picture's coordinates. Keep in step with board.css. */
+export function classicPanelSurface(p: Box, W: number, H: number, grain: number) {
+  const r = (rx: number, ry: number, cx: number, cy: number, c: string, stop: number) =>
+    `radial-gradient(ellipse ${rx * p.w}px ${ry * p.h}px at ${p.x + cx * p.w}px ${p.y + cy * p.h}px, ${c}, transparent ${stop}%)`;
+  // linear-gradient(160deg, …) of the picture, continued over the whole area: the same direction,
+  // its stops moved to where they fall on this area's gradient line.
+  const a = (160 * Math.PI) / 180;
+  const dir = { x: Math.sin(a), y: -Math.cos(a) };
+  const lineOf = (w: number, h: number) => Math.abs(w * dir.x) + Math.abs(h * dir.y);
+  const Lp = lineOf(p.w, p.h);
+  const Lf = lineOf(W, H);
+  const shift = (p.x + p.w / 2 - W / 2) * dir.x + (p.y + p.h / 2 - H / 2) * dir.y;
+  const at = (frac: number) => `${(Lf / 2 + shift + (frac - 0.5) * Lp).toFixed(1)}px`;
+  return [
+    `var(--bt-panel-noise) ${p.x}px ${p.y}px / ${grain}px repeat`,
+    r(0.38, 0.46, 0.74, 0.34, 'rgba(16, 30, 145, 0.85)', 70),
+    r(0.34, 0.4, 0.22, 0.7, 'rgba(14, 27, 140, 0.7)', 70),
+    r(0.3, 0.38, 0.38, 0.28, 'rgba(0, 8, 105, 0.75)', 72),
+    r(0.36, 0.34, 0.64, 0.86, 'rgba(1, 10, 112, 0.7)', 70),
+    `linear-gradient(160deg, #04117f ${at(0)}, #071483 ${at(0.45)}, #061280 ${at(1)}) #071483`, // + the panel colour underneath (background-color)
+  ].join(', ');
+}
+
+/** The TV panel's zoom (picture box P ↔ tile T) applied to the whole W × H area: where the area's
+ *  edges are while the panel sits on its tile, as a clip-path. */
+function zoomedClip(P: Box, T: Box, W: number, H: number) {
+  const sx = T.w / P.w;
+  const sy = T.h / P.h;
+  const left = Math.max(0, T.x - P.x * sx);
+  const top = Math.max(0, T.y - P.y * sy);
+  const right = Math.max(0, W - (T.x + (W - P.x) * sx));
+  const bottom = Math.max(0, H - (T.y + (H - P.y) * sy));
+  return `inset(${top}px ${right}px ${bottom}px ${left}px)`;
+}
+
+/** The TV panel's box in the fill's pixels: the preview's stage (its screen without the score strip). */
+const pictureBox = (g: { left: number; top: number; scale: number }): Box => ({ x: g.left, y: g.top, w: 1280 * g.scale, h: 720 * (1 - HOST_BAND) * g.scale });
+
+function StageFill({ kind, root, width, height, stage, tiles, clueId, reduced }: { kind: FrameKind; root: ReturnType<typeof themeRoot>; width: number; height: number; stage: { left: number; top: number; scale: number }; tiles: PreviewTile[]; clueId: string | null; reduced: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const known = useRef<PreviewTile[]>(tiles);
   if (tiles.some((t) => t.kind !== 'final')) known.current = tiles;
@@ -168,51 +218,94 @@ function StageFill({ kind, root, height, stage, tiles, clueId, reduced }: { kind
   const prev = useRef({ kind, clueId });
   const geo = useRef(stage);
   geo.current = stage;
+  const lastZoom = useRef<(PreviewZoom & { at: number }) | null>(null);
+  const waiting = useRef<{ dir: 'open' | 'close'; clueId: string; run: (z: PreviewZoom | null) => void } | null>(null);
+
+  useLayoutEffect(() => {
+    const onZoom = (e: Event) => {
+      const z = (e as CustomEvent<PreviewZoom>).detail;
+      lastZoom.current = { ...z, at: performance.now() };
+      const w = waiting.current;
+      if (w && w.dir === z.dir && w.clueId === z.clueId) w.run(z);
+    };
+    window.addEventListener('oj-preview-zoom', onZoom);
+    return () => window.removeEventListener('oj-preview-zoom', onZoom);
+  }, []);
+
   useLayoutEffect(() => {
     const was = prev.current;
     prev.current = { kind, clueId };
     const want = panelKind(kind);
     const el = ref.current;
     if (want === panelKind(was.kind)) return setOn(want);
-    setOn(true);
     if (!el || typeof el.animate !== 'function' || reduced) return setOn(want);
-    // The tile the clue zooms out of (opening) or back into (closing), in this layer's pixels.
-    const id = want ? clueId : was.clueId;
-    const t = id ? known.current.find((x) => x.id === id) : undefined;
-    const g = geo.current;
     const W = el.offsetWidth;
     const H = el.offsetHeight;
-    const tile = t && W > 0 && H > 0 ? (() => {
-      const x = g.left + t.x * g.scale;
-      const y = g.top + t.y * g.scale;
-      return `inset(${y}px ${W - x - t.w * g.scale}px ${H - y - t.h * g.scale}px ${x}px)`;
-    })() : null;
+    const g = geo.current;
     const full = 'inset(0px 0px 0px 0px)';
-    let a: Animation;
-    if (want) {
-      a = kind === 'clue' && tile ? el.animate([{ clipPath: tile }, { clipPath: full }], { duration: T.zoom * 1000, easing: EASE_OUT }) : el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: T.fade * 1000, easing: 'linear' });
-    } else {
-      a = was.kind === 'clue' && tile && kind === 'board'
-        ? el.animate(
-            [
-              { clipPath: full, opacity: 1 },
-              { clipPath: tile, opacity: 1, offset: 0.8 },
-              { clipPath: tile, opacity: 0 },
-            ],
-            { duration: T.unzoom * 1000, delay: T.fadeOut * 600, easing: EASE_IN_OUT, fill: 'both' },
-          )
-        : el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: T.fade * 1000, fill: 'both' });
-      a.onfinish = () => setOn(false);
+    const id = want ? clueId : was.clueId;
+    const zooms = !!id && W > 0 && H > 0 && (want ? kind === 'clue' : was.kind === 'clue' && kind === 'board');
+    let a: Animation | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    // The clip of the whole area while the panel sits on its tile — from the preview's report, or
+    // from the tile boxes the preview reported earlier.
+    const clipAtTile = (z: PreviewZoom | null) => {
+      const host = (b: Box): Box => ({ x: g.left + b.x * g.scale, y: g.top + b.y * g.scale, w: b.w * g.scale, h: b.h * g.scale });
+      const t = z?.tile ?? known.current.find((x) => x.id === id) ?? null;
+      if (!t) return null;
+      return zoomedClip(z ? host(z.panel) : pictureBox(g), host(t), W, H);
+    };
+    const run = (z: PreviewZoom | null) => {
+      waiting.current = null;
+      if (timer) clearTimeout(timer);
+      const tile = zooms ? clipAtTile(z) : null;
+      if (want) {
+        el.style.opacity = '';
+        setOn(true);
+        a = tile ? el.animate([{ clipPath: tile }, { clipPath: full }], { duration: T.zoom * 1000, easing: EASE_OUT }) : el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: T.fade * 1000, easing: 'linear' });
+      } else {
+        a = tile
+          ? el.animate(
+              [
+                { clipPath: full, opacity: 1 },
+                { clipPath: tile, opacity: 1, offset: 0.8 },
+                { clipPath: tile, opacity: 0 },
+              ],
+              { duration: T.unzoom * 1000, delay: T.fadeOut * 600, easing: EASE_IN_OUT, fill: 'both' },
+            )
+          : el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: T.fade * 1000, fill: 'both' });
+        a.onfinish = () => setOn(false);
+      }
+    };
+    if (!zooms) run(null);
+    else {
+      const dir = want ? 'open' : 'close';
+      const z = lastZoom.current;
+      if (z && z.dir === dir && z.clueId === id && performance.now() - z.at < 400) run(z);
+      else {
+        // Until the preview's own zoom starts, an opening clue's surface is not shown yet and a
+        // closing clue's stays.
+        if (want) el.style.opacity = '0';
+        else setOn(true);
+        waiting.current = { dir, clueId: id!, run };
+        timer = setTimeout(() => run(null), 400);
+      }
     }
-    return () => a.cancel();
+    return () => {
+      waiting.current = null;
+      if (timer) clearTimeout(timer);
+      a?.cancel();
+    };
   }, [kind, clueId, reduced]);
+  const classic = root.dataTheme === 'classic';
+  const grain = Math.max(32, Math.round(256 * stage.scale));
   return (
     <div className="board-theme host-stage-bg absolute inset-x-0 top-0" data-theme={root.dataTheme} style={{ ...root.style, height }} aria-hidden data-testid="host-stage-bg">
       <div
         ref={ref}
         className="host-stage-panel absolute inset-0"
-        // The panel's grain at the preview's scale, starting where the picture starts (R15-16).
-        style={{ opacity: on ? undefined : 0, '--grain': `${Math.max(32, Math.round(256 * stage.scale))}px`, '--grain-at': `${Math.round(stage.left)}px ${Math.round(stage.top)}px` } as CSSProperties}
+        // R15-16 / R16-17: the classic panel's grain and gradient, lined up with the picture's.
+        style={{ opacity: on ? undefined : 0, ...(classic && width > 0 ? { background: classicPanelSurface(pictureBox(stage), width, height, grain) } : {}) }}
         data-on={on ? 'true' : 'false'}
         data-testid="host-stage-panel"
       />
@@ -359,7 +452,7 @@ export function GameFrame({
             >
               {/* The presentation area around the TV picture (R14-6, R15-14): it continues the
                   stage's own background, so the picture has no visible edge (host-tv.css). */}
-              <StageFill kind={kind} root={root} height={L.midH} stage={{ left: L.stageLeft, top: L.stageTop, scale: L.sw / 1280 }} tiles={tiles} clueId={clueId} reduced={!!look.reducedMotion} />
+              <StageFill kind={kind} root={root} width={aw} height={L.midH} stage={{ left: L.stageLeft, top: L.stageTop, scale: L.sw / 1280 }} tiles={tiles} clueId={clueId} reduced={!!look.reducedMotion} />
               <div className="absolute overflow-hidden" style={{ left: L.stageLeft, top: L.stageTop, width: L.sw, height: L.sh }} data-testid="game-stage">
                 {preview({ w: L.sw, h: L.sh }, ids.preview)}
                 <div ref={setStage} className="contents" />

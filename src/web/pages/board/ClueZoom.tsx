@@ -34,6 +34,25 @@ function tileTransform(panel: HTMLElement, clueId: string): string | null {
   return `translate(${dx}px, ${dy}px) scale(${r.width / w}, ${r.height / h})`;
 }
 
+/**
+ * R16-19: tells the host's preview (board/Preview.tsx forwards it to the host) that the panel starts
+ * zooming out of (or back into) its tile: the panel's box without the zoom and the tile's, in this
+ * page's pixels. The host's surroundings of the preview then follow the same zoom from the same
+ * moment. On the TV nobody listens.
+ */
+function announceZoom(panel: HTMLElement, clueId: string, dir: 'open' | 'close') {
+  const stage = panel.parentElement;
+  if (!stage) return;
+  const s = stage.getBoundingClientRect();
+  let tile: HTMLElement | null = null;
+  stage.querySelectorAll<HTMLElement>('[data-clue-id]').forEach((el) => {
+    if (el.dataset.clueId === clueId) tile = el;
+  });
+  const t = tile ? (tile as HTMLElement).getBoundingClientRect() : null;
+  const detail = { clueId, dir, panel: { x: s.left + panel.offsetLeft, y: s.top + panel.offsetTop, w: panel.offsetWidth, h: panel.offsetHeight }, tile: t && t.width && t.height ? { x: t.left, y: t.top, w: t.width, h: t.height } : null };
+  window.dispatchEvent(new CustomEvent('oj-tv-zoom', { detail }));
+}
+
 function centreTransform(panel: HTMLElement) {
   return `translate(${panel.offsetWidth * 0.4}px, ${panel.offsetHeight * 0.4}px) scale(0.2)`;
 }
@@ -72,6 +91,7 @@ export function CluePanel({ g, closing, zoomIn, onClosed }: { g: GameView; closi
       setExpanded(true);
       const from = tileTransform(panel, clue.clueId) ?? centreTransform(panel);
       a = panel.animate([{ transform: from }, { transform: 'none' }], { duration: T.zoom * 1000, easing: EASE_OUT });
+      announceZoom(panel, clue.clueId, 'open');
     }
     openAnim.current = a;
     return () => a.cancel();
@@ -96,6 +116,7 @@ export function CluePanel({ g, closing, zoomIn, onClosed }: { g: GameView; closi
       a = panel.animate([{ opacity: 1 }, { opacity: 0 }], { duration: T.fade * 1000, fill: 'forwards' });
     } else {
       const to = tileTransform(panel, clue.clueId) ?? centreTransform(panel);
+      announceZoom(panel, clue.clueId, 'close');
       c = contentRef.current?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: T.fadeOut * 1000, fill: 'forwards' }) ?? null;
       a = panel.animate(
         [
@@ -130,13 +151,20 @@ function DailyWagerCard({ g, still }: { g: GameView; still?: boolean }) {
   const clue = g.clue!;
   const controller = findCompetitor(g, g.controlCompetitorId);
   return (
-    <div className={cx('bt-stage flex min-h-0 flex-1 flex-col items-center justify-center gap-[3.5vh] px-[6vw] pb-[8vh] text-center', still && 'is-still')} data-testid="tv-stage">
+    <div className={cx('bt-stage relative flex min-h-0 flex-1 flex-col items-center justify-center gap-[3.5vh] px-[6vw] pb-[8vh] text-center', still && 'is-still')} data-testid="tv-stage">
       <p className="bt-dw-title">DAILY DOUBLE!</p>
       <p className="bt-dw-cat">{clue.categoryName}</p>
       {controller && (
-        <p className="bt-dw-who">
-          <span className="bt-name">{competitorName(controller, g)}</span> is wagering…
-        </p>
+        <>
+          {/* R16-12: who wagers sits lower, where the clue's text will be; its old place stays
+              reserved, so the title and the category do not move. */}
+          <p className="bt-dw-who invisible" aria-hidden>
+            <span className="bt-name">{competitorName(controller, g)}</span> is wagering…
+          </p>
+          <p className="bt-dw-who bt-dw-who-low" data-testid="tv-dd-who">
+            <span className="bt-name">{competitorName(controller, g)}</span> is wagering…
+          </p>
+        </>
       )}
     </div>
   );

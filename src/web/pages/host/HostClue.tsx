@@ -185,7 +185,7 @@ function ClueFooter({ g, run, responder, who, setWho }: { g: GameView; run: Run;
   const judge = (result: 'correct' | 'incorrect') => run({ type: 'judge', result, ...(responder?.kind === 'team' ? { profileId: who } : {}) });
 
   let status: ReactNode;
-  if (wagerStage) status = <DailyWagerStatus g={g} run={run} />;
+  if (wagerStage) status = <DailyWagerStatus g={g} />;
   else if (judging) status = <Answering g={g} c={responder!} who={who} setWho={setWho} />;
   else if (clue.answerRevealed) status = <p className="host-band-status text-slate-600" data-testid="answer-shown">{clue.resolved ? 'Answer judged — it is on the TV.' : 'The answer is on the TV.'}</p>;
   else if (over)
@@ -587,12 +587,11 @@ function AnswerLightbox({ g, onClose }: { g: GameView; onClose: () => void }) {
  * R15-21: the Daily Double! in the band — who is wagering and their wager (entered on their phone,
  * or by the host), with the wager timer's seconds. The TV shows the Daily Double! splash meanwhile.
  */
-function DailyWagerStatus({ g, run }: { g: GameView; run: Run }) {
+function DailyWagerStatus({ g }: { g: GameView }) {
   const clue = g.clue!;
   const pending = clue.pendingWager ?? null;
   const owner = findCompetitor(g, pending?.competitorId ?? clue.wagerBy ?? undefined);
   const amount = pending?.amount ?? null;
-  const secs = g.rules.timers.wagerSeconds || 30;
   return (
     <div className="flex min-w-0 items-center gap-3" data-testid="host-dd-status">
       {owner && <Avatar profile={competitorAvatar(owner, g)} size={36} />}
@@ -608,28 +607,28 @@ function DailyWagerStatus({ g, run }: { g: GameView; run: Run }) {
                 {fmtScore(amount)}
               </b>
             </>
+          ) : !clue.wagerOpen ? (
+            // R16-7: wagering is locked until the host has announced the Daily Double! and unlocks it.
+            'Announce the Daily Double!, then unlock the wager'
           ) : owner?.bot ? (
             'Choosing a wager…'
+          ) : g.timer?.expired ? (
+            "Time's up — no wager yet. Enter it for them, or wait"
           ) : (
             'No wager yet — on their phone, or enter it for them'
           )}
         </p>
       </div>
-      {/* R15-18: the wager timer starts when the host says so — then its seconds show here. */}
-      {g.timer ? (
-        <TimerChip g={g} />
-      ) : (
-        <ActionButton variant="ghost" className="host-ghost-btn ml-auto shrink-0 text-base!" onAction={() => run({ type: 'timerStart', kind: 'wager', seconds: secs })} data-testid="host-dd-timer">
-          <Timer size={20} aria-hidden /> Start {secs}s Timer
-        </ActionButton>
-      )}
+      {/* R16-8: the wager timer runs from Unlock Wager until a wager is in. */}
+      {g.timer && <TimerChip g={g} />}
     </div>
   );
 }
 
-/** R15-18 … R15-21: Start Timer (the host decides when the wager timer runs), Preview Clue (only the
- *  host), Enter Wager (for a player without a device) and Lock Wager & Show Clue in the main
- *  action's place. Previewing changes nothing in the game. */
+/** R15-19 … R15-21, R16-7: Preview Clue (only the host), Enter Wager (for a player without a
+ *  device) and the main action: Unlock Wager (green — the wagering player may now send a wager, the
+ *  wager timer starts), then Lock Wager & Show Clue (enabled once a wager is in). Previewing changes
+ *  nothing in the game. */
 function DailyWagerActions({ g, run }: { g: GameView; run: Run }) {
   const clue = g.clue!;
   const [entry, setEntry] = useState(false);
@@ -645,6 +644,11 @@ function DailyWagerActions({ g, run }: { g: GameView; run: Run }) {
       <button type="button" className="host-ghost-btn mr-1" onClick={() => setEntry(true)} data-testid="host-dd-enter">
         <Pencil size={21} aria-hidden /> {ready ? 'Change Wager' : 'Enter Wager'}
       </button>
+      {!clue.wagerOpen && !ready ? (
+        <ActionButton size="lg" variant="success" className="host-btn host-btn-main" onAction={() => run({ type: 'openDailyWager' })} data-testid="host-dd-unlock">
+          <LockOpen size={22} aria-hidden /> Unlock Wager
+        </ActionButton>
+      ) : (
       <ActionButton
         size="lg"
         variant="success"
@@ -656,6 +660,7 @@ function DailyWagerActions({ g, run }: { g: GameView; run: Run }) {
       >
         <Lock size={22} aria-hidden /> Lock Wager &amp; Show Clue
       </ActionButton>
+      )}
       {entry && <DailyWagerEntry g={g} run={run} onClose={() => setEntry(false)} />}
       {preview && <CluePreview text={clue.question?.trim() ?? ''} label="Daily Double! clue (only you)" note="Only you see this — the TV still shows the Daily Double!" onClose={() => setPreview(false)} testId="host-dd-clue" />}
     </div>

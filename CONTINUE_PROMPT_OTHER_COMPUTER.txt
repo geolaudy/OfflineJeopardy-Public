@@ -1,7 +1,7 @@
 OFFLINEJEOPARDY — PICK UP ON THE ORIGINAL COMPUTER (geolaudy machine, DESKTOP-6HN0OQ4)
 
 Continue the existing OfflineJeopardy project (https://github.com/geolaudy/OfflineJeopardy). Do not
-restart or rewrite anything. Sessions 15 (round 12), 16 (round 13), 17 (round 14, 0.17.0-rc.1) and 18 (round 15, 0.17.0-rc.2) ran on this machine.
+restart or rewrite anything. Sessions 15 (round 12), 16 (round 13), 17 (round 14, 0.17.0-rc.1) 18 (round 15, 0.17.0-rc.2) and 19 (round 16, 0.17.0-rc.3) ran on this machine.
 
 0. DEVELOPMENT LOCK FIRST (DEVELOPMENT_LOCK.md, CLAUDE.md §36):
      git fetch origin && git status -sb && git pull --ff-only
@@ -18,8 +18,8 @@ restart or rewrite anything. Sessions 15 (round 12), 16 (round 13), 17 (round 14
    FEATURE_MATRIX.md "User feedback round 15".
 3. npm install, then npx tsc -p . and npx vitest run for a baseline. Before ANY Playwright run:
    npm run build:web (the e2e server serves dist/ — an old build here once looked like a WebKit crash).
-4. Next task: SESSION_HANDOFF.md "Single recommended next task" (the owner's verdict on 0.17.0-rc.2
-   (release/OfflineJeopardy-*-0.17.0-rc.2.exe); publish v0.17.0 only after explicit approval). Drive C: is nearly full — old
+4. Next task: SESSION_HANDOFF.md "Single recommended next task" (the owner's verdict on 0.17.0-rc.3
+   (release/OfflineJeopardy-*-0.17.0-rc.3.exe); publish v0.17.0 only after explicit approval). Drive C: is nearly full — old
    local builds were moved to D:\OfflineJeopardy-old-builds\; never run two Playwright runs at once.
 5. references/ (owner's mock-ups, git-ignored) and new_sfx/ (personal sounds — never commit or upload)
    stay on this machine. Round 12's four reference images are listed in USER_FEEDBACK.md "Round 12".

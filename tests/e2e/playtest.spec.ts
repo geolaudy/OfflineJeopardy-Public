@@ -106,6 +106,8 @@ test('play-test: a full evening on an iPad in portrait, a 4:3 TV and three phone
   await ipad.getByRole('button', { name: /Science for 800/ }).click();
   await expect(tv.getByText('DAILY DOUBLE!')).toBeVisible();
   await expect(pj.getByTestId('phone-daily-wager')).toHaveCount(0); // not Jon's
+  await expect(pk.getByTestId('phone-dd-locked')).toBeVisible(); // R16-7: the host unlocks it first
+  await ipad.getByTestId('host-dd-unlock').click();
   await pk.getByTestId('phone-dd-input').fill('100');
   await pk.getByTestId('phone-dd-submit').click();
   await expect(pk.getByTestId('phone-dd-done')).toBeVisible();

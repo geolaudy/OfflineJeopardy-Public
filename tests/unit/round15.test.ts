@@ -86,7 +86,7 @@ describe('a computer player’s choice is outlined first (R15-29)', () => {
     expect(hint).toBeTruthy();
     expect(gm.current!.phase).toBe('board');
     expect((gm.current as unknown as Record<string, unknown>).pickHint).toBeUndefined(); // not game state
-    await vi.advanceTimersByTimeAsync(900);
+    await vi.advanceTimersByTimeAsync(1300); // R16-14: two short blinks and a longer third (1.4 s)
     expect(gm.current!.phase).toBe('board'); // still showing the outline
     await vi.advanceTimersByTimeAsync(200);
     expect(gm.current!.phase).toBe('clue');

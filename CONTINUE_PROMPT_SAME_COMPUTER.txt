@@ -18,10 +18,10 @@ Continue the existing OfflineJeopardy project in this repository. Do not restart
    IMPORTANT: Playwright serves the built web app from dist/ — run npm run build:web (or npm run
    build) before any e2e run, or the tests exercise an old build.
 4. State and next task: SESSION_HANDOFF.md ("Current state" and "Single recommended next task").
-   Round 15 (the owner's hardware results for 0.17.0-rc.1, then: score cards that plan the iPad's
-   home-indicator area, navy cards, the Daily Double! run from the band, Final category / heading
-   staying put, bot pick outline, TV lobby stable with nicknames, pinch-zoom fix, black-translucent
-   status bar) is in USER_FEEDBACK.md "Round 15"; 0.17.0-rc.2 was built locally for the owner's
+   Round 16 (the owner's hardware results for 0.17.0-rc.2, then: one keyboard tracker for every
+   text field, the Daily Double! unlocked by the host, bots wagering again, Final cue / swipe, square
+   bot glow, status bar back to the plain default, preview fill = one surface with the TV's zoom) is in
+   USER_FEEDBACK.md "Round 16"; 0.17.0-rc.3 was built locally for the owner's
    real-hardware test — publish v0.17.0 ONLY after the owner explicitly approves (SESSION_HANDOFF.md).
    Never run two Playwright runs in one checkout at once (they wipe each other's test-results/).
 5. Reference images are git-ignored: references/ must be copied by hand from the owner. Round 12

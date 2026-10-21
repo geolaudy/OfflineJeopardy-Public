@@ -7,6 +7,7 @@
 import type { EngineAction } from '../shared/actions.js';
 import { scoresOf, type BotLevel, type Competitor, type GameState } from '../shared/game.js';
 import { timerRemaining } from '../shared/game.js';
+import { roundMaxValue } from './engine/engine.js';
 import { clueContext, localAnswer, pickClue, type ClueContext, type PickMemory } from './botAnswers.js';
 
 interface LevelParams {
@@ -68,7 +69,8 @@ export class BotDriver {
   /** R15-29: the clue a computer player is about to open (null: none) — shown on the board for
    *  `hintMs` before the clue opens, so everyone sees which tile it chose. */
   onHint: (clueId: string | null) => void = () => {};
-  hintMs = 1000;
+  // R16-14: two short blinks and a longer third (board.css .is-picked), then the zoom.
+  hintMs = 1400;
 
   constructor(private dispatch: (a: EngineAction) => void) {}
 
@@ -263,16 +265,22 @@ export class BotDriver {
       }
     }
 
-    // Daily Wager picked while a computer player has control: it wagers, then answers.
+    // Daily Wager picked while a computer player has control: once the host unlocks the wager it
+    // sends one (pending, like a phone — R16-9), the host locks it and shows the clue, then it answers.
+    // R16-9: the tasks are keyed by this opening of the clue (game + its clue_open event): keyed by
+    // the clue alone, a bot never wagered again on that clue — in a later game on the same board, or
+    // after the host undid the pick.
     if (s.phase === 'clue' && clue?.isDailyWager && !clue.resolved) {
+      const opening = `${s.id}:${s.events.findLast((e) => e.type === 'clue_open' && e.clueId === clue.clueId)?.id ?? clue.clueId}`;
       if (clue.stage === 'wager') {
-        const owner = bots.find((b) => b.id === s.controlCompetitorId);
-        if (owner) out.set(`dw:${clue.clueId}`, { delay: 2500 * this.pace(owner), action: () => ({ type: 'setDailyWager', competitorId: owner.id, amount: this.dailyWager(s, owner) }) });
+        const owner = bots.find((b) => b.id === (clue.wagerBy ?? s.controlCompetitorId));
+        if (owner && clue.wagerOpen && !clue.pendingWager)
+          out.set(`dw:${opening}`, { delay: 2500 * this.pace(owner), action: () => ({ type: 'submitDailyWager', competitorId: owner.id, profileId: null, amount: this.dailyWager(s, owner) }) });
       } else if (clue.wager && !clue.submission) {
         const owner = bots.find((b) => b.id === clue.wager!.competitorId);
         if (owner) {
           const knows = this.knows(s, owner, clue.clueId, clue.value);
-          const key = `dwanswer:${clue.clueId}`;
+          const key = `dwanswer:${opening}`;
           const ready = this.prepare(key, () => this.answerText(s, owner, clue.clueId, knows));
           out.set(key, { delay: 2500 + this.thinkTime(s, owner), action: async () => this.submit(owner, await ready) });
         }
@@ -308,13 +316,16 @@ export class BotDriver {
     return t;
   }
 
+  /** R16-9: a legal Daily Double! wager — the engine's own limits (minimum … max(score, the round's
+   *  top value)), the bot's share of the maximum, in the board's steps (100s on a classic board, the
+   *  smallest clue value on a custom one), never below the minimum or above the maximum. */
   private dailyWager(s: GameState, b: Competitor) {
     const score = scoresOf(s.events)[b.id] ?? 0;
-    const round = s.board.rounds[s.roundIndex];
-    const roundMax = Math.max(0, ...(round?.categories ?? []).flatMap((c) => c.clues.map((q) => q.value)));
-    const max = Math.max(score, roundMax);
-    const amount = Math.round((max * BOT_PARAMS[b.bot!].wager) / 100) * 100;
-    return Math.min(max, Math.max(s.rules.dailyWagerMin, amount));
+    const max = Math.max(score, roundMaxValue(s));
+    const values = (s.board.rounds[s.roundIndex]?.categories ?? []).flatMap((c) => c.clues.map((q) => q.value)).filter((v) => v > 0);
+    const step = Math.min(100, ...values);
+    const amount = Math.floor((max * BOT_PARAMS[b.bot!].wager) / 100 / step) * step;
+    return Math.max(s.rules.dailyWagerMin, Math.min(max, amount));
   }
 
   private finalWager(s: GameState, b: Competitor) {
