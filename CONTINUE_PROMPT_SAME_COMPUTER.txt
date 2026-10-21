@@ -12,16 +12,17 @@ Continue the existing OfflineJeopardy project in this repository. Do not restart
    - A blocked Edit/Write saying "DEVELOPMENT LOCK" means this clone has no confirmed lock: run the
      commands above. If GitHub is unreachable the lock fails closed (read-only work only).
 1. Read CLAUDE.md, then SESSION_HANDOFF.md (top section) and PROGRESS.md (top section), then
-   KNOWN_ISSUES.md and FEATURE_MATRIX.md "User feedback round 14".
+   KNOWN_ISSUES.md and FEATURE_MATRIX.md "User feedback round 15".
 2. Expect branch main = origin/main at the commit named at the top of SESSION_HANDOFF.md, clean tree.
 3. npm install (dependencies may have changed), then npx tsc -p . and npx vitest run for a baseline.
    IMPORTANT: Playwright serves the built web app from dist/ — run npm run build:web (or npm run
    build) before any e2e run, or the tests exercise an old build.
 4. State and next task: SESSION_HANDOFF.md ("Current state" and "Single recommended next task").
-   Round 14 (12 players / teams, fixed-height score cards with fitted scores, Final host entry and
-   Preview Clue, one Options menu, Wi-Fi elevated read, Windows splash) is in USER_FEEDBACK.md
-   "Round 14"; a 0.17.0 release candidate was built for the owner's real-hardware test — publish
-   v0.17.0 ONLY after the owner explicitly approves (SESSION_HANDOFF.md).
+   Round 15 (the owner's hardware results for 0.17.0-rc.1, then: score cards that plan the iPad's
+   home-indicator area, navy cards, the Daily Double! run from the band, Final category / heading
+   staying put, bot pick outline, TV lobby stable with nicknames, pinch-zoom fix, black-translucent
+   status bar) is in USER_FEEDBACK.md "Round 15"; 0.17.0-rc.2 was built locally for the owner's
+   real-hardware test — publish v0.17.0 ONLY after the owner explicitly approves (SESSION_HANDOFF.md).
    Never run two Playwright runs in one checkout at once (they wipe each other's test-results/).
 5. Reference images are git-ignored: references/ must be copied by hand from the owner. Round 12
    (the last round with mock-ups) used: "0.15.0 host fullscreen board improved.png", "0.15.0 host fullscreen clue improved.png",

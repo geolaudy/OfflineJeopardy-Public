@@ -1,8 +1,32 @@
 # Session handoff
 
-Read this first, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 14". Ready-to-paste resume prompts: `CONTINUE_PROMPT_SAME_COMPUTER.txt` / `CONTINUE_PROMPT_OTHER_COMPUTER.txt`.
+Read this first, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 15". Ready-to-paste resume prompts: `CONTINUE_PROMPT_SAME_COMPUTER.txt` / `CONTINUE_PROMPT_OTHER_COMPUTER.txt`.
 
 **Before anything else: the development lock (`DEVELOPMENT_LOCK.md`).** `npm run dev:lock:status`, then `npm run dev:lock:acquire -- --task "…"`. Do not change files while another computer holds it.
+
+## Current state (session 18, 2026-10-21 — round 15 done; 0.17.0 RELEASE CANDIDATE 2 built, NOT published; on DESKTOP-6HN0OQ4 / geolaudy)
+
+- Started from `origin/main` 12bbb04 (0.17.0-rc.1, the build the owner tested), clean. Development lock owned by this clone (generation 4); **released at the end of session 18 (acquire it before you start)**.
+- **Git:** `main` = `origin/main` = the round-15 commit 189429d + the handoff commit after it (round 15 + this handoff), pushed, clean tree. package.json **0.17.0-rc.2**; CHANGELOG [Unreleased] = rounds 13 + 14 + 15 (the future [0.17.0] section). No tag, no GitHub release (rc builds are local, like rc.1).
+- **Owner's verdict on rc.1** (USER_FEEDBACK "Round 15"): host embedded / full screen / both orientations, centred response, Options, menu, TV scores, Final bubbles / outlines / results, host Final entry, AI bots, picture reveal, Windows start-up + splash (K56), Joy-Cons and phones all **working**; host score cards **clipped** and the iOS status bar **white** (K55); Wi-Fi credentials / admin approval / hotspot **not testable** (Ethernet, K48).
+- **Round 15 (USER_FEEDBACK "Round 15" R15-4 … R15-32, plan milestone 29, FEATURE_MATRIX "User feedback round 15", D103–D107) — milestones A–G done:**
+  - A host layout: score section planned with the bottom safe area (`--safe-bottom`, GameFrame `useSafeBottom`) — the clipping's root cause; navy score cards; HEAD_H 64 / BAND_H 76 / two-row minimum 95 px (+ safe area) keep the full-screen iPad picture edge to edge; centred board status; no header seams; value beside Options; timer line above the band.
+  - B TV lobby keys = profile id, one card height (no column change with nicknames), one statistics size, soft rounded glow (600 ms); phone Test Buzzer portalled to the body with a back arrow.
+  - C Daily Double!: no automatic wager timer (host "Start …s Timer"), wager band (who / wager / Preview Clue / Enter Wager / Lock Wager & Show Clue), engine `enterDailyWager`, shared CluePreview (picture height, minimal ×), "Daily Double" whole in the banner.
+  - D Final: category stationary into wagering + "Enter your wagers now" cue; reveal = static heading / category / order with an inner swipe for the contestant only.
+  - E preview fill: StageFill — board ground + clue panel layer that opens / closes with the TV's zoom (clip-path from the tile), panel grain at the preview's scale.
+  - F bots: answer label under the banner; chosen tile outlined ~1 s (`pickHint`, transient, server-side).
+  - G zoom: viewport helpers ignore pinch zoom (`pinchZoomed`); status bar black-translucent + navy standalone strip (`--status-bg`).
+- **Tests:** tsc clean; Vitest **398/398**; full Playwright **112/112 (108 in the full run + the 4 updated specs re-run 15/15)**; new specs tests/unit/round15.test.ts, tests/e2e/round15.spec.ts.
+- **Release candidate (`npm run release:local`; personal build — includes new_sfx, never upload):**
+  - `release/OfflineJeopardy-Setup-0.17.0-rc.2.exe` (115 MB) — SHA-256 ceb9cfd4f075851d5a653b03fb5698bbd1a129bf735a0f05eb7ff37722a87ca9
+  - `release/OfflineJeopardy-Portable-0.17.0-rc.2.exe` (162 MB) — SHA-256 f39b67e0b92aae81f07cdcc40644eed3bf14b2c91e3111e48dc489b5161b146f. verify-dist 17/17 (both executables started headlessly). Started 4× from a temp folder: unpacking 13–15 s, app start → host window 0.75–1.0 s (rc.1 in the same place: 6–29 s / 0.7–2.6 s). The splash itself was not seen this session (the PC's display was off) — splash code and packaging are unchanged from the rc.1 the owner verified. The rc.1 files are still in release/.
+- **Owner to check on real hardware before v0.17.0 is published:** (1) iPad host, embedded + full screen, landscape + portrait, with 1 / 3 / 9 / 12 players: score cards whole, navy cards, centred "… is choosing a clue", no thin lines under the banners, value beside Options, timer above the band; (2) **re-add the Home Screen icon**, then the status bar in full screen / embedded and in a Safari tab (K55); (3) Daily Double!: Start timer, Preview Clue, Enter Wager, Lock Wager & Show Clue, a phone's wager; (4) Final: category not moving into wagering, "Enter your wagers now", reveals (only the contestant moves); (5) bots: the outlined tile before the zoom, the answer under the banner; (6) TV lobby with nicknames (columns, no shuffling), test-buzz glow; phone Test Buzzer back arrow; (7) pinch-zoom on the iPad (no jumping / flicker — K60), the preview fill during clue zoom; (8) Wi-Fi PC / hotspot when possible (K48).
+
+### Single recommended next task (session 18)
+
+1. Acquire the development lock. Get the owner's verdict on 0.17.0-rc.2. **Only after explicit approval:** set package.json to 0.17.0, rename CHANGELOG [Unreleased] → [0.17.0] — date, build + verify, commit, push, tag v0.17.0 (windows-release skill), verify the GitHub release assets.
+2. If the owner reports problems: record them as USER_FEEDBACK "Round 16" and fix first.
 
 ## Current state (session 17, 2026-10-20 — round 14 done; 0.17.0 RELEASE CANDIDATE built, NOT published; on DESKTOP-6HN0OQ4 / geolaudy)
 
