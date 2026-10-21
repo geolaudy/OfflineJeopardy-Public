@@ -49,11 +49,14 @@ export function Grid({ g, activeId, activeOpen, fillIn }: { g: GameView; activeI
           const active = q.id === activeId;
           // The open clue's tile keeps its value (zoom source) but is not an available tile.
           const showValue = active ? activeOpen : !q.used;
+          // R15-29: a computer player's choice, outlined for a moment before the clue zooms open.
+          const picked = g.phase === 'board' && !q.used && g.pickHint?.clueId === q.id;
           return (
             <div
               key={q.id}
               data-clue-id={q.id}
-              className={cx('bt-cell', showValue ? 'bt-tile' : 'bt-used', fillIn && 'bt-fill')}
+              className={cx('bt-cell', showValue ? 'bt-tile' : 'bt-used', fillIn && 'bt-fill', picked && 'is-picked')}
+              data-picked={picked ? 'true' : undefined}
               style={fillStyle(r, ci)}
               data-testid={!q.used && !active ? 'board-tile' : undefined}
             >

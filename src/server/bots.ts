@@ -65,6 +65,10 @@ export class BotDriver {
   private pending = new Map<string, Promise<AnswerResult>>();
   /** Latest state (async answers check it is still their turn). */
   private latest: GameState | null = null;
+  /** R15-29: the clue a computer player is about to open (null: none) — shown on the board for
+   *  `hintMs` before the clue opens, so everyone sees which tile it chose. */
+  onHint: (clueId: string | null) => void = () => {};
+  hintMs = 1000;
 
   constructor(private dispatch: (a: EngineAction) => void) {}
 
@@ -217,11 +221,22 @@ export class BotDriver {
       const turn = `pick:${s.id}:${s.roundIndex}:${s.usedClueIds.length}:${chooser.id}`;
       out.set(turn, {
         delay: this.between(BOT_PARAMS[chooser.bot!].pick, chooser),
-        action: () => {
+        action: async () => {
+          const still = (cur: GameState | null): cur is GameState => !!cur && !cur.paused && cur.phase === 'board' && !cur.clue && !cur.intro && cur.controlCompetitorId === chooser.id;
           const cur = this.latest;
-          if (!cur || cur.phase !== 'board' || cur.clue || cur.intro || cur.controlCompetitorId !== chooser.id) return null;
+          if (!still(cur)) return null;
           const id = pickClue(cur, chooser.id, chooser.bot!, this.memory(cur, chooser.id), this.random);
-          return id ? { type: 'selectClue', clueId: id } : null;
+          if (!id) return null;
+          // R15-29: the chosen tile is outlined on the board first, then the clue opens — only if
+          // nothing changed meanwhile (the host took over, paused, or opened a clue).
+          this.onHint(id);
+          await new Promise((r) => setTimeout(r, Math.max(0, Math.round(this.hintMs * this.speed))));
+          const now = this.latest;
+          if (!still(now) || now.id !== cur.id || now.usedClueIds.includes(id)) {
+            this.onHint(null);
+            return null;
+          }
+          return { type: 'selectClue', clueId: id };
         },
       });
     }

@@ -41,14 +41,17 @@ export function useSwipe(key: string, kindFor: (prev: string, next: string) => S
 
 // Whole transform strings + will-change (R6-15): the layers slide as composited layers on the
 // compositor thread instead of being repainted every frame.
+type LayerKind = SwipeKind | 'clear';
 const VARIANTS: Variants = {
-  enter: (k: SwipeKind) => (k === 'swipe' ? { transform: 'translateX(100%)', opacity: 1 } : { transform: 'translateX(0%)', opacity: 0 }),
-  center: (k: SwipeKind) => ({ transform: 'translateX(0%)', opacity: 1, transition: { duration: k === 'swipe' ? T.slide : T.fade, ease: EASE_OUT_ARR } }),
-  exit: (k: SwipeKind) =>
+  enter: (k: LayerKind) => (k === 'swipe' ? { transform: 'translateX(100%)', opacity: 1 } : { transform: 'translateX(0%)', opacity: 0 }),
+  center: (k: LayerKind) => ({ transform: 'translateX(0%)', opacity: 1, transition: { duration: k === 'swipe' ? T.slide : T.fade, ease: EASE_OUT_ARR } }),
+  exit: (k: LayerKind) =>
     k === 'swipe'
       ? { transform: 'translateX(-100%)', opacity: 1, transition: { duration: T.slide, ease: EASE_OUT_ARR } }
-      : // Cross-fade: stay put under the new layer while it fades in, then go.
-        { opacity: 0, transition: { duration: 0.05, delay: T.fade } },
+      : k === 'clear'
+        ? { opacity: 0, transition: { duration: T.fade } }
+        : // Cross-fade: stay put under the new layer while it fades in, then go.
+          { opacity: 0, transition: { duration: 0.05, delay: T.fade } },
 };
 
 const PresentCtx = createContext(true);
@@ -60,19 +63,21 @@ export function useTestId() {
   return (id: string) => (present ? id : undefined);
 }
 
-export function SwipeStage({ swipe, className, children }: { swipe: SwipeState; className?: string; children: ReactNode }) {
+/** `transparent` (R15-26): layers without a background of their own (only part of a screen swipes),
+ *  so a cross-fade fades the old layer out while the new one fades in. */
+export function SwipeStage({ swipe, className, children, transparent }: { swipe: SwipeState; className?: string; children: ReactNode; transparent?: boolean }) {
   const { reduced } = useBoard();
   const kind: SwipeKind = reduced ? 'fade' : swipe.kind;
   return (
-    <AnimatePresence initial={false} custom={kind}>
-      <SwipeLayer key={swipe.key} kind={kind} seq={swipe.seq} className={className}>
+    <AnimatePresence initial={false} custom={transparent && kind === 'fade' ? 'clear' : kind}>
+      <SwipeLayer key={swipe.key} kind={transparent && kind === 'fade' ? 'clear' : kind} seq={swipe.seq} className={className}>
         {children}
       </SwipeLayer>
     </AnimatePresence>
   );
 }
 
-function SwipeLayer({ kind, seq, className, children }: { kind: SwipeKind; seq: number; className?: string; children: ReactNode }) {
+function SwipeLayer({ kind, seq, className, children }: { kind: LayerKind; seq: number; className?: string; children: ReactNode }) {
   const present = useIsPresent();
   return (
     <motion.div

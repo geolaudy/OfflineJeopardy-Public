@@ -82,15 +82,14 @@ test('iPad game preview: one size and position in every state, controls in the r
     await ipad.getByTestId('back-to-board').click();
     g = await h.until((x) => x.phase === 'board');
     if (s.name === 'landscape') {
-      // Daily Double!: the wager form is a compact panel inside the preview (with the clue for the host).
+      // Daily Double!: R15-21 — the wager lives in the band (nothing over the preview); the host
+      // reads the clue ahead with Preview Clue.
       const dd = g.rounds[0].categories.flatMap((c: { clues: { id: string; dailyWager?: boolean; used: boolean }[] }) => c.clues).find((q: { dailyWager?: boolean; used: boolean }) => q.dailyWager && !q.used);
       if (dd) {
         await h.act({ type: 'selectClue', clueId: dd.id });
-        await expect(ipad.getByTestId('clue-overlay')).toBeVisible();
-        await expect(ipad.getByTestId('host-dd-clue')).toBeVisible();
+        await expect(ipad.getByTestId('host-dd-status')).toBeVisible();
+        await expect(ipad.getByTestId('clue-overlay')).toHaveCount(0);
         await measure('daily-double', 'clue-preview-box');
-        const [ov, pv] = [(await ipad.getByTestId('clue-overlay').boundingBox())!, (await ipad.getByTestId('clue-preview-box').boundingBox())!];
-        expect(ov.y + ov.height).toBeLessThanOrEqual(pv.y + pv.height + 1); // inside the preview
         await h.act({ type: 'closeClue', clueId: dd.id });
         await h.until((x) => x.phase === 'board');
       }

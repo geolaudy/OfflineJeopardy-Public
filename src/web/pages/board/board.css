@@ -85,7 +85,9 @@
      size. Dollar values and clue text share one shadow (R7-15); categories a subtler one. */
   --bt-hard-shadow: 0.048em 0.044em 0 #000;
   --bt-cat-shadow: 0.032em 0.034em 0 #000;
-  --bt-panel: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.55 0 0 0 0 0.6 0 0 0 0 1 0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+  /* R15-16: the panel grain on its own, so the host preview's surroundings can continue it. */
+  --bt-panel-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.55 0 0 0 0 0.6 0 0 0 0 1 0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --bt-panel: var(--bt-panel-noise),
     radial-gradient(ellipse 38% 46% at 74% 34%, rgba(16, 30, 145, 0.85), transparent 70%),
     radial-gradient(ellipse 34% 40% at 22% 70%, rgba(14, 27, 140, 0.7), transparent 70%),
     radial-gradient(ellipse 30% 38% at 38% 28%, rgba(0, 8, 105, 0.75), transparent 72%),
@@ -173,6 +175,30 @@
 }
 .bt-used {
   background: var(--b-used);
+}
+/* R15-29: the tile a computer player chose — a quiet outline in the board's accent, held about a
+   second before the clue zooms out of it (Grid: g.pickHint). */
+.bt-tile.is-picked {
+  position: relative;
+}
+.bt-tile.is-picked::after {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  content: "";
+  box-shadow:
+    inset 0 0 0 0.5vh var(--b-accent, #e8b64c),
+    inset 0 0 2.4vh rgb(232 182 76 / 0.35);
+  pointer-events: none;
+  animation: bt-picked-in 0.3s ease-out both;
+}
+@keyframes bt-picked-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 .bt-value {
   font-family: var(--b-value-font, var(--b-font));
@@ -877,6 +903,42 @@
   background: rgba(0, 0, 0, 0.55);
   box-shadow: inset 0 0 0 0.25vh var(--b-accent);
 }
+/* R15-25: "Enter your wagers now" — reserved under the category from the category reveal on, faded
+   in when wagering opens (the category never moves). */
+.bt-cue {
+  opacity: 0;
+  transition: opacity 0.35s ease-out;
+}
+.bt-cue.is-shown {
+  opacity: 0.88;
+}
+/* R15-24: the wager bubbles at the bottom, outside the category's box (absolute: they move nothing). */
+.bt-final-chips {
+  position: absolute;
+  right: 5vw;
+  bottom: 10vh;
+  left: 5vw;
+  display: flex;
+  justify-content: center;
+}
+/* R15-26: the reveal's contestant part — the only part of the screen that swipes. */
+.bt-final-spot-stage {
+  position: relative;
+  width: 100%;
+  min-height: 0;
+  flex: 1;
+  /* Clipped at the sides only (the swipe), never at the top or bottom (the picture's ring). */
+  overflow-x: clip;
+  overflow-y: visible;
+}
+.bt-final-spot-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
 .bt-submit-chip {
   border: 0.45vh solid rgba(148, 163, 184, 0.75);
   transition: border-color 0.25s ease, box-shadow 0.25s ease;
@@ -924,7 +986,7 @@
   width: min(80vw, 120vh);
   flex-direction: column;
   align-items: stretch;
-  gap: 2.4vh;
+  gap: 1.8vh;
 }
 .bt-final-who {
   display: flex;
@@ -943,7 +1005,7 @@
    pushing the name and "Before Final Jeopardy!" over the category above. */
 .bt-final-answer-card {
   display: flex;
-  height: 22vh;
+  height: 19vh;
   align-items: center;
   justify-content: center;
   padding: 3vh 3vw;

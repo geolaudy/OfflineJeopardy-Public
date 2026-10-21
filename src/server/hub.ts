@@ -262,8 +262,9 @@ export class Hub {
     if (s) {
       profiles = this.games.profilesFor(s);
       const online = [...new Set([...this.clients].filter((c) => c.role === 'player' && c.profileId).map((c) => c.profileId!))];
-      host = { ...projectState(s, 'host', profiles), online };
-      pub = { ...projectState(s, 'public', profiles), online };
+      const pickHint = this.games.pickHint;
+      host = { ...projectState(s, 'host', profiles), online, pickHint };
+      pub = { ...projectState(s, 'public', profiles), online, pickHint };
     }
     for (const c of this.clients) {
       if (!c.role) continue;
@@ -518,7 +519,7 @@ export class Hub {
     const now = Date.now();
     if (!s) return this.send(c, { t: 'state', game: null, me: null, serverTime: now });
     const profiles = this.games.profilesFor(s);
-    const view = projectState(s, c.role === 'host' ? 'host' : c.role === 'player' ? 'player' : 'public', profiles);
+    const view = { ...projectState(s, c.role === 'host' ? 'host' : c.role === 'player' ? 'player' : 'public', profiles), pickHint: this.games.pickHint };
     this.send(c, { t: 'state', game: view, me: c.role === 'player' && c.profileId ? playerContext(s, c.profileId, now) : null, serverTime: now });
   }
 

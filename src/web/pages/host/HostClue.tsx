@@ -9,11 +9,11 @@
 //     Return to Board). Everything that is needed rarely lives in "More".
 // Every control follows the server state (answeringEnded, answerRevealed, resolved, buzzer…).
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ArrowLeft, BellRing, Check, ChevronRight, Dices, Eye, EyeOff, Flag, Image as ImageIcon, Lock, LockOpen, Pause, Play, RotateCcw, Timer, Video, Wrench, X, Zap } from 'lucide-react';
+import { ArrowLeft, BellRing, Check, ChevronRight, Dices, Eye, EyeOff, Flag, Image as ImageIcon, Lock, LockOpen, Pause, Pencil, Play, RotateCcw, Timer, Video, Wrench, X, Zap } from 'lucide-react';
 import type { CompetitorView, GameView } from '../../../shared/views';
 import type { HostAction } from '../../../shared/actions';
 import { BOT_LEVELS } from '../../../shared/game';
-import { ActionButton, Avatar, Button, Field, cx, fmtScore, inputCls } from '../../components/ui';
+import { ActionButton, Avatar, Button, Field, Modal, cx, fmtScore, inputCls } from '../../components/ui';
 import { cluesLeft, competitorAvatar, competitorName, findCompetitor, nextStage, profileName, useTimer, useTimerSeconds, TIMER_LABELS } from '../../lib/view';
 import { EarlyBuzzQuick } from './EarlyBuzzRule';
 import { MediaControls } from './MediaControls';
@@ -21,6 +21,7 @@ import { AnswerBanner } from './AnswerBanner';
 import { FitBox, TvPreview, useBoardLook } from './TvMirror';
 import { presentationFor, tileMoney } from '../board/common';
 import { FrameParts } from './GameFrame';
+import { CluePreview } from './CluePreview';
 import { RichText } from '../../components/RichText';
 import { plainText } from '../../../shared/richText';
 
@@ -47,25 +48,12 @@ export function ClueStage({ g, run }: { g: GameView; run: Run }) {
   useEffect(() => setLightbox(false), [clue.clueId]);
 
   const wagerStage = clue.isDailyWager && clue.stage === 'wager';
-  const botPanel = responder?.bot && !clue.resolved ? <BotAnswer g={g} c={responder} /> : null;
-  const media = !wagerStage && <MediaControls g={g} run={run} />;
+  // R15-28: a computer player's answer sits right under the correct response (centred), so the
+  // host compares the two at a glance. R15-21: the Daily Double! wager lives in the band — the
+  // panel over the preview only holds sound / video controls.
+  const botAnswer = responder?.bot && !clue.resolved ? <BotAnswer g={g} c={responder} /> : null;
   const hasMediaControls = !wagerStage && [...clue.media, ...(clue.answerRevealed ? clue.answerMedia : [])].some((m) => m.kind !== 'image');
-  const side: ReactNode = wagerStage ? (
-    <>
-      <DailyWagerForm g={g} run={run} />
-      {/* The TV shows the Daily Double! splash until the wager is locked; the host may read ahead. */}
-      {clue.question && (
-        <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-700" data-testid="host-dd-clue">
-          <b>The clue (only you):</b> <RichText text={clue.question} />
-        </p>
-      )}
-    </>
-  ) : botPanel || hasMediaControls ? (
-    <>
-      {botPanel}
-      {media}
-    </>
-  ) : null;
+  const side: ReactNode = hasMediaControls ? <MediaControls g={g} run={run} /> : null;
   const look = useBoardLook();
 
   return (
@@ -84,16 +72,18 @@ export function ClueStage({ g, run }: { g: GameView; run: Run }) {
           </div>
         )}
         overlay={
-          side && (
-            <div
-              className={cx(
-                'scroll-area absolute right-2 bottom-[calc(var(--below)+0.5rem)] z-20 flex max-h-[calc(100%-var(--below)-1rem)] flex-col gap-2 overflow-y-auto rounded-xl bg-white/95 p-1 shadow-lg ring-1 ring-black/10',
-                wagerStage ? 'w-[min(26rem,calc(100%-1rem))]' : 'w-[min(24rem,calc(100%-1rem))]',
+          (side || botAnswer) && (
+            <>
+              {botAnswer}
+              {side && (
+                <div
+                  className="scroll-area absolute right-2 bottom-[calc(var(--below)+0.5rem)] z-20 flex max-h-[calc(100%-var(--below)-1rem)] w-[min(24rem,calc(100%-1rem))] flex-col gap-2 overflow-y-auto rounded-xl bg-white/95 p-1 shadow-lg ring-1 ring-black/10"
+                  data-testid="clue-overlay"
+                >
+                  {side}
+                </div>
               )}
-              data-testid="clue-overlay"
-            >
-              {side}
-            </div>
+            </>
           )
         }
         bar={<ClueFooter g={g} run={run} responder={responder} who={who} setWho={setWho} />}
@@ -112,11 +102,15 @@ function HostAnswer({ g, prefix, onPicture }: { g: GameView; prefix: string; onP
   const hidden = g.practice && !clue.answerRevealed && !peek;
   const pictures = clue.answerMedia.length > 0 && !hidden;
   // R10-9: the category and value (Daily Double!: the wager once locked) on the banner's label line.
+  // R15-17: "Daily Double" over the locked wager — two short lines that always fit beside Options.
   const value = clue.isDailyWager ? (
-    <>
-      <Dices size={13} className="mr-1 inline align-[-2px]" aria-hidden />
-      Daily Double!{clue.wager ? ` ${tileMoney(prefix, clue.wager.amount)}` : ''}
-    </>
+    <span className="host-dd-value" data-testid="host-dd-label">
+      <span className="host-dd-value-label">
+        <Dices size={12} className="mr-1 inline align-[-1px]" aria-hidden />
+        Daily Double
+      </span>
+      {clue.wager && <span>{tileMoney(prefix, clue.wager.amount)}</span>}
+    </span>
   ) : (
     tileMoney(prefix, clue.value)
   );
@@ -191,7 +185,7 @@ function ClueFooter({ g, run, responder, who, setWho }: { g: GameView; run: Run;
   const judge = (result: 'correct' | 'incorrect') => run({ type: 'judge', result, ...(responder?.kind === 'team' ? { profileId: who } : {}) });
 
   let status: ReactNode;
-  if (wagerStage) status = <p className="host-band-status text-slate-600">Daily Double! — lock the wager to show the clue on the TV.</p>;
+  if (wagerStage) status = <DailyWagerStatus g={g} run={run} />;
   else if (judging) status = <Answering g={g} c={responder!} who={who} setWho={setWho} />;
   else if (clue.answerRevealed) status = <p className="host-band-status text-slate-600" data-testid="answer-shown">{clue.resolved ? 'Answer judged — it is on the TV.' : 'The answer is on the TV.'}</p>;
   else if (over)
@@ -210,8 +204,10 @@ function ClueFooter({ g, run, responder, who, setWho }: { g: GameView; run: Run;
     );
 
   let primary: ReactNode = null;
+  // R15-21: Lock Wager & Show Clue in the main action's place (where Unlock Buzzers is on a clue).
+  if (wagerStage) primary = <DailyWagerActions g={g} run={run} />;
   // R10-10: after the round's last clue the next step replaces Return to Board (no empty board).
-  if (clue.answerRevealed && cluesLeft(g) === 0) primary = <NextStageButton g={g} run={run} />;
+  else if (clue.answerRevealed && cluesLeft(g) === 0) primary = <NextStageButton g={g} run={run} />;
   else if (clue.answerRevealed)
     primary = (
       <ActionButton size="lg" variant="primary" className="host-btn host-btn-main" onAction={() => run({ type: 'closeClue', clueId: id })} data-testid="back-to-board">
@@ -242,6 +238,18 @@ function ClueFooter({ g, run, responder, who, setWho }: { g: GameView; run: Run;
       </ActionButton>
     );
   else if (practiceBuzz) primary = <BuzzFor g={g} run={run} big />;
+
+  // R15-21: wagering has its own band — the wager on the left, its actions on the right (no More:
+  // nothing in it applies before the clue shows); the status takes its own row on narrow bands.
+  if (wagerStage)
+    return (
+      <div className="@container flex items-center" data-testid="clue-footer">
+        <div className="flex w-full flex-wrap items-center gap-2 @4xl:flex-nowrap">
+          <div className="min-w-0 basis-full px-1 @4xl:flex-1 @4xl:basis-auto">{status}</div>
+          <div className="ml-auto flex shrink-0 items-center gap-2">{primary}</div>
+        </div>
+      </div>
+    );
 
   return (
     // Narrow footers (portrait, iPad mini) put the status on its own row above the actions.
@@ -353,7 +361,7 @@ function TimerChip({ g }: { g: GameView }) {
   const t = g.timer;
   if (!t) return null;
   return (
-    <span className={cx('ml-auto inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-lg font-black tabular-nums', t.expired ? 'bg-red-100 text-red-800' : 'bg-slate-100 text-slate-800')} role="timer" title={TIMER_LABELS[t.kind]} data-testid="host-timer">
+    <span className={cx('ml-auto inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-lg font-black tabular-nums', t.expired ? 'bg-red-500/25 text-red-100! ring-1 ring-red-300/40' : 'bg-white/10 text-white! ring-1 ring-white/20')} role="timer" title={TIMER_LABELS[t.kind]} data-testid="host-timer">
       <Timer size={16} aria-hidden /> {t.expired ? "Time's up" : `${secs}s`}
     </span>
   );
@@ -378,7 +386,7 @@ function More({ g, run, showReveal, pendingJudgement, practiceBuzz }: { g: GameV
   }, []);
   return (
     <details ref={ref} className="relative" data-testid="clue-tools">
-      <summary className="host-btn flex min-h-14 cursor-pointer list-none items-center gap-2 bg-white px-4 text-lg text-slate-700 select-none active:bg-slate-100 [&::-webkit-details-marker]:hidden" data-testid="clue-more">
+      <summary className="host-btn flex min-h-14 cursor-pointer list-none items-center gap-2 bg-white/10 px-4 text-lg text-white! ring-1 ring-white/25 select-none active:bg-white/20 [&::-webkit-details-marker]:hidden" data-testid="clue-more">
         <Wrench size={18} aria-hidden /> More
         {early.length > 0 && (
           <span className="rounded-full bg-amber-200 px-2 text-sm font-bold text-amber-900" data-testid="early-count">
@@ -502,42 +510,39 @@ function EarlyBuzzes({ g, run }: { g: GameView; run: Run }) {
   );
 }
 
-/** A computer opponent's answer, waiting for the host's judgement. */
+/**
+ * A computer opponent's answer, waiting for the host's judgement (R15-28): a quiet label centred
+ * right under the red correct-response strip — clearly the computer's (its name, "answers"), never
+ * styled like the official response — so the two are compared at a glance. The timer is stopped;
+ * nothing is scored until the host judges it.
+ */
 function BotAnswer({ g, c }: { g: GameView; c: CompetitorView }) {
   const clue = g.clue!;
+  const sub = clue.submission?.competitorId === c.id ? clue.submission : null;
   return (
-    <div className="rounded-xl bg-yellow-50 p-3 ring-2 ring-yellow-400" data-testid="bot-answer-panel">
-      {clue.submission?.competitorId === c.id ? (
+    <div className="host-bot-answer" role="status" data-testid="bot-answer-panel">
+      {sub ? (
         <>
-          <p className="text-xs font-bold tracking-wide text-amber-700 uppercase">Awaiting your judgment</p>
-          <p className="text-2xl font-black break-words" data-testid="bot-answer">
-            “{clue.submission.answer}”
-          </p>
-          {clue.answer && !g.practice && (
-            <p className="mt-1 text-sm text-slate-600">
-              Expected (only you see this):{' '}
-              <b data-testid="bot-expected">
-                <RichText text={clue.answer} />
-              </b>
-            </p>
-          )}
-          <p className="mt-1 text-xs text-slate-500">
-            The timer is stopped. Nothing is scored until you choose.
-            {clue.submission.via === 'ai' && (
-              <span className="ml-1 rounded bg-violet-100 px-1.5 py-0.5 font-semibold text-violet-800" data-testid="bot-answer-ai">
-                AI answer
+          <p className="host-bot-answer-who">
+            <span className="host-bot-answer-name">{competitorName(c, g)}</span> answers
+            {sub.via === 'ai' && (
+              <span className="host-bot-answer-tag" data-testid="bot-answer-ai">
+                AI
               </span>
             )}
           </p>
-          {clue.submission.warning && (
-            <p className="mt-1 rounded-lg bg-amber-50 p-2 text-xs text-amber-900" data-testid="bot-answer-warning">
-              {clue.submission.warning}
+          <p className="host-bot-answer-text" data-testid="bot-answer">
+            “{sub.answer}”
+          </p>
+          {sub.warning && (
+            <p className="host-bot-answer-warn" data-testid="bot-answer-warning">
+              {sub.warning}
             </p>
           )}
         </>
       ) : (
-        <p className="font-semibold text-slate-600" data-testid="bot-thinking">
-          {competitorName(c, g)} is thinking…
+        <p className="host-bot-answer-who" data-testid="bot-thinking">
+          <span className="host-bot-answer-name">{competitorName(c, g)}</span> is thinking…
         </p>
       )}
     </div>
@@ -578,47 +583,90 @@ function AnswerLightbox({ g, onClose }: { g: GameView; onClose: () => void }) {
   );
 }
 
-export function DailyWagerForm({ g, run }: { g: GameView; run: Run }) {
-  // R5-20: the player (team) who picked it enters the wager on their phone; the host locks it.
-  const owner = findCompetitor(g, g.clue?.wagerBy ?? undefined);
-  const pending = g.clue?.pendingWager ?? null;
-  const [manual, setManual] = useState(!owner || !!owner.bot);
-  if (owner && !manual) {
-    return (
-      <div className="space-y-3 rounded-xl bg-amber-50 p-3 ring-2 ring-amber-400" data-testid="host-dd-phone">
-        <p className="font-bold">
-          <Dices size={18} className="mr-1 inline align-[-3px]" aria-hidden />
-          Daily Double! — {competitorName(owner, g)} wagers on their phone.
+/**
+ * R15-21: the Daily Double! in the band — who is wagering and their wager (entered on their phone,
+ * or by the host), with the wager timer's seconds. The TV shows the Daily Double! splash meanwhile.
+ */
+function DailyWagerStatus({ g, run }: { g: GameView; run: Run }) {
+  const clue = g.clue!;
+  const pending = clue.pendingWager ?? null;
+  const owner = findCompetitor(g, pending?.competitorId ?? clue.wagerBy ?? undefined);
+  const amount = pending?.amount ?? null;
+  const secs = g.rules.timers.wagerSeconds || 30;
+  return (
+    <div className="flex min-w-0 items-center gap-3" data-testid="host-dd-status">
+      {owner && <Avatar profile={competitorAvatar(owner, g)} size={36} />}
+      <div className="min-w-0">
+        <p className="host-band-title truncate text-xl" data-testid="host-dd-who">
+          {owner ? `${competitorName(owner, g)} is wagering` : 'Daily Double!'}
         </p>
-        {pending && pending.amount != null ? (
-          <>
-            <p className="text-lg">
-              <b>{competitorName(owner, g)}</b>
-              {owner.kind === 'team' && pending.profileId ? <span className="text-slate-600"> (entered by {profileName(g.profiles[pending.profileId])})</span> : null} wagered{' '}
-              <b className="text-2xl tabular-nums" data-testid="host-dd-pending">
-                {fmtScore(pending.amount)}
+        <p className="truncate text-sm text-slate-500" data-testid="host-dd-wager">
+          {amount != null ? (
+            <>
+              Wager{owner?.kind === 'team' && pending?.profileId ? ` (from ${profileName(g.profiles[pending.profileId])})` : ''}:{' '}
+              <b className="text-lg text-slate-900 tabular-nums" data-testid="host-dd-pending">
+                {fmtScore(amount)}
               </b>
-            </p>
-            <ActionButton size="lg" className="w-full" onAction={() => run({ type: 'setDailyWager', competitorId: owner.id, amount: pending.amount!, profileId: pending.profileId })} data-testid="host-dd-lock">
-              Lock wager & show clue
-            </ActionButton>
-          </>
-        ) : (
-          <p className="text-slate-700" data-testid="host-dd-waiting">
-            Waiting for <b>{competitorName(owner, g)}</b> to enter the wager on their phone…
-          </p>
-        )}
-        <button className="min-h-11 text-sm font-semibold text-blue-700 underline" onClick={() => setManual(true)}>
-          No phone? Enter the wager for them
-        </button>
+            </>
+          ) : owner?.bot ? (
+            'Choosing a wager…'
+          ) : (
+            'No wager yet — on their phone, or enter it for them'
+          )}
+        </p>
       </div>
-    );
-  }
-  return <ManualDailyWager g={g} run={run} />;
+      {/* R15-18: the wager timer starts when the host says so — then its seconds show here. */}
+      {g.timer ? (
+        <TimerChip g={g} />
+      ) : (
+        <ActionButton variant="ghost" className="host-ghost-btn ml-auto shrink-0 text-base!" onAction={() => run({ type: 'timerStart', kind: 'wager', seconds: secs })} data-testid="host-dd-timer">
+          <Timer size={20} aria-hidden /> Start {secs}s Timer
+        </ActionButton>
+      )}
+    </div>
+  );
 }
 
-function ManualDailyWager({ g, run }: { g: GameView; run: Run }) {
-  const [cid, setCid] = useState(g.clue?.wagerBy ?? g.controlCompetitorId ?? g.competitors[0]?.id);
+/** R15-18 … R15-21: Start Timer (the host decides when the wager timer runs), Preview Clue (only the
+ *  host), Enter Wager (for a player without a device) and Lock Wager & Show Clue in the main
+ *  action's place. Previewing changes nothing in the game. */
+function DailyWagerActions({ g, run }: { g: GameView; run: Run }) {
+  const clue = g.clue!;
+  const [entry, setEntry] = useState(false);
+  const [preview, setPreview] = useState(false);
+  const pending = clue.pendingWager;
+  const ready = pending?.amount != null;
+  // The secondary actions are plain (no box) beside the one primary action (R15-32).
+  return (
+    <div className="flex items-center gap-1">
+      <button type="button" className="host-ghost-btn" onClick={() => setPreview(true)} data-testid="host-dd-preview">
+        <Eye size={22} aria-hidden /> Preview Clue
+      </button>
+      <button type="button" className="host-ghost-btn mr-1" onClick={() => setEntry(true)} data-testid="host-dd-enter">
+        <Pencil size={21} aria-hidden /> {ready ? 'Change Wager' : 'Enter Wager'}
+      </button>
+      <ActionButton
+        size="lg"
+        variant="success"
+        className="host-btn host-btn-main"
+        disabled={!ready}
+        title={ready ? undefined : 'Waiting for the wager'}
+        onAction={() => run({ type: 'setDailyWager', competitorId: pending!.competitorId, amount: pending!.amount!, profileId: pending!.profileId })}
+        data-testid="host-dd-lock"
+      >
+        <Lock size={22} aria-hidden /> Lock Wager &amp; Show Clue
+      </ActionButton>
+      {entry && <DailyWagerEntry g={g} run={run} onClose={() => setEntry(false)} />}
+      {preview && <CluePreview text={clue.question?.trim() ?? ''} label="Daily Double! clue (only you)" note="Only you see this — the TV still shows the Daily Double!" onClose={() => setPreview(false)} testId="host-dd-clue" />}
+    </div>
+  );
+}
+
+/** R15-21: the host enters (or changes) the wager for a player without a device — the same limits as
+ *  the phone's. Done returns to the band, where Lock Wager & Show Clue shows the clue. */
+function DailyWagerEntry({ g, run, onClose }: { g: GameView; run: Run; onClose: () => void }) {
+  const clue = g.clue!;
+  const [cid, setCid] = useState(clue.pendingWager?.competitorId ?? clue.wagerBy ?? g.controlCompetitorId ?? g.competitors[0]?.id);
   const c = findCompetitor(g, cid);
   const round = g.rounds[g.roundIndex];
   const roundMax = Math.max(0, ...(round?.categories.flatMap((x) => x.clues.map((q) => q.value)) ?? [0]));
@@ -626,37 +674,52 @@ function ManualDailyWager({ g, run }: { g: GameView; run: Run }) {
   const [amount, setAmount] = useState('');
   const n = Number(amount);
   const valid = amount !== '' && Number.isInteger(n) && n >= g.rules.dailyWagerMin && n <= max;
+  const done = async () => {
+    if (!valid || !c) return;
+    const r = await run({ type: 'enterDailyWager', competitorId: c.id, amount: n });
+    if (r.ok) onClose();
+  };
   return (
-    <div className="space-y-3 rounded-xl bg-amber-50 p-3 ring-2 ring-amber-400">
-      <p className="font-bold">
-        <Dices size={18} className="mr-1 inline align-[-3px]" aria-hidden />
-        Daily Double! — enter the wager.
-      </p>
-      <Field label="Who is wagering?">
-        <select className={inputCls} value={cid ?? ''} onChange={(e) => setCid(e.target.value)}>
-          {g.competitors.map((x) => (
-            <option key={x.id} value={x.id}>
-              {competitorName(x, g)} ({fmtScore(x.score)})
-            </option>
-          ))}
-        </select>
-      </Field>
-      <Field label={`Wager (${g.rules.dailyWagerMin}–${max.toLocaleString()})`}>
-        <input className={inputCls} inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ''))} aria-label="Wager amount" />
-      </Field>
-      <div className="flex flex-wrap gap-2">
-        {[roundMax / 2, roundMax, max]
-          .filter((v, i, a) => v >= g.rules.dailyWagerMin && a.indexOf(v) === i)
-          .map((v) => (
-            <Button key={v} variant="secondary" onClick={() => setAmount(String(v))}>
-              {v === max && max > roundMax ? `All in (${v})` : v}
-            </Button>
-          ))}
-      </div>
-      <ActionButton size="lg" className="w-full" disabled={!valid || !c} onAction={() => run({ type: 'setDailyWager', competitorId: c!.id, amount: n })}>
-        Lock wager & show clue
-      </ActionButton>
-    </div>
+    <Modal open onClose={onClose} title="Enter the Daily Double! wager">
+      <form
+        className="space-y-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void done();
+        }}
+        data-testid="host-dd-entry"
+      >
+        <Field label="Who is wagering?">
+          <select className={inputCls} value={cid ?? ''} onChange={(e) => setCid(e.target.value)}>
+            {g.competitors.map((x) => (
+              <option key={x.id} value={x.id}>
+                {competitorName(x, g)} ({fmtScore(x.score)})
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label={`Wager (${g.rules.dailyWagerMin}–${max.toLocaleString()})`}>
+          <input className={inputCls} inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ''))} aria-label="Wager amount" autoFocus />
+        </Field>
+        <div className="flex flex-wrap gap-2">
+          {[roundMax / 2, roundMax, max]
+            .filter((v, i, a) => v >= g.rules.dailyWagerMin && a.indexOf(v) === i)
+            .map((v) => (
+              <Button key={v} variant="secondary" onClick={() => setAmount(String(v))}>
+                {v === max && max > roundMax ? `All in (${v})` : v}
+              </Button>
+            ))}
+        </div>
+        {amount !== '' && !valid && (
+          <p className="text-sm font-semibold text-red-700" data-testid="host-dd-entry-invalid">
+            The wager must be between {g.rules.dailyWagerMin} and {max.toLocaleString()}.
+          </p>
+        )}
+        <Button type="submit" size="lg" className="w-full" disabled={!valid || !c} data-testid="host-dd-entry-done">
+          Done
+        </Button>
+      </form>
+    </Modal>
   );
 }
 

@@ -146,6 +146,8 @@ export default function Live({ g, run, menu }: { g: GameView; run: Run; menu?: L
         <GameFrame
           kind={kind}
           timer={g.timer}
+          tiles={tiles}
+          clueId={g.clue?.clueId ?? null}
           scoreCount={g.competitors.length}
           // The one TV preview of the game (R13-13): the TV's own board, introduction, clue and Final.
           preview={(size, testId) => <TvPreview game={g} scoreboard={false} band frameless title="TV preview" size={size} testId={testId} onTiles={setTiles} />}
@@ -210,7 +212,7 @@ function ScoreCards({ g, run, onAdjust, cardW, cardH, cardMin, rows, wide, pic }
   return (
     <footer
       className="host-scores @container h-full"
-      style={{ '--card-w': `${cardW}px`, '--card-h': `${cardH}px`, '--card-u': `${unit}px`, '--card-min': `${cardMin}px`, '--row-max': `${inRow * cardW + (inRow - 1) * 8 + 9}px`, ...(fs ? { '--score-fs': `${fs}px` } : {}) } as CSSProperties}
+      style={{ '--card-w': `${cardW}px`, '--card-h': `${cardH}px`, '--card-u': `${unit}px`, '--card-min': `${cardMin}px`, '--row-max': `${inRow * cardW + (inRow - 1) * 6 + 9}px`, ...(fs ? { '--score-fs': `${fs}px` } : {}) } as CSSProperties}
       data-testid="host-scores"
       data-rows={rows}
       data-pic={pic ? 'true' : 'false'}

@@ -10,7 +10,10 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="OJ Host" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <!-- R15-31 (K55): "black-translucent" is the only style that lets the page's own colour show
+         behind the status bar of a Home Screen web app ("default" is an opaque white bar the page
+         cannot colour). The page paints that area navy (styles.css, standalone only). -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="theme-color" content="#0b1437" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />

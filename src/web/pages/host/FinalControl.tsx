@@ -7,7 +7,7 @@
 // header or the band (the TV preview shows both); Preview Clue opens the clue privately; the
 // player bubbles on the preview are tappable — the host can enter or change a wager or an answer
 // for a player whose device fails (the same actions and checks as the phones).
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import type { GameView } from '../../../shared/views';
 import type { HostAction } from '../../../shared/actions';
 import { finalEntryReveal, hasPlayable } from '../../../shared/game';
@@ -19,8 +19,8 @@ import { AnswerBanner } from './AnswerBanner';
 import { RichText } from '../../components/RichText';
 import { FrameParts } from './GameFrame';
 import { FinalMediaControls } from './MediaControls';
-import { useBoardLook, type PreviewTile } from './TvMirror';
-import { FitText, themeRoot } from '../board/common';
+import { type PreviewTile } from './TvMirror';
+import { CluePreview } from './CluePreview';
 
 type Run = (a: HostAction) => Promise<{ ok: boolean }>;
 
@@ -146,47 +146,6 @@ function FinalOverlay({ g, run, who, setWho }: { g: GameView; run: Run; who: str
           </button>
         </div>
       )}
-    </div>
-  );
-}
-
-/** R14-17: Preview Clue — the Final's clue privately on the iPad, in the TV's clue style (text only;
- *  the clue's media plays on the TV with the clue). Nothing changes on the TV. */
-function CluePreview({ g, onClose }: { g: GameView; onClose: () => void }) {
-  const f = g.final!;
-  const look = useBoardLook();
-  const root = themeRoot(look.theme, look.custom);
-  const ref = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    ref.current?.focus({ preventScroll: true });
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-  const text = f.question?.trim() ?? '';
-  const width = 'w-[min(100%,calc((100dvh-9rem)*16/9))]';
-  return (
-    <div
-      className="fade-in fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-slate-950/85 p-3 pt-[max(var(--safe-top),12px)] pb-[max(env(safe-area-inset-bottom),12px)]"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Final Jeopardy! clue (only you)"
-      data-testid="final-clue-preview"
-      onPointerDown={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div className={cx('flex items-center gap-3 text-white', width)}>
-        <p className="min-w-0 flex-1 text-sm font-semibold text-slate-200">Only you see this — the TV still shows the category.</p>
-        <button ref={ref} onClick={onClose} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/40 active:bg-white/25" aria-label="Close" data-testid="final-clue-preview-close">
-          <X size={26} aria-hidden />
-        </button>
-      </div>
-      <div className={cx('board-theme host-clue-lightbox flex aspect-video flex-col', width)} data-theme={root.dataTheme} style={root.style as CSSProperties}>
-        {text ? (
-          <FitText text={text} max={30} maxBox={0.13} min={1} className="bt-question" boxClassName="min-h-0 w-full flex-1" testId="final-clue-preview-text" />
-        ) : (
-          <p className="bt-question flex flex-1 items-center justify-center text-[clamp(1rem,3vw,2rem)]">This clue is a picture or a sound — it plays on the TV with the clue.</p>
-        )}
-      </div>
     </div>
   );
 }
@@ -374,7 +333,7 @@ function FinalBar({ g, run, who }: { g: GameView; run: Run; who: string | null }
           {actions}
         </div>
       </div>
-      {cluePreview && <CluePreview g={g} onClose={() => setCluePreview(false)} />}
+      {cluePreview && <CluePreview text={f.question?.trim() ?? ''} label="Final Jeopardy! clue (only you)" note="Only you see this — the TV still shows the category." onClose={() => setCluePreview(false)} testId="final-clue-preview" />}
     </div>
   );
 }

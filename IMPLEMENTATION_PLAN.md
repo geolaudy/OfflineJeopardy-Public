@@ -169,3 +169,14 @@ Rollback point: tag v0.16.0. See USER_FEEDBACK.md "Round 14"; statuses in FEATUR
 - **C — Final Jeopardy!:** R14-15 … R14-22 (D100). **Done.**
 - **D — Lobby, profiles, Wi-Fi:** R14-5 (D101), R14-26 … R14-29. **Done** (elevated Wi-Fi read and hotspot untested on a Wi-Fi PC — K48).
 - **E — Windows start-up:** R14-11 (D102). **Done** (splash + zip portable; real start-up timed on this PC only — K56).
+
+## Milestone 29 — User feedback round 15 → v0.17.0-rc.2 (started 2026-10-21, session 18)
+
+Rollback point: tag v0.16.0 (0.17.0-rc.1 = commit 12bbb04, tested by the owner). See USER_FEEDBACK.md "Round 15"; statuses in FEATURE_MATRIX.md.
+- **A — Critical host layout:** R15-10 … R15-13, R15-22, R15-23 (D103). **Done.**
+- **B — TV lobby and phone:** R15-4 … R15-9. **Done.**
+- **C — Daily Double!:** R15-17 … R15-21 (D104). **Done.**
+- **D — Final presentation:** R15-24 … R15-27 (D106). **Done.**
+- **E — Preview fill and zoom transition:** R15-14 … R15-16. **Done** (grain only, see FEATURE_MATRIX).
+- **F — Bots:** R15-28, R15-29 (D105). **Done.**
+- **G — Zoom and status bar:** R15-30, R15-31 (D107). **Done** — both need the owner's iPad (K55, K60).

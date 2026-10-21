@@ -140,13 +140,17 @@ export function CategoryText({ name, subheading, scale, min }: { name: string; s
 }
 
 /** A category name with its subheading (R10-3) for the introduction and Final screens. */
-export function CategoryTitle({ name, subheading, max, min, subEm, subMin, boxClassName, subTestId }: { name: string; subheading?: string; max: number; min: number; subEm: number; subMin: number; boxClassName?: string; subTestId: string }) {
-  if (!subheading?.trim()) return <FitText text={name} max={max} min={min} className="bt-intro-cat" boxClassName={boxClassName} />;
+export function CategoryTitle({ name, subheading, max, min, subEm, subMin, boxClassName, subTestId, cue }: { name: string; subheading?: string; max: number; min: number; subEm: number; subMin: number; boxClassName?: string; subTestId: string; cue?: { text: string; shown: boolean; testId: string } }) {
+  if (!subheading?.trim() && !cue) return <FitText text={name} max={max} min={min} className="bt-intro-cat" boxClassName={boxClassName} />;
+  const sub = (text: string, className: string, testId: string) => ({ text, em: subEm * SUBHEADING_SCALE, minVh: subMin * SUBHEADING_SCALE, className, testId });
   return (
     <FitStack
+      // R15-25: `cue` — one more line in the subheading's style (e.g. "Enter your wagers now"), its
+      // space always reserved so the lines above never move when it fades in.
       lines={[
         { text: name, em: 1, className: 'bt-intro-cat' },
-        { text: subheading, em: subEm * SUBHEADING_SCALE, minVh: subMin * SUBHEADING_SCALE, className: 'bt-intro-sub', testId: subTestId },
+        ...(subheading?.trim() ? [sub(subheading, 'bt-intro-sub', subTestId)] : []),
+        ...(cue ? [sub(cue.text, cx('bt-intro-sub bt-cue', cue.shown && 'is-shown'), cue.testId)] : []),
       ]}
       max={max}
       min={min}

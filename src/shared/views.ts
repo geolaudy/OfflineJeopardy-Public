@@ -164,6 +164,8 @@ export interface GameView {
   endedAt: number | null;
   profiles: Record<Id, ProfilePublic>;
   online?: Id[]; // profiles with a connected phone/portal
+  /** R15-29: the tile a computer player has just chosen, outlined for a moment before it opens. */
+  pickHint?: { clueId: Id; at: number } | null;
   /** The latest event that changed scores (R7-11). `quiet` = a manual adjustment or an undo: the
    *  TV shows the new total without a sound or the "+$/−$" swap. */
   scoreCause?: { seq: number; quiet: boolean } | null;

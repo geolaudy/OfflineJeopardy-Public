@@ -471,3 +471,37 @@ Last run 2026-10-12: Vitest 58/58 (43 unit, 15 integration), Playwright 8/8.
 | R14-27 | Lobby streak text not clipped | P2 | IMPLEMENTED | board/presentKit `useFitScale(…, lines)`, board/LobbyFull PersonCard | E round7c (long names) | Not reproduced with a real streak in tests |
 | R14-28 | No nickname field in the Players editor | P2 | TESTED | desk/Players EditProfile | E round14 | Existing nicknames kept |
 | R14-29 | Lobby player sheet: nickname / view / edit; guests nickname only | P1 | TESTED | host/LobbyPlayerSheet, host/Setup | E round14 (nickname → TV, editor opens, guest: nickname only) | — |
+
+## User feedback round 15 (2026-10-21) — see USER_FEEDBACK.md "Round 15"
+
+Hardware results of 0.17.0-rc.1 are recorded in USER_FEEDBACK.md (owner-verified items keep their status; R14-2 → re-opened as R15-11, R14-10 → R15-31 / K55). All round-15 items below are checked in WebKit / Chromium emulation only — **awaiting the owner's real-hardware check** (K59).
+
+| ID | Feature | Pri | Status | Source | Tests | Limitations |
+|---|---|---|---|---|---|---|
+| R15-4 | TV lobby grid independent of nicknames | P1 | TESTED | board/LobbyFull People (one card height) | E round15 (9 players, nicknames set / changed / cleared: same columns and boxes) | Emulation (K59) |
+| R15-5 | Lobby statistics line: one size | P2 | TESTED | board/LobbyFull (`--stats`, `statsLength`), presentKit useFitScale (`data-fit-skip`), presenter.css | E round15 | — |
+| R15-6 | Soft rounded test-buzz glow behind the card, ~0.55 s | P2 | IMPLEMENTED | styles.css `.lobby-glow` / `.is-behind`, lib/lobbyGlow (600 ms), board/LobbyFull | E round12 (glow shows and ends) | Look checked in screenshots only |
+| R15-7 | Nickname change does not move or remount cards | P1 | TESTED | board/lobbyModel (keys = profile id) | U round15 (keys), E round15 (no movement, no remount) | — |
+| R15-8 | Phone Test Buzzer back arrow | P1 | TESTED | join/PlayerLobby TestBuzzer (portal, ArrowLeft) | E round15, round12 | Emulation (iPhone 13) |
+| R15-9 | No white box edge on the phone's buzzer screen | P2 | TESTED | join/PlayerLobby (overlay portalled to the body) | E round15 (nothing of the page above it) | Cause inferred: the overlay rendered inside the scrolling main under the white header |
+| R15-10 | Board status centred on the header | P2 | TESTED | host-tv.css `.host-head-status` | E round15 (landscape / portrait, embedded / full screen, ≤ 4 px) | — |
+| R15-11 | Score cards never clipped (home-indicator area planned) | P1 | TESTED | host/GameFrame (`useSafeBottom`, scoreGrid chrome, HEAD_H 64, BAND_H 76, CARD), styles.css `--safe-bottom`, host-tv.css | E round15 (1/3/6/9/12 × land / port × embedded / full screen with a simulated 20 px home indicator: every card inside, nothing covering it, full-screen landscape still edge to edge), round14 | Real iPad check needed (K59) |
+| R15-12 | Navy score cards | P1 | TESTED | host-tv.css `.host-score-*` | E round15 (no white card) | Owner's eye |
+| R15-13 | No seams under the banners | P2 | TESTED | host-tv.css `.host-head` | E round15 (no border / inset shadow) | — |
+| R15-14 | Preview fill = clue panel during clues; board black kept | P2 | TESTED | host/GameFrame StageFill, host-tv.css `.host-stage-panel` | E round14 (panel layer on during a clue) | — |
+| R15-15 | Fill follows the clue zoom / unzoom | P2 | IMPLEMENTED | host/GameFrame StageFill (clip-path from the tile, T.zoom / T.unzoom, the TV's easing) | Screens | Timing compared by eye in emulation |
+| R15-16 | Fill grain continues the panel's | P3 | IMPLEMENTED | board.css `--bt-panel-noise`, host-tv.css (grain at the preview's scale and origin) | — | The panel's radial gradients are not continued (only grain + edge colour) |
+| R15-17 | "Daily Double" whole in the banner | P1 | TESTED | host/HostClue HostAnswer (`host-dd-value`), host-tv.css (`--side` +7rem) | E round15 (not cut) | — |
+| R15-18 | Host starts the Daily Double! wager timer | P1 | TESTED | engine selectClue (no auto wager timer), host/HostClue DailyWagerStatus (Start timer) | U round15, E round15 | — |
+| R15-19 | Preview Clue lightbox: picture height, centred, minimal × | P1 | TESTED | host/CluePreview, host-tv.css | E round15 (box = picture top / bottom, centred; × 44 px, no border / background), round14 | — |
+| R15-20 | Daily Double! Preview Clue | P1 | TESTED | host/HostClue DailyWagerActions | E round15 (state unchanged, no timer) | — |
+| R15-21 | Daily Double! in the band, host entry, Lock Wager & Show Clue | P1 | TESTED | engine `enterDailyWager`, shared/actions, host/HostClue (DailyWagerStatus / Actions / Entry, wager band) | U round15, E round15 (invalid / valid entry, lock), playtest (phone wager), round7d | — |
+| R15-22 | Value beside Options | P2 | TESTED | host-tv.css `.host-answer-band-right` (justify-content: flex-end) | E round15 (gaps within 8 px) | — |
+| R15-23 | Timer above the band | P2 | TESTED | host-tv.css `.host-timer-line` (bottom: 100%) | E round15 (band and main action unmoved), round11 | — |
+| R15-24 / R15-25 | Final category stationary; "Enter your wagers now" | P1 | TESTED | board/FinalScreen FinalContent, common CategoryTitle (`cue`), board.css `.bt-cue`, `.bt-final-chips` | E round15 (same size and place, cue fades in) | — |
+| R15-26 / R15-27 | Final reveals: only the contestant swipes; category as on the clue | P1 | TESTED | board/FinalScreen (screen groups, RevealScreen, FinalHeading), Swipe (`transparent`), board.css | E round15 (heading / category / order unmoved mid-swipe), round14, presentation | — |
+| R15-28 | Bot answer under the banner | P2 | TESTED | host/HostClue BotAnswer, host-tv.css `.host-bot-answer` | E round15 (centred under the header), bots | — |
+| R15-29 | Bot's chosen tile outlined first | P2 | TESTED | server/bots (`onHint`, `hintMs`), gameManager `pickHint`, hub, shared/views, board/Grid, board.css | U round15 (announce → ~1 s → that clue; withdrawn when the host takes over), E round15 | — |
+| R15-30 | No flicker / jumping when pinch-zoomed | P1 | IMPLEMENTED | lib/viewport (`pinchZoomed`), components/ui useKeyboardViewport | E round15 (no style changes while idle at DPR 1.1 … 1.75) | Pinch zoom cannot be emulated — real iPad check (K60) |
+| R15-31 | iOS status bar (K55) | P2 | IMPLEMENTED | index.html (black-translucent), styles.css (standalone status strip), host/GameFrame (`--status-bg`) | — | Depends on iPadOS; K55 stays open until the owner confirms |
+| R15-32 | Cohesive host design | P2 | IMPLEMENTED | host-tv.css (navy cards, ghost secondary actions, dark More, minimal ×) | Screens | Owner's eye |

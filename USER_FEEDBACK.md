@@ -447,3 +447,64 @@ Rollback point: tag **v0.16.0** (published). Statuses: FEATURE_MATRIX.md → "Us
 | R14-27 | Lobby player cards: streak text clipped (references/lobby_player_cutoff.png) | D |
 | R14-28 | Players page profile editor: no nickname field (keep the data) | D |
 | R14-29 | Lobby player cards: tap → change the lobby nickname (used everywhere in the game) / view profile / edit profile; guests: nickname only | D |
+
+# User Feedback — Round 15 (received 2026-10-21, session 18, after testing the 0.17.0-rc.1 release candidate on real hardware; DESKTOP-6HN0OQ4)
+
+Rollback point: tag **v0.16.0** (published); the tested candidate is commit 12bbb04 (0.17.0-rc.1, not published). Statuses: FEATURE_MATRIX.md → "User feedback round 15". The owner tests the next candidate (0.17.0-rc.2) before v0.17.0 is published.
+
+## Real-hardware results of 0.17.0-rc.1 (reported by the owner — not automatic results)
+
+| Area | Feature | Owner's result |
+|---|---|---|
+| iPad host | Embedded host controller | WORKING |
+| iPad host | Full-screen host controller | WORKING |
+| iPad host | Landscape / portrait layouts | WORKING |
+| iPad host | Player score cards, 1 … 12 players | PARTIALLY BROKEN — clipped at the top and bottom, even with 3 players (also 9 and 12) → R15-11 |
+| iPad host | Centred correct response | FIXED |
+| iPad host | Options menu | FIXED |
+| iPad host | Menu slide-out | FIXED |
+| iPad host | iOS status-bar colour | NOT WORKING (K55) → R15-31 |
+| TV | Automatic score sizing | FIXED |
+| TV | Final Jeopardy! player bubbles / outline colours / results | FIXED |
+| TV | Lobby "or open" position | FIXED |
+| Final | Host enters a player's wager and answer by tapping the bubble (phone could not submit) | WORKING |
+| Bots | AI-provider bots answer without the "delay" error | WORKING |
+| Picture clue | No flash when the answer is revealed | FIXED |
+| Wi-Fi | Automatic Wi-Fi credentials / administrator approval | NOT VERIFIED (the PC was on Ethernet) — K48 |
+| Wi-Fi | Mobile Hotspot | NOT TESTED — K48 |
+| Windows | Installer start-up, portable start-up, splash, time to window | WORKING (K56 start-up improvements verified) |
+| Controllers | Joy-Cons, phone buzzers | WORKING |
+
+## New requests (the round-15 prompt's items 4 … 32; IDs follow the item numbers)
+
+| ID | Requirement (summary) | Milestone |
+|---|---|---|
+| R15-4 | TV lobby: a nickname must not change the grid (3 columns → 2, back at ~11); same card size with or without nicknames, 1 … 12 players | B |
+| R15-5 | TV lobby: the Games / Wins / Streak line has one size and style with or without a nickname | B |
+| R15-6 | TV lobby test-buzz glow: follows the card's rounded corners, subtler, from behind the card, ~0.4–0.6 s | B |
+| R15-7 | TV lobby: changing a nickname must not move, shuffle or flash any card (stable identity, not the nickname) | B |
+| R15-8 | Phone Test Buzzer: a visible back arrow to the lobby (nothing lost: profile, nickname, lobby) | B |
+| R15-9 | Phone buzzer screen: remove the white box edge showing under the header near the picture (find the real element) | B |
+| R15-10 | Host board: "[Player] is choosing a clue" and "Round 1 — n clues left" centred on the whole header | A |
+| R15-11 | **Critical:** host score cards clipped top / bottom on the real iPad with 3, 9 and 12 players — root cause, 1/3/6/9/12 × embedded / full screen × landscape / portrait, stable section height, readable cards | A |
+| R15-12 | Host score cards: no white cards — navy, integrated with the host design; keep the colour ring; no colour strip | A |
+| R15-13 | Thin artifacts: a darker bar at the bottom of the red banner (clue), a light bar under the navy banner (board) | A |
+| R15-14 | Embedded preview: the fill above / below matches the clue background during clues (Daily Double, picture, sound, answer, Final); the board keeps its black | E |
+| R15-15 | The fill changes together with the clue zoom (no abrupt colour switch before the zoom) | E |
+| R15-16 | (Low) the fill continues the clue background's grain / gradient, not a flat colour | E |
+| R15-17 | Red banner shows "Daily…" — show "Daily Double" whole | C |
+| R15-18 | Daily Double!: the host starts the wager timer (not automatically when the clue is chosen) | C |
+| R15-19 | Preview Clue lightbox: as tall as the TV preview, centred; a minimal × (transparent, no border, accessible target) | C |
+| R15-20 | Daily Double!: Preview Clue (host only; never locks, times, scores, advances or shows anything publicly) | C |
+| R15-21 | Daily Double!: no wager card over the preview — who wagers, the wager, host entry and **Lock Wager & Show Clue** (in Unlock Buzzers' place) in the band | C |
+| R15-22 | Red banner: value ↔ Options gap = category ↔ menu gap (also Daily Double!) | A |
+| R15-23 | The sliding timer sits above the band, not in its top padding; nothing moves when it appears | A |
+| R15-24 | Final: the category keeps its size and place from the category reveal to the wagering screen | D |
+| R15-25 | Final: "Enter your wagers now" under the category (category-introduction subheading style), fading in with the bubbles | D |
+| R15-26 | Final reveals: only the contestant's part (picture, score before, wager / answer box) swipes; heading, category, bubbles stay | D |
+| R15-27 | Final reveals: the category as on the Final clue screen (size, place, spacing, style) | D |
+| R15-28 | Bot answer directly under the middle of the red banner, distinct from the official response | F |
+| R15-29 | Bot's chosen tile outlined for about a second before the zoom (the right tile, synchronised, no duplicate animation) | F |
+| R15-30 | Flicker / shaking when zooming (host, menus, other screens; TV-preview text) — find and fix the cause, keep zoom available | G |
+| R15-31 | iOS status bar white in full screen (K55) — supported iPadOS behaviour, closest reliable result, document limits | G |
+| R15-32 | One cohesive host design (minimal boxes, shared rules) | all |

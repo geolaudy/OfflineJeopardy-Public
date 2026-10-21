@@ -887,8 +887,9 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       s.phase = 'clue';
       s.timer = null;
       s.media = null;
-      if (dw) maybeAutoTimer(s, 'wager', now);
-      else if (s.clue.unlockMode === 'immediate') openBuzzers(s, now);
+      // R15-18: a Daily Double!'s wager timer waits for the host (Start Wager Timer → timerStart),
+      // who first announces it and explains the wager.
+      if (!dw && s.clue.unlockMode === 'immediate') openBuzzers(s, now);
       emit(tx, { type: 'clue_open', clueId: a.clueId, roundIndex: f.r, result: dw ? 'daily_wager' : 'standard' });
       return;
     }
@@ -915,6 +916,17 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
         profileId: pid,
         wager: a.amount,
       });
+      return;
+    }
+    case 'enterDailyWager': {
+      // R15-21: the host types the wager for the player (or team) — pending, like a phone's entry.
+      const clue = activeClue(s);
+      if (!clue.isDailyWager || clue.stage !== 'wager') fail('Wagering is not open');
+      const c = competitorOf(s, a.competitorId);
+      const score = scoresOf(s.events)[c.id] ?? 0;
+      const max = Math.max(score, roundMaxValue(s));
+      if (!Number.isInteger(a.amount) || a.amount < s.rules.dailyWagerMin || a.amount > max) fail(`Wager must be between ${s.rules.dailyWagerMin} and ${max}`);
+      clue.pendingWager = { competitorId: c.id, amount: a.amount, profileId: attribution(c, a.profileId, null), at: now };
       return;
     }
     case 'submitDailyWager': {

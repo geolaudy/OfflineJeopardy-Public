@@ -2,8 +2,9 @@
 // (pick / leave / switch, rename and recolour your own), the board and rules, your buzzer, and a
 // nickname for this lobby. Tapping another player opens their public statistics.
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { BellRing, Gamepad2, Keyboard, LogOut, Pencil, Smartphone, Users } from 'lucide-react';
+import { ArrowLeft, BellRing, Gamepad2, Keyboard, LogOut, Pencil, Smartphone, Users } from 'lucide-react';
 import { pressStamp, send, useLive } from '../../lib/socket';
 import { meApi } from '../../lib/api';
 import { unlockAudio } from '../../lib/sound';
@@ -232,13 +233,18 @@ function TestBuzzer({ me }: { me: Me }) {
       <Button size="lg" variant="secondary" className="w-full" onClick={() => setOpen(true)} data-testid="test-buzzer-open">
         <BellRing size={20} aria-hidden /> Test Buzzer
       </Button>
-      {open && (
+      {/* R15-8 / R15-9: on the page itself (a portal): inside the portal's scrolling main an iPhone
+          drew it under the white page header — its back control hidden, the edge of a white button
+          showing below the header. A back arrow like every page header's returns to the lobby
+          (nothing is left: the player stays joined, with their nickname). */}
+      {open &&
+        createPortal(
         <div className="fade-in fixed inset-0 z-50 flex flex-col gap-3 bg-slate-950 p-4 pt-[max(1rem,var(--safe-top))] pb-[max(1rem,env(safe-area-inset-bottom))] text-white" role="dialog" aria-modal="true" aria-label="Test your buzzer" data-testid="test-buzzer">
-          <div className="flex items-center gap-3">
+          <div className="-mx-2 -mt-1 flex items-center gap-1">
+            <button type="button" onClick={() => setOpen(false)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20" aria-label="Back to the lobby" data-testid="test-buzzer-done">
+              <ArrowLeft size={24} aria-hidden />
+            </button>
             <p className="min-w-0 flex-1 text-lg font-bold">Test your buzzer</p>
-            <Button variant="secondary" onClick={() => setOpen(false)} data-testid="test-buzzer-done">
-              Done
-            </Button>
           </div>
           <p className="text-sm text-white/70">Press it like in the game. Your card in the lobby lights up yellow for everyone — nothing counts and the game does not start.</p>
           <button
@@ -257,8 +263,9 @@ function TestBuzzer({ me }: { me: Me }) {
           <p className="h-14 text-center text-lg font-semibold" role="status" data-testid="test-buzzer-status">
             {count === 0 ? 'Tap the buzzer' : glowing ? 'Your card is glowing on the TV!' : `Pressed ${count} ${count === 1 ? 'time' : 'times'}`}
           </p>
-        </div>
-      )}
+        </div>,
+          document.body,
+        )}
     </>
   );
 }

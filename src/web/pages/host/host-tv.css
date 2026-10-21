@@ -55,10 +55,12 @@
   background: none;
   color: inherit;
 }
-/* R11-4: the host's timer line along the top edge of the band (absolute: it moves nothing). */
+/* R11-4 / R15-23: the host's timer line — its own thin layer just above the band (at the picture's
+   bottom edge, where the TV draws its timer bar), absolute so it moves nothing: the band's buttons
+   keep their padding and place whether a timer runs or not. */
 .host-timer-line {
   position: absolute;
-  top: 0;
+  bottom: 100%;
   right: 0;
   left: 0;
   height: 5px;
@@ -96,7 +98,7 @@
 }
 .host-band {
   border-top: 1px solid var(--host-line);
-  padding: 0.375rem 0.75rem;
+  padding: 0.25rem 0.75rem;
 }
 
 /* The header row: menu (full screen) · the stage's content · Options + Fullscreen / minimise. In
@@ -112,7 +114,8 @@
   height: var(--head);
   overflow: hidden;
   padding: 0 0.375rem;
-  border-bottom: 1px solid var(--host-line);
+  /* R15-13: no line under the header — the picture's own edge separates them (a light 1 px line
+     showed under the navy header as a thin white bar). */
   container-type: inline-size;
 }
 .host-fullscreen .host-head {
@@ -139,8 +142,7 @@
 /* The correct-response strip: the whole header turns red, its buttons sit on the stripes. */
 .host-live .host-head:has(.host-answer-band) {
   background: repeating-linear-gradient(45deg, var(--host-red-1) 0 3px, var(--host-red-2) 3px 6px);
-  box-shadow: inset 0 -2px 0 rgb(0 0 0 / 0.3);
-  border-bottom-color: transparent;
+  /* R15-13: no inner shadow along the bottom (it read as a darker bar under the stripes). */
 }
 /* R14-8 / R14-24: the strip spans the whole header (under its buttons) in three columns — the
    category beside the menu, the label and the answer centred on the whole width, the value beside
@@ -148,7 +150,8 @@
    equally wide (as wide as the wider button group needs), so the middle is the header's centre. */
 .host-head .host-answer-band {
   --head-gap: 0.75rem;
-  --side: calc(max(var(--head-l, 3rem), var(--head-r, 3rem)) + var(--head-gap) + 5rem);
+  /* R15-17: the value column holds "Daily Double" with its wager (two short lines) in full. */
+  --side: calc(max(var(--head-l, 3rem), var(--head-r, 3rem)) + var(--head-gap) + 7rem);
   position: absolute;
   inset: 0;
   grid-template-columns: minmax(var(--side), 1fr) minmax(0, 2.4fr) minmax(var(--side), 1fr);
@@ -167,13 +170,23 @@
 .host-head .host-answer-band-right {
   padding-right: calc(var(--head-r, 3rem) + var(--head-gap));
 }
+/* R15-10: who is choosing / the round's clues left, centred on the whole header (like the correct
+   response): the status spans the header under its buttons, kept clear of the wider end on both
+   sides, so its middle is the header's middle — not the middle between the menu and Options. */
 .host-head-status {
+  position: absolute;
+  inset: 0;
   display: flex;
   min-width: 0;
   flex-direction: column;
   align-items: center;
-  padding: 0 0.5rem;
+  justify-content: center;
+  padding: 0 calc(max(var(--head-l, 3rem), var(--head-r, 3rem)) + 0.75rem);
   text-align: center;
+  pointer-events: none;
+}
+.host-fullscreen .host-head .host-head-status {
+  top: var(--safe-top);
 }
 .host-head-title {
   max-width: 100%;
@@ -364,7 +377,8 @@
   justify-content: center;
   background: var(--host-navy-3);
   border-top: 1px solid var(--host-line);
-  padding-bottom: env(safe-area-inset-bottom);
+  /* R15-11: the frame plans the section with this padding (GameFrame useSafeBottom). */
+  padding-bottom: var(--safe-bottom, 0px);
 }
 .host-fullscreen .host-scores {
   padding-left: env(safe-area-inset-left);
@@ -390,9 +404,11 @@
   flex-wrap: wrap;
   align-content: center;
   justify-content: center;
-  gap: 8px;
-  overflow-y: auto;
-  padding: 6px 4px;
+  gap: 6px;
+  /* R15-11: the frame sizes the cards to fit exactly (GameFrame scoreGrid: rows, gap, this padding),
+     so nothing is clipped — not even by a pixel of rounding or a highlight's glow. */
+  overflow: visible;
+  padding: 4px;
 }
 .host-scores-grid > .host-scores-undo {
   grid-column: 3;
@@ -451,7 +467,10 @@
   white-space: nowrap;
 }
 /* Cards share a line equally up to --card-w; a line breaks only below the minimum width the
-   frame planned with (GameFrame scoreGrid), so small rounding never adds a row. */
+   frame planned with (GameFrame scoreGrid), so small rounding never adds a row.
+   R15-12: the cards belong to the host's navy frame — a muted navy surface a step lighter than the
+   score row, a fine light edge and a soft top light (no white tiles, no drop shadow that could be
+   cut off), white type in the board's style; the player's colour stays the ring around the picture. */
 .host-score-card {
   display: flex;
   min-width: min(var(--card-w, 12rem), var(--card-min, 9.375rem));
@@ -461,17 +480,19 @@
   align-items: center;
   gap: calc(var(--card-u, 4rem) * 0.12);
   border-radius: 0.9rem;
-  background: #ffffff;
+  background: linear-gradient(rgb(36 45 112), rgb(22 29 82));
   padding: 0 calc(var(--card-u, 4rem) * 0.16) 0 calc(var(--card-u, 4rem) * 0.1);
-  color: #0f172a;
+  color: #ffffff;
   text-align: left;
   box-shadow:
-    inset 0 0 0 2px rgb(15 23 42 / 0.08),
-    0 2px 0 rgb(0 0 0 / 0.45);
-  transition: box-shadow 0.2s;
+    inset 0 0 0 1px rgb(255 255 255 / 0.12),
+    inset 0 1px 0 rgb(255 255 255 / 0.1);
+  transition:
+    box-shadow 0.2s,
+    background-color 0.2s;
 }
 .host-score-card:active {
-  filter: brightness(0.95);
+  filter: brightness(1.15);
 }
 /* R13-5: the player's colour as a ring around the picture (was a strip along the bottom). */
 .host-score-pic {
@@ -481,7 +502,7 @@
   margin: calc(var(--ring) + 2px);
   border-radius: 999px;
   box-shadow:
-    0 0 0 2px #ffffff,
+    0 0 0 2px rgb(22 29 82),
     0 0 0 calc(var(--ring) + 2px) var(--pc, #64748b);
 }
 /* R14-2: a card too narrow for the picture keeps the player's colour as a dot. */
@@ -491,11 +512,12 @@
   flex: none;
   border-radius: 999px;
   background: var(--pc, #64748b);
-  box-shadow: 0 0 0 2px #ffffff, 0 0 0 3px var(--pc, #64748b);
+  box-shadow: 0 0 0 2px rgb(22 29 82), 0 0 0 3px var(--pc, #64748b);
 }
 .host-score-name {
   display: block;
   overflow: hidden;
+  color: rgb(255 255 255 / 0.82);
   font-size: clamp(0.8rem, calc(var(--card-u, 4rem) * 0.2), 1.2rem);
   font-weight: 700;
   line-height: 1.15;
@@ -507,24 +529,29 @@
   /* R14-3: fitted once to the widest score the game can reach (ScoreCards, lib/scoreFit). */
   font-size: var(--score-fs, clamp(1.05rem, calc(var(--card-u, 4rem) * 0.36), 2.1rem));
   white-space: nowrap;
+  font-family: var(--b-font, inherit);
   font-weight: 900;
+  letter-spacing: 0.02em;
   line-height: 1.05;
   font-variant-numeric: tabular-nums;
+  text-shadow: 0.06em 0.06em 0 rgb(0 0 0 / 0.55);
 }
 .host-score-value.is-negative {
-  color: #b91c1c;
+  color: #fca5a5;
 }
 .host-score-card[data-highlight='pick'] {
   box-shadow:
-    inset 0 0 0 3px #fbbf24,
-    0 2px 0 rgb(0 0 0 / 0.45);
+    inset 0 0 0 2px #fbbf24,
+    inset 0 1px 0 rgb(255 255 255 / 0.1);
 }
 .host-score-card[data-highlight='buzz'] {
-  background: #fffbeb;
+  background: linear-gradient(rgb(92 72 22), rgb(64 48 12));
   box-shadow:
-    inset 0 0 0 3px #f59e0b,
-    0 0 0 4px rgb(252 211 77 / 0.75),
-    0 0 18px 4px rgb(251 191 36 / 0.55);
+    inset 0 0 0 2px #fbbf24,
+    0 0 14px 2px rgb(251 191 36 / 0.45);
+}
+.host-score-card .text-slate-500 {
+  color: rgb(255 255 255 / 0.6);
 }
 
 /* R13-13: the board's tiles, tappable over the TV preview (the TV draws the tiles). */
@@ -598,7 +625,25 @@
 .host-head .host-answer-band-right {
   flex-direction: row;
   align-items: center;
+  /* R15-22: in a row the value goes to the end of its column — beside Options, at the same distance
+     as the category from the menu (it sat at the column's start, far from Options). */
+  justify-content: flex-end;
   gap: 0.5rem;
+}
+/* R15-17: "Daily Double" and the locked wager as two short lines, never cut off. */
+.host-dd-value {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.05;
+}
+.host-dd-value-label {
+  font-size: 0.72em;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+.host-head .host-answer-band-value:has(.host-dd-value) {
+  overflow: visible;
 }
 .host-head .host-answer-band {
   max-height: 100%;
@@ -619,11 +664,13 @@
    during a clue (Daily Double!, picture and sound clues, the answer) and the Final; the board's black
    grid on the board and during the category introduction (classic theme; other themes keep their
    own background there). */
-.host-frame:is([data-kind="clue"], [data-kind="final"]) .host-stage-bg {
-  background: var(--bt-panel-color, var(--bt-panel));
-}
-.host-frame:is([data-kind="board"], [data-kind="intro"]) .host-stage-bg[data-theme="classic"] {
+/* R15-14: the base is always the board's ground (the classic theme's black grid — the black edge
+   the owner keeps on the board); the clue / Final panel is a layer over it (GameFrame StageFill). */
+.host-stage-bg[data-theme="classic"] {
   background: var(--bt-grid-bg);
+}
+.host-stage-panel {
+  background: var(--bt-panel-color, var(--bt-panel));
 }
 
 /* R14-10: the browser's own full screen paints the element and its backdrop in the header's navy
@@ -635,23 +682,118 @@
 .host-live::backdrop {
   background: #181e52;
 }
-/* Classic theme: the clue panel's colour at its edges (its base colour lightened by the panel's
-   grain), measured on the TV picture — so the picture's edge disappears. */
-.host-frame:is([data-kind="clue"], [data-kind="final"]) .host-stage-bg[data-theme="classic"] {
-  background: #0e1a86;
+/* Classic theme (R15-16): the panel's own grain over its edge colour, the grain at the preview's
+   scale and lined up with the picture's (--grain, --grain-at), so the surroundings continue the
+   picture's surface instead of a smooth flat colour. */
+.host-stage-bg[data-theme="classic"] .host-stage-panel {
+  background: var(--bt-panel-noise) var(--grain-at, 0 0) / var(--grain, 160px) repeat, #071483;
 }
 
 /* R14-18: the Final's player bubbles on the preview, tappable (round, like the bubbles). */
 .host-final-hit {
   border-radius: 999px;
 }
-/* R14-17: Preview Clue — the Final's clue in the TV's clue panel style, privately on the iPad. */
+/* R14-17 / R15-19: Preview Clue — the clue in the TV's clue panel style, privately on the iPad, as
+   tall as the TV picture (CluePreview.tsx places it); the close control is a plain ×. */
 .host-clue-lightbox {
   overflow: hidden;
-  border-radius: 0.75rem;
+  border-radius: 0.5rem;
   background: var(--bt-panel);
   background-color: var(--bt-panel-color, transparent);
   color: var(--b-fg, #ffffff);
-  padding: 4% 6%;
   box-shadow: 0 20px 60px rgb(0 0 0 / 0.6);
+}
+.host-clue-lightbox-in {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  padding: 5% 7% 2.5%;
+}
+.host-clue-lightbox-note {
+  flex: none;
+  padding-top: 0.5rem;
+  color: rgb(255 255 255 / 0.6);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+}
+/* A minimal close: a white ×, no box or border, on a 44 px touch target in the corner. */
+.host-lightbox-close {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+  display: flex;
+  width: 2.75rem;
+  height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: transparent;
+  color: rgb(255 255 255 / 0.9);
+  -webkit-tap-highlight-color: transparent;
+}
+.host-lightbox-close:hover,
+.host-lightbox-close:active {
+  background: rgb(255 255 255 / 0.12);
+}
+.host-lightbox-close:focus-visible {
+  outline: 3px solid #fcd34d;
+  outline-offset: -3px;
+}
+
+/* R15-28: a computer player's answer, centred right under the correct-response strip (in the frame's
+   overlay, over the top of the picture) — a quiet dark label in the board's type, the bot's name
+   small above its answer; never red or striped like the official response. */
+.host-bot-answer {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 22;
+  max-width: min(36rem, calc(100% - 2rem));
+  translate: -50% 0;
+  border-radius: 0 0 0.85rem 0.85rem;
+  background: rgb(6 9 34 / 0.88);
+  padding: 0.3rem 1.1rem 0.45rem;
+  color: #ffffff;
+  text-align: center;
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.14),
+    0 8px 24px rgb(0 0 0 / 0.4);
+  pointer-events: none;
+}
+.host-bot-answer-who {
+  color: rgb(255 255 255 / 0.65);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.host-bot-answer-name {
+  color: #fcd34d;
+}
+.host-bot-answer-tag {
+  margin-left: 0.4rem;
+  border-radius: 0.3rem;
+  background: rgb(167 139 250 / 0.25);
+  padding: 0 0.3rem;
+  color: #ddd6fe;
+  font-size: 0.7rem;
+}
+.host-bot-answer-text {
+  overflow-wrap: anywhere;
+  font-family: var(--b-font, inherit);
+  font-size: 1.45rem;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  line-height: 1.15;
+  text-transform: uppercase;
+  text-shadow: 0.06em 0.06em 0 #000000;
+}
+.host-bot-answer-warn {
+  margin-top: 0.15rem;
+  color: #fcd34d;
+  font-size: 0.75rem;
+}
+[data-compact='true'] .host-bot-answer-text {
+  font-size: 1.1rem;
 }

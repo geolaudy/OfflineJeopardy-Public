@@ -127,11 +127,12 @@ test('one buzzers-open glow; no buzzed-in card on the iPad preview; host timer l
   await expect(ind).toHaveCount(1);
   expect(await ind.evaluate((e) => getComputedStyle(e).boxShadow)).toBe('none');
   expect(await ind.evaluate((e) => getComputedStyle(e, '::after').boxShadow)).not.toBe('none');
-  // The host's timer line: in the band, along its top edge; the preview has no TV timer bar.
+  // The host's timer line: R15-23 — its own thin layer just above the band (not in the band's top
+  // padding); the preview has no TV timer bar.
   await expect(ipad.getByTestId('host-timer-line')).toBeVisible();
   const line = (await ipad.getByTestId('host-timer-line').boundingBox())!;
   const band = (await ipad.getByTestId('game-bar').boundingBox())!;
-  expect(Math.abs(line.y - band.y)).toBeLessThan(2);
+  expect(Math.abs(line.y + line.height - band.y)).toBeLessThan(2);
   expect(line.width).toBeGreaterThan(band.width - 2);
   const frame = ipad.frameLocator('[data-testid="clue-preview"] iframe');
   await expect(frame.getByTestId('tv-timer')).toBeHidden();

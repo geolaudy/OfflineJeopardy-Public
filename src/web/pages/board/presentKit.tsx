@@ -165,6 +165,8 @@ export function useFitScale(ref: RefObject<HTMLElement | null>, key: string, min
     // a row wider than the block shrinks the block as a whole, like a too-tall one.
     if (lines && el.clientWidth > 0)
       for (const row of el.children) {
+        // A row with its own fixed size (data-fit-skip, R15-5) is not shrunk by the block's scale.
+        if ((row as HTMLElement).dataset.fitSkip != null) continue;
         const w = (row as HTMLElement).scrollWidth;
         if (w > el.clientWidth + 1) ratio = Math.min(ratio, el.clientWidth / w);
       }

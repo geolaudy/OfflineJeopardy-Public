@@ -70,10 +70,31 @@ html:has(.app-screen) body {
    Safari tab, a desktop browser, the Electron window, or the browser's own full screen.) */
 :root {
   --safe-top: env(safe-area-inset-top, 0px);
+  /* R15-11: the bottom safe area (home indicator) as one variable, so layouts that plan with it
+     (the host's score section) and tests that simulate it read the same value. */
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 @media (display-mode: standalone), (display-mode: fullscreen) {
   :root {
     --safe-top: calc(env(safe-area-inset-top, 0px) + min(2.75rem, env(safe-area-inset-top, 0px) * 100));
+  }
+}
+/* R15-31 (K55): in a Home Screen web app the status bar is transparent (black-translucent,
+   index.html) with white indicators, so the page paints the top safe area itself: the host
+   controller's navy (--status-bg; red with the full-screen correct-response strip, GameFrame), over
+   the pages' own top padding. The full-screen host header (z 45) covers it with its own colour.
+   Safari tabs are unaffected (Safari draws its own bar there). */
+@media (display-mode: standalone) {
+  body::before {
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: 0;
+    z-index: 40;
+    height: var(--safe-top);
+    background: var(--status-bg, #181e52);
+    content: "";
+    pointer-events: none;
   }
 }
 /* Safe areas (notch, home indicator, landscape side insets) — viewport-fit=cover is set.
@@ -341,8 +362,11 @@ button {
   box-shadow: 0 0 0 2px #bfdbfe;
 }
 
-/* R12-12: a lobby buzzer test — the player's card glows yellow (the board's buzz-in yellow) and
-   fades out within a second. The overlay sits inside a card with position: relative. */
+/* R12-12 / R15-6: a lobby buzzer test — the player's card glows yellow (the board's buzz-in yellow):
+   a soft halo that follows the card's rounded corners, quickly in and out (about half a second).
+   The overlay sits inside a card with position: relative. On cards whose rounded surface is a
+   separate layer (the TV lobby: .tvp-person-bg) it goes behind that layer (is-behind) with the
+   layer's radius, so only the halo outside the edge shows. */
 .lobby-glow {
   position: absolute;
   inset: 0;
@@ -350,15 +374,23 @@ button {
   border-radius: inherit;
   pointer-events: none;
   box-shadow:
-    inset 0 0 0 3px #facc15,
-    0 0 0 3px #fde047,
-    0 0 22px 6px rgb(250 204 21 / 0.85);
-  background: rgb(254 240 138 / 0.28);
-  animation: lobby-glow 1s ease-out forwards;
+    0 0 0 2px rgb(250 204 21 / 0.9),
+    0 0 14px 3px rgb(250 204 21 / 0.5);
+  animation: lobby-glow 0.55s ease-out forwards;
+}
+.lobby-glow.is-behind {
+  z-index: 0;
+  border-radius: 1.2vh;
+  box-shadow:
+    0 0 0 0.22vh rgb(250 204 21 / 0.85),
+    0 0 1.6vh 0.35vh rgb(250 204 21 / 0.45);
 }
 @keyframes lobby-glow {
-  0%,
-  45% {
+  0% {
+    opacity: 0;
+  }
+  15%,
+  40% {
     opacity: 1;
   }
   100% {

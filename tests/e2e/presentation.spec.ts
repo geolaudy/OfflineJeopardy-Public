@@ -134,7 +134,8 @@ test('score labels, the Final swipe and the podium with places 4+', async () => 
   await expect(tv.getByTestId('tv-final-name')).toHaveText('Ava Podium');
   await expect(tv.getByTestId('tv-final-wager')).toContainText('0');
   await expect(tv.locator('[data-swipe-layer="leaving"]')).toHaveCount(0);
-  await expect(tv.locator('[data-swipe-layer="current"]')).toHaveCount(1);
+  // R15-26: one screen (the reveal's own contestant stage swipes inside it).
+  await expect(tv.locator('.bt-final-stage > [data-swipe-layer="current"]')).toHaveCount(1);
   await h.act({ type: 'finalReveal' }); // answer
   await h.act({ type: 'judgeFinal', competitorId: A, correct: true });
   await h.act({ type: 'finalReveal' }); // done

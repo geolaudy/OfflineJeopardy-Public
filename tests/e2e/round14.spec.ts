@@ -212,8 +212,10 @@ test('clue: no buzzer glow on the host preview, the picture surroundings in the 
   const clue = page.frameLocator('[data-testid="clue-preview"] iframe');
   const glow = await clue.locator('[data-testid="tv-unlock-indicator"] > :not([role="status"])').evaluateAll((els) => els.filter((e) => getComputedStyle(e).display !== 'none').length);
   expect(glow).toBe(0);
-  const bg = await page.locator('.host-stage-bg').evaluate((e) => getComputedStyle(e).backgroundColor);
-  expect(bg).toBe('rgb(14, 26, 134)');
+  // R15-14: the clue panel's surface is a layer over the board's ground (its colour and grain).
+  await expect(page.getByTestId('host-stage-panel')).toHaveAttribute('data-on', 'true');
+  const bg = await page.getByTestId('host-stage-panel').evaluate((e) => getComputedStyle(e).backgroundColor);
+  expect(bg).toBe('rgb(7, 20, 131)');
   // The correct response is centred in the header band.
   const strip = await box(page, 'game-strip');
   const answer = await page.getByTestId('host-answer').evaluate((el) => {

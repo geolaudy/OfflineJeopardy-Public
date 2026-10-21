@@ -196,10 +196,12 @@ test('full game: iPad host pairing, phone profiles + buzzing, private answers, l
   await ipad.getByRole('button', { name: /Science for 800/ }).click();
   await expect(tv.getByText('DAILY DOUBLE!')).toBeVisible();
   await expect(tv.getByTestId('clue-text')).toHaveCount(0);
-  // R5-20 recovery path: the host enters the wager for a player without a phone.
-  await ipad.getByRole('button', { name: /No phone\? Enter the wager/ }).click();
+  // R5-20 / R15-21 recovery path: the host enters the wager for a player without a phone, then locks it.
+  await ipad.getByTestId('host-dd-enter').click();
   await ipad.getByLabel('Wager amount').fill('500');
-  await ipad.getByRole('button', { name: 'Lock wager & show clue' }).click();
+  await ipad.getByTestId('host-dd-entry-done').click();
+  await expect(tv.getByTestId('clue-text')).toHaveCount(0); // entering is not locking
+  await ipad.getByTestId('host-dd-lock').click();
   await expect(tv.getByTestId('clue-text')).toBeVisible();
   await ipad.getByTestId('correct').click();
   await ipad.getByTestId('back-to-board').click();

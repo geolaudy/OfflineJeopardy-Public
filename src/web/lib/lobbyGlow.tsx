@@ -1,9 +1,9 @@
 // R12-12: a buzzer test in the lobby lights that player's lobby card (TV, host and phones) yellow
-// for about a second. The glow restarts with every press; it never outlives LOBBY_GLOW_MS.
+// for about half a second (R15-6). The glow restarts with every press; it never outlives LOBBY_GLOW_MS.
 import { useEffect, useState } from 'react';
 import { useLive } from './socket';
 
-export const LOBBY_GLOW_MS = 1000;
+export const LOBBY_GLOW_MS = 600;
 
 /** When the card of profile `id` started glowing, while it glows (else null). */
 export function useLobbyGlow(id: string | null | undefined): number | null {

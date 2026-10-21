@@ -14,7 +14,7 @@ import { playCue } from '../../lib/sound';
 import { competitorAvatar, competitorColor, competitorName, findCompetitor } from '../../lib/view';
 import { CategoryTitle, FitText, money, useBoard } from './common';
 import { TimerBar } from './TimerBar';
-import { SwipeStage, useSwipe, useTestId } from './Swipe';
+import { SwipeStage, useSwipe, useTestId, type SwipeState } from './Swipe';
 import { finalScreenKey, finalTransition } from './finalSwipe';
 import { EASE_OUT_ARR, T } from './timing';
 import { RichText } from '../../components/RichText';
@@ -29,9 +29,17 @@ function finalMedia(f: FinalView, side: 'clue' | 'answer'): MediaClue {
 
 const swipeSound = () => playCue('categoryIntro');
 
+/** R15-26: the outer screens — writing (category → wagers → clue), the reveal, the results. Inside
+ *  the reveal only the contestant's part changes from one contestant to the next. */
+const screenGroup = (key: string) => (key.startsWith('reveal:') ? 'reveal' : key);
+
 export function FinalScreen({ g }: { g: GameView }) {
   const f = g.final!;
   const swipe = useSwipe(finalScreenKey(f), finalTransition, swipeSound);
+  // The outer layer swipes only between the groups (the clue → the first reveal, quietly to the
+  // results); between contestants the reveal's own inner stage swipes (R15-26).
+  const group = screenGroup(swipe.key);
+  const outer: SwipeState = { ...swipe, key: group };
   return (
     <motion.div
       className="bt-final-stage"
@@ -43,46 +51,73 @@ export function FinalScreen({ g }: { g: GameView }) {
       data-swipe-seq={swipe.seq}
       data-swipe-kind={swipe.kind}
     >
-      <SwipeStage swipe={swipe} className="bt-final">
-        <FinalContent g={g} />
+      <SwipeStage swipe={outer} className="bt-final">
+        {group === 'reveal' ? <RevealScreen g={g} swipe={swipe} /> : <FinalContent g={g} />}
       </SwipeStage>
     </motion.div>
   );
 }
 
-/** One full Final screen (a swipe layer). A leaving layer keeps the state it last showed. */
-function FinalContent({ g }: { g: GameView }) {
+/** "Final Jeopardy!" and the category, the same in every screen after the category reveal (R15-27:
+ *  the clue, the reveals and the results share its size and place under the heading). A picture or
+ *  sound clue keeps its smaller category line (R9-6.2) — the reveal then matches it. */
+function FinalHeading({ g }: { g: GameView }) {
   const f = g.final!;
-  // The category reveal itself: the category alone, as large as the screen allows.
-  const intro = f.stage === 'category';
-  const wagers = f.stage === 'wagers';
-  const revealing = f.stage === 'reveal' || f.stage === 'done';
-  // R9-6.2: a picture or sound clue gets a smaller category line, so the picture can be larger.
-  const mediaClue = (f.stage === 'clue' || f.stage === 'closed') && f.media.length > 0;
   const sub = !!f.categorySubheading?.trim();
-  // R14-19: after the category reveal the category is 80 % of its former size and sits right under
-  // "Final Jeopardy!" (it was centred in the space down to the bubbles while wagering).
-  const max = intro ? 13 : wagers ? 10.4 : revealing || mediaClue ? 2.9 : 4;
+  const small = f.media.length > 0;
   return (
     <>
       <p className="bt-kicker shrink-0">Final Jeopardy!</p>
-      {/* R10-3: the subheading sits directly under the category, the two centred as one group
-          (its box grows by the subheading's line, as the separate line did before). */}
       <CategoryTitle
         name={f.category}
         subheading={f.categorySubheading}
-        max={max}
-        min={intro ? 4 : wagers ? 3.2 : 1.8}
-        subEm={intro || wagers ? 0.34 : 0.6}
-        subMin={intro ? 2.6 : wagers ? 2.1 : 1.45}
-        boxClassName={cx(
-          intro ? 'min-h-0 flex-1' : 'shrink-0 -mt-[1.2vh]',
-          wagers && (sub ? 'h-[26vh]' : 'h-[20vh]'),
-          !intro && !wagers && (sub ? (revealing || mediaClue ? 'h-[7.5vh]' : 'h-[10vh]') : revealing || mediaClue ? 'h-[5vh]' : 'h-[7.5vh]'),
-        )}
+        max={small ? 2.9 : 4}
+        min={1.8}
+        subEm={0.6}
+        subMin={1.45}
+        boxClassName={cx('shrink-0 -mt-[1.2vh]', sub ? (small ? 'h-[7.5vh]' : 'h-[10vh]') : small ? 'h-[5vh]' : 'h-[7.5vh]')}
         subTestId="final-subheading"
       />
-      {wagers && <SubmissionChips g={g} kind="wager" bottom />}
+    </>
+  );
+}
+
+/** One full Final screen before the reveal (a swipe layer). A leaving layer keeps the state it last
+ *  showed. R15-24 / R15-25: the category reveal and the wagering share one layout — the category
+ *  keeps its size and place when wagering opens; "Enter your wagers now" (its space reserved from
+ *  the start) and the player bubbles fade in under it. */
+function FinalContent({ g }: { g: GameView }) {
+  const f = g.final!;
+  const intro = f.stage === 'category' || f.stage === 'wagers';
+  const wagers = f.stage === 'wagers';
+  if (intro)
+    return (
+      <>
+        <p className="bt-kicker shrink-0">Final Jeopardy!</p>
+        <CategoryTitle
+          name={f.category}
+          subheading={f.categorySubheading}
+          max={13}
+          min={4}
+          subEm={0.34}
+          subMin={2.6}
+          boxClassName="min-h-0 flex-1 pb-[12vh]"
+          subTestId="final-subheading"
+          cue={{ text: 'Enter your wagers now', shown: wagers, testId: 'final-wager-cue' }}
+        />
+        <AnimatePresence>
+          {wagers && (
+            <motion.div key="chips" className="bt-final-chips" initial={{ opacity: 0, y: '1.5vh' }} animate={{ opacity: 1, y: 0 }} transition={{ duration: T.fade, ease: EASE_OUT_ARR, delay: 0.1 }}>
+              <SubmissionChips g={g} kind="wager" />
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <TimerBar timer={g.timer} />
+      </>
+    );
+  return (
+    <>
+      <FinalHeading g={g} />
       {(f.stage === 'clue' || f.stage === 'closed') && (f.question?.trim() || f.media.length > 0) && (
         // R7-7: centred in the whole stage, not in the space left under the category; the header
         // band is mirrored at the bottom so long clues never run into it. With media (R9-6) the
@@ -96,8 +131,24 @@ function FinalContent({ g }: { g: GameView }) {
         </motion.div>
       )}
       {(f.stage === 'clue' || f.stage === 'closed') && <SubmissionChips g={g} kind="answer" bottom />}
-      {f.stage === 'reveal' && <Spotlight g={g} />}
       {f.stage === 'done' && <Summary g={g} />}
+      <TimerBar timer={g.timer} />
+    </>
+  );
+}
+
+/** R15-26: the reveal — the heading, the category and the reveal order stay where they are; only the
+ *  contestant's part (picture, score before, the wager / answer box) swipes from one to the next. */
+function RevealScreen({ g, swipe }: { g: GameView; swipe: SwipeState }) {
+  return (
+    <>
+      <FinalHeading g={g} />
+      <div className="bt-final-spot-stage" data-testid="tv-final-spot-stage">
+        <SwipeStage swipe={swipe} className="bt-final-spot-layer" transparent>
+          <Spotlight g={g} />
+        </SwipeStage>
+      </div>
+      <RevealProgress g={g} />
       <TimerBar timer={g.timer} />
     </>
   );
@@ -145,7 +196,7 @@ function Spotlight({ g }: { g: GameView }) {
       <div className="bt-final-spot" style={{ '--pc': color } as CSSProperties} data-competitor={id}>
         <div className="bt-final-who">
           <span className="bt-final-ring">
-            <Avatar profile={competitorAvatar(c, g)} size={Math.round(ctx.vh * 0.16)} />
+            <Avatar profile={competitorAvatar(c, g)} size={Math.round(ctx.vh * 0.135)} />
           </span>
           <div className="min-w-0 text-left">
             <div className="bt-name truncate text-[5.6vh] leading-none" data-testid={tid('tv-final-name')}>
@@ -188,7 +239,6 @@ function Spotlight({ g }: { g: GameView }) {
           </AnimatePresence>
         </div>
       </div>
-      <RevealProgress g={g} />
     </div>
   );
 }

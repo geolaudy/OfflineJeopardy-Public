@@ -54,8 +54,18 @@ export class GameManager {
   readonly bots = new BotDriver((a) => {
     if (this.current) this.dispatch(a, 'bot');
   });
+  /** R15-29: the tile a computer player has just chosen (outlined on the TV for a moment before its
+   *  clue opens). Presentation only — never saved, never part of the game state. */
+  pickHint: { clueId: string; at: number } | null = null;
 
-  constructor(private db: DB) {}
+  constructor(private db: DB) {
+    this.bots.onHint = (clueId) => {
+      const next = clueId && this.current?.phase === 'board' ? { clueId, at: this.clock() } : null;
+      if (!next && !this.pickHint) return;
+      this.pickHint = next;
+      this.onChange();
+    };
+  }
 
   /** Restore the most recent unfinished game after a restart using documented safety rules:
    *  running timers are paused and open buzzers are locked (no stale buzzes are accepted). */
@@ -175,6 +185,7 @@ export class GameManager {
 
   private setCurrent(s: GameState | null) {
     this.current = s;
+    this.pickHint = null;
     setSetting(this.db, 'currentGameId', s?.id ?? null);
     this.scheduleTimer();
     this.scheduleIntro();
@@ -206,6 +217,8 @@ export class GameManager {
       // Re-opened a completed game: it is active again until ended.
       persistGame(this.db, res.state, []);
     }
+    // The hint ends with the board (the chosen clue opened, or anything else happened instead).
+    if (this.pickHint && (res.state.phase !== 'board' || res.state.usedClueIds.includes(this.pickHint.clueId) || res.state.id !== s.id)) this.pickHint = null;
     this.scheduleTimer();
     this.scheduleBuzzResolve();
     const w = res.state.buzzer.winner;

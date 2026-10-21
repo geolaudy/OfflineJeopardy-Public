@@ -194,17 +194,25 @@ function People({ people, known, morphIn, box }: { people: LobbyPerson[]; known:
   // sized from the space available, so 1 or 30 players fill it at any aspect ratio. Text keeps a
   // readable minimum instead of shrinking with the card.
   const gap = ctx.vh * 0.012;
-  // A profile name under a nickname (R7-3) needs a taller card when there is room for it.
-  const stacked = shown.some((p) => p.realName);
-  const fit = fitCards(shown.length + (more ? 1 : 0), box, { gap, maxH: ctx.vh * (stacked ? 0.105 : 0.088), minRatio: 2.3, maxCols: 6, idealRatio: 3.4 });
+  // R15-4: one card size whether or not anyone has a nickname — a nickname changes the text inside a
+  // card (the profile name underneath, the text block shrinking to fit), never the grid: a taller
+  // allowance for stacked names used to change the column count (3 → 2) when one player joined
+  // with a nickname, and moved every card when a nickname was set or cleared (R15-7).
+  const fit = fitCards(shown.length + (more ? 1 : 0), box, { gap, maxH: ctx.vh * 0.088, minRatio: 2.3, maxCols: 6, idealRatio: 3.4 });
   const cardH = Math.max(ctx.vh * 0.055, fit.cardH);
   // Few players: cards keep their proportions instead of stretching across the screen.
   const maxW = Math.max(cardH * 3.6, ctx.vh * 0.3);
   const cardW = Math.min(fit.cardW, maxW);
   const name = Math.max(ctx.vh * 0.019, Math.min(ctx.vh * 0.027, cardH * 0.3, cardW * 0.098));
   const col = fit.cardW > maxW ? `${Math.floor(maxW)}px` : 'minmax(0, 1fr)';
+  // R15-5: the statistics line (games · wins · streak) has one size for every card, outside the
+  // card's fit scale — so it reads the same with and without a nickname. Sized so the longest line
+  // in this lobby fits beside the picture (about 0.55 em per character).
+  const longest = Math.max(12, ...shown.map(statsLength));
+  const textW = cardW - cardH * 0.62 - ctx.vh * 0.045;
+  const stats = Math.max(ctx.vh * 0.0125, Math.min(name * 0.64, textW / (longest * 0.55)));
   return (
-    <div className="tvp-people" style={{ gridTemplateColumns: `repeat(${fit.cols}, ${col})`, gridAutoRows: `${cardH}px`, gap: `${gap}px`, '--name': `${name}px` } as CSSProperties}>
+    <div className="tvp-people" style={{ gridTemplateColumns: `repeat(${fit.cols}, ${col})`, gridAutoRows: `${cardH}px`, gap: `${gap}px`, '--name': `${name}px`, '--stats': `${stats}px` } as CSSProperties}>
       <AnimatePresence propagate>
         {shown.map((p, i) => (
           <PersonCard key={p.key} p={p} av={cardH * 0.62} size={`${Math.round(cardW)}x${Math.round(cardH)}`} isNew={!known.has(p.key)} animateAvatar={morphIn && i >= COMPACT_AVATARS - 1 && known.has(p.key)} />
@@ -233,8 +241,10 @@ function PersonCard({ p, av, size, isNew, animateAvatar }: { p: LobbyPerson; av:
       transition={{ duration: T.fade, ease: EASE_OUT_ARR }}
       data-testid="tv-lobby-player"
     >
+      {/* R15-6: the test-buzz glow sits behind the card's surface, so only a soft halo around its
+          rounded edge shows. */}
+      <LobbyGlow id={p.pid} className="is-behind" />
       <Fade className="tvp-person-bg" />
-      <LobbyGlow id={p.pid} />
       <span className="tvp-av-wrap">
         <SharedAvatar p={p} size={av} animateIn={animateAvatar} />
         <Marks p={p} />
@@ -275,11 +285,20 @@ function Marks({ p }: { p: LobbyPerson }) {
   );
 }
 
+/** Characters on a card's statistics line (one statistics size per lobby, R15-5). */
+function statsLength(p: LobbyPerson) {
+  const text = p.bot ? null : summaryText(p.summary);
+  if (!text) return 0;
+  const streak = p.summary?.streak ?? 0;
+  return text.length + (!p.summary?.private && streak >= 2 ? `${streak} in a row`.length + 3 : 0);
+}
+
 function Summary({ p }: { p: LobbyPerson }) {
   const text = p.bot ? null : summaryText(p.summary);
   if (!text) return null;
   return (
-    <span className="tvp-person-stats" data-testid="tv-player-stats">
+    // data-fit-skip: its size is the lobby's, not the card's fit scale (R15-5).
+    <span className="tvp-person-stats is-fixed" data-testid="tv-player-stats" data-fit-skip>
       {text}
       {!p.summary?.private && (p.summary?.streak ?? 0) >= 2 && (
         <span className="tvp-streak">

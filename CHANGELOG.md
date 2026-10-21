@@ -7,12 +7,23 @@ their notes come from the matching section below (`scripts/release-notes.mjs`).
 ## [Unreleased]
 
 ### New Features
+- **Daily Double! run by the host**: the wager timer starts only when the host presses "Start timer" (time to announce the Daily Double! first); who is wagering and their wager are in the control band, with **Enter Wager** for a player without a phone and **Lock Wager & Show Clue** where Unlock Buzzers usually is. **Preview Clue** shows the Daily Double! clue privately on the iPad, as it already did for Final Jeopardy!.
+- **The computer player's choice is shown**: a quiet outline marks the tile a computer opponent chose for about a second before the clue zooms open, on the TV and the host preview.
 - **Start-up screen on Windows**: OfflineJeopardy now shows its name and what it is doing ("Loading saved data…", "Starting local server…") from the first second, with a loading bar, until the host interface is ready — and says so if the start fails instead of waiting forever. The portable version starts about twice as fast (it unpacks a compressed copy) and shows a picture while it unpacks.
 - **Wi-Fi password with administrator approval**: when Windows keeps the saved Wi-Fi password for administrators, the host can press "Read it with administrator approval" and approve Windows' permission prompt on the game computer. Only that one read runs with administrator rights; the password stays in memory for the lobby and is never saved or logged. A Mobile Hotspot run by the game computer is found too.
 - **Manage players from the lobby**: tap a player's card in the iPad lobby to give them a nickname for this game (shown on the TV, the host controller and the phones), view their profile or edit it. Guests can be given a nickname.
 - **Final Jeopardy! from the host's preview**: tap a player's bubble to enter or change their wager or answer for them (for a player whose phone is not working), and use **Preview Clue** to read the clue on the iPad (in the TV's style) before the TV shows it.
 
 ### Improvements
+- **Host score cards are never cut off**: the cards now leave room for the iPad's home-indicator area (the cause of the clipped cards on the real iPad) and are dark navy cards that belong to the host screen instead of white tiles; the TV picture still reaches the screen edges in full screen.
+- **Host header**: "… is choosing a clue" and the clues left are centred on the whole header; the value sits beside Options at the same distance as the category from the menu; "Daily Double" is shown whole; the thin lines under the red and the navy header are gone; the timer runs just above the control band, so nothing in the band moves.
+- **Preview surroundings follow the clue**: the area above and below the TV picture opens with the clue's zoom (and closes with it), in the clue panel's colour and grain; the board keeps its black edge.
+- **Preview Clue** (Final and Daily Double!) fills exactly the height of the TV picture, centred, with a simple × to close.
+- **A computer player's answer** appears right under the correct response, so the two are easy to compare.
+- **Final Jeopardy! on the TV**: the category stays exactly where it is when wagering opens; "Enter your wagers now" fades in under it with the player bubbles. During the answer reveals only the contestant's part moves — the heading, the category (now the same size as on the clue screen) and the bubbles stay still.
+- **TV lobby**: a nickname no longer changes the number of columns or moves any card, and the games / wins / streak line has the same size on every card. The test-buzz glow is a soft rounded halo behind the card that fades in about half a second.
+- **Phone Test Buzzer**: a back arrow returns to the lobby (you stay joined, nickname kept).
+- **iPad status bar**: in the Home Screen app the area behind the time and battery now takes the host controller's navy (re-add the Home Screen icon after updating).
 - **At most 12 players or teams per game**: the lobby shows "Players (n / 12)" and says when the game is full; a 13th player, guest or computer opponent is turned away with a clear message.
 - **Score cards keep their size**: the host's score row has the same height for 1 to 12 players (one row of up to 6 cards, then two rows), and scores on the TV and the host cards are sized once for the largest score the game can reach (at least −$999,999), so they never leave their card or change size mid-game.
 - **The same Options menu in both views** of the host's live screen, with Pause, Switch game and Close lobby; the page header is hidden while a game runs so the game gets the whole screen. The full-screen menu now slides closed.
@@ -33,6 +44,8 @@ their notes come from the matching section below (`scripts/release-notes.mjs`).
 - **Buzzer check results in one line**: who has not pressed stays in view ("Everyone pressed ✓" when all did); the order and timings fold away under "Order" once the check ends.
 
 ### Bug Fixes
+- Pinch-zooming on an iPad or phone made pages jump back and open sheets move on every pan, which looked like flickering; zoomed pages now stay where you move them.
+- The phone's Test Buzzer screen could appear under the page header (its close button hidden, the edge of a white button showing near the profile picture).
 - Computer opponents with an AI provider sometimes gave up on a clue with "The value of "delay" is out of range" (a fractional time limit); the time limit is now always a whole number of milliseconds within bounds.
 - The clue's picture no longer flashes on the TV and the host preview when the correct response is revealed.
 - The difficulty selector of a computer opponent no longer overlaps the "Computer opponent" label in the lobby.

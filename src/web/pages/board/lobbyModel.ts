@@ -11,7 +11,8 @@ import { lobbyRules } from '../../../shared/rulesSummary';
 const realOf = (p: { name: string; nickname: string } | undefined) => (p && p.nickname?.trim() && p.nickname.trim().toLowerCase() !== p.name.toLowerCase() ? p.name : undefined);
 
 export interface LobbyPerson {
-  /** Stable React / shared-layout key (derived from team and name; never shown). */
+  /** Stable React / shared-layout key (the profile id when there is one, else team and name; never
+   *  shown). R15-7: never the shown name — a nickname change must not remount the card. */
   key: string;
   /** Profile id (players; for the lobby buzzer-test glow, R12-12). */
   pid?: string;
@@ -142,7 +143,7 @@ export function buildLobbyModel(g: GameView | null, lobby: PublicLobby | null, r
   if (roster) {
     const rows = roster.rows;
     const personFrom = (r: (typeof rows)[number]): LobbyPerson => ({
-      key: key(r.team, r.name),
+      key: r.profileId ? `p|${r.profileId}` : key(r.team, r.name),
       pid: r.profileId,
       name: r.name,
       realName: r.realName,
@@ -171,7 +172,7 @@ export function buildLobbyModel(g: GameView | null, lobby: PublicLobby | null, r
               const p = g.profiles[m];
               const name = profileName(p);
               return {
-                key: key(c.name, name),
+                key: `p|${m}`,
                 pid: m,
                 name,
                 realName: realOf(p),
@@ -228,7 +229,7 @@ export function buildLobbyModel(g: GameView | null, lobby: PublicLobby | null, r
       const members = c.memberIds.map((m) => {
         const p = g.profiles[m];
         const name = profileName(p);
-        return { key: key(c.name, name), pid: m, name, color: p?.color ?? c.color, avatar: p?.avatar ?? 'fox', pictureUrl: p?.pictureUrl ?? null, device: '', ready: online.has(m), bot: false };
+        return { key: `p|${m}`, pid: m, name, color: p?.color ?? c.color, avatar: p?.avatar ?? 'fox', pictureUrl: p?.pictureUrl ?? null, device: '', ready: online.has(m), bot: false };
       });
       people.push(...members);
       return { key: `team|${c.name}`, name: c.name, color: c.color, avatar: c.avatar ?? 'shield', members, shared: null };
@@ -241,7 +242,7 @@ export function buildLobbyModel(g: GameView | null, lobby: PublicLobby | null, r
       }
       const p = c.profileId ? g.profiles[c.profileId] : undefined;
       const name = profileName(p);
-      people.push({ key: key(null, name), pid: c.profileId ?? undefined, name, color: p?.color ?? c.color, avatar: p?.avatar ?? 'fox', pictureUrl: p?.pictureUrl ?? null, device: '', ready: !!c.profileId && online.has(c.profileId), bot: false });
+      people.push({ key: c.profileId ? `p|${c.profileId}` : key(null, name), pid: c.profileId ?? undefined, name, color: p?.color ?? c.color, avatar: p?.avatar ?? 'fox', pictureUrl: p?.pictureUrl ?? null, device: '', ready: !!c.profileId && online.has(c.profileId), bot: false });
     }
   }
   const humans = new Set([...g.competitors.filter((c) => !c.bot).flatMap((c) => c.memberIds), ...g.unassigned.map((u) => u.profileId)]);

@@ -201,7 +201,9 @@ export function useKeyboardViewport(active: boolean) {
     const vv = typeof window !== 'undefined' ? window.visualViewport : null;
     if (!active || !vv) return setBox(null);
     const read = () => {
-      const covered = window.innerHeight - vv.height > 80; // a keyboard, not a browser bar
+      // A keyboard, not a browser bar — and not a pinch zoom (R15-30: a zoomed page's visual
+      // viewport is small too; following it moved an open sheet on every pan, so it flickered).
+      const covered = vv.scale <= 1.01 && window.innerHeight - vv.height > 80;
       setBox((b) => (!covered ? null : b && b.top === vv.offsetTop && b.height === vv.height ? b : { top: vv.offsetTop, height: vv.height }));
     };
     read();

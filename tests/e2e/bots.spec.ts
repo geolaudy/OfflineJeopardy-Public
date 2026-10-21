@@ -53,9 +53,10 @@ test('bot picks a clue, gives a visible answer and waits for the host to judge i
   await expect(pc.getByTestId('host-winner')).toHaveText('Turing Tess');
   await expect(pc.getByTestId('bot-answer-panel')).toBeVisible();
   await expect(pc.getByTestId('bot-answer')).toBeVisible({ timeout: 8000 });
-  await expect(pc.getByText('Awaiting your judgment')).toBeVisible();
-  await expect(pc.getByTestId('bot-expected')).toBeVisible(); // private, host only
-  const answer = (await pc.getByTestId('bot-answer').innerText()).replace(/[“”]/g, '');
+  // R15-28: the answer sits right under the correct response (private, host only), to compare.
+  await expect(pc.getByTestId('bot-answer-panel')).toContainText('answers');
+  await expect(pc.getByTestId('host-answer')).toBeVisible();
+  const answer = ((await pc.getByTestId('bot-answer').textContent()) ?? '').replace(/[“”]/g, ''); // the host shows it in capitals
   await expect(tv.getByTestId('tv-bot-answer')).toHaveText(`“${answer}”`);
   await expect(tv.getByTestId('clue-answer')).toHaveCount(0); // the expected answer stays hidden on the TV
   const waiting = await h.until((g) => !!g.clue?.submission);
