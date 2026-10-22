@@ -1,18 +1,19 @@
 {
   "project": "OfflineJeopardy",
   "schema": 1,
-  "status": "active",
+  "status": "released",
   "sessionId": "06517e85-8340-44ff-9635-3d6d3b922534",
   "generation": 9,
   "computer": "DESKTOP-6HN0OQ4",
   "developer": "geolaudy",
   "branch": "main",
-  "commit": "b97285c",
+  "commit": "ab754d1",
   "startedAt": "2026-10-22T15:21:36.000Z",
   "lastHeartbeat": "2026-10-22T16:27:54.000Z",
   "expiresAt": "2026-10-22T16:42:54.000Z",
   "clock": "GitHub server time",
   "heartbeatSeconds": 180,
   "ttlSeconds": 900,
-  "currentTask": "Round 18: RC.4 hardware feedback (iPad keyboard, DD footer, Final wagers Show Clue, intro border, category footer, Players&Bots tab, K55)"
+  "currentTask": "Round 18: RC.4 hardware feedback (iPad keyboard, DD footer, Final wagers Show Clue, intro border, category footer, Players&Bots tab, K55)",
+  "releasedAt": "2026-10-22T16:30:20.000Z"
 }
