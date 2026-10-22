@@ -1,19 +1,18 @@
 {
   "project": "OfflineJeopardy",
   "schema": 1,
-  "status": "released",
-  "sessionId": "7ea9e55f-ba4b-4df8-af3f-426bda98bbf0",
-  "generation": 7,
+  "status": "active",
+  "sessionId": "606ba34b-6ec5-4ca6-85f4-38d2a241335e",
+  "generation": 8,
   "computer": "DESKTOP-6HN0OQ4",
   "developer": "geolaudy",
   "branch": "main",
   "commit": "488c909",
-  "startedAt": "2026-10-21T16:26:50.000Z",
-  "lastHeartbeat": "2026-10-21T17:45:35.000Z",
-  "expiresAt": "2026-10-21T18:00:35.000Z",
+  "startedAt": "2026-10-22T03:43:54.000Z",
+  "lastHeartbeat": "2026-10-22T03:43:54.000Z",
+  "expiresAt": "2026-10-22T03:58:54.000Z",
   "clock": "GitHub server time",
   "heartbeatSeconds": 180,
   "ttlSeconds": 900,
-  "currentTask": "Round 16: keyboard inputs, Daily Double unlock, bot wagers, Final presentation, preview fill, K55 revert, bot glow",
-  "releasedAt": "2026-10-21T17:47:50.000Z"
+  "currentTask": "Round 17: rc.3 hardware feedback (DD host wager + Start Timer, keyboard, settings tabs, data location, Final redesign, preview fill)"
 }
