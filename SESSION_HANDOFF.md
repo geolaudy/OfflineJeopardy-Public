@@ -1,8 +1,38 @@
 # Session handoff
 
-Read this first, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 17". Ready-to-paste resume prompts: `CONTINUE_PROMPT_SAME_COMPUTER.txt` / `CONTINUE_PROMPT_OTHER_COMPUTER.txt`.
+Read this first, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 18". Ready-to-paste resume prompts: `CONTINUE_PROMPT_SAME_COMPUTER.txt` / `CONTINUE_PROMPT_OTHER_COMPUTER.txt`.
 
 **Before anything else: the development lock (`DEVELOPMENT_LOCK.md`).** `npm run dev:lock:status`, then `npm run dev:lock:acquire -- --task "…"`. Do not change files while another computer holds it.
+
+## Current state (session 21, 2026-10-22 — round 18 done; 0.17.0 RELEASE CANDIDATE 5 built, NOT published; on DESKTOP-6HN0OQ4 / geolaudy)
+
+- Started from `origin/main` 4ccfcd7 (0.17.0-rc.4 = what the owner tested; no development after it). Development lock generation 9; **released at the end of session 21 (acquire it before you start)**.
+- **Git:** `main` = `origin/main` after the round-18 commit b97285c and this handoff; pushed. The working tree keeps one change that is **not** this session's: `.claude/agents/research-agent.md` (a `model: sonnet` line, uncommitted since before session 19) — ask the owner before committing or discarding it. package.json **0.17.0-rc.5**; CHANGELOG [Unreleased] = rounds 13 … 18 (the future [0.17.0]). No tag, no GitHub release (rc builds stay local).
+- **Owner's verdict on rc.4** (USER_FEEDBACK "Round 18"): Daily Double! host and player entry + Start Timer, iPhone wager / answer Submit with the keyboard, Final score cards, preview surface / introduction / band, TV and lobby items, K60 **verified working**; Settings tabs **mostly** (Players & Bots scrolled); iPad lobby Wi-Fi fields while typing **not fixed**; status bar still white (K55); Wi-Fi (K48) not tested.
+- **Round 18 (R18-1 … R18-8, plan milestone 32, D121–D126) — milestones A–F done** (root causes in PROGRESS session 21):
+  - A (highest priority): the owner's diagnostics photo (`vv 438@484 … ih 438`; `scroll (not the user) → 391` / `guard → 189` on every keystroke) showed the tracker comparing element boxes with visualViewport.offsetTop, which on the iPad do not share an origin — it undid WebKit's correct caret reveal after each keystroke. Now the visible area is a hidden fixed probe placed like the fitted shell (box against box), and the guard lets the browser win when it repeats a position. Diagnostics (`?kbdebug=1` / Settings → Advanced) also log the field's box, the measured area, scrollY and the tracker's own reveals. **Open until the owner types on the real iPad (K65).**
+  - B: Daily Double! band one row at every step (status truncates; Preview Clue → its eye below 68rem, "Show Clue" below 62rem).
+  - C: Final — "Enter your wagers now" fades (opacity only) and Lock Wagers becomes green **Show Clue** (same `finalNext`) once every entry has a wager; never automatic.
+  - D: round title ("Board 1") on the edge-to-edge panel surface in the preview (TV unchanged); introduction band: Auto Present / Skip at the left, Previous + Show First Category / Next Category at the right; band back at its planned 76 px.
+  - E: Players & Bots: Limits and fallback always shown, under Leaderboards (portal), compact AI texts — fits 1194×760 with Gemini's help.
+  - F (K55): the game header is sticky with a solid background-color (Safari 26 samples it for the opaque `default` bar); manifest theme_color = header navy. Expected: navy in full screen, white embedded landscape / desk pages. **Re-add the Home Screen icon.** K55 open.
+- **Tests:** tsc clean; Vitest **434/434**; Playwright full **153/153** (new tests/e2e/round18.spec.ts, 10 tests).
+- **Release candidate 0.17.0-rc.5 (`npm run release:local`: tsc, Vitest 434/434, dist, verify-dist 17/17 — both executables started headlessly; personal build — includes new_sfx, never upload):**
+  - `release/OfflineJeopardy-Setup-0.17.0-rc.5.exe` (115 MB) — SHA-256 667f44d31b7a7d4bee01e6136ed460d68054baeb2ce7a075a9fe78919b0a74d5
+  - `release/OfflineJeopardy-Portable-0.17.0-rc.5.exe` (162 MB) — SHA-256 27e328266745508694e1b184aa2c1be4610dd50d9316e4ab7d28056dc75be393
+  - Built from commit b97285c. Packaging, start-up and the splash are unchanged from rc.4 (not re-timed). The rc.1 … rc.4 files are still in release/; C: has ~3.4 GB free (clear old rc builds when space runs low — never the published 0.16.0 ones without asking).
+- **Owner to check on real hardware before v0.17.0 is published:**
+  1. **iPad lobby in landscape (most important):** scroll the left column a little, tap Wi-Fi name, type a long name quickly, delete some, select all and retype, switch to the password and type a long one — the field must stay above the keyboard the whole time; after closing the keyboard the column is back. If not: `?kbdebug=1` (or Settings → Advanced → keyboard diagnostics), type, photo of the overlay.
+  2. iPhone: Daily Double! wager, Final wager / answer and nickname still fine (unchanged code paths, same tracker).
+  3. Daily Double! embedded and full screen: the band never grows (wager, Set, Lock / Show Clue, Start Timer, Correct / Incorrect); the TV picture never moves.
+  4. Final: when the last wager is in, the TV's "Enter your wagers now" fades out (category still), the host shows **Show Clue**; it waits for the tap.
+  5. Start a game: the round title ("Board 1") blue edge to edge in the preview (embedded / full screen, portrait / landscape) into the categories; the band: Auto Present / Skip left, Previous + Show First Category right.
+  6. Settings → Players & Bots without scrolling (Limits and fallback visible).
+  7. Status bar: **remove and re-add the Home Screen icon**, then full screen (navy expected), embedded landscape (white), portrait, and a Safari tab. Wi-Fi PC / hotspot when possible (K48).
+
+### Single recommended next task (session 21)
+
+1. Acquire the development lock. Get the owner's verdict on 0.17.0-rc.5 (record it as USER_FEEDBACK "Round 19" and fix first if needed — R18-1 typing above all). **Only after explicit approval:** set package.json to 0.17.0, rename CHANGELOG [Unreleased] → [0.17.0] — date, build + verify, commit, push, tag v0.17.0 (windows-release skill), verify the GitHub release assets.
 
 ## Current state (session 20, 2026-10-22 — round 17 done; 0.17.0 RELEASE CANDIDATE 4 built, NOT published; on DESKTOP-6HN0OQ4 / geolaudy)
 
