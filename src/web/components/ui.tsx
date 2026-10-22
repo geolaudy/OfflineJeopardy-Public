@@ -89,6 +89,60 @@ export function Card({ children, className, ...rest }: { children: ReactNode; cl
   );
 }
 
+export interface TabItem<T extends string> {
+  id: T;
+  label: string;
+  icon?: LucideIcon;
+}
+
+/**
+ * R17-14: the host's tab bar (Settings, Rules & timers) — text tabs on one hairline, the active one
+ * in blue with a short bar under it; no boxes. Arrow keys move between tabs (WAI-ARIA tabs); on a
+ * narrow screen the row scrolls sideways instead of wrapping.
+ */
+export function TabBar<T extends string>({ tabs, value, onChange, label, testId, className }: { tabs: TabItem<T>[]; value: T; onChange: (id: T) => void; label: string; testId?: string; className?: string }) {
+  const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  const move = (i: number) => {
+    const n = (i + tabs.length) % tabs.length;
+    onChange(tabs[n].id);
+    refs.current[n]?.focus();
+  };
+  return (
+    <div className={cx('oj-tabs', className)} role="tablist" aria-label={label} data-testid={testId}>
+      {tabs.map((t, i) => {
+        const Icon = t.icon;
+        const on = t.id === value;
+        return (
+          <button
+            key={t.id}
+            ref={(el) => void (refs.current[i] = el)}
+            type="button"
+            role="tab"
+            id={`tab-${t.id}`}
+            aria-selected={on}
+            aria-controls={`tabpanel-${t.id}`}
+            tabIndex={on ? 0 : -1}
+            className="oj-tab"
+            onClick={() => onChange(t.id)}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowRight') move(i + 1);
+              else if (e.key === 'ArrowLeft') move(i - 1);
+              else if (e.key === 'Home') move(0);
+              else if (e.key === 'End') move(tabs.length - 1);
+              else return;
+              e.preventDefault();
+            }}
+            data-testid={testId ? `${testId}-${t.id}` : undefined}
+          >
+            {Icon && <Icon size={17} aria-hidden />}
+            {t.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 let fieldSeq = 0;
 /** Labelled form field. Use `group` when the field holds several controls (button groups, pickers):
  *  a <label> would otherwise name only its first control. */

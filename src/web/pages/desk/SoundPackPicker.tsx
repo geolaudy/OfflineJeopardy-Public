@@ -103,7 +103,12 @@ export function SoundPackPicker({ fx, sound, onPick }: { fx: TvFx; sound: { enab
           <p className="text-sm text-slate-600">
             This pack plays game-show recordings that you provide. They can’t be included in the public download (we don’t have the rights to share them), so add them once: choose <b>Add a folder</b> and pick your sounds folder — they are kept in the data folder and stay when you update. A folder named <code>Sounds</code> next to OfflineJeopardy.exe is also found automatically. Each file is recognised by its name (for example <code>board_fill.mp3</code>, <code>buzzed_in.mp3</code>, <code>final_jeopardy_think.mp3</code>); sounds without a file use the Classic tone.
           </p>
-          <ul className="grid gap-1 text-sm sm:grid-cols-2">
+          {/* R17-14: the list folds away (Settings → Sound fits the screen); the count says enough. */}
+          <details className="text-sm">
+            <summary className="min-h-9 cursor-pointer content-center font-semibold text-blue-700" data-testid="buzzinga-files-summary">
+              Sound files found: {SOUND_CUES.filter((cue) => info.data?.files.some((x) => x.cue === cue && x.url === have[cue])).length} of {SOUND_CUES.length}
+            </summary>
+          <ul className="mt-1 grid gap-1 text-sm sm:grid-cols-2">
             {SOUND_CUES.map((cue) => {
               const f = info.data?.files.find((x) => x.cue === cue && x.url === have[cue]);
               return (
@@ -127,6 +132,7 @@ export function SoundPackPicker({ fx, sound, onPick }: { fx: TvFx; sound: { enab
               );
             })}
           </ul>
+          </details>
           <div className="flex flex-wrap items-center gap-2">
             <Button size="sm" variant="secondary" disabled={busy} onClick={() => folderRef.current?.click()} data-testid="buzzinga-add-folder">
               <FolderOpen size={16} aria-hidden /> {busy ? 'Adding…' : 'Add a folder'}

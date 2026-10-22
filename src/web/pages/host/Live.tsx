@@ -13,7 +13,7 @@ import { competitorAvatar, competitorColor, competitorHighlight, competitorName,
 import ControllersPanel, { AssignListener } from '../../components/ControllersPanel';
 import FinalControl from './FinalControl';
 import { HOST_SHORTCUTS, useHostShortcuts } from './shortcuts';
-import { Undo2, Gamepad2, Play, Pause, ChevronLeft, ChevronRight, ChevronsRight, Square, SlidersHorizontal, QrCode, Flag, Menu as MenuIcon, Save, ScrollText, Repeat, Power } from 'lucide-react';
+import { Undo2, Gamepad2, Play, Pause, ChevronLeft, ChevronRight, SlidersHorizontal, QrCode, Flag, Menu as MenuIcon, Save, ScrollText, Repeat, Power } from 'lucide-react';
 import { AnswerBanner } from './AnswerBanner';
 import { ClueStage } from './HostClue';
 import { HostBoardHits, TvPreview, type PreviewTile } from './TvMirror';
@@ -21,6 +21,7 @@ import ScoreEditor from './ScoreEditor';
 import { FrameParts, FullscreenButton, GameFrame, HostFullscreenCtx, type FrameKind } from './GameFrame';
 import { RichText } from '../../components/RichText';
 import { scoreSample, useFitFontSize, widestScore } from '../../lib/scoreFit';
+import { T } from '../board/timing';
 
 type Run = (a: HostAction) => Promise<{ ok: boolean }>;
 
@@ -149,7 +150,8 @@ export default function Live({ g, run, menu }: { g: GameView; run: Run; menu?: L
         <GameFrame
           kind={kind}
           timer={g.timer}
-          tiles={tiles}
+          // R17-17: the introduction's categories show on the clue panel's surface, edge to edge.
+          panel={kind === 'clue' || kind === 'final' || (kind === 'intro' && (g.intro?.step ?? -1) >= 0)}
           clueId={g.clue?.clueId ?? null}
           scoreCount={g.competitors.length}
           // The one TV preview of the game (R13-13): the TV's own board, introduction, clue and Final.
@@ -620,29 +622,61 @@ function IntroStage({ g, run }: { g: GameView; run: Run }) {
   );
 }
 
-/** The introduction's band: Previous | Next, Auto, Skip (R6-2.3). */
+/**
+ * The introduction's band (R6-2.3). R17-17.5: one clear order of importance — Next Category is the
+ * band's main action (the blue main button, the first large one), Previous Category a quieter
+ * button right beside it on its left; Auto Present (a labelled switch) and Skip Category
+ * Presentation (a text action) stay visible in a small group of their own at the far end. After
+ * each step Previous / Next rest for the TV's swipe, so quick taps never start swipes on top of
+ * each other (a tap during the rest waits for it).
+ */
 function IntroBar({ g, run, nextLabel }: { g: GameView; run: Run; nextLabel: string }) {
   const intro = g.intro!;
+  const resting = useStepRest(`${intro.roundIndex}:${intro.step}`);
   return (
-    <div className="grid grid-cols-[1.5fr_2fr_1fr_1fr] gap-2">
-      <ActionButton size="lg" variant="secondary" className="host-btn px-3 text-lg" disabled={intro.step < 0} onAction={() => run({ type: 'introPrev' })} data-testid="intro-prev">
-        <ChevronLeft size={22} aria-hidden /> Previous Category
-      </ActionButton>
-      <ActionButton size="lg" className="host-btn px-3 text-lg" onAction={() => run({ type: 'introNext' })} data-testid="intro-next">
-        {nextLabel} <ChevronRight size={22} aria-hidden />
-      </ActionButton>
-      {!intro.auto ? (
-        <Button size="lg" variant="secondary" className="host-btn px-3 text-lg" onClick={() => run({ type: 'startIntro', auto: true })} title="Play the introduction automatically" data-testid="intro-auto">
-          Auto <ChevronsRight size={20} aria-hidden />
-        </Button>
-      ) : (
-        <ActionButton size="lg" variant="warning" className="host-btn px-3 text-lg" onAction={() => run({ type: 'introStopAuto' })} data-testid="intro-stop-auto">
-          <Square size={18} aria-hidden /> Stop Auto
+    <div className="host-intro-bar" data-testid="intro-bar">
+      <div className="host-intro-steps">
+        <ActionButton size="lg" variant="ghost" className="host-btn host-intro-prev" disabled={intro.step < 0 || resting} data-resting={resting || undefined} onAction={() => run({ type: 'introPrev' })} aria-label="Previous Category" data-testid="intro-prev">
+          <ChevronLeft size={22} aria-hidden /> <span className="host-intro-prev-label">Previous</span>
         </ActionButton>
-      )}
-      <ActionButton size="lg" variant="ghost" className="host-btn px-3 text-lg" onAction={() => run({ type: 'introSkip' })} data-testid="intro-skip">
-        Skip
-      </ActionButton>
+        <ActionButton size="lg" className="host-btn host-btn-main host-intro-next" disabled={resting} data-resting={resting || undefined} onAction={() => run({ type: 'introNext' })} data-testid="intro-next">
+          {nextLabel} <ChevronRight size={24} aria-hidden />
+        </ActionButton>
+      </div>
+      <div className="host-intro-utils">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={intro.auto}
+          className="host-intro-switch"
+          onClick={() => run(intro.auto ? { type: 'introStopAuto' } : { type: 'startIntro', auto: true })}
+          title={intro.auto ? 'Stop presenting automatically' : 'Present the categories automatically'}
+          data-testid={intro.auto ? 'intro-stop-auto' : 'intro-auto'}
+        >
+          <span className="host-intro-switch-track" aria-hidden>
+            <span className="host-intro-switch-knob" />
+          </span>
+          Auto Present
+        </button>
+        <button type="button" className="host-intro-skip" onClick={() => run({ type: 'introSkip' })} data-testid="intro-skip">
+          Skip Category Presentation
+        </button>
+      </div>
     </div>
   );
 }
+
+/** True for the TV's swipe time after the introduction's step changes (R17-17.5). */
+function useStepRest(key: string) {
+  const [resting, setResting] = useState(false);
+  const first = useRef(key);
+  useEffect(() => {
+    if (key === first.current) return;
+    first.current = key;
+    setResting(true);
+    const t = setTimeout(() => setResting(false), T_SLIDE_MS);
+    return () => clearTimeout(t);
+  }, [key]);
+  return resting;
+}
+const T_SLIDE_MS = T.slide * 1000;

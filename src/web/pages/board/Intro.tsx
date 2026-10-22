@@ -47,7 +47,8 @@ export function Intro({ g }: { g: GameView }) {
   // card is rasterised once instead of repainted on every frame (see docs/PERFORMANCE.md).
   const enter = reduced ? { opacity: 0 } : isFirst ? (step < 0 ? (fill ? { opacity: 1 } : { opacity: 0, transform: tf(0, 0.9) }) : { opacity: 0 }) : { transform: tf(dir > 0 ? 100 : -100) };
   return (
-    <motion.div className="bt-intro" exit={{ opacity: 0 }} transition={{ duration: T.fade }} data-testid="intro" data-step={step} data-dir={dir > 0 ? 'forward' : 'back'}>
+    // data-surface: the categories on the clue panel's surface in the host's preview (board.css, R17-17).
+    <motion.div className="bt-intro" exit={{ opacity: 0 }} transition={{ duration: T.fade }} data-testid="intro" data-step={step} data-dir={dir > 0 ? 'forward' : 'back'} data-surface={cat ? 'panel' : undefined}>
       <AnimatePresence initial={true} custom={dir}>
         <motion.div
           key={`${intro.roundIndex}:${step}`}

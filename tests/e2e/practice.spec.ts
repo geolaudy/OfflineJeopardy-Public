@@ -122,13 +122,18 @@ test('TV presentation settings: indicator style, board intro and sound cues save
   const H = { authorization: `Bearer ${host}` };
   const before = (await (await api.get('/api/settings/public')).json()).tvFx;
   const pc = await (await cr.newContext({ viewport: { width: 1366, height: 900 } })).newPage();
-  await pc.goto(`${BASE}/host/settings`);
-  const card = pc.getByTestId('tv-presentation-settings');
+  // R17-14: Settings → TV & Display, then Sound (Each sound / Sound pack).
+  await pc.goto(`${BASE}/host/settings?tab=display`);
+  let card = pc.getByTestId('tv-presentation-settings');
   await expect(card).toBeVisible();
   await card.getByTestId('fx-style-bottom').click();
   await expect(card.getByTestId('fx-style-bottom')).toHaveAttribute('aria-checked', 'true');
   await card.getByTestId('fx-board-intro').uncheck();
+  await pc.getByTestId('settings-tab-sound').click();
+  card = pc.getByTestId('settings-panel-sound');
+  await card.getByTestId('sound-view-soundCues').click();
   await card.getByTestId('fx-cue-buzz').uncheck();
+  await card.getByTestId('sound-view-soundPack').click();
   // R4-1: four packs as clear options, Jeopardy!/Buzzinga marked as the default.
   await expect(card.getByTestId('fx-pack-buzzinga')).toContainText(/Jeopardy!\/Buzzinga\s*\(Default\)/);
   for (const k of ['classic', 'arcade', 'soft']) await expect(card.getByTestId(`fx-pack-${k}`)).toBeVisible();

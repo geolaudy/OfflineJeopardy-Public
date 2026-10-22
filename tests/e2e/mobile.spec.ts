@@ -101,7 +101,8 @@ for (const name of ['iPad Pro 11', 'iPad Pro 11 landscape', 'iPad Mini'] as cons
     const dialog = ipad.getByRole('dialog', { name: 'Rules & timers' });
     await expect(dialog).toBeVisible();
     await expectInViewport(ipad, dialog.getByRole('button', { name: 'Close' }), `${name}: rules dialog close`);
-    await dialog.getByRole('radio', { name: /Short lockout/ }).click();
+    await dialog.getByTestId('rules-tab-players').click(); // R17-14: the rules dialog's tabs
+    await dialog.getByLabel('Early buzz penalty').selectOption('lockout');
     const secs = dialog.getByLabel('Lockout seconds');
     await secs.fill('1.5');
     await secs.focus();

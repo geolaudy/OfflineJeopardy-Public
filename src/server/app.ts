@@ -50,6 +50,7 @@ import { SAMPLE_BOARD, SAMPLE_BOARD_TITLE } from '../shared/sampleBoards.js';
 import { formatList, isMediaKind, type MediaKind } from '../shared/mediaTypes.js';
 import { AiService, type SecretCodec } from './ai.js';
 import { aiConfigSchema } from '../shared/ai.js';
+import { cancelMove, checkTarget, folderSize, readBootstrap, requestMove, resolveDataDir, samePath } from './dataLocation.js';
 
 declare const __APP_VERSION__: string | undefined;
 /** Injected from package.json by the Electron build; npm sets it when running scripts in development. */
@@ -73,6 +74,21 @@ export interface ServerOptions {
   devTools?: boolean;
   /** R14-11: start-up progress for the Windows app's splash screen (the real phases, in order). */
   onStage?: (stage: 'data' | 'services' | 'network') => void;
+  /** R17-15: the game data location (Settings → Data & Storage). Without it the location is shown
+   *  but cannot be changed. The Windows app adds the folder picker, File Explorer and the restart. */
+  storage?: StorageHooks;
+}
+
+export interface StorageHooks {
+  /** The bootstrap file outside the data folder (config.json). */
+  bootstrapFile: string;
+  /** Where data lives when nothing was chosen (beside the portable exe, or %APPDATA%). */
+  defaultDir: string;
+  portable?: boolean;
+  /** Opens Windows' folder picker on the game computer; null when cancelled. */
+  pickFolder?: (start: string) => Promise<string | null>;
+  openFolder?: (dir: string) => Promise<void>;
+  relaunch?: () => void;
 }
 
 const COLOR = z.string().regex(/^#[0-9a-fA-F]{6}$/);
@@ -1583,6 +1599,88 @@ export async function startServer(opts: ServerOptions) {
   app.get('/api/admin/diagnostics', async (req, reply) => {
     if (!requireHost(req, reply)) return;
     return { integrity: integrityCheck(db), schemaVersion: schemaVersion(db), dataDir, clients: hub.size, addresses: lanAddresses(), version: APP_VERSION };
+  });
+  // ---- R17-15: game data location ----
+  const storage = opts.storage;
+  const storageInfo = () => {
+    const b = storage ? readBootstrap(storage.bootstrapFile) : {};
+    const configured = storage ? resolveDataDir(b, storage.defaultDir) : dataDir;
+    const g = games.current;
+    return {
+      dataDir,
+      defaultDir: storage?.defaultDir ?? null,
+      isDefault: storage ? samePath(dataDir, storage.defaultDir) : true,
+      portable: !!storage?.portable,
+      canChange: !!storage,
+      canPick: !!storage?.pickFolder,
+      canOpen: !!storage?.openFolder,
+      canRestart: !!storage?.relaunch,
+      /** A game in progress (not a lobby or a finished game): restarting would interrupt it. */
+      gameRunning: !!g && g.phase !== 'lobby' && g.phase !== 'ended',
+      pendingMove: b.pendingMove ?? null,
+      lastMove: b.lastMove ?? null,
+      previousDataDir: b.previousDataDir ?? null,
+      /** The bootstrap file points somewhere else than the folder in use (e.g. started with "use the default for now"). */
+      configuredDir: samePath(configured, dataDir) ? null : configured,
+    };
+  };
+  const needStorage = (reply: FastifyReply) => {
+    if (storage) return storage;
+    void bad(reply, 'The data folder can be changed in the Windows app only', 409);
+    return null;
+  };
+  app.get('/api/admin/storage', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    return { ...storageInfo(), size: folderSize(dataDir) };
+  });
+  app.post('/api/admin/storage/pick', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const s = needStorage(reply);
+    if (!s) return;
+    if (!s.pickFolder) return bad(reply, 'Type the folder path instead', 409);
+    const picked = await s.pickFolder(path.dirname(dataDir));
+    return { path: picked };
+  });
+  app.post('/api/admin/storage/check', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const body = z.object({ path: z.string().trim().min(1).max(400) }).safeParse(req.body);
+    if (!body.success) return bad(reply, 'Choose a folder');
+    return checkTarget(body.data.path, dataDir);
+  });
+  app.post('/api/admin/storage/move', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const s = needStorage(reply);
+    if (!s) return;
+    const body = z.object({ path: z.string().trim().min(1).max(400).optional(), toDefault: z.boolean().optional(), mode: z.enum(['copy', 'use']).default('copy') }).safeParse(req.body);
+    if (!body.success || (!body.data.path && !body.data.toDefault)) return bad(reply, 'Choose a folder');
+    const chosen = body.data.toDefault ? s.defaultDir : body.data.path!;
+    const check = checkTarget(chosen, dataDir);
+    if (!check.ok) return bad(reply, check.error ?? 'That folder cannot be used');
+    if (body.data.mode === 'use' && !check.existingData) return bad(reply, 'There is no game data in that folder to use');
+    requestMove(s.bootstrapFile, { from: dataDir, to: check.target, mode: body.data.mode });
+    audit(db, 'host', 'storage.move.requested', { from: dataDir, to: check.target, mode: body.data.mode });
+    return { ...storageInfo(), size: folderSize(dataDir) };
+  });
+  app.post('/api/admin/storage/cancel', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    const s = needStorage(reply);
+    if (!s) return;
+    cancelMove(s.bootstrapFile);
+    return { ...storageInfo(), size: folderSize(dataDir) };
+  });
+  app.post('/api/admin/storage/open', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    if (!storage?.openFolder) return bad(reply, 'Open the folder on the game computer', 409);
+    await storage.openFolder(dataDir);
+    return { ok: true };
+  });
+  app.post('/api/admin/restart', async (req, reply) => {
+    if (!requireHost(req, reply)) return;
+    if (!storage?.relaunch) return bad(reply, 'Restart OfflineJeopardy on the game computer', 409);
+    const force = z.object({ force: z.boolean().optional() }).safeParse(req.body ?? {}).data?.force;
+    if (storageInfo().gameRunning && !force) return bad(reply, 'A game is in progress — finish or pause it first', 409);
+    setTimeout(() => storage.relaunch!(), 300); // after the answer is sent
+    return { ok: true };
   });
   app.get('/api/admin/backup', async (req, reply) => {
     if (!requireHost(req, reply)) return;

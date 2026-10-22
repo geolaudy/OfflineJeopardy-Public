@@ -1,8 +1,36 @@
 # Session handoff
 
-Read this first, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 15". Ready-to-paste resume prompts: `CONTINUE_PROMPT_SAME_COMPUTER.txt` / `CONTINUE_PROMPT_OTHER_COMPUTER.txt`.
+Read this first, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 17". Ready-to-paste resume prompts: `CONTINUE_PROMPT_SAME_COMPUTER.txt` / `CONTINUE_PROMPT_OTHER_COMPUTER.txt`.
 
 **Before anything else: the development lock (`DEVELOPMENT_LOCK.md`).** `npm run dev:lock:status`, then `npm run dev:lock:acquire -- --task "…"`. Do not change files while another computer holds it.
+
+## Current state (session 20, 2026-10-22 — round 17 done; 0.17.0 RELEASE CANDIDATE 4 built, NOT published; on DESKTOP-6HN0OQ4 / geolaudy)
+
+- Started from `origin/main` 488c909 (0.17.0-rc.3 = what the owner tested). Development lock generation 8; **released at the end of session 20 (acquire it before you start)**.
+- **Git:** `main` = `origin/main` after the round-17 commits (A+B 0c62fc8, then C–F + docs + version) and this handoff; pushed. The working tree keeps one change that is **not** this session's: `.claude/agents/research-agent.md` (a `model: sonnet` line, uncommitted since before session 19) — ask the owner before committing or discarding it. package.json **0.17.0-rc.4**; CHANGELOG [Unreleased] = rounds 13 … 17 (the future [0.17.0]). No tag, no GitHub release (rc builds stay local).
+- **Owner's verdict on rc.3** (USER_FEEDBACK "Round 17"): nickname sheet, Test Buzzer arrow, host layouts, Daily Double! unlock flow, bot wagers / glow, Final cue / swipe, TV lobby, K60 **fixed**; iPhone wager / answer Submit **broken**; iPad lobby Wi-Fi fields, preview fill sync, status bar **not fixed**; Daily Double! answer timer **needs change**; Final answer / results screen **needs redesign**; Wi-Fi (K48) not tested.
+- **Round 17 (R17-1 … R17-20, plan milestone 31, D113–D120) — milestones A–F done** (root causes in PROGRESS session 20):
+  - A: the host types the Daily Double! wager in the band by default (new rule "Daily Double! wager entry"; player entry keeps Unlock Wager); the clue shows with the time stopped; green **Start Timer** (Space) starts it once.
+  - B: keyboard scroll guard (undoes scrolls nobody made that hide the field; restores the column on close), shell fitted until the keyboard has closed, live frame lifted for the band field; phone wager / answer Submit beside / under the field; diagnostics with `?kbdebug=1` or Settings → Advanced.
+  - C: Settings in tabs (Gameplay, Players & Bots, TV & Display, Sound, Network, Data & Storage, Advanced; rules dialog: three tabs); **Game data location** (change / open / restore default; the move runs at the next start — copy, verify, switch, the old folder kept; bootstrap `%APPDATA%\OfflineJeopardy\config.json`).
+  - D: Final reveal and results as score cards (answer inside, verdict as the outline, up to 12 in balanced rows).
+  - E: "… is wagering" centred below the category; bot level ("Medium") whole.
+  - F: preview — the TV clue panel's surface runs past the picture and the host's surroundings run on the TV animation's own keyframes and timeline (one surface, no drift); the introduction's categories edge to edge (embedded and full screen); introduction band: **Next Category** leads, Previous beside it, Auto Present switch and Skip Category Presentation small at the end, no stacked swipes. Status bar investigated again: stays white (WebKit bug 301994 open on iOS 27; K55 open).
+- **Tests:** tsc clean; Vitest **434/434**; Playwright full **142/143**, the 1 failure fixed and re-run green with all Final specs (details in PROGRESS).
+- **Release candidate 0.17.0-rc.4:** see "Release candidate 0.17.0-rc.4" just below.
+- **Owner to check on real hardware before v0.17.0 is published:**
+  1. Daily Double! (default host entry): type the wager in the band (keyboard: field and Set visible, TV picture keeps its size), Lock Wager & Show Clue, the clue with the time stopped, green Start Timer, then Correct / Incorrect. The phone says "Tell the host your wager — they enter it for you." Optional: Settings → Gameplay → Daily Double! wager entry = player, then the rc.3 Unlock flow + Start Timer.
+  2. iPhone: Daily Double! wager, Final wager and Final answer — Submit visible and tappable with the keyboard open (portrait + landscape, Safari + Home Screen app).
+  3. iPad lobby in landscape: scroll the left column a little, tap Wi-Fi name / password — the field stays above the keyboard; the column is back where it was after closing. If not: open the host with `?kbdebug=1` (or Settings → Advanced → "Show keyboard diagnostics on this device") and send a photo of the overlay.
+  4. Settings: every tab without scrolling on the iPad; Data & Storage → Change Location on the PC (folder picker), restart, data all there; Restore Default Location.
+  5. Final on the TV: the contestant card (answer inside, before / wager under it), green / red outline after the judgment; results with your usual player count.
+  6. Preview (embedded / full screen, portrait / landscape): the blue grows out of the tile with the clue as one piece; category introduction blue edge to edge (no black border in full screen); band: Next Category, Previous, Auto Present, Skip Category Presentation.
+  7. TV "… is wagering" centred below the category; lobby bot level "Medium" whole.
+  8. Status bar: unchanged white (nothing to re-add for rc.4; K55 stays open). Wi-Fi PC / hotspot when possible (K48).
+
+### Single recommended next task (session 20)
+
+1. Acquire the development lock. Get the owner's verdict on 0.17.0-rc.4 (record it as USER_FEEDBACK "Round 18" and fix first if needed). **Only after explicit approval:** set package.json to 0.17.0, rename CHANGELOG [Unreleased] → [0.17.0] — date, build + verify, commit, push, tag v0.17.0 (windows-release skill), verify the GitHub release assets.
 
 ## Current state (session 19, 2026-10-21 — round 16 done; 0.17.0 RELEASE CANDIDATE 3 built, NOT published; on DESKTOP-6HN0OQ4 / geolaudy)
 

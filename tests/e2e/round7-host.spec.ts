@@ -84,17 +84,17 @@ test('host pages fit Safari (toolbars shown / hidden) and Home-Screen mode, both
 
 test('host sub-pages have a way back on small screens (R7-28)', async () => {
   const page = await (await wk.newContext({ ...devices['iPhone 13'] })).newPage();
-  await page.goto(`${BASE}/host/settings`);
+  await page.goto(`${BASE}/host/settings?tab=display`); // R17-14: the theme link is under TV & Display
   await page.getByRole('link', { name: /TV theme/i }).click();
   await expect(page).toHaveURL(/\/host\/themes$/);
   await expect(page.getByTestId('app-back')).toBeVisible();
   await expect(page.getByTestId('themes-back')).toBeVisible();
   await page.getByTestId('app-back').click();
-  await expect(page).toHaveURL(/\/host\/settings$/);
+  await expect(page).toHaveURL(/\/host\/settings(\?tab=display)?$/);
   await page.goBack(); // browser back still works
   await expect(page).toHaveURL(/\/host\/themes$/);
   await page.getByTestId('themes-back').click();
-  await expect(page).toHaveURL(/\/host\/settings$/);
+  await expect(page).toHaveURL(/\/host\/settings(\?tab=display)?$/);
 });
 
 test('the phone buzzer keeps its size and position in every state (R7-29)', async () => {

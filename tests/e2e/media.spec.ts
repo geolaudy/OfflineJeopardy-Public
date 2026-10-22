@@ -66,6 +66,7 @@ test('media-first clue with caption, answer image reveal, host-controlled audio 
   await pc.getByRole('dialog').getByRole('button', { name: 'Close' }).click();
   await pc.getByRole('button', { name: 'Game menu' }).click();
   await pc.getByRole('button', { name: /Rules & timers/ }).click();
+  await pc.getByRole('dialog').getByTestId('rules-tab-clues').click(); // R17-14
   await pc.getByRole('dialog').getByLabel('Automatic buzzer unlock').selectOption('mediaOnly');
   await pc.getByRole('dialog').getByRole('button', { name: 'Save rules' }).click();
   await pc.getByTestId('start-game').click();

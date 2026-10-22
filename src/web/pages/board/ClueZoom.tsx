@@ -14,8 +14,21 @@ import { TimerBar } from './TimerBar';
 import { QuestionCard } from './ClueMedia';
 import { EASE_IN_OUT, EASE_OUT, EASE_OUT_ARR, T } from './timing';
 import { UnlockIndicator } from './fx';
+import type { Bleed } from './panelSurface';
 
-/** Transform that maps the full-size panel onto the tile for `clueId` (null if not on screen). */
+/** R17-17: in the host's preview the panel's surface runs on past the picture into the host's area
+ *  around it (board.css `.is-host-preview .bt-panel::before`, --pv-bleed-*): that bleed in this
+ *  page's pixels (negative where the host's control band covers the picture's edge). On the TV it
+ *  is zero. */
+function panelBleed(panel: HTMLElement): Bleed {
+  const cs = getComputedStyle(panel);
+  const v = (k: string) => parseFloat(cs.getPropertyValue(`--pv-bleed-${k}`)) || 0;
+  return { t: v('t'), r: v('r'), b: v('b'), l: v('l') };
+}
+
+/** Transform that maps the full-size panel onto the tile for `clueId` (null if not on screen). In the
+ *  host's preview the whole surface — the panel with its bleed — starts on the tile, so the blue
+ *  grows out of the tile as one piece (R17-17). */
 function tileTransform(panel: HTMLElement, clueId: string): string | null {
   const stage = panel.parentElement;
   const w = panel.offsetWidth;
@@ -29,27 +42,25 @@ function tileTransform(panel: HTMLElement, clueId: string): string | null {
   const r = (tile as HTMLElement).getBoundingClientRect();
   if (!r.width || !r.height) return null;
   const s = stage.getBoundingClientRect();
-  const dx = r.left - s.left - panel.offsetLeft;
-  const dy = r.top - s.top - panel.offsetTop;
-  return `translate(${dx}px, ${dy}px) scale(${r.width / w}, ${r.height / h})`;
+  const b = panelBleed(panel);
+  const sx = r.width / (w + b.l + b.r);
+  const sy = r.height / (h + b.t + b.b);
+  const dx = r.left - s.left - panel.offsetLeft + b.l * sx;
+  const dy = r.top - s.top - panel.offsetTop + b.t * sy;
+  return `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`;
 }
 
 /**
- * R16-19: tells the host's preview (board/Preview.tsx forwards it to the host) that the panel starts
- * zooming out of (or back into) its tile: the panel's box without the zoom and the tile's, in this
- * page's pixels. The host's surroundings of the preview then follow the same zoom from the same
- * moment. On the TV nobody listens.
+ * R16-19 / R17-17: tells the host's preview that the panel's zoom out of (or back into) its tile has
+ * started, with the animation itself and the panel's box without the zoom (this page's pixels). The
+ * host (TvMirror, same origin) listens on this page's window and runs its surroundings on this very
+ * animation's timeline, so the two can never drift apart. On the TV nobody listens.
  */
-function announceZoom(panel: HTMLElement, clueId: string, dir: 'open' | 'close') {
+function announceZoom(panel: HTMLElement, clueId: string, dir: 'open' | 'close', animation: Animation) {
   const stage = panel.parentElement;
   if (!stage) return;
   const s = stage.getBoundingClientRect();
-  let tile: HTMLElement | null = null;
-  stage.querySelectorAll<HTMLElement>('[data-clue-id]').forEach((el) => {
-    if (el.dataset.clueId === clueId) tile = el;
-  });
-  const t = tile ? (tile as HTMLElement).getBoundingClientRect() : null;
-  const detail = { clueId, dir, panel: { x: s.left + panel.offsetLeft, y: s.top + panel.offsetTop, w: panel.offsetWidth, h: panel.offsetHeight }, tile: t && t.width && t.height ? { x: t.left, y: t.top, w: t.width, h: t.height } : null };
+  const detail = { clueId, dir, panel: { x: s.left + panel.offsetLeft, y: s.top + panel.offsetTop, w: panel.offsetWidth, h: panel.offsetHeight }, animation };
   window.dispatchEvent(new CustomEvent('oj-tv-zoom', { detail }));
 }
 
@@ -91,7 +102,7 @@ export function CluePanel({ g, closing, zoomIn, onClosed }: { g: GameView; closi
       setExpanded(true);
       const from = tileTransform(panel, clue.clueId) ?? centreTransform(panel);
       a = panel.animate([{ transform: from }, { transform: 'none' }], { duration: T.zoom * 1000, easing: EASE_OUT });
-      announceZoom(panel, clue.clueId, 'open');
+      announceZoom(panel, clue.clueId, 'open', a);
     }
     openAnim.current = a;
     return () => a.cancel();
@@ -116,7 +127,6 @@ export function CluePanel({ g, closing, zoomIn, onClosed }: { g: GameView; closi
       a = panel.animate([{ opacity: 1 }, { opacity: 0 }], { duration: T.fade * 1000, fill: 'forwards' });
     } else {
       const to = tileTransform(panel, clue.clueId) ?? centreTransform(panel);
-      announceZoom(panel, clue.clueId, 'close');
       c = contentRef.current?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: T.fadeOut * 1000, fill: 'forwards' }) ?? null;
       a = panel.animate(
         [
@@ -126,6 +136,7 @@ export function CluePanel({ g, closing, zoomIn, onClosed }: { g: GameView; closi
         ],
         { duration: T.unzoom * 1000, delay: T.fadeOut * 600, easing: EASE_IN_OUT, fill: 'both' },
       );
+      announceZoom(panel, clue.clueId, 'close', a);
     }
     a.onfinish = () => onClosedRef.current();
     return () => {
@@ -147,21 +158,55 @@ export function CluePanel({ g, closing, zoomIn, onClosed }: { g: GameView; closi
   );
 }
 
+/**
+ * R17-12: the middle (px from the stage's top) between the category's bottom and the bottom of the
+ * clue area — where "… is wagering" is centred. Measured, so a long category, a wrapped name or
+ * another screen size keep it centred; until measured it uses the CSS fallback.
+ */
+function useBelowCategoryMiddle() {
+  const stage = useRef<HTMLDivElement>(null);
+  const cat = useRef<HTMLParagraphElement>(null);
+  const [mid, setMid] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const s = stage.current;
+    const c = cat.current;
+    if (!s || !c) return;
+    const read = () => {
+      const sb = s.getBoundingClientRect();
+      const cb = c.getBoundingClientRect();
+      // getBoundingClientRect includes the stage's zoom-in scale; offsets stay in layout pixels.
+      const k = sb.height ? s.offsetHeight / sb.height : 1;
+      setMid(Math.round(((cb.bottom - sb.top) * k + s.offsetHeight) / 2));
+    };
+    read();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(read);
+    ro.observe(s);
+    ro.observe(c);
+    return () => ro.disconnect();
+  }, []);
+  return { stage, cat, mid };
+}
+
 function DailyWagerCard({ g, still }: { g: GameView; still?: boolean }) {
   const clue = g.clue!;
   const controller = findCompetitor(g, g.controlCompetitorId);
+  const { stage, cat, mid } = useBelowCategoryMiddle();
   return (
-    <div className={cx('bt-stage relative flex min-h-0 flex-1 flex-col items-center justify-center gap-[3.5vh] px-[6vw] pb-[8vh] text-center', still && 'is-still')} data-testid="tv-stage">
+    <div ref={stage} className={cx('bt-stage relative flex min-h-0 flex-1 flex-col items-center justify-center gap-[3.5vh] px-[6vw] pb-[8vh] text-center', still && 'is-still')} data-testid="tv-stage">
       <p className="bt-dw-title">DAILY DOUBLE!</p>
-      <p className="bt-dw-cat">{clue.categoryName}</p>
+      <p ref={cat} className="bt-dw-cat">
+        {clue.categoryName}
+      </p>
       {controller && (
         <>
           {/* R16-12: who wagers sits lower, where the clue's text will be; its old place stays
-              reserved, so the title and the category do not move. */}
+              reserved, so the title and the category do not move. R17-12: centred between the
+              category's bottom and the bottom of the clue area. */}
           <p className="bt-dw-who invisible" aria-hidden>
             <span className="bt-name">{competitorName(controller, g)}</span> is wagering…
           </p>
-          <p className="bt-dw-who bt-dw-who-low" data-testid="tv-dd-who">
+          <p className="bt-dw-who bt-dw-who-low" style={mid != null ? { top: mid } : undefined} data-testid="tv-dd-who">
             <span className="bt-name">{competitorName(controller, g)}</span> is wagering…
           </p>
         </>

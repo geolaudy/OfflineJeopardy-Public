@@ -17,7 +17,7 @@ import { competitorAvatar, competitorName, profileName } from '../../lib/view';
 import { TEAM_AVATARS, avatarEmoji, PLAYER_COLORS } from '../../lib/avatars';
 import { BOT_LEVELS, BOT_NAMES, MAX_ENTRIES, MAX_TEAMS, RULE_PRESETS, TEAM_COLORS, rulesFromPreset, type BotLevel } from '../../../shared/game';
 import { lobbyRules } from '../../../shared/rulesSummary';
-import { ArrowDown, ArrowUp, Eye, GripVertical, LayoutGrid, Play, RefreshCw, FlaskConical, Bot, X, Hand, BellRing, SlidersHorizontal, Star, User, Users, Scale, Shuffle } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronDown, Eye, GripVertical, LayoutGrid, Play, RefreshCw, FlaskConical, Bot, X, Hand, BellRing, SlidersHorizontal, Star, User, Users, Scale, Shuffle } from 'lucide-react';
 import { BALANCED_TEAM_NAMES, balanceTeams } from '../../../shared/teamBalance';
 import RulesEditor from './RulesEditor';
 import { usePresent } from './AppShell';
@@ -520,10 +520,14 @@ function SoloSetup({ g }: { g: GameView }) {
                     // R14-4: the difficulty is chosen inside the badge. A separate select beside the
                     // name column took its width in a 10.5rem card, so the badge ran under the select.
                     <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <label className="inline-flex max-w-full min-w-0 items-center gap-1 rounded-full border border-slate-300 bg-white py-0.5 pr-1 pl-2 text-xs font-semibold text-slate-700" data-testid="bot-level-badge">
-                        <Bot size={12} className="shrink-0" aria-hidden />
+                      {/* R17-13: the level is plain text (never squeezed: "Medium" lost its "m" when WebKit
+                          shrank the native select in the narrow card); an invisible select covers the badge, so
+                          a tap still opens the system picker. */}
+                      <label className="relative inline-flex shrink-0 items-center gap-0.5 rounded-full border border-slate-300 bg-white py-1 pr-1.5 pl-2 text-xs font-semibold whitespace-nowrap text-slate-700 focus-within:ring-2 focus-within:ring-blue-300" data-testid="bot-level-badge">
+                        <span data-testid="bot-level-text">{BOT_LEVELS[c.bot].label}</span>
+                        <ChevronDown size={12} className="shrink-0 text-slate-500" aria-hidden />
                         <select
-                          className="min-h-7 min-w-0 cursor-pointer bg-transparent font-semibold"
+                          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
                           value={c.bot}
                           onChange={(e) => run({ type: 'updateCompetitor', competitorId: c.id, botLevel: e.target.value as BotLevel })}
                           aria-label={`${name} difficulty`}

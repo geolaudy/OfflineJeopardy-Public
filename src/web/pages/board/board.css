@@ -421,12 +421,15 @@
   text-shadow: var(--bt-text-shadow);
 }
 /* R16-12: the shown line, lower — in the clue text's area, well clear of the category. */
+/* R17-12: centred on the middle between the category and the bottom of the clue area (ClueZoom
+   measures it into top; 66 % until then). */
 .bt-dw-who-low {
   position: absolute;
   top: 66%;
   right: 6vw;
   left: 6vw;
   overflow-wrap: anywhere;
+  transform: translateY(-50%);
 }
 .bt-dw-who {
   font-family: var(--bt-label-font);
@@ -985,15 +988,83 @@
   border-color: #22c55e;
   box-shadow: 0 0 1.6vh rgba(34, 197, 94, 0.45);
 }
+/* R17-11: a result card is a score card — the podium's surface and radius, its name row, the answer
+   in the inner panel (the score's place) in the clue font, the wager under it. The verdict is the
+   outline (green / red, as in the reveal order and the buzzer ring), never a fill. */
+.bt-final-results {
+  display: grid;
+  width: min(92vw, calc(var(--cols, 4) * 34vh));
+  gap: 1.6vh 1.2vw;
+}
 .bt-final-card {
-  padding: 1.2vh 1.8vh 1.4vh;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
   border-radius: var(--b-radius);
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--bt-podium);
+  color: var(--b-fg);
   text-align: center;
+  outline: 0.5vh solid transparent;
+  outline-offset: 0.25vh;
+  box-shadow: 0 0.8vh 2vh rgba(0, 0, 0, 0.3);
+  transition: outline-color 0.4s ease, box-shadow 0.4s ease;
+}
+.board-theme:not([data-theme="classic"]) .bt-final-card {
+  border-radius: 1.2vh;
 }
 /* R14-21: the name row of a result card, as on the score cards (podium name row). */
 .bt-final-card-name {
-  padding: 0 0 0.2vh;
+  padding: 0.9vh 1vh 0.3vh;
+}
+.bt-final-card-answer {
+  display: -webkit-box;
+  min-height: calc(2 * 1.15em + 1.6vh);
+  margin: 0.5vh 0.8vh 0;
+  /* The vertical room is a transparent border, not padding: overflow clips at the padding box, so a
+     third line of a long answer would otherwise show in the bottom padding. */
+  padding: 0 1vh;
+  border-block: 0.8vh solid transparent;
+  overflow: hidden;
+  border-radius: calc(var(--b-radius) * 0.6);
+  background: var(--bt-podium-score);
+  font-size: 3vh;
+  line-height: 1.15;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+  align-content: center;
+}
+.bt-final-results[data-many] .bt-final-card-answer {
+  font-size: 2.5vh;
+}
+.bt-final-card-wager {
+  padding: 0.6vh 1vh 0.9vh;
+  font-size: 1.9vh;
+}
+.bt-final-card-wager .bt-money {
+  margin-left: 0.3em;
+  font-family: var(--bt-money-font);
+  font-weight: var(--bt-heavy);
+  font-size: 1.3em;
+  color: var(--b-accent);
+  text-shadow: var(--bt-text-shadow);
+}
+.bt-final-card.is-right {
+  outline-color: #22c55e;
+  box-shadow: 0 0 2.4vh 0.3vh rgba(34, 197, 94, 0.45);
+}
+.bt-final-card.is-wrong {
+  outline-color: #ef4444;
+  box-shadow: 0 0 2.4vh 0.3vh rgba(239, 68, 68, 0.4);
+}
+/* R17-11: the correct response with room under the category (it sat crowded against it). */
+.bt-final-solution {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 1.5vh;
+  max-width: 82vw;
 }
 /* R14-20: the reveal order's outline — gray not yet, yellow being revealed, then green / red. */
 .bt-reveal-chip {
@@ -1012,44 +1083,59 @@
   border-color: #ef4444;
   box-shadow: 0 0 1.6vh rgba(239, 68, 68, 0.45);
 }
-.bt-final-card.is-right {
-  background: rgba(10, 120, 50, 0.75);
-}
-.bt-final-card.is-wrong {
-  background: rgba(150, 20, 20, 0.7);
-}
-/* Final Jeopardy! reveal spotlight (R4-2) */
+/* Final Jeopardy! reveal spotlight (R4-2). R17-11: one large score card — the podium surface, its
+   name row (picture in the player's colour + name, centred), the answer in the inner panel, the
+   score before the Final and the wager underneath; the judgment is the outline. */
 .bt-final-spot {
   display: flex;
-  width: min(80vw, 120vh);
+  width: min(74vw, 112vh);
   flex-direction: column;
   align-items: stretch;
-  gap: 1.8vh;
+  border-radius: var(--b-radius);
+  background: var(--bt-podium);
+  outline: 0.6vh solid transparent;
+  outline-offset: 0.35vh;
+  box-shadow: 0 1.4vh 3.6vh rgba(0, 0, 0, 0.4);
+  transition: outline-color 0.4s ease, box-shadow 0.4s ease;
+}
+.board-theme:not([data-theme="classic"]) .bt-final-spot {
+  border-radius: 1.8vh;
+}
+.bt-final-spot[data-judged="correct"] {
+  outline-color: #22c55e;
+  box-shadow: 0 0 3.2vh 0.5vh rgba(34, 197, 94, 0.5);
+}
+.bt-final-spot[data-judged="incorrect"] {
+  outline-color: #ef4444;
+  box-shadow: 0 0 3.2vh 0.5vh rgba(239, 68, 68, 0.45);
 }
 .bt-final-who {
   display: flex;
+  min-width: 0;
   align-items: center;
-  gap: 2.4vw;
+  justify-content: center;
+  gap: 1.8vh;
+  padding: 1.8vh 3vh 1vh;
+  font-size: 5.4vh;
+  line-height: 1;
 }
 .bt-final-ring {
   display: inline-flex;
   flex-shrink: 0;
   border-radius: 999px;
-  padding: 0.6vh;
+  padding: 0.45vh;
   background: var(--pc, #64748b);
-  box-shadow: 0 0.6vh 2vh rgba(0, 0, 0, 0.45);
 }
-/* R8-5: a fixed height — a long answer shrinks inside it (FitText) instead of growing the card and
-   pushing the name and "Before Final Jeopardy!" over the category above. */
+/* R8-5: a fixed height — a long answer shrinks inside it (FitText) instead of growing the card. */
 .bt-final-answer-card {
   display: flex;
-  height: 19vh;
+  height: 21vh;
   align-items: center;
   justify-content: center;
-  padding: 3vh 3vw;
-  border-radius: var(--b-radius);
-  background: rgba(0, 0, 0, 0.32);
-  box-shadow: inset 0 0 0 0.4vh rgba(255, 255, 255, 0.12);
+  margin: 0 1.6vh;
+  padding: 2.2vh 3vw;
+  border-radius: calc(var(--b-radius) * 0.6);
+  background: var(--bt-podium-score);
   perspective: 120vh;
 }
 .bt-final-answer-text {
@@ -1057,21 +1143,31 @@
 }
 .bt-final-answer-hidden {
   font-family: var(--b-font);
-  font-size: 12vh;
-  color: rgba(255, 255, 255, 0.25);
+  font-size: 11vh;
+  color: rgba(255, 255, 255, 0.22);
+}
+/* A fixed height: the wager appearing must not grow the (centred) card — the name stays put (R8-5). */
+.bt-final-stats {
+  display: flex;
+  box-sizing: content-box;
+  height: 7vh;
+  align-items: center;
+  justify-content: space-between;
+  gap: 3vw;
+  padding: 0.6vh 3.2vh 1vh;
 }
 .bt-final-wager {
   display: flex;
-  min-height: 7vh;
+  min-height: 5vh;
   align-items: center;
-  justify-content: center;
-  gap: 3vw;
-  font-size: 4vh;
+  justify-content: flex-end;
+  font-size: 3.2vh;
 }
 .bt-final-wager b {
+  margin-left: 0.3em;
   font-family: var(--bt-money-font);
   font-weight: var(--bt-heavy);
-  font-size: 1.15em;
+  font-size: 1.3em;
   color: var(--b-accent);
   text-shadow: var(--bt-text-shadow);
 }
@@ -1083,8 +1179,8 @@
   opacity: 0.88;
 }
 .bt-final-pre {
-  margin-top: 1vh;
   font-size: 2.6vh;
+  text-align: left;
 }
 .bt-final-pre b {
   margin-left: 0.4em;
@@ -1476,15 +1572,44 @@
 }
 /* R14-6: the host preview's hidden score-strip slot takes the stage's colour, so no dark line shows
    at the picture's lower edge during a clue or the Final. */
-.is-host-preview:is([data-host-stage="clue"], [data-host-stage="final"]) .bt-host-band-slot {
+.is-host-preview:is([data-host-stage="clue"], [data-host-stage="final"], [data-host-stage="intro"]) .bt-host-band-slot {
   background: var(--bt-panel-color, var(--bt-panel));
 }
-.board-theme[data-theme="classic"].is-host-preview:is([data-host-stage="clue"], [data-host-stage="final"]) .bt-host-band-slot {
+.board-theme[data-theme="classic"].is-host-preview:is([data-host-stage="clue"], [data-host-stage="final"], [data-host-stage="intro"]) .bt-host-band-slot {
   background: #0e1a86;
 }
 /* R16-18: nothing black behind the clue at the picture's edges either — the preview's stage ends on a
    fractional pixel (86 % of 720), and a scaled picture's edge rows mix in what lies behind the
    panel; on a real iPad that showed as a thin dark line between the picture and the blue around it. */
-.is-host-preview:is([data-host-stage="clue"], [data-host-stage="final"]) {
+.is-host-preview:is([data-host-stage="clue"], [data-host-stage="final"], [data-host-stage="intro"]) {
   background: var(--bt-panel-color, #071483);
+}
+/* R17-17: in the host's preview the clue panel's surface runs on past the picture into the host's
+   area around it (--pv-bleed-*, from GameFrame through Preview.tsx), as part of the panel, so it
+   zooms out of the tile with the panel as one piece — the host draws the part outside the picture
+   on this animation's own timeline (GameFrame StageFill). --pv-surface is the classic surface over
+   the panel and its bleed in the panel's coordinates; other themes use their panel colour. */
+.is-host-preview .bt-panel {
+  overflow: visible;
+  border-radius: 0;
+  background: none;
+}
+.is-host-preview .bt-panel::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: calc(-1 * var(--pv-bleed-t, 0px)) calc(-1 * var(--pv-bleed-r, 0px)) calc(-1 * var(--pv-bleed-b, 0px)) calc(-1 * var(--pv-bleed-l, 0px));
+  background: var(--pv-surface, var(--bt-panel-color, var(--bt-panel)));
+  pointer-events: none;
+}
+/* R17-17: the category introduction's categories in the host's preview: the panel's surface edge to
+   edge behind the swiping categories (no black frame; the host's area continues it), the text
+   unchanged. The round title keeps the board around it, as on the TV. */
+.is-host-preview .bt-intro[data-surface="panel"] {
+  background: var(--bt-panel);
+  background-color: var(--bt-panel-color, transparent);
+}
+.is-host-preview .bt-intro[data-surface="panel"] .bt-intro-card {
+  background: none;
+  border-radius: 0;
 }

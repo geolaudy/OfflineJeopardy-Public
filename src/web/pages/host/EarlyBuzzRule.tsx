@@ -22,9 +22,39 @@ export function earlyRuleSummary(r: GameRules) {
   }
 }
 
-export function EarlyBuzzFields({ rules, onChange }: { rules: GameRules; onChange: (r: GameRules) => void }) {
+export function EarlyBuzzFields({ rules, onChange, dense }: { rules: GameRules; onChange: (r: GameRules) => void; dense?: boolean }) {
   const set = (patch: Partial<GameRules>) => onChange({ ...rules, ...patch });
   const secs = rules.earlyBuzzLockoutMs / 1000;
+  // R17-14: the compact form (Rules & timers, Settings → Gameplay): four chips, the chosen one
+  // explained underneath, the length / points as small fields on one line.
+  if (dense)
+    return (
+      <div className="space-y-2">
+        <select className={inputCls} value={rules.earlyBuzzPenalty} onChange={(e) => set({ earlyBuzzPenalty: e.target.value as EarlyBuzzPenalty })} aria-label="Early buzz penalty" data-testid="rule-early-buzz">
+          {(Object.keys(EARLY_BUZZ_OPTIONS) as EarlyBuzzPenalty[]).map((k) => (
+            <option key={k} value={k}>
+              {EARLY_BUZZ_OPTIONS[k].label}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-slate-500">{EARLY_BUZZ_OPTIONS[rules.earlyBuzzPenalty].description}</p>
+        {(rules.earlyBuzzPenalty === 'lockout' || rules.earlyBuzzPenalty === 'points') && (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+            <label className="flex items-center gap-2">
+              Lockout
+              <input className={cx(inputCls.replace('w-full ', ''), 'w-20')} inputMode="decimal" aria-label="Lockout seconds" value={secs} onChange={(e) => { const n = Number(e.target.value.replace(',', '.')); if (Number.isFinite(n)) set({ earlyBuzzLockoutMs: Math.round(Math.min(5, Math.max(0.1, n)) * 1000) }); }} />
+              s
+            </label>
+            {rules.earlyBuzzPenalty === 'points' && (
+              <label className="flex items-center gap-2">
+                Points lost
+                <input className={cx(inputCls.replace('w-full ', ''), 'w-24')} inputMode="numeric" aria-label="Penalty points" value={rules.earlyBuzzPoints} onChange={(e) => set({ earlyBuzzPoints: Math.min(100000, Number(e.target.value.replace(/\D/g, '') || 0)) })} />
+              </label>
+            )}
+          </div>
+        )}
+      </div>
+    );
   return (
     <div className="space-y-3">
       <p className="text-sm text-slate-600">

@@ -339,7 +339,7 @@ test('Final Jeopardy!: time up keeps answering open until the host closes it; ph
   // The rules: "When I close them" is the default.
   await ipad.getByTestId('nav-menu').click();
   await ipad.getByRole('button', { name: /Rules & timers/ }).click();
-  await ipad.getByRole('button', { name: 'Advanced rules' }).click();
+  await ipad.getByTestId('rules-tab-clues').click(); // R17-14: the rules dialog's tabs
   await expect(ipad.getByTestId('rule-final-close')).toHaveValue('host');
   await ipad.getByRole('dialog', { name: 'Rules & timers' }).getByRole('button', { name: 'Close' }).click();
   // Two phones join.

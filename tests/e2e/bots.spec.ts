@@ -83,7 +83,7 @@ test('AI answers settings: key is saved write-only, nothing is sent until enable
   const pc = await (await cr.newContext({ viewport: { width: 1366, height: 900 } })).newPage();
   const external: string[] = [];
   pc.on('request', (r) => (!r.url().startsWith(BASE) && !r.url().startsWith('data:') ? external.push(r.url()) : undefined));
-  await pc.goto(`${BASE}/host/settings`);
+  await pc.goto(`${BASE}/host/settings?tab=players`); // R17-14: Settings → Players & Bots
   const card = pc.getByTestId('ai-settings');
   await expect(card).toBeVisible();
   await expect(card.getByTestId('ai-status')).toContainText('No API key saved');

@@ -1,6 +1,6 @@
 // Settings for the TV presentation (R2-22/23/24): board intro, buzzers-open indicator, sound cues.
 // Changes apply to the TV immediately (the server nudges it to reload public settings).
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Music, Play, Trash2, Upload } from 'lucide-react';
 import { hostApi } from '../../lib/api';
 import { attempt } from '../../lib/hooks';
@@ -83,7 +83,9 @@ function CueVolume({ label, value, disabled, onCommit }: { label: string; value:
   );
 }
 
-export function PresentationSettings({ fx: saved, sound, onSave }: { fx: TvFx; sound: { enabled: boolean; volume: number }; onSave: (fx: TvFx) => Promise<void> }) {
+/** R17-14: `part` shows the TV picture settings (Settings → TV & Display) or the sounds (Settings →
+ *  Sound); without it, everything. */
+export function PresentationSettings({ fx: saved, sound, onSave, part, extra }: { fx: TvFx; sound: { enabled: boolean; volume: number }; onSave: (fx: TvFx) => Promise<void>; part?: 'display' | 'sounds' | 'soundPack' | 'soundCues'; extra?: ReactNode }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploadCue, setUploadCue] = useState<SoundCue | null>(null);
   // Optimistic: the page shows each change at once; saves go out one after another so quick
@@ -113,8 +115,12 @@ export function PresentationSettings({ fx: saved, sound, onSave }: { fx: TvFx; s
     playCue(cue, { force: true });
   };
 
+  const display = !part || part === 'display';
+  const sounds = part !== 'display';
   return (
-    <div className="space-y-6">
+    <div className={cx(part === 'display' ? 'grid gap-x-8 gap-y-5 lg:grid-cols-2' : 'space-y-6')}>
+      {display && (
+        <div className="space-y-5">
       <section className="space-y-3" aria-labelledby="fx-intro">
         <h3 id="fx-intro" className="font-bold">
           Board intro
@@ -139,6 +145,10 @@ export function PresentationSettings({ fx: saved, sound, onSave }: { fx: TvFx; s
           <Segmented label="Player colour on score cards" value={fx.scoreColor} options={SCORE_COLOR_STYLES} onChange={(k) => save({ scoreColor: k })} />
         </Field>
       </section>
+      {extra}
+        </div>
+      )}
+      {display && (
 
       <section className="space-y-3" aria-labelledby="fx-unlock">
         <h3 id="fx-unlock" className="font-bold">
@@ -153,7 +163,7 @@ export function PresentationSettings({ fx: saved, sound, onSave }: { fx: TvFx; s
           ))}
         </div>
         {fx.unlock.style !== 'none' && (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={part === 'display' ? 'space-y-2' : 'grid gap-3 sm:grid-cols-2'}>
             <Field label="Colour" group>
               <div className="flex items-center gap-2">
                 <Button size="sm" variant={fx.unlock.color ? 'ghost' : 'secondary'} onClick={() => setUnlock({ color: '' })} aria-pressed={!fx.unlock.color}>
@@ -174,16 +184,19 @@ export function PresentationSettings({ fx: saved, sound, onSave }: { fx: TvFx; s
             </div>
           </div>
         )}
-        <p className="text-xs text-slate-500">The indicator never covers the clue. A sound can play too — see "Buzzers open" below.</p>
+        {part !== 'display' && <p className="text-xs text-slate-500">The indicator never covers the clue. A sound can play too — see "Buzzers open" below.</p>}
       </section>
+      )}
+      {sounds && (
 
       <section className="space-y-3" aria-labelledby="fx-sounds">
-        <h3 id="fx-sounds" className="font-bold">
+        <h3 id="fx-sounds" className={cx('font-bold', (part === 'soundPack' || part === 'soundCues') && 'sr-only')}>
           Sounds
         </h3>
-        <SoundPackPicker fx={fx} sound={sound} onPick={(p) => save({ soundPack: p })} />
-        {fx.soundPack !== 'off' && (
-          <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
+        {part !== 'soundCues' && <SoundPackPicker fx={fx} sound={sound} onPick={(p) => save({ soundPack: p })} />}
+        {part === 'soundCues' && fx.soundPack === 'off' && <p className="text-slate-600">Sounds are muted — choose a sound pack first.</p>}
+        {part !== 'soundPack' && fx.soundPack !== 'off' && (
+          <ul className={cx('rounded-xl border border-slate-200', part === 'sounds' || part === 'soundCues' ? 'grid lg:grid-cols-2 lg:[&>li:nth-child(odd)]:border-r lg:[&>li]:border-slate-100 [&>li]:border-b [&>li]:border-slate-100' : 'divide-y divide-slate-100')}>
             {SOUND_CUES.map((cue) => {
               const file = fx.customSounds[cue];
               return (
@@ -251,6 +264,7 @@ export function PresentationSettings({ fx: saved, sound, onSave }: { fx: TvFx; s
         />
         <p className="text-xs text-slate-500">Only use sound files you made yourself or have permission to use. Files stay on this computer (max 2 MB each) and are included in full backups.</p>
       </section>
+      )}
     </div>
   );
 }

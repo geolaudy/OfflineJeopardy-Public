@@ -190,3 +190,13 @@ Rollback point: tag v0.16.0 (0.17.0-rc.2 = commit 56acd72, tested by the owner).
 - **D — Bot pick glow:** R16-14. **Done.**
 - **E — iPadOS status bar:** R16-15, R16-16 (D112). **Done** — reverted; K55 stays open.
 - **F — Preview surroundings and zoom:** R16-17 … R16-19 (D111). **Done.**
+
+## Milestone 31 — User feedback round 17 → v0.17.0-rc.4 (started 2026-10-21, session 20)
+
+Rollback point: tag v0.16.0 (0.17.0-rc.3 = commit 488c909, tested by the owner). See USER_FEEDBACK.md "Round 17"; statuses in FEATURE_MATRIX.md.
+- **A — Daily Double! wager entry and Start Timer:** R17-1 … R17-3 (D113). **Done.**
+- **B — Keyboard visibility:** R17-5 … R17-7 (D114). **Done** (emulation; real devices K63).
+- **C — Settings tabs and game data location:** R17-14, R17-15 (D115, D116). **Done.**
+- **D — Final Jeopardy! answer / results screen:** R17-11 (D117). **Done.**
+- **E — TV "is wagering" centring, bot level label:** R17-12, R17-13. **Done.**
+- **F — Preview surface, category introduction, status bar:** R17-16, R17-17, R17-17.3 … R17-17.6 (D118 … D120). **Done** — status bar stays white (K55 open).

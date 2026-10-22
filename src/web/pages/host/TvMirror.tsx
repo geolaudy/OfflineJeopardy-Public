@@ -9,6 +9,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, 
 import { Dices } from 'lucide-react';
 import type { GameView } from '../../../shared/views';
 import type { LivePreviewMessage, PreviewTilesMessage } from '../board/Preview';
+import type { Bleed } from '../board/panelSurface';
 import type { PublicSettings } from '../board/BoardPage';
 import { api } from '../../lib/api';
 import { useLive } from '../../lib/socket';
@@ -99,7 +100,7 @@ const H = 720;
  */
 export type PreviewTile = PreviewTilesMessage['tiles'][number];
 
-export function TvPreview({ game, scoreboard, band, frameless, title, size, testId, onTiles }: { game: GameView; scoreboard: boolean; band?: boolean; frameless?: boolean; title: string; size: { w: number; h: number }; testId?: string; onTiles?: (tiles: PreviewTile[]) => void }) {
+export function TvPreview({ game, scoreboard, band, frameless, title, size, testId, onTiles }: { game: GameView; scoreboard: boolean; band?: boolean; frameless?: boolean; title: string; size: { w: number; h: number; bleed?: Bleed }; testId?: string; onTiles?: (tiles: PreviewTile[]) => void }) {
   const ref = useRef<HTMLIFrameElement>(null);
   const [ready, setReady] = useState(false);
   const look = useBoardLook();
@@ -112,21 +113,45 @@ export function TvPreview({ game, scoreboard, band, frameless, title, size, test
     const onMsg = (e: MessageEvent) => {
       if (e.origin !== location.origin || e.source !== ref.current?.contentWindow) return;
       const type = (e.data as { type?: string })?.type;
-      if (type === 'oj-preview-ready') setReady(true);
+      if (type === 'oj-preview-ready') {
+        setReady(true);
+        listenForZoom();
+      }
       if (type === 'oj-preview-tiles') tilesCb.current?.((e.data as PreviewTilesMessage).tiles);
-      // R16-19: the preview's clue zoom starts — GameFrame's surroundings follow it.
-      if (type === 'oj-preview-zoom' && bandRef.current) window.dispatchEvent(new CustomEvent('oj-preview-zoom', { detail: (e.data as { zoom: unknown }).zoom }));
+    };
+    // R16-19 / R17-17: the preview's clue zoom, heard on the preview's own window (same origin) in the
+    // same task that starts it, and passed on with its animation — GameFrame's surroundings run on
+    // that animation's timeline.
+    let zoomWin: Window | null = null;
+    const relay = (e: Event) => {
+      if (bandRef.current) window.dispatchEvent(new CustomEvent('oj-preview-zoom', { detail: (e as CustomEvent).detail }));
+    };
+    // On every 'ready' (a reloaded preview is a new window behind the same contentWindow proxy).
+    const listenForZoom = () => {
+      const w = ref.current?.contentWindow ?? null;
+      zoomWin?.removeEventListener('oj-tv-zoom', relay);
+      zoomWin = w;
+      w?.addEventListener('oj-tv-zoom', relay);
     };
     window.addEventListener('message', onMsg);
-    return () => window.removeEventListener('message', onMsg);
+    return () => {
+      window.removeEventListener('message', onMsg);
+      zoomWin?.removeEventListener('oj-tv-zoom', relay);
+    };
   }, []);
   const mirror = useMemo(() => forMirror(game), [game]);
+  const scale = size.w / W;
+  // R17-17: the host's area past the picture, in the preview's own pixels.
+  const tv = (v: number) => Math.round((v / scale) * 10) / 10;
+  const bt = size.bleed && scale > 0 ? tv(size.bleed.t) : 0;
+  const br = size.bleed && scale > 0 ? tv(size.bleed.r) : 0;
+  const bb = size.bleed && scale > 0 ? tv(size.bleed.b) : 0;
+  const bl = size.bleed && scale > 0 ? tv(size.bleed.l) : 0;
   useEffect(() => {
     if (!ready) return;
-    const m: LivePreviewMessage = { type: 'oj-live-preview', look, offset, game: mirror, scoreboard, band };
+    const m: LivePreviewMessage = { type: 'oj-live-preview', look, offset, game: mirror, scoreboard, band, bleed: band ? { t: bt, r: br, b: bb, l: bl } : undefined };
     ref.current?.contentWindow?.postMessage(m, location.origin);
-  }, [ready, look, offset, mirror, scoreboard, band]);
-  const scale = size.w / W;
+  }, [ready, look, offset, mirror, scoreboard, band, bt, br, bb, bl]);
   return (
     // R13-1: no frame of its own in the host's preview (the blue around it is the TV's own background).
     <div className={cx('absolute inset-0 overflow-hidden', !frameless && 'bg-black shadow-sm ring-1 ring-black/10')} data-testid={testId} data-ready={ready ? 'true' : 'false'}>

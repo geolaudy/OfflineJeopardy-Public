@@ -18,8 +18,9 @@ import { createPortal } from 'react-dom';
 import { Maximize2, Minimize2 } from 'lucide-react';
 import { HOST_BAND, themeRoot } from '../board/common';
 import { cx } from '../../components/ui';
-import { useBoardLook, useSize, type PreviewTile } from './TvMirror';
-import { EASE_IN_OUT, EASE_OUT, T } from '../board/timing';
+import { useBoardLook, useSize } from './TvMirror';
+import { T } from '../board/timing';
+import { classicPanelSurface, type Bleed, type Box } from '../board/panelSurface';
 import { TimerLine } from '../board/TimerBar';
 import type { TimerState } from '../../../shared/game';
 
@@ -153,69 +154,83 @@ function useSafeBottom() {
 /**
  * R14-6 / R15-14 … R15-16: the presentation area around the TV picture continues the stage. A base
  * layer in the board's own background (the classic theme's black grid, another theme's background)
- * and over it the clue panel's surface during a clue or the Final.
+ * and over it the clue panel's surface during a clue, the Final and the categories of the category
+ * introduction (R17-17).
  *
  * R16-17: one surface with the picture — the classic panel's grain and its gradient (the radial
  * glows and the diagonal shade, board.css --bt-panel) are drawn in the picture's own coordinates
- * across the whole area, so they run on past the picture's edges instead of stopping there (a flat
- * colour around the gradient showed the picture's edges as bars).
- * R16-19: one zoom with the picture — the preview reports when its clue panel starts zooming, from
- * which tile and to which box (ClueZoom → board/Preview.tsx → TvMirror: 'oj-preview-zoom'); the
- * panel layer then runs the TV panel's own transform applied to the whole area, from that moment, in
- * the zoom's time and curve. Its edges therefore move in proportion with the clue's (they used to
- * open from the tile to the outer edges while the clue only reached the picture's: the bars filled
- * in early). Without a report (another theme's fade, a preview that missed it) it falls back after
- * a moment. The Final fades in (as on the TV).
+ * across the whole area, so they run on past the picture's edges instead of stopping there.
+ * R17-17: one zoom with the picture. The TV's clue panel in the preview carries that same surface
+ * past the picture's edges (its bleed, board.css `.is-host-preview .bt-panel::before`), and the
+ * whole surface starts on the tile (ClueZoom tileTransform). Inside the picture the blue is
+ * therefore the panel itself; around it, this layer shows the same surface clipped to where the
+ * panel's transform puts the area's edges. This is not a second animation made to look alike: the
+ * preview hands over its zoom animation (ClueZoom → TvMirror: 'oj-preview-zoom'), and the clip here
+ * is built keyframe for keyframe from the TV animation's own keyframes, with its timing, on its
+ * start time (the two pages' timelines differ only by their origins). Without a report (another
+ * theme's fade, reduced motion) it fades, like the TV. The introduction and the Final fade too.
  */
-type Box = { x: number; y: number; w: number; h: number };
-export type PreviewZoom = { clueId: string; dir: 'open' | 'close'; panel: Box; tile: Box | null };
+type StageGeo = { left: number; top: number; scale: number };
+export type PreviewZoom = { clueId: string; dir: 'open' | 'close'; panel: Box; animation: Animation };
 
-/** The classic clue panel's surface (board.css --bt-panel) for a picture box `p` inside an area of
- *  `W` × `H` px: the same layers, positioned in the picture's coordinates. Keep in step with board.css. */
-export function classicPanelSurface(p: Box, W: number, H: number, grain: number) {
-  const r = (rx: number, ry: number, cx: number, cy: number, c: string, stop: number) =>
-    `radial-gradient(ellipse ${rx * p.w}px ${ry * p.h}px at ${p.x + cx * p.w}px ${p.y + cy * p.h}px, ${c}, transparent ${stop}%)`;
-  // linear-gradient(160deg, …) of the picture, continued over the whole area: the same direction,
-  // its stops moved to where they fall on this area's gradient line.
-  const a = (160 * Math.PI) / 180;
-  const dir = { x: Math.sin(a), y: -Math.cos(a) };
-  const lineOf = (w: number, h: number) => Math.abs(w * dir.x) + Math.abs(h * dir.y);
-  const Lp = lineOf(p.w, p.h);
-  const Lf = lineOf(W, H);
-  const shift = (p.x + p.w / 2 - W / 2) * dir.x + (p.y + p.h / 2 - H / 2) * dir.y;
-  const at = (frac: number) => `${(Lf / 2 + shift + (frac - 0.5) * Lp).toFixed(1)}px`;
-  return [
-    `var(--bt-panel-noise) ${p.x}px ${p.y}px / ${grain}px repeat`,
-    r(0.38, 0.46, 0.74, 0.34, 'rgba(16, 30, 145, 0.85)', 70),
-    r(0.34, 0.4, 0.22, 0.7, 'rgba(14, 27, 140, 0.7)', 70),
-    r(0.3, 0.38, 0.38, 0.28, 'rgba(0, 8, 105, 0.75)', 72),
-    r(0.36, 0.34, 0.64, 0.86, 'rgba(1, 10, 112, 0.7)', 70),
-    `linear-gradient(160deg, #04117f ${at(0)}, #071483 ${at(0.45)}, #061280 ${at(1)}) #071483`, // + the panel colour underneath (background-color)
-  ].join(', ');
+/** Where the area's edges are (as a clip of the W × H area) while the TV panel carries `transform`
+ *  (origin 0 0): the edges as points of the panel's surface, moved by that transform. `P` is the
+ *  panel's box in the preview's pixels, `g` the preview's place in the area and its scale. */
+function areaClip(transform: string | undefined, P: Box, g: StageGeo, W: number, H: number) {
+  const m = !transform || transform === 'none' ? new DOMMatrixReadOnly() : new DOMMatrixReadOnly(transform);
+  const x0 = -g.left / g.scale - P.x;
+  const x1 = (W - g.left) / g.scale - P.x;
+  const y0 = -g.top / g.scale - P.y;
+  const y1 = (H - g.top) / g.scale - P.y;
+  const hx = (x: number) => g.left + g.scale * (P.x + m.a * x + m.e);
+  const hy = (y: number) => g.top + g.scale * (P.y + m.d * y + m.f);
+  const px = (v: number) => `${Math.max(0, v).toFixed(2)}px`;
+  return `inset(${px(hy(y0))} ${px(W - hx(x1))} ${px(H - hy(y1))} ${px(hx(x0))})`;
 }
 
-/** The TV panel's zoom (picture box P ↔ tile T) applied to the whole W × H area: where the area's
- *  edges are while the panel sits on its tile, as a clip-path. */
-function zoomedClip(P: Box, T: Box, W: number, H: number) {
-  const sx = T.w / P.w;
-  const sy = T.h / P.h;
-  const left = Math.max(0, T.x - P.x * sx);
-  const top = Math.max(0, T.y - P.y * sy);
-  const right = Math.max(0, W - (T.x + (W - P.x) * sx));
-  const bottom = Math.max(0, H - (T.y + (H - P.y) * sy));
-  return `inset(${top}px ${right}px ${bottom}px ${left}px)`;
+/** The surroundings' share of the TV panel's zoom: its keyframes as clips of the area (and its
+ *  opacity), its timing, and its start time moved onto this page's timeline. */
+function followZoom(el: HTMLElement, z: PreviewZoom, g: StageGeo): Animation | null {
+  const tv = z.animation;
+  const effect = tv.effect as KeyframeEffect | null;
+  if (!effect || tv.playState === 'idle' || tv.playState === 'finished' || !(g.scale > 0)) return null;
+  const W = el.offsetWidth;
+  const H = el.offsetHeight;
+  const frames = effect.getKeyframes().map((k) => {
+    const f: Keyframe = { offset: k.computedOffset, easing: k.easing, clipPath: areaClip(k.transform as string | undefined, z.panel, g, W, H) };
+    if (k.opacity != null) f.opacity = k.opacity;
+    return f;
+  });
+  const { duration, delay, easing, fill } = effect.getTiming();
+  const a = el.animate(frames, { duration, delay, easing, fill });
+  const sync = () => {
+    const tvNow = tv.timeline?.currentTime;
+    const now = document.timeline.currentTime;
+    if (tv.startTime == null || tvNow == null || now == null) return false;
+    a.startTime = Number(tv.startTime) + (Number(now) - Number(tvNow));
+    return true;
+  };
+  if (!sync()) {
+    // The TV's animation starts with its next frame: hold at its current point until then.
+    a.pause();
+    a.currentTime = Number(tv.currentTime ?? 0);
+    tv.ready.then(
+      () => {
+        if (a.playState !== 'idle') sync();
+      },
+      () => a.cancel(),
+    );
+  }
+  return a;
 }
 
 /** The TV panel's box in the fill's pixels: the preview's stage (its screen without the score strip). */
-const pictureBox = (g: { left: number; top: number; scale: number }): Box => ({ x: g.left, y: g.top, w: 1280 * g.scale, h: 720 * (1 - HOST_BAND) * g.scale });
+const pictureBox = (g: StageGeo): Box => ({ x: g.left, y: g.top, w: 1280 * g.scale, h: 720 * (1 - HOST_BAND) * g.scale });
 
-function StageFill({ kind, root, width, height, stage, tiles, clueId, reduced }: { kind: FrameKind; root: ReturnType<typeof themeRoot>; width: number; height: number; stage: { left: number; top: number; scale: number }; tiles: PreviewTile[]; clueId: string | null; reduced: boolean }) {
+function StageFill({ panel, kind, root, width, height, stage, clueId, reduced }: { panel: boolean; kind: FrameKind; root: ReturnType<typeof themeRoot>; width: number; height: number; stage: StageGeo; clueId: string | null; reduced: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
-  const known = useRef<PreviewTile[]>(tiles);
-  if (tiles.some((t) => t.kind !== 'final')) known.current = tiles;
-  const panelKind = (k: FrameKind) => k === 'clue' || k === 'final';
-  const [on, setOn] = useState(panelKind(kind));
-  const prev = useRef({ kind, clueId });
+  const [on, setOn] = useState(panel);
+  const prev = useRef({ panel, kind, clueId });
   const geo = useRef(stage);
   geo.current = stage;
   const lastZoom = useRef<(PreviewZoom & { at: number }) | null>(null);
@@ -234,58 +249,36 @@ function StageFill({ kind, root, width, height, stage, tiles, clueId, reduced }:
 
   useLayoutEffect(() => {
     const was = prev.current;
-    prev.current = { kind, clueId };
-    const want = panelKind(kind);
+    prev.current = { panel, kind, clueId };
     const el = ref.current;
-    if (want === panelKind(was.kind)) return setOn(want);
-    if (!el || typeof el.animate !== 'function' || reduced) return setOn(want);
-    const W = el.offsetWidth;
-    const H = el.offsetHeight;
-    const g = geo.current;
-    const full = 'inset(0px 0px 0px 0px)';
-    const id = want ? clueId : was.clueId;
-    const zooms = !!id && W > 0 && H > 0 && (want ? kind === 'clue' : was.kind === 'clue' && kind === 'board');
+    if (panel === was.panel) return setOn(panel);
+    if (!el || typeof el.animate !== 'function' || reduced) return setOn(panel);
+    const id = panel ? clueId : was.clueId;
+    const zooms = !!id && (panel ? kind === 'clue' : was.kind === 'clue' && kind === 'board');
     let a: Animation | null = null;
     let timer: ReturnType<typeof setTimeout> | null = null;
-    // The clip of the whole area while the panel sits on its tile — from the preview's report, or
-    // from the tile boxes the preview reported earlier.
-    const clipAtTile = (z: PreviewZoom | null) => {
-      const host = (b: Box): Box => ({ x: g.left + b.x * g.scale, y: g.top + b.y * g.scale, w: b.w * g.scale, h: b.h * g.scale });
-      const t = z?.tile ?? known.current.find((x) => x.id === id) ?? null;
-      if (!t) return null;
-      return zoomedClip(z ? host(z.panel) : pictureBox(g), host(t), W, H);
-    };
     const run = (z: PreviewZoom | null) => {
       waiting.current = null;
       if (timer) clearTimeout(timer);
-      const tile = zooms ? clipAtTile(z) : null;
-      if (want) {
+      a = z ? followZoom(el, z, geo.current) : null;
+      if (panel) {
         el.style.opacity = '';
         setOn(true);
-        a = tile ? el.animate([{ clipPath: tile }, { clipPath: full }], { duration: T.zoom * 1000, easing: EASE_OUT }) : el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: T.fade * 1000, easing: 'linear' });
+        a ??= el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: T.fade * 1000, easing: 'linear' });
       } else {
-        a = tile
-          ? el.animate(
-              [
-                { clipPath: full, opacity: 1 },
-                { clipPath: tile, opacity: 1, offset: 0.8 },
-                { clipPath: tile, opacity: 0 },
-              ],
-              { duration: T.unzoom * 1000, delay: T.fadeOut * 600, easing: EASE_IN_OUT, fill: 'both' },
-            )
-          : el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: T.fade * 1000, fill: 'both' });
+        a ??= el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: T.fade * 1000, fill: 'both' });
         a.onfinish = () => setOn(false);
       }
     };
     if (!zooms) run(null);
     else {
-      const dir = want ? 'open' : 'close';
+      const dir = panel ? 'open' : 'close';
       const z = lastZoom.current;
       if (z && z.dir === dir && z.clueId === id && performance.now() - z.at < 400) run(z);
       else {
         // Until the preview's own zoom starts, an opening clue's surface is not shown yet and a
         // closing clue's stays.
-        if (want) el.style.opacity = '0';
+        if (panel) el.style.opacity = '0';
         else setOn(true);
         waiting.current = { dir, clueId: id!, run };
         timer = setTimeout(() => run(null), 400);
@@ -296,7 +289,7 @@ function StageFill({ kind, root, width, height, stage, tiles, clueId, reduced }:
       if (timer) clearTimeout(timer);
       a?.cancel();
     };
-  }, [kind, clueId, reduced]);
+  }, [panel, kind, clueId, reduced]);
   const classic = root.dataTheme === 'classic';
   const grain = Math.max(32, Math.round(256 * stage.scale));
   return (
@@ -372,7 +365,7 @@ export function GameFrame({
   start,
   end,
   timer,
-  tiles = [],
+  panel = kind === 'clue' || kind === 'final',
   clueId = null,
   children,
 }: {
@@ -380,7 +373,7 @@ export function GameFrame({
   /** The current stage: it fills the frame's slots through FrameParts. */
   children?: ReactNode;
   /** The TV presentation, sized `w` × `h` (the TV's proportions) — mounted once for the game. */
-  preview: (size: { w: number; h: number }, testId: string) => ReactNode;
+  preview: (size: { w: number; h: number; bleed: Bleed }, testId: string) => ReactNode;
   /** The score cards, given the card size the frame worked out. */
   scores: (m: { cardW: number; cardH: number; cardMin: number; rows: number; wide: boolean; pic: boolean }) => ReactNode;
   scoreCount: number;
@@ -389,8 +382,10 @@ export function GameFrame({
   end?: ReactNode;
   /** R11-4: the game timer, shown as a thin line along the top of the control band. */
   timer?: TimerState | null;
-  /** R15-15: the preview's board tiles and the open clue, so the surroundings follow the clue zoom. */
-  tiles?: PreviewTile[];
+  /** The stage shows the clue panel's surface (a clue, the Final, R17-17 the introduction's
+   *  categories): the area around the picture takes it too. */
+  panel?: boolean;
+  /** The open clue, so the surroundings follow its zoom. */
   clueId?: string | null;
 }) {
   const fs = useContext(HostFullscreenCtx);
@@ -452,9 +447,10 @@ export function GameFrame({
             >
               {/* The presentation area around the TV picture (R14-6, R15-14): it continues the
                   stage's own background, so the picture has no visible edge (host-tv.css). */}
-              <StageFill kind={kind} root={root} width={aw} height={L.midH} stage={{ left: L.stageLeft, top: L.stageTop, scale: L.sw / 1280 }} tiles={tiles} clueId={clueId} reduced={!!look.reducedMotion} />
+              <StageFill panel={panel} kind={kind} root={root} width={aw} height={L.midH} stage={{ left: L.stageLeft, top: L.stageTop, scale: L.sw / 1280 }} clueId={clueId} reduced={!!look.reducedMotion} />
               <div className="absolute overflow-hidden" style={{ left: L.stageLeft, top: L.stageTop, width: L.sw, height: L.sh }} data-testid="game-stage">
-                {preview({ w: L.sw, h: L.sh }, ids.preview)}
+                {/* R17-17: how far the area runs on past the picture — the TV panel's surface continues into it. */}
+                {preview({ w: L.sw, h: L.sh, bleed: { t: L.stageTop, r: aw - L.stageLeft - L.sw, b: L.midH - L.stageTop - L.sh, l: L.stageLeft } }, ids.preview)}
                 <div ref={setStage} className="contents" />
               </div>
               <div ref={setOverlay} className="contents" />

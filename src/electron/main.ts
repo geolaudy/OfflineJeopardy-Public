@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { RunningServer } from '../server/app.js';
 import { openSplash, type Splash } from './splash.js';
+import { applyPendingMove, checkAvailable, hasGameData, readBootstrap, samePath, writeBootstrap } from '../server/dataLocation.js';
 
 const NINTENDO_VENDOR = 0x057e;
 let server: RunningServer | null = null;
@@ -44,18 +45,70 @@ function soundPackDirs(dataDir: string): string[] {
   return app.isPackaged ? [path.join(process.resourcesPath, 'soundpacks', 'buzzinga'), ...found] : [path.join(app.getAppPath(), 'new_sfx'), ...found];
 }
 
-/** Data lives in %APPDATA%/OfflineJeopardy/data, or next to the portable .exe. */
-function resolveDataDir(): string {
-  const cfgFile = path.join(app.getPath('userData'), 'config.json');
-  try {
-    const cfg = JSON.parse(fs.readFileSync(cfgFile, 'utf8')) as { dataDir?: string };
-    if (cfg.dataDir) return cfg.dataDir;
-  } catch {
-    /* no config */
-  }
+/**
+ * R17-15: the bootstrap file (outside the data folder) with the chosen data folder and a pending
+ * move — %APPDATA%\OfflineJeopardy\config.json for the installed and the portable app alike, so a
+ * newer portable exe finds data the host moved.
+ */
+const bootstrapFile = () => path.join(app.getPath('userData'), 'config.json');
+/** Data lives in %APPDATA%/OfflineJeopardy/data, or next to the portable .exe, unless the host chose a folder. */
+function defaultDataDir(): string {
   const portableDir = process.env.PORTABLE_EXECUTABLE_DIR;
   if (portableDir) return path.join(portableDir, 'OfflineJeopardyData');
   return path.join(app.getPath('userData'), 'data');
+}
+/** The data folder in use (decided at start-up). */
+let dataDirInUse = '';
+
+/**
+ * R17-15: a chosen data folder that is missing (a USB drive not plugged in, a network share offline)
+ * or holds no game data: ask — never start an empty database there (or anywhere) silently.
+ */
+async function confirmDataDir(dir: string): Promise<string | null> {
+  const def = defaultDataDir();
+  for (;;) {
+    const av = checkAvailable(dir, samePath(dir, def));
+    if (av.ok) return dir;
+    const missing = av.reason === 'missing';
+    const buttons = missing ? ['Try again', 'Choose another folder…', 'Use the default folder this time', 'Quit'] : ['Start with new game data there', 'Choose another folder…', 'Use the default folder this time', 'Quit'];
+    const r = await dialog.showMessageBox({
+      type: 'warning',
+      title: 'OfflineJeopardy — game data folder',
+      message: missing ? 'The game data folder is not available.' : 'There is no game data in the chosen folder.',
+      detail: `${dir}\n\n${missing ? 'Is the drive plugged in, or the network folder reachable? Plug it in and try again, or choose what to do.' : 'Players, boards and history were not found there. Start with new, empty game data in this folder only if that is what you want.'}\n\nDefault folder: ${def}`,
+      buttons,
+      defaultId: 0,
+      cancelId: 3,
+      noLink: true,
+    });
+    log('Data folder not available', dir, av.reason, '→', buttons[r.response]);
+    if (r.response === 0) {
+      if (!missing) return dir;
+      continue;
+    }
+    if (r.response === 1) {
+      const pick = await dialog.showOpenDialog({ title: 'Choose the folder with your OfflineJeopardy game data', defaultPath: fs.existsSync(dir) ? dir : path.dirname(def), properties: ['openDirectory'] });
+      const chosen = pick.filePaths[0];
+      if (pick.canceled || !chosen) continue;
+      const found = hasGameData(chosen) ? chosen : hasGameData(path.join(chosen, 'OfflineJeopardyData')) ? path.join(chosen, 'OfflineJeopardyData') : null;
+      if (!found) {
+        await dialog.showMessageBox({ type: 'info', message: 'No OfflineJeopardy game data in that folder.', detail: chosen, buttons: ['OK'] });
+        continue;
+      }
+      const b = readBootstrap(bootstrapFile());
+      writeBootstrap(bootstrapFile(), { ...b, dataDir: samePath(found, def) ? undefined : found });
+      return found;
+    }
+    if (r.response === 2) return def; // this start only: the bootstrap file keeps the chosen folder
+    return null;
+  }
+}
+
+/** Restarts the app — for the portable exe the exe itself (its unpacked copy may be gone after exit). */
+function relaunchApp() {
+  const portable = process.env.PORTABLE_EXECUTABLE_FILE;
+  app.relaunch(portable ? { execPath: portable, args: [] } : undefined);
+  app.quit();
 }
 
 /** What the splash says for each phase the server reports (R14-11). */
@@ -64,7 +117,16 @@ const STAGE_TEXT = { data: 'Loading saved data…', services: 'Preparing game se
 async function boot() {
   const t0 = Date.now();
   const splash = openSplash(app.getVersion());
-  const dataDir = resolveDataDir();
+  logFile = path.join(app.getPath('userData'), 'startup.log');
+  // R17-15: a move the host asked for happens now, before anything opens the database.
+  const moved = await applyPendingMove(bootstrapFile(), defaultDataDir(), log, (s) => splash.status(s));
+  const dataDir = await confirmDataDir(moved);
+  if (!dataDir) {
+    splash.close();
+    app.quit();
+    return;
+  }
+  dataDirInUse = dataDir;
   fs.mkdirSync(path.join(dataDir, 'logs'), { recursive: true });
   logFile = path.join(dataDir, 'logs', 'main.log');
   log('Starting OfflineJeopardy', app.getVersion(), 'data:', dataDir);
@@ -87,6 +149,23 @@ async function boot() {
           soundPackDirs: soundPackDirs(dataDir),
           devTools: !app.isPackaged || process.env.OJ_DEV_TOOLS === '1',
           onStage: (s) => splash.status(STAGE_TEXT[s]),
+          storage: {
+            bootstrapFile: bootstrapFile(),
+            defaultDir: defaultDataDir(),
+            portable: !!process.env.PORTABLE_EXECUTABLE_DIR,
+            pickFolder: async (start) => {
+              const opts = { title: 'Choose where OfflineJeopardy keeps its game data', defaultPath: start, properties: ['openDirectory', 'createDirectory', 'promptToCreate'] as ('openDirectory' | 'createDirectory' | 'promptToCreate')[] };
+              const win = mainWin && !mainWin.isDestroyed() ? mainWin : null;
+              win?.show();
+              win?.focus();
+              const r = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts);
+              return r.canceled ? null : (r.filePaths[0] ?? null);
+            },
+            openFolder: async (dir) => {
+              await shell.openPath(dir);
+            },
+            relaunch: relaunchApp,
+          },
         });
         break;
       } catch (e) {
@@ -146,7 +225,7 @@ function createMainWindow(splash?: Splash, t0 = Date.now()) {
       contextIsolation: true,
       sandbox: true,
       backgroundThrottling: false, // keep reading controllers when the TV window has focus
-      additionalArguments: [`--oj-data-dir=${resolveDataDir()}`, `--oj-version=${app.getVersion()}`],
+      additionalArguments: [`--oj-data-dir=${dataDirInUse || defaultDataDir()}`, `--oj-version=${app.getVersion()}`],
     },
   });
   void mainWin.loadURL(`${server!.url}/desk`);
@@ -214,7 +293,7 @@ function openBoardWindow(opts: { displayId?: number; fullscreen?: boolean }) {
       backgroundThrottling: false,
       // The host starts clue audio/video from the iPad; nobody clicks on the TV.
       autoplayPolicy: 'no-user-gesture-required',
-      additionalArguments: [`--oj-data-dir=${resolveDataDir()}`, `--oj-version=${app.getVersion()}`],
+      additionalArguments: [`--oj-data-dir=${dataDirInUse || defaultDataDir()}`, `--oj-version=${app.getVersion()}`],
     },
   });
   void boardWin.loadURL(`${server!.url}/board`);
@@ -235,11 +314,8 @@ ipcMain.handle('oj:displays', () => {
   }));
 });
 ipcMain.handle('oj:openExternal', (_e, url: string) => (/^https?:\/\//.test(url) ? shell.openExternal(url) : undefined));
-ipcMain.handle('oj:openDataFolder', () => shell.openPath(resolveDataDir()));
-ipcMain.handle('oj:relaunch', () => {
-  app.relaunch();
-  app.quit();
-});
+ipcMain.handle('oj:openDataFolder', () => shell.openPath(dataDirInUse || defaultDataDir()));
+ipcMain.handle('oj:relaunch', () => relaunchApp());
 
 /**
  * Packaged-build smoke test (`OfflineJeopardy.exe --smoke-test=<report.json>`): starts the embedded
@@ -310,12 +386,17 @@ if (smokeArg) {
   });
   app.whenReady().then(boot);
   app.on('window-all-closed', () => app.quit());
-  app.on('before-quit', () => {
-    if (server) {
-      const s = server;
-      server = null;
-      void s.close().catch((e) => log('close error', e));
-    }
+  // R17-15: quitting waits for the server to close the database (a restart that moves the data folder
+  // then starts from a cleanly closed database), then quits for real.
+  app.on('before-quit', (e) => {
+    if (!server) return;
+    e.preventDefault();
+    const s = server;
+    server = null;
+    void s
+      .close()
+      .catch((err) => log('close error', err))
+      .finally(() => app.quit());
   });
   process.on('uncaughtException', (e) => log('uncaughtException', e));
   process.on('unhandledRejection', (e) => log('unhandledRejection', e));

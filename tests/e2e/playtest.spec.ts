@@ -233,12 +233,13 @@ test('play-test: profile creation with a default picture on a small phone, sound
   await expect(p.getByTestId('me-name')).toHaveText('Picture Pat');
 
   const ipad = await (await wk.newContext({ ...devices['iPad Pro 11'] })).newPage();
-  await ipad.goto(`${BASE}/host/settings`);
-  const card = ipad.getByTestId('tv-presentation-settings');
+  await ipad.goto(`${BASE}/host/settings?tab=sound`); // R17-14: Settings → Sound
+  const card = ipad.getByTestId('settings-panel-sound');
   await expect(card.getByTestId('fx-pack-buzzinga')).toBeVisible();
   await card.getByTestId('fx-pack-buzzinga').scrollIntoViewIfNeeded();
   await shot(ipad, 'ipad-portrait-sound-packs');
   // Leaderboard minimums (K17) save when the field is left.
+  await ipad.getByTestId('settings-tab-players').click();
   const games = ipad.getByLabel('Minimum games');
   await games.fill('2');
   await games.press('Enter');

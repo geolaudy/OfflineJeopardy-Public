@@ -17,7 +17,7 @@ test('developer tools: diagnostics, fairness test, exported report', async () =>
   const ctx = await cr.newContext({ viewport: { width: 1280, height: 900 }, acceptDownloads: true });
   const pc = await ctx.newPage();
   await pc.goto(`${BASE}/host/settings`);
-  await pc.getByRole('button', { name: 'Advanced' }).click();
+  await pc.getByTestId('settings-tab-advanced').click(); // R17-14: Settings → Advanced
   await pc.getByTestId('devtools-link').click();
   await expect(pc).toHaveURL(/\/host\/dev$/);
   await expect(pc.getByTestId('devtools')).toBeVisible();

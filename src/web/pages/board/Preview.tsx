@@ -4,7 +4,7 @@
 // With ?live=1 the host controller embeds it instead (R5-12 / R5-14) and sends a game view: the
 // current category introduction (with the TV's swipes) or a revealed answer, exactly as the TV
 // formats it, and Final Jeopardy! (R9-6). Nothing here connects to the server or plays sound.
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { MotionConfig } from 'motion/react';
 import type { GameView } from '../../../shared/views';
 import { DEFAULT_RULES } from '../../../shared/game';
@@ -20,6 +20,7 @@ import { FxCtx } from './fx';
 import { DEFAULT_TV_FX, normalizeTvFx } from '../../../shared/tvFx';
 import { configureSound } from '../../lib/sound';
 import { useLive } from '../../lib/socket';
+import { classicPanelSurface, type Bleed } from './panelSurface';
 import './fonts.css';
 import './board.css';
 
@@ -88,6 +89,25 @@ export interface LivePreviewMessage {
   /** R10-6: the host's preview — the score strip's place is kept empty for the host's controls
    *  and the timer bar is not drawn (the TV itself is unchanged). */
   band?: boolean;
+  /** R17-17: how far the host's area runs on past the picture (this page's px): the clue panel's
+   *  surface continues into it (board.css .is-host-preview .bt-panel::before). */
+  bleed?: Bleed;
+}
+
+/** R17-17: the preview root's bleed variables — the sizes and, in the classic theme, the panel's
+ *  surface over the panel plus its bleed in the picture's coordinates (as GameFrame draws it around
+ *  the picture), so the two are one surface. */
+function bleedStyle(bleed: Bleed | undefined, classic: boolean, stageH: number): CSSProperties {
+  if (!bleed) return {};
+  // Negative where the host's control band covers the picture's lower edge: the surface ends there.
+  const b = bleed;
+  return {
+    '--pv-bleed-t': `${b.t}px`,
+    '--pv-bleed-r': `${b.r}px`,
+    '--pv-bleed-b': `${b.b}px`,
+    '--pv-bleed-l': `${b.l}px`,
+    ...(classic ? { '--pv-surface': classicPanelSurface({ x: b.l, y: b.t, w: 1280, h: stageH }, 1280 + b.l + b.r, stageH + b.t + b.b, 256) } : {}),
+  } as CSSProperties;
 }
 
 /** R13-13: where the board's clue tiles are inside the preview (its own CSS pixels), sent back to
@@ -144,14 +164,9 @@ function LivePreview() {
       setMsg(m);
     };
     window.addEventListener('message', onMsg);
-    // R16-19: the clue zoom's start, for the host's surroundings of this preview (GameFrame).
-    const onZoom = (e: Event) => window.parent?.postMessage({ type: 'oj-preview-zoom', zoom: (e as CustomEvent).detail }, location.origin);
-    window.addEventListener('oj-tv-zoom', onZoom);
+    // The host listens for the clue zoom ('oj-tv-zoom') on this window itself (TvMirror).
     window.parent?.postMessage({ type: 'oj-preview-ready' }, location.origin);
-    return () => {
-      window.removeEventListener('message', onMsg);
-      window.removeEventListener('oj-tv-zoom', onZoom);
-    };
+    return () => window.removeEventListener('message', onMsg);
   }, []);
   const look = msg?.look;
   const reduced = !!look?.reducedMotion;
@@ -162,12 +177,16 @@ function LivePreview() {
   if (!msg) return <div className="h-screen w-screen bg-black" />;
   const g = msg.game;
   const root = themeRoot(look?.theme ?? 'classic', look?.custom ?? null);
+  // R17-17: the category introduction's categories show on the clue panel's surface in the host's
+  // preview, edge to edge like a clue (board.css); the round title keeps the board around it.
+  const hostStage = g.phase === 'final' ? 'final' : g.phase === 'clue' ? 'clue' : g.intro && g.intro.step >= 0 ? 'intro' : 'board';
+  const bleed = msg.band ? bleedStyle(msg.bleed, root.dataTheme === 'classic', 720 * (1 - HOST_BAND)) : {};
   return (
     <BoardCtx.Provider value={ctx}>
       <FxCtx.Provider value={fx}>
         <UserFonts fonts={look?.fonts} />
         <MotionConfig reducedMotion={reduced ? 'always' : 'never'}>
-          <div className={`board-theme relative flex h-screen w-screen flex-col overflow-hidden select-none${msg.band ? ' is-host-preview' : ''}`} data-theme={root.dataTheme} style={root.style} data-testid="live-preview-root" data-host-stage={g.phase === 'final' ? 'final' : g.phase === 'clue' ? 'clue' : 'board'}>
+          <div className={`board-theme relative flex h-screen w-screen flex-col overflow-hidden select-none${msg.band ? ' is-host-preview' : ''}`} data-theme={root.dataTheme} style={{ ...root.style, ...bleed }} data-testid="live-preview-root" data-host-stage={hostStage}>
             <div className="relative min-h-0 flex-1">
               {/* R13-13: the TV's own stage — board fill-in, clue zoom, introduction swipes, Final. */}
               <Stage g={g} quietStart />

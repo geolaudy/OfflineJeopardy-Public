@@ -176,3 +176,22 @@ Question: can the host controller's Home Screen app show a navy status bar on iP
 - Nothing web-specific was found on the iOS 26 top-edge fade's colour (only SwiftUI's scrollEdgeEffectStyle).
 
 Decision (D112): keep the plain `default` bar (white) — the only predictable result. A future attempt, once 301994 is fixed on the owner's iPadOS: `black-translucent`, html / body and the header in navy, `padding-top: env(safe-area-inset-top)` only (no extra 2.75rem, no painted strip), checked on the device with a temporary inset readout. K55 stays open.
+
+## iPadOS status bar, round 17 (R17-16, K55, 2026-10-22)
+
+Question: with the owner now on **iPadOS 27.0.1**, can `apple-mobile-web-app-status-bar-style: black-translucent` (with `apple-mobile-web-app-capable`, the manifest's `display: standalone`, `viewport-fit=cover` and `env(safe-area-inset-top)` padding — all of which the host already has, see index.html / host.webmanifest / styles.css `--safe-top`) give a real blue bar?
+
+- **WebKit bug 301994** ("REGRESSION (iOS 26.1): Status bar remains visible in fullscreen mode in Home Screen Web apps", bugs.webkit.org/show_bug.cgi?id=301994), read 2026-10-22: **REOPENED, P2, unassigned, no fix listed.** Timeline: reported 2025-11-04 (26.1: the system draws a solid rectangle behind the bar, `safe-area-inset-top` = 0); fixed in 26.2 (confirmed 2025-12); reproduced on 26.5.2 (2026-07-20, "a 62px gap the web layer can't reach"); **reproduced on the iOS 27 public beta and reopened by a WebKit engineer on 2026-08-04** with a new Radar; last comment 2026-10-21 asks for an update. No iOS 27.x release note mentions a fix.
+- Consequence: on iPadOS 27.0.1 `black-translucent` most likely still cannot draw the page under the bar. Even where it can, the host's wide pages (side navigation, light page area) would put the bar's white text over a light background unless a navy strip is painted in the safe area — the rc.2 approach the owner rejected (it showed as a gradient into a white-ish bar under the system's scrim, and pushed content down).
+- `theme-color` / the manifest's `theme_color` colour Safari's own tab bar, not a Home Screen app's status bar (round 16 research).
+- **Re-adding the icon:** iOS stores a Home Screen web app's `apple-mobile-web-app-*` settings when the icon is added; after any change to them, remove the icon and add it again from Safari (Share → Add to Home Screen) on the host page. (No change was made in rc.4 — the bar stays `default`.)
+- Not tested on hardware here (no iPad); desktop / Playwright emulation cannot show the real status bar.
+
+Decision D120: keep the plain `default` (white) bar; K55 stays open. Revisit when 301994 is closed as fixed for the owner's iPadOS: then black-translucent, html / body and the header in navy, header `padding-top: env(safe-area-inset-top)` only, and a decision for the light desk pages (navy page header strip vs. keeping them white).
+
+## iPad lobby: why the column jumped to its top (R17-5, 2026-10-21)
+
+- No app code resets the lobby column: nothing in the lobby depends on the viewport height and nothing remounts when the keyboard opens (checked: no keys / layout branches on height; the shell's height change does not unmount the column).
+- The jump fits WebKit's own focus handling: after the keyboard tracker revealed the field once (one scroll of the column), WebKit performs a later "scroll the focused element into view" on the fixed shell after its size changes, and in an overflow container inside a `position: fixed` shell this has been seen to scroll the container back to 0. It cannot be switched off from a page.
+- Fix (D114): a scroll guard — the column's scroll positions are remembered at focus; a scroll nobody made (no touch / wheel / key in the last 1.2 s) that hides the field is undone (at most 6 times a second, so it cannot fight a real scroll); positions are restored when the keyboard closes. Reproduced in tests/e2e/round17.spec ("WebKit scrolling the column back to the top …") by setting `scrollTop = 0` after the keyboard opened.
+- Diagnostics for the owner's iPad: `?kbdebug=1` or Settings → Advanced → keyboard diagnostics shows the visual viewport, the field's position and every scroll the guard undid.

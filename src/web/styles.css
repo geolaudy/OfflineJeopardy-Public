@@ -425,3 +425,61 @@ button {
 .drawer-panel.is-closing {
   animation: drawer-out 0.22s ease-in forwards;
 }
+
+/* R17-14: tabs (Settings, Rules & timers): text on one hairline, the active tab blue with a short
+   bar under it — no boxes; the row scrolls sideways on a narrow screen. */
+.oj-tabs {
+  display: flex;
+  gap: 0.25rem;
+  overflow-x: auto;
+  border-bottom: 1px solid rgb(203 213 225);
+  scrollbar-width: none;
+}
+.oj-tabs::-webkit-scrollbar {
+  display: none;
+}
+.oj-tab {
+  position: relative;
+  display: inline-flex;
+  min-height: 2.9rem;
+  flex: none;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 0.7rem;
+  color: rgb(71 85 105);
+  font-weight: 600;
+  white-space: nowrap;
+  border-radius: 0.5rem 0.5rem 0 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.15s, background-color 0.15s;
+}
+.oj-tab:hover {
+  color: rgb(15 23 42);
+  background: rgb(241 245 249);
+}
+.oj-tab[aria-selected='true'] {
+  color: rgb(29 78 216);
+}
+.oj-tab[aria-selected='true']::after {
+  content: '';
+  position: absolute;
+  right: 0.6rem;
+  bottom: -1px;
+  left: 0.6rem;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: rgb(29 78 216);
+}
+.oj-tab:focus-visible {
+  outline: 3px solid rgb(59 130 246 / 0.6);
+  outline-offset: -3px;
+}
+/* A settings section: a small label over its controls (no card around every group). */
+.oj-section-label {
+  margin-bottom: 0.5rem;
+  color: rgb(100 116 139);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}

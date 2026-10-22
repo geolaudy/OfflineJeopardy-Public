@@ -13,7 +13,7 @@ export default defineConfig({
   use: { baseURL: `http://127.0.0.1:${E2E_PORT}`, trace: 'retain-on-failure' },
   webServer: {
     // --dev-tools: R7-31 developer tools (devtools.spec); normal servers leave them off.
-    command: `npx tsx src/server/cli.ts --data=test-results/e2e-data-${E2E_PORT} --port=${E2E_PORT} --fresh --dev-tools`,
+    command: `npx tsx src/server/cli.ts --data=test-results/e2e-data-${E2E_PORT} --bootstrap=test-results/e2e-boot-${E2E_PORT}.json --port=${E2E_PORT} --fresh --dev-tools`,
     url: `http://127.0.0.1:${E2E_PORT}/api/info`,
     reuseExistingServer: false,
     timeout: 60_000,

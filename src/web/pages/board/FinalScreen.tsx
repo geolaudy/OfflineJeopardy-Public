@@ -175,9 +175,10 @@ function SubmissionChips({ g, kind, bottom }: { g: GameView; kind: 'wager' | 'an
   );
 }
 
-/** The contestant being revealed: name, picture, score before the Final → wager → answer. The
- *  judgment shows in the score box at the bottom (one score-change animation, R7-9) and as a mark
- *  on the contestant's chip below. */
+/** The contestant being revealed (R17-11: one card in the TV score cards' language — the name row
+ *  with the picture in the player's colour, the answer in the card's inner panel in the clue font,
+ *  the score before the Final and the wager underneath). The judgment shows as the card's outline
+ *  (green / red, like the reveal order) and in the score cards along the bottom. */
 function Spotlight({ g }: { g: GameView }) {
   const f = g.final!;
   const ctx = useBoard();
@@ -189,26 +190,17 @@ function Spotlight({ g }: { g: GameView }) {
   const pre = f.preScores[id] ?? 0;
   if (!e || !c) return <div className="flex-1" />;
   const color = competitorColor(c, g);
+  const verdict = e.judged ? (e.correct ? 'correct' : 'incorrect') : undefined;
   return (
-    <div
-      className="flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-[2.4vh]"
-      data-testid={tid('tv-final-spotlight')}
-      data-judged={e.judged ? (e.correct ? 'correct' : 'incorrect') : undefined}
-    >
-      <div className="bt-final-spot" style={{ '--pc': color } as CSSProperties} data-competitor={id}>
+    <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center" data-testid={tid('tv-final-spotlight')} data-judged={verdict}>
+      <div className="bt-final-spot" style={{ '--pc': color } as CSSProperties} data-competitor={id} data-judged={verdict}>
         <div className="bt-final-who">
           <span className="bt-final-ring">
-            <Avatar profile={competitorAvatar(c, g)} size={Math.round(ctx.vh * 0.135)} />
+            <Avatar profile={competitorAvatar(c, g)} size={Math.round(ctx.vh * 0.075)} />
           </span>
-          <div className="min-w-0 text-left">
-            <div className="bt-name truncate text-[5.6vh] leading-none" data-testid={tid('tv-final-name')}>
-              {competitorName(c, g)}
-            </div>
-            <div className="bt-final-pre">
-              <span className="bt-final-label">Before Final Jeopardy!</span>
-              <b className="tabular-nums">{money(ctx.prefix, pre)}</b>
-            </div>
-          </div>
+          <span className="bt-name min-w-0 truncate" data-testid={tid('tv-final-name')}>
+            {competitorName(c, g)}
+          </span>
         </div>
         <div className="bt-final-answer-card" data-revealed={shown === 'answer' ? 'true' : 'false'}>
           <AnimatePresence mode="wait" initial={false}>
@@ -231,14 +223,20 @@ function Spotlight({ g }: { g: GameView }) {
             )}
           </AnimatePresence>
         </div>
-        <div className="bt-final-wager">
-          <AnimatePresence initial={false}>
-            {shown !== 'none' && (
-              <motion.div key="wager" initial={{ opacity: 0, y: '2vh' }} animate={{ opacity: 1, y: 0 }} transition={{ duration: T.fade }} data-testid={tid('tv-final-wager')}>
-                <span className="bt-final-label">Wager</span> <b className="tabular-nums">{money(ctx.prefix, e.wager ?? 0)}</b>
-              </motion.div>
-            )}
-          </AnimatePresence>
+        <div className="bt-final-stats">
+          <div className="bt-final-pre">
+            <span className="bt-final-label">Before Final Jeopardy!</span>
+            <b className="tabular-nums">{money(ctx.prefix, pre)}</b>
+          </div>
+          <div className="bt-final-wager">
+            <AnimatePresence initial={false}>
+              {shown !== 'none' && (
+                <motion.div key="wager" initial={{ opacity: 0, y: '1.5vh' }} animate={{ opacity: 1, y: 0 }} transition={{ duration: T.fade }} data-testid={tid('tv-final-wager')}>
+                  <span className="bt-final-label">Wager</span> <b className="tabular-nums">{money(ctx.prefix, e.wager ?? 0)}</b>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
     </div>
@@ -272,13 +270,18 @@ function RevealProgress({ g }: { g: GameView }) {
   );
 }
 
+/** Result cards per row: one row up to 4, then balanced rows (5–6 → 3, 7–8 → 4, 9–12 → 6). */
+const resultColumns = (n: number) => (n <= 4 ? Math.max(1, n) : n <= 6 ? 3 : n <= 8 ? 4 : 6);
+
 /** After the last judgment: the correct response and everyone's result. R14-21 / R14-22: no
- *  "Correct response" label and no colour strip on the cards; the names look like the score cards'
- *  (picture with the player's colour, the same name type). */
+ *  "Correct response" label. R17-11: the correct response has room under the category; each result
+ *  is a card like the score cards (name row with the picture in the player's colour, the answer in
+ *  the inner panel in the clue font, the wager) with the verdict as its outline, not a fill. */
 function Summary({ g }: { g: GameView }) {
   const f = g.final!;
   const ctx = useBoard();
   const { prefix } = ctx;
+  const cols = resultColumns(f.order.length);
   return (
     <>
       {f.answerMedia.length > 0 ? (
@@ -288,34 +291,43 @@ function Summary({ g }: { g: GameView }) {
         </motion.div>
       ) : (
         f.answer && (
-          <motion.div className="flex shrink-0 flex-col items-center gap-[0.8vh]" initial={{ opacity: 0, y: '3vh' }} animate={{ opacity: 1, y: 0 }} transition={{ duration: T.reveal, ease: EASE_OUT_ARR }} data-testid="tv-final-correct">
+          <motion.div className="bt-final-solution" initial={{ opacity: 0, y: '3vh' }} animate={{ opacity: 1, y: 0 }} transition={{ duration: T.reveal, ease: EASE_OUT_ARR }} data-testid="tv-final-correct">
             <p className="bt-answer">
               <RichText text={f.answer} />
             </p>
           </motion.div>
         )
       )}
-      <div className="grid w-full max-w-[88vw] shrink-0 gap-[1.4vh]" style={{ gridTemplateColumns: `repeat(${Math.min(4, Math.max(1, f.order.length))}, minmax(0, 1fr))` }}>
-        {f.order.map((id) => {
-          const e = f.entries.find((x) => x.competitorId === id)!;
-          const c = findCompetitor(g, id);
-          return (
-            <div key={id} className={cx('bt-final-card', e.judged && (e.correct ? 'is-right' : 'is-wrong'))} style={{ '--pc': competitorColor(c, g) } as CSSProperties} data-testid="tv-final-card">
-              <div className="bt-podium-name bt-final-card-name">
-                {c && (
-                  <span className="bt-podium-ava is-ring">
-                    <Avatar profile={competitorAvatar(c, g)} size={Math.round(ctx.vh * 0.032)} ring={false} />
-                  </span>
-                )}
-                <span className="truncate">{competitorName(c, g)}</span>
+      <div className={cx('flex w-full justify-center', f.answerMedia.length > 0 ? 'shrink-0' : 'min-h-0 flex-1 items-center')}>
+        <motion.div
+          className="bt-final-results"
+          style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, '--cols': cols } as CSSProperties}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: T.reveal, delay: 0.2 }}
+          data-many={f.order.length > 6 || undefined}
+        >
+          {f.order.map((id) => {
+            const e = f.entries.find((x) => x.competitorId === id)!;
+            const c = findCompetitor(g, id);
+            return (
+              <div key={id} className={cx('bt-final-card', e.judged && (e.correct ? 'is-right' : 'is-wrong'))} style={{ '--pc': competitorColor(c, g) } as CSSProperties} data-testid="tv-final-card">
+                <div className="bt-podium-name bt-final-card-name">
+                  {c && (
+                    <span className="bt-podium-ava is-ring">
+                      <Avatar profile={competitorAvatar(c, g)} size={Math.round(ctx.vh * 0.032)} ring={false} />
+                    </span>
+                  )}
+                  <span className="truncate">{competitorName(c, g)}</span>
+                </div>
+                <div className="bt-final-card-answer bt-question">{e.answer?.trim() || 'No answer'}</div>
+                <div className="bt-final-card-wager">
+                  <span className="bt-final-label">Wager</span> <span className="bt-money">{money(prefix, e.wager ?? 0)}</span>
+                </div>
               </div>
-              <div className="bt-question mt-[0.6vh] truncate text-[3vh]">{e.answer || '(no answer)'}</div>
-              <div className="mt-[0.4vh] text-[2vh]">
-                <span className="bt-final-label">Wager</span> <span className="bt-money text-[2.4vh]">{money(prefix, e.wager ?? 0)}</span>
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </motion.div>
       </div>
     </>
   );
