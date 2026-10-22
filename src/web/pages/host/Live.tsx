@@ -150,8 +150,9 @@ export default function Live({ g, run, menu }: { g: GameView; run: Run; menu?: L
         <GameFrame
           kind={kind}
           timer={g.timer}
-          // R17-17: the introduction's categories show on the clue panel's surface, edge to edge.
-          panel={kind === 'clue' || kind === 'final' || (kind === 'intro' && (g.intro?.step ?? -1) >= 0)}
+          // R17-17 / R18-5: the introduction (the round title and its categories) shows on the clue
+          // panel's surface, edge to edge; the playable board keeps its own frame.
+          panel={kind === 'clue' || kind === 'final' || kind === 'intro'}
           clueId={g.clue?.clueId ?? null}
           scoreCount={g.competitors.length}
           // The one TV preview of the game (R13-13): the TV's own board, introduction, clue and Final.
@@ -592,7 +593,7 @@ function IntroStage({ g, run }: { g: GameView; run: Run }) {
   const round = g.rounds[intro.roundIndex];
   if (!round) return null;
   const n = round.categories.length;
-  const nextLabel = intro.step < 0 ? 'Show the first category' : intro.step >= n - 1 ? 'Done — show the board' : 'Next Category';
+  const nextLabel = intro.step < 0 ? 'Show First Category' : intro.step >= n - 1 ? 'Done — show the board' : 'Next Category';
   return (
     <FrameParts
       head={
@@ -623,10 +624,11 @@ function IntroStage({ g, run }: { g: GameView; run: Run }) {
 }
 
 /**
- * The introduction's band (R6-2.3). R17-17.5: one clear order of importance — Next Category is the
- * band's main action (the blue main button, the first large one), Previous Category a quieter
- * button right beside it on its left; Auto Present (a labelled switch) and Skip Category
- * Presentation (a text action) stay visible in a small group of their own at the far end. After
+ * The introduction's band (R6-2.3). R17-17.5 / R18-6: one clear order of importance — Next Category
+ * (Show First Category before the first one) is the band's main action at its far right, where every
+ * stage keeps its next step; Previous Category a quieter button right beside it on its left; Auto
+ * Present (a labelled switch) and Skip Category Presentation (a text action) stay visible, small, in
+ * a group of their own at the band's left end. After
  * each step Previous / Next rest for the TV's swipe, so quick taps never start swipes on top of
  * each other (a tap during the rest waits for it).
  */
@@ -635,14 +637,6 @@ function IntroBar({ g, run, nextLabel }: { g: GameView; run: Run; nextLabel: str
   const resting = useStepRest(`${intro.roundIndex}:${intro.step}`);
   return (
     <div className="host-intro-bar" data-testid="intro-bar">
-      <div className="host-intro-steps">
-        <ActionButton size="lg" variant="ghost" className="host-btn host-intro-prev" disabled={intro.step < 0 || resting} data-resting={resting || undefined} onAction={() => run({ type: 'introPrev' })} aria-label="Previous Category" data-testid="intro-prev">
-          <ChevronLeft size={22} aria-hidden /> <span className="host-intro-prev-label">Previous</span>
-        </ActionButton>
-        <ActionButton size="lg" className="host-btn host-btn-main host-intro-next" disabled={resting} data-resting={resting || undefined} onAction={() => run({ type: 'introNext' })} data-testid="intro-next">
-          {nextLabel} <ChevronRight size={24} aria-hidden />
-        </ActionButton>
-      </div>
       <div className="host-intro-utils">
         <button
           type="button"
@@ -661,6 +655,14 @@ function IntroBar({ g, run, nextLabel }: { g: GameView; run: Run; nextLabel: str
         <button type="button" className="host-intro-skip" onClick={() => run({ type: 'introSkip' })} data-testid="intro-skip">
           Skip Category Presentation
         </button>
+      </div>
+      <div className="host-intro-steps">
+        <ActionButton size="lg" variant="ghost" className="host-btn host-intro-prev" disabled={intro.step < 0 || resting} data-resting={resting || undefined} onAction={() => run({ type: 'introPrev' })} aria-label="Previous Category" data-testid="intro-prev">
+          <ChevronLeft size={22} aria-hidden /> <span className="host-intro-prev-label">Previous</span>
+        </ActionButton>
+        <ActionButton size="lg" className="host-btn host-btn-main host-intro-next" disabled={resting} data-resting={resting || undefined} onAction={() => run({ type: 'introNext' })} data-testid="intro-next">
+          {nextLabel} <ChevronRight size={24} aria-hidden />
+        </ActionButton>
       </div>
     </div>
   );

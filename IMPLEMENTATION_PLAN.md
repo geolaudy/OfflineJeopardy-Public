@@ -200,3 +200,13 @@ Rollback point: tag v0.16.0 (0.17.0-rc.3 = commit 488c909, tested by the owner).
 - **D — Final Jeopardy! answer / results screen:** R17-11 (D117). **Done.**
 - **E — TV "is wagering" centring, bot level label:** R17-12, R17-13. **Done.**
 - **F — Preview surface, category introduction, status bar:** R17-16, R17-17, R17-17.3 … R17-17.6 (D118 … D120). **Done** — status bar stays white (K55 open).
+
+## Milestone 32 — User feedback round 18 → v0.17.0-rc.5 (started 2026-10-22, session 21)
+
+Rollback point: tag v0.16.0 (0.17.0-rc.4 = commit 0812c70, tested by the owner). See USER_FEEDBACK.md "Round 18"; statuses in FEATURE_MATRIX.md.
+- **A — Keyboard stable while typing:** R18-1 (D121). **Done** (emulation; the iPad must confirm — K65).
+- **B — Daily Double! band height:** R18-2 (D122). **Done.**
+- **C — Final: cue fades, Show Clue:** R18-3, R18-4 (D123). **Done.**
+- **D — Introduction: round title edge to edge, band order:** R18-5, R18-6 (D124). **Done.**
+- **E — Settings → Players & Bots:** R18-7 (D125). **Done.**
+- **F — Status bar via the sampled header:** R18-8 (D126). **Done** — awaiting the iPad (K55 open).

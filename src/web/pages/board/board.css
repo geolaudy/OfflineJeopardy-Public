@@ -1604,7 +1604,8 @@
 }
 /* R17-17: the category introduction's categories in the host's preview: the panel's surface edge to
    edge behind the swiping categories (no black frame; the host's area continues it), the text
-   unchanged. The round title keeps the board around it, as on the TV. */
+   unchanged. R18-5: the round title ("Board 1") as well — the owner saw its black frame as the one
+   screen of the introduction that did not match. The TV itself is unchanged. */
 .is-host-preview .bt-intro[data-surface="panel"] {
   background: var(--bt-panel);
   background-color: var(--bt-panel-color, transparent);
@@ -1612,4 +1613,8 @@
 .is-host-preview .bt-intro[data-surface="panel"] .bt-intro-card {
   background: none;
   border-radius: 0;
+}
+/* R18-5: the round title's board fill lights its tiles on that surface (no black ground or frame). */
+.is-host-preview .bt-intro[data-surface="panel"] .bt-reveal-grid {
+  background: transparent;
 }

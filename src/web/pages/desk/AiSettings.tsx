@@ -1,13 +1,15 @@
 // Optional AI answers for computer opponents (R3-14). Host only. The API key is write-only: the
 // server reports whether one is saved, never its value. Everything works without this.
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Bot, CircleAlert, CircleCheck, KeyRound, PlugZap, Trash2 } from 'lucide-react';
 import { hostApi } from '../../lib/api';
 import { attempt, useFetch } from '../../lib/hooks';
 import { Button, Field, cx, inputCls, toast } from '../../components/ui';
 import { AI_PROVIDERS, DEFAULT_AI_MODEL, DEFAULT_GEMINI_MODEL, DEFAULT_LOCAL_MODEL, DEFAULT_LOCAL_URL, type AiConfig, type AiModelOption, type AiStatus, type AiTestResult } from '../../../shared/ai';
 
-export function AiSettings() {
+/** `limitsTarget`: where Limits and fallback go (R18-7: the Players & Bots tab's other column). */
+export function AiSettings({ limitsTarget }: { limitsTarget?: HTMLElement | null } = {}) {
   const st = useFetch(() => hostApi<AiStatus>('GET', '/api/ai'), []);
   const [draft, setDraft] = useState<AiConfig | null>(null);
   const [key, setKey] = useState('');
@@ -59,21 +61,47 @@ export function AiSettings() {
   const labels = new Map((models ?? []).map((m) => [m.id, m.label]));
   const modelChoices = [...new Set([draft.model, gemini ? '' : local ? DEFAULT_LOCAL_MODEL : DEFAULT_AI_MODEL, ...(models ?? []).map((m) => m.id)])].filter((m) => m || gemini);
 
-  return (
-    <div className="space-y-4" data-testid="ai-settings">
-      <p className="text-sm text-slate-600">
-        Computer opponents normally answer offline. Optionally, bots set to <b>AI answers</b> can use an AI model for more natural answers — you still judge every answer. Use <b>Anthropic</b> or <b>Google Gemini</b> (need internet and an API key from your own account, and <b>may cost money</b>) or a <b>local AI</b> such as Ollama or LM Studio running on this computer or your network — that works without internet and costs nothing. The clue, category and expected answer are sent to the model; nothing about players is sent. If the AI is unavailable, the game carries on with offline answers.
-      </p>
+  // R18-7: always shown (no box to open) — in the tab's other column when it gives a place for it.
+  const limits = (
+    <section className="space-y-2" data-testid="ai-limits">
+      <p className="oj-section-label">Computer opponents: AI limits and fallback</p>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-3">
+        <Field label="Wait at most (seconds)">
+          <input className={inputCls} type="number" min={2} max={60} value={draft.timeoutSeconds} onChange={(e) => setDraft({ ...draft, timeoutSeconds: Number(e.target.value) })} onBlur={() => void save({ timeoutSeconds: Math.min(60, Math.max(2, Math.round(draft.timeoutSeconds) || 8)) })} aria-label="AI timeout" />
+        </Field>
+        <Field label="AI answers per game" hint="0 = no limit">
+          <input className={inputCls} type="number" min={0} max={1000} value={draft.maxPerGame} onChange={(e) => setDraft({ ...draft, maxPerGame: Number(e.target.value) })} onBlur={() => void save({ maxPerGame: Math.min(1000, Math.max(0, Math.round(draft.maxPerGame) || 0)) })} aria-label="AI answers per game" />
+        </Field>
+        {/* Its choices are sentences: the whole row when the column is narrow. */}
+        <div className="col-span-full sm:col-span-1 lg:col-span-full">
+          <Field label="When the AI can't answer">
+            <select className={inputCls} value={draft.fallback} onChange={(e) => void save({ fallback: e.target.value as AiConfig['fallback'] })} aria-label="AI fallback">
+              <option value="local">Use an offline answer</option>
+              <option value="pass">The bot passes</option>
+            </select>
+          </Field>
+        </div>
+      </div>
+    </section>
+  );
 
+  return (
+    // R18-7: compact enough for the whole tab — Limits and fallback included — to fit an iPad in
+    // landscape: the explanation as one short hint, the state as a slim line, the key and
+    // Test connection on one row.
+    <div className="space-y-3" data-testid="ai-settings">
       <label className="flex min-h-11 items-center gap-3">
         <input type="checkbox" className="h-6 w-6 accent-blue-700" checked={draft.enabled} onChange={(e) => void save({ enabled: e.target.checked })} data-testid="ai-enabled" />
         <span>
           <span className="block font-semibold">Use AI answers for computer opponents</span>
-          <span className="block text-xs text-slate-500">Only bots with “AI answers” switched on use it.</span>
+          <span className="block text-xs text-slate-500">Only bots with “AI answers” switched on use it — you still judge every answer.</span>
         </span>
       </label>
+      <p className="text-xs leading-snug text-slate-500">
+        Bots normally answer offline. <b>Anthropic</b> and <b>Google Gemini</b> need internet and an API key from your own account, and <b>may cost money</b>; a <b>local AI</b> (Ollama, LM Studio) on this computer or your network works offline and costs nothing. Only the clue, category and expected answer are sent — nothing about players. If the AI is unavailable, bots answer offline.
+      </p>
 
-      <div className={cx('flex flex-wrap items-center gap-2 rounded-xl p-3 text-sm font-semibold', s.ready ? 'bg-green-50 text-green-900' : 'bg-slate-100 text-slate-700')} data-testid="ai-status">
+      <div className={cx('flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-lg px-3 py-2 text-sm font-semibold', s.ready ? 'bg-green-50 text-green-900' : 'bg-slate-100 text-slate-700')} data-testid="ai-status">
         {s.ready ? <CircleCheck size={18} aria-hidden /> : <Bot size={18} aria-hidden />}
         {s.ready ? 'AI answers are on' : s.keyRequired && !s.keySaved ? 'No API key saved — bots answer offline' : s.modelMissing ? 'No model chosen yet — press Load or Test connection' : 'AI answers are off — bots answer offline'}
         {s.requests > 0 && <span className="ml-auto font-normal text-slate-600">{s.requests} requests · {s.failures} failed{s.gameRequests ? ` · ${s.gameRequests} this game` : ''}</span>}
@@ -126,12 +154,11 @@ export function AiSettings() {
         </Field>
       </div>
       {gemini && (
-        <div className="space-y-1 rounded-xl bg-slate-50 p-3 text-sm text-slate-700" data-testid="ai-gemini-help">
+        <div className="space-y-1 rounded-lg bg-slate-50 px-3 py-2 text-xs leading-snug text-slate-700" data-testid="ai-gemini-help">
           <p>
             <b>Get a key:</b> sign in at Google AI Studio — <span className="font-mono">aistudio.google.com/apikey</span> — create an API key and paste it below.
           </p>
-          <p>Google offers a free tier for some models, with limits per minute and per day. When a limit is reached, bots answer offline until it resets.</p>
-          <p>On the free tier, Google may use what is sent (clues and answers — nothing about players) to improve its products. Use beyond the free tier, or with billing turned on, may cost money.</p>
+          <p>Google offers a free tier for some models, with limits per minute and per day (bots answer offline until it resets). On the free tier Google may use what is sent (clues and answers — nothing about players) to improve its products. Beyond it, or with billing turned on, it may cost money.</p>
         </div>
       )}
       {local && (
@@ -184,13 +211,13 @@ export function AiSettings() {
               <Trash2 size={16} aria-hidden />
             </Button>
           )}
+          <Button variant="secondary" busy={testing} disabled={!canCall} onClick={() => void runTest()} data-testid="ai-test">
+            <PlugZap size={16} aria-hidden /> Test connection
+          </Button>
         </div>
       </Field>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Button variant="secondary" busy={testing} disabled={!canCall} onClick={() => void runTest()} data-testid="ai-test">
-          <PlugZap size={16} aria-hidden /> Test connection
-        </Button>
+      <div className="flex flex-wrap items-center gap-3 empty:hidden">
         {test && (
           <span className={cx('text-sm font-semibold', test.ok ? 'text-green-700' : 'text-red-700')} data-testid="ai-test-result">
             {test.ok ? `Connected (${((test.latencyMs ?? 0) / 1000).toFixed(1)} s)` : (test.error ?? 'Not connected')}
@@ -199,23 +226,7 @@ export function AiSettings() {
         )}
       </div>
 
-      <details className="rounded-xl border border-slate-200 p-3">
-        <summary className="cursor-pointer font-semibold">Limits and fallback</summary>
-        <div className="mt-3 grid gap-3 sm:grid-cols-3">
-          <Field label="Wait at most (seconds)">
-            <input className={inputCls} type="number" min={2} max={60} value={draft.timeoutSeconds} onChange={(e) => setDraft({ ...draft, timeoutSeconds: Number(e.target.value) })} onBlur={() => void save({ timeoutSeconds: Math.min(60, Math.max(2, Math.round(draft.timeoutSeconds) || 8)) })} aria-label="AI timeout" />
-          </Field>
-          <Field label="AI answers per game" hint="0 = no limit">
-            <input className={inputCls} type="number" min={0} max={1000} value={draft.maxPerGame} onChange={(e) => setDraft({ ...draft, maxPerGame: Number(e.target.value) })} onBlur={() => void save({ maxPerGame: Math.min(1000, Math.max(0, Math.round(draft.maxPerGame) || 0)) })} aria-label="AI answers per game" />
-          </Field>
-          <Field label="When the AI can't answer">
-            <select className={inputCls} value={draft.fallback} onChange={(e) => void save({ fallback: e.target.value as AiConfig['fallback'] })} aria-label="AI fallback">
-              <option value="local">Use an offline answer</option>
-              <option value="pass">The bot passes</option>
-            </select>
-          </Field>
-        </div>
-      </details>
+      {limitsTarget ? createPortal(limits, limitsTarget) : <div className="border-t border-slate-200 pt-3">{limits}</div>}
     </div>
   );
 }

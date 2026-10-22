@@ -54,6 +54,38 @@ function scrollable(el: HTMLElement) {
   return oy === 'auto' || oy === 'scroll';
 }
 
+// ---------- R18-1: the visible area, measured like everything else ----------
+//
+// Rounds 16 / 17 placed the visible area at visualViewport.offsetTop … + height and compared it with
+// getBoundingClientRect() boxes. On the owner's iPad (rc.4 diagnostics, references/
+// keyboard_diagnostics.png: "vv 438@484 … ih 438") those two do not share an origin once iOS has
+// panned the page for a low field: offsetTop was 484 while the boxes were already measured from the
+// top of what is shown. The tracker then took a visible field for hidden and the reverse — its own
+// reveal scrolled the lobby column back towards its top (rc.3), and the scroll guard undid WebKit's
+// correct caret reveal on every keystroke (rc.4: 189 → 391 → 189 …, the field jumping above and
+// under the keyboard, the 6-a-second cap deciding who won). On the iPhone the fields sit high, iOS
+// does not pan (offsetTop 0) and both agree, which is why the phone screens were fine.
+//
+// The visible area is therefore measured, not computed: a hidden fixed probe placed exactly like the
+// fitted shell (styles.css: top var(--vv-top), height var(--vv-height)) — the shell the owner sees
+// above the keyboard — gives its box in the same coordinates as every field.
+
+let probe: HTMLElement | null = null;
+
+/** The part of the screen above the keyboard, in getBoundingClientRect() coordinates. */
+export function visibleArea() {
+  if (!state.open) return { top: 0, bottom: window.innerHeight };
+  if (!probe || !probe.isConnected) {
+    probe = document.createElement('div');
+    probe.setAttribute('aria-hidden', 'true');
+    probe.dataset.kbProbe = '';
+    probe.style.cssText = 'position:fixed;left:0;width:0;top:var(--vv-top,0px);height:var(--vv-height,100%);visibility:hidden;pointer-events:none';
+    document.body.appendChild(probe);
+  }
+  const r = probe.getBoundingClientRect();
+  return { top: r.top, bottom: r.bottom };
+}
+
 /**
  * Brings `el` (or its row, [data-keep-visible]) into view inside its scroll areas and the visible
  * part of the screen, nearest edge first. Unlike scrollIntoView it never scrolls the document
@@ -62,9 +94,7 @@ function scrollable(el: HTMLElement) {
  */
 export function revealField(el: HTMLElement, margin = 12) {
   const target = el.closest<HTMLElement>('[data-keep-visible]') ?? el;
-  const vv = window.visualViewport;
-  const screenTop = vv && state.open ? vv.offsetTop : 0;
-  const screenBottom = vv && state.open ? vv.offsetTop + vv.height : window.innerHeight;
+  const { top: screenTop, bottom: screenBottom } = visibleArea();
   for (let p = target.parentElement; p && p !== document.body && p !== document.documentElement; p = p.parentElement) {
     if (!scrollable(p)) continue;
     const box = p.getBoundingClientRect();
@@ -96,7 +126,7 @@ export function revealField(el: HTMLElement, margin = 12) {
 //     unless the user scrolled them meanwhile.
 // Pinch zoom (K60) still changes nothing.
 
-type Session = { field: HTMLElement; saved: Map<HTMLElement, number>; userScrolled: boolean; fixes: number[]; keyboard: boolean; shell: HTMLElement | null };
+type Session = { field: HTMLElement; saved: Map<HTMLElement, number>; userScrolled: boolean; overruled: Set<number>; resting: boolean; keyboard: boolean; shell: HTMLElement | null };
 let session: Session | null = null;
 /** Scroll positions the app set itself (their scroll events are not "someone else's"). */
 const ours = new Map<HTMLElement, number>();
@@ -115,9 +145,7 @@ function scrollParents(el: HTMLElement) {
 
 /** Is the field (with its row) out of sight: outside a scroll area or the visible part of the screen? */
 export function fieldHidden(el: HTMLElement) {
-  const vv = window.visualViewport;
-  const screenTop = vv && state.open ? vv.offsetTop : 0;
-  const screenBottom = vv && state.open ? vv.offsetTop + vv.height : window.innerHeight;
+  const { top: screenTop, bottom: screenBottom } = visibleArea();
   const r = el.getBoundingClientRect();
   if (r.top < screenTop - 1 || r.bottom > screenBottom + 1) return true;
   return scrollParents(el).some((p) => {
@@ -132,8 +160,21 @@ function setScroll(p: HTMLElement, top: number) {
 }
 
 function reveal(el: HTMLElement) {
+  const parents = scrollParents(el);
+  const before = parents.map((p) => p.scrollTop);
   revealField(el);
-  for (const p of scrollParents(el)) ours.set(p, p.scrollTop);
+  parents.forEach((p, i) => {
+    ours.set(p, p.scrollTop);
+    if (Math.round(p.scrollTop) !== Math.round(before[i])) debugLog('reveal', `${describe(p)} ${Math.round(before[i])} → ${Math.round(p.scrollTop)}`);
+  });
+}
+
+/** R18-1: where the field and the visible area are, for the diagnostics. */
+function where(el: HTMLElement) {
+  if (!debugEl && !keyboardDebugEnabled()) return '';
+  const r = el.getBoundingClientRect();
+  const a = visibleArea();
+  return `field ${Math.round(r.top)}–${Math.round(r.bottom)} in ${Math.round(a.top)}–${Math.round(a.bottom)} sy ${Math.round(window.scrollY)}`;
 }
 
 function begin(field: HTMLElement) {
@@ -148,8 +189,8 @@ function begin(field: HTMLElement) {
   const shell = field.closest<HTMLElement>('[data-kb-lift]') ? null : field.closest<HTMLElement>('.app-screen');
   if (session?.shell && session.shell !== shell) delete session.shell.dataset.kbShell;
   if (shell) shell.dataset.kbShell = '';
-  session = { field, saved, userScrolled: session?.userScrolled ?? false, fixes: [], keyboard: (session?.keyboard ?? false) || state.open, shell };
-  debugLog('focus', describe(field));
+  session = { field, saved, userScrolled: session?.userScrolled ?? false, overruled: new Set(), resting: false, keyboard: (session?.keyboard ?? false) || state.open, shell };
+  debugLog('focus', `${describe(field)} ${where(field)}`);
 }
 
 function end() {
@@ -165,10 +206,11 @@ function end() {
 
 function onScroll(e: Event) {
   const t = e.target;
-  if (!session || !(t instanceof HTMLElement) || !t.contains(session.field)) return;
+  // The field itself scrolls sideways as its text grows: not a scroll area moving it.
+  if (!session || !(t instanceof HTMLElement) || t === session.field || !t.contains(session.field)) return;
   if (ours.get(t) === t.scrollTop) return;
   const user = touching || performance.now() - lastUserScroll < 1200;
-  debugLog(user ? 'scroll (user)' : 'scroll (not the user)', `${describe(t)} → ${Math.round(t.scrollTop)}`);
+  debugLog(user ? 'scroll (user)' : 'scroll (not the user)', `${describe(t)} → ${Math.round(t.scrollTop)} ${where(session.field)}`);
   if (user) {
     session.userScrolled = true;
     return;
@@ -177,15 +219,20 @@ function onScroll(e: Event) {
   requestAnimationFrame(() => {
     if (session !== s || !state.open || !isTextField(document.activeElement) || (window.visualViewport?.scale ?? 1) > 1.01) return;
     if (!fieldHidden(s.field)) return;
-    // Never fight endlessly: at most 6 corrections a second.
-    const now = performance.now();
-    s.fixes = s.fixes.filter((x) => now - x < 1000);
-    if (s.fixes.length >= 6) return;
-    s.fixes.push(now);
+    // R18-1: never fight. A position the browser comes back to after one correction is the browser's
+    // own idea of where the caret is (WebKit reveals it on every keystroke): it wins, and the guard
+    // rests for this field — alternating between two positions is worse than either of them.
+    const at = Math.round(t.scrollTop);
+    if (s.overruled.has(at)) {
+      s.resting = true;
+      debugLog('guard rests', `${describe(t)} stays at ${at}`);
+    }
+    if (s.resting) return;
+    s.overruled.add(at);
     const before = s.saved.get(t);
     if (before != null) setScroll(t, before);
     reveal(s.field);
-    debugLog('guard', `${describe(t)} back to ${Math.round(t.scrollTop)}`);
+    debugLog('guard', `${describe(t)} ${at} → ${Math.round(t.scrollTop)} ${where(s.field)}`);
   });
 }
 
@@ -207,12 +254,12 @@ function applyLift() {
     lifted = null;
   }
   if (!box || !isTextField(el)) return;
-  const vv = window.visualViewport!;
+  const area = visibleArea(); // R18-1: in the boxes' own coordinates
   const current = lifted === box ? Number(box.dataset.kbLifted || 0) : 0;
   const r = (el.closest<HTMLElement>('[data-keep-visible]') ?? el).getBoundingClientRect();
   const top = r.top + current;
   const bottom = r.bottom + current;
-  const need = Math.round(Math.max(0, Math.min(bottom + 12 - (vv.offsetTop + vv.height), top - 12 - vv.offsetTop)));
+  const need = Math.round(Math.max(0, Math.min(bottom + 12 - area.bottom, top - 12 - area.top)));
   if (need === current && lifted === box) return;
   box.style.transform = need ? `translateY(${-need}px)` : '';
   box.dataset.kbLifted = String(need);

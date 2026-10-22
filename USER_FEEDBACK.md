@@ -608,3 +608,42 @@ The owner tested **0.17.0-rc.3** (commit 488c909; the prompt also mentions an ea
 | R17-17.3–17.4 | Category introduction: the blue fill around it in the embedded preview; edge to edge (no black border) in full screen | F |
 | R17-17.5–17.6 | Category introduction controls: **Next Category** dominant, Previous Category secondary right beside it, Auto Present and **Skip Category Presentation** small but visible (not in a menu); no overlapping swipes | F |
 | R17-20 | Keep everything verified so far | all |
+
+# User Feedback — Round 18 (received 2026-10-22, session 21, after testing the 0.17.0-rc.4 release candidate on real hardware; DESKTOP-6HN0OQ4)
+
+The owner tested **0.17.0-rc.4** (commit 0812c70 / handoff 4ccfcd7 — nothing was committed after it). The next candidate is **0.17.0-rc.5**. Rollback point: tag **v0.16.0** (published). Statuses: FEATURE_MATRIX.md → "User feedback round 18".
+
+## Real-hardware results of 0.17.0-rc.4 (reported by the owner — not automatic results)
+
+| Area | Feature | Owner's result |
+|---|---|---|
+| Daily Double! | Default host entry: wager typed in the band, field and Set reachable, TV preview keeps its size, Lock Wager & Show Clue, clue with the answer time stopped, green Start Timer, then Correct / Incorrect (R17-1 … R17-3) | VERIFIED WORKING — keep the state machine |
+| Daily Double! | Player entry (Settings → Gameplay → Daily Double! wager entry): Unlock Wager, wager timer, phone wager, host reveals, host-started answer timer | VERIFIED WORKING |
+| Daily Double! | The band in embedded mode grows upwards | NEW ISSUE → R18-2 |
+| iPhone | Keyboard: Daily Double! wager, Final wager, Final answer — Submit visible and tappable, portrait + landscape, Safari + Home Screen app (R17-6) | FIXED — keep it |
+| iPad host | Lobby Wi-Fi name / password: the field starts above the keyboard, then while typing drops under it, comes back, drops again; switching fields does it too; sometimes it stays under the keyboard until the host leaves the page or scrolls (R17-5) | **NOT FIXED** → R18-1. Diagnostics photo: `references/keyboard_diagnostics.png` |
+| Settings | Tabs; Data & Storage | MOSTLY WORKING — Players & Bots still scrolls to Limits / Fallback, more when expanded → R18-7 |
+| Final | Contestant answer cards, answer placement, before-Final score + wager, green / red outline, results with the usual player count (R17-11) | VERIFIED WORKING |
+| Final | "Enter your wagers now" stays after every wager is in; the host still shows Lock Wagers | NEW REQUEST → R18-3, R18-4 |
+| Host preview | Blue grows with the clue; categories edge to edge; no black border in full screen; category controls; embedded / full screen; portrait / landscape (R17-17) | VERIFIED WORKING |
+| Host preview | The Board 1 introduction (round title) still has a black border | NEW ISSUE → R18-5 |
+| Other | TV "… is wagering" centred; "Medium" whole; TV lobby columns with nicknames; no card shuffling; lobby test-buzz glow; phone Test Buzzer back arrow; K60 pinch zoom | VERIFIED WORKING / FIXED |
+| iPad | Status bar (K55) | STILL WHITE — investigate the owner's sticky-header workaround → R18-8 |
+| Wi-Fi | Wi-Fi PC / Mobile Hotspot (K48) | NOT TESTED |
+
+## What the diagnostics photo shows (R18-1)
+
+`references/keyboard_diagnostics.png` (iPad landscape, lobby, keyboard open, `?kbdebug=1`): every line reads `vv 438@484 ×1.00 ih 438 kb 438` — the visible area 438 px high, the visual viewport's offsetTop **484**, and `window.innerHeight` **438** (equal to the visible area). The log alternates, about every 0.15–0.2 s (each keystroke): `scroll (not the user) div.scroll-area → 391`, then `guard … back to 189`, again and again; one `scroll (not the user) input[wifi-ssid] → 0` (the field's own text scrolling); after the keyboard closes `vv 922@0 … ih 922` and the column back at 0. Interpretation in PROGRESS session 21 / RESEARCH_NOTES "round 18".
+
+## New requests (the round-18 prompt's parts 3 … 10)
+
+| ID | Requirement (summary) | Milestone |
+|---|---|---|
+| R18-1 | **Highest priority.** iPad text fields must stay visible through continuous typing (long names / passwords, fast typing, deleting, select-and-replace, switching fields, repeated focus / blur), not just when focused; find the feedback loop / competing scroll mechanisms; one shared solution; keep the iPhone fixes and K60; keep the diagnostics available but off by default; open until verified on the iPad | A |
+| R18-2 | Daily Double!: the host band keeps one height through every step (select, typing, set, lock, clue, Start Timer, Correct / Incorrect) — embedded and full screen; the TV preview never moves; nothing clipped or overlapping; workflow unchanged | B |
+| R18-3 | Final: when every competing entry's wager is in (authoritative state — humans, bots, teams, host-entered, reconnects), "Enter your wagers now" fades out without moving the heading, category or bubbles; comes back if wagering reopens; never advances by itself | C |
+| R18-4 | Final: the host's Lock Wagers becomes **Show Clue** once every wager is in (same place / style); pressing it locks the wagers and shows the clue; incomplete wagers keep Lock Wagers | C |
+| R18-5 | Host preview: the Board 1 introduction (round title) on the same edge-to-edge blue as the categories — through the whole introduction, embedded / full screen, portrait / landscape; the playable board keeps its frame | D |
+| R18-6 | Introduction band: Auto Present and Skip Category Presentation on the **left** (least emphasis); Previous Category, then the main Show First Category / Next Category at the **far right**; no extra height, nothing hidden in a menu | D |
+| R18-7 | Settings → Players & Bots fits an iPad in landscape with Limits and Fallback shown; no setting removed or reset; graceful overflow on smaller screens | E |
+| R18-8 | Status bar (K55): investigate the Reddit workaround (sticky header, solid background, `padding-top: env(safe-area-inset-top)`, `default` style, matching manifest theme_color, menus below the header); only if safe — no gradient, no layout shift, no strip where it does not belong; keep the white fallback otherwise; K55 open until the owner confirms | F |

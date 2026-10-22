@@ -316,7 +316,9 @@ const HEAD_RED = '#b01f1f';
  * background and the theme colour follow the header (navy, or red with the correct-response strip)
  * while full screen is on, and are put back when it ends. Embedded, nothing changes (no extra strip
  * above the controller). The system draws the status bar itself; where iPadOS ignores both, the
- * header still starts below it (--safe-top).
+ * header still starts below it (--safe-top). R18-8: Safari 26 / iPadOS 27 ignore theme-color and
+ * take the bar's colour from the sticky header itself (host-tv.css .host-head); this stays for
+ * browsers that still read them.
  */
 function useStatusBarColour(on: boolean, head: RefObject<HTMLElement | null>) {
   const saved = useRef<{ bg: string; theme: string | null } | null>(null);

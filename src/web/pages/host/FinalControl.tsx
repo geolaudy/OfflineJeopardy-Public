@@ -257,6 +257,15 @@ function FinalBar({ g, run, who }: { g: GameView; run: Run; who: string | null }
         Open Wagers
       </ActionButton>
     );
+  } else if (f.stage === 'wagers' && wagered === n) {
+    // R18-3: every wager is in — the TV's "Enter your wagers now" fades out and the next step is the
+    // clue itself (the same finalNext: it locks the wagers and shows the clue). Never automatic.
+    status = n === 1 ? 'The wager is in. Show the clue when you are ready.' : `All ${n} wagers are in. Show the clue when you are ready.`;
+    actions = (
+      <ActionButton size="lg" variant="success" className="host-btn host-btn-main" onAction={() => run({ type: 'finalNext' })} data-testid="final-next" data-step="show-clue">
+        <Eye size={22} aria-hidden /> Show Clue
+      </ActionButton>
+    );
   } else if (f.stage === 'wagers') {
     status = g.practice ? `Tap your name on the preview to enter your wager: ${wagered} of ${n} in.` : `Waiting for wagers: ${wagered} of ${n} in. Tap a name on the preview to enter one for a player.`;
     actions = (

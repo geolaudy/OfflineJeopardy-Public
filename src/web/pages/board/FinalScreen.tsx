@@ -90,6 +90,8 @@ function FinalContent({ g }: { g: GameView }) {
   const f = g.final!;
   const intro = f.stage === 'category' || f.stage === 'wagers';
   const wagers = f.stage === 'wagers';
+  // R18-3: every wager in (the server's word: hasWager per competing entry) — the cue fades out.
+  const allIn = wagers && f.entries.length > 0 && f.entries.every((e) => e.hasWager);
   if (intro)
     return (
       <>
@@ -107,9 +109,17 @@ function FinalContent({ g }: { g: GameView }) {
         <AnimatePresence>
           {wagers && (
             <motion.div key="chips" className="bt-final-chips" initial={{ opacity: 0, y: '1.5vh' }} animate={{ opacity: 1, y: 0 }} transition={{ duration: T.fade, ease: EASE_OUT_ARR, delay: 0.1 }}>
-              <p className="bt-intro-sub bt-final-cue" data-testid="final-wager-cue">
+              {/* Only its opacity changes: it keeps its line, so nothing above or below it moves. */}
+              <motion.p
+                className="bt-intro-sub bt-final-cue"
+                animate={{ opacity: allIn ? 0 : 1 }}
+                transition={{ duration: allIn ? 0.6 : T.fade, ease: EASE_OUT_ARR }}
+                aria-hidden={allIn || undefined}
+                data-testid="final-wager-cue"
+                data-done={allIn ? 'true' : undefined}
+              >
                 Enter your wagers now
-              </p>
+              </motion.p>
               <SubmissionChips g={g} kind="wager" />
             </motion.div>
           )}

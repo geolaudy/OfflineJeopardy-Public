@@ -94,6 +94,7 @@ const TABS: TabItem<TabId>[] = [
 export default function Settings() {
   const s = useFetch(() => hostApi<S>('GET', '/api/settings'), []);
   const [params, setParams] = useSearchParams();
+  const [limitsSlot, setLimitsSlot] = useState<HTMLElement | null>(null);
   const tab = TABS.find((t) => t.id === params.get('tab'))?.id ?? 'gameplay';
   const setTab = (t: TabId) => setParams(t === 'gameplay' ? {} : { tab: t }, { replace: true });
   const set = async (patch: Partial<S>) => {
@@ -115,7 +116,7 @@ export default function Settings() {
       <div role="tabpanel" id={`tabpanel-${tab}`} aria-labelledby={`tab-${tab}`} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200" data-testid={`settings-panel-${tab}`}>
         {tab === 'gameplay' && <GameplayTab />}
         {tab === 'players' && (
-          <div className="grid gap-x-8 gap-y-6 lg:grid-cols-[2fr_3fr]">
+          <div className="grid content-start gap-x-8 gap-y-6 lg:grid-cols-[2fr_3fr] lg:grid-rows-[auto_1fr]">
             <section className="space-y-3">
               <p className="oj-section-label">Leaderboards & privacy</p>
               <Toggle label="Players can see the leaderboard" checked={v.publicLeaderboard} onChange={(x) => set({ publicLeaderboard: x })} hint="Players can always hide their own statistics from their profile." />
@@ -142,10 +143,13 @@ export default function Settings() {
                 </Link>
               </p>
             </section>
-            <section className="space-y-3">
+            <section className="space-y-3 lg:row-span-2">
               <p className="oj-section-label">Computer opponents: AI answers (optional)</p>
-              <AiSettings />
+              <AiSettings limitsTarget={limitsSlot} />
             </section>
+            {/* R18-7: the AI's limits and fallback, always shown — on a wide screen under the
+                leaderboards (the room that column has left), else after the AI settings. */}
+            <div ref={setLimitsSlot} className="border-t border-slate-200 pt-3 lg:col-start-1 lg:row-start-2" />
           </div>
         )}
         {tab === 'display' && (

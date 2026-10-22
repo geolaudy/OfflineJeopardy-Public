@@ -248,14 +248,15 @@ function ClueFooter({ g, run, responder, who, setWho }: { g: GameView; run: Run;
   else if (practiceBuzz) primary = <BuzzFor g={g} run={run} big />;
 
   // R15-21: wagering has its own band — the wager on the left, its actions on the right (no More:
-  // nothing in it applies before the clue shows); the status takes its own row on narrow bands.
+  // nothing in it applies before the clue shows). R18-2: always ONE row, like every other step. The
+  // status wrapping onto a row of its own (R17-2, until the band was 72rem wide — wider than the
+  // embedded iPad's) grew the band upwards over the picture; now the actions get shorter labels as
+  // the band narrows (host-tv.css .host-dd-*) and the status truncates.
   if (wagerStage)
     return (
       <div className="@container flex items-center" data-testid="clue-footer">
-        {/* R17-2: the host's wager field makes the actions wider — the status keeps its own row until
-            the band has room for both on one (it is never squeezed to a few letters). */}
-        <div className={cx('flex w-full flex-wrap items-center gap-2', clue.wagerEntry === 'host' ? '@6xl:flex-nowrap' : '@4xl:flex-nowrap')}>
-          <div className={cx('min-w-0 basis-full px-1', clue.wagerEntry === 'host' ? '@6xl:flex-1 @6xl:basis-auto' : '@4xl:flex-1 @4xl:basis-auto')}>{status}</div>
+        <div className="flex w-full flex-nowrap items-center gap-2">
+          <div className="min-w-0 flex-1 px-1">{status}</div>
           <div className="ml-auto flex shrink-0 items-center gap-2">{primary}</div>
         </div>
       </div>
@@ -652,8 +653,8 @@ function DailyWagerActions({ g, run }: { g: GameView; run: Run }) {
   // The secondary actions are plain (no box) beside the one primary action (R15-32).
   return (
     <div className="flex items-center gap-1">
-      <button type="button" className="host-ghost-btn" onClick={() => setPreview(true)} data-testid="host-dd-preview">
-        <Eye size={22} aria-hidden /> Preview Clue
+      <button type="button" className="host-ghost-btn host-dd-preview" onClick={() => setPreview(true)} aria-label="Preview Clue" title="Preview Clue (only you)" data-testid="host-dd-preview">
+        <Eye size={22} aria-hidden /> <span className="host-dd-preview-label">Preview Clue</span>
       </button>
       {byHost ? (
         <DailyWagerField g={g} run={run} />
@@ -672,11 +673,13 @@ function DailyWagerActions({ g, run }: { g: GameView; run: Run }) {
         variant="success"
         className="host-btn host-btn-main"
         disabled={!ready}
-        title={ready ? undefined : 'Waiting for the wager'}
+        title={ready ? 'Lock Wager & Show Clue' : 'Waiting for the wager'}
+        aria-label="Lock Wager & Show Clue"
         onAction={() => run({ type: 'setDailyWager', competitorId: pending!.competitorId, amount: pending!.amount!, profileId: pending!.profileId })}
         data-testid="host-dd-lock"
       >
-        <Lock size={22} aria-hidden /> Lock Wager &amp; Show Clue
+        <Lock size={22} aria-hidden /> <span className="host-dd-lock-long">Lock Wager &amp; </span>
+        <span className="host-dd-lock-short">Show Clue</span>
       </ActionButton>
       )}
       {entry && <DailyWagerEntry g={g} run={run} onClose={() => setEntry(false)} />}
