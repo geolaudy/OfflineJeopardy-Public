@@ -16,7 +16,10 @@ Read this first, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "U
   - D: TV Final card without "Before Final Jeopardy!", wager centred. E: host score cards in dollars, never clipped (12 entries).
   - F (K55): status-bar meta removed (WebKit bug 317153); 3.75 rem for Safari's X in native full screen on Apple touch devices. **Re-add the Home Screen icon.** K55 open.
 - **Tests:** tsc clean; Vitest **444/444**; Playwright full 154/162, the 7 old-flow Final specs updated and re-run green, the 1 R18-2 one-off passed 3× on re-run (details in PROGRESS).
-- **Release candidate 0.17.0-rc.6:** __BUILD__
+- **Release candidate 0.17.0-rc.6 (`npm run release:local`: tsc, Vitest 444/444, dist, verify-dist 17/17 — both executables started headlessly; personal build — includes new_sfx, never upload):**
+  - `release/OfflineJeopardy-Setup-0.17.0-rc.6.exe` (115 MB) — SHA-256 5cf81a594b88b431e4f7b2c600b17cc570963845c719fb101f6be5dcb7d4cc6f
+  - `release/OfflineJeopardy-Portable-0.17.0-rc.6.exe` (162 MB) — SHA-256 1b84c20aa5f174c66884b50610ec1facbbf8bf7ad9159fc01e23beef5be471f3
+  - Built from commit 69f6062. The first release:local attempt stopped at the known timing-dependent dev-lock heartbeat test (K58); it passed alone (12/12) and in the second, complete run. Packaging and start-up unchanged (not re-timed). The rc.1 … rc.5 files are still in release/; C: has ~3.2 GB free — clear old rc builds before the next one (never the published 0.16.0 ones without asking).
 - **Owner to check on real hardware before v0.17.0 is published:**
   1. **Final (most important):** phones wager — after Submit there is no Change (locked in); the last wager → TV ding, wager timer gone, cue fades, host **Show Clue** → Final ding, the clue shows, phones say "waiting for the host to open answering"; green **Unlock Answering** → think music and timer; the last answer → ding, music and timer stop; Close Answer Submissions and the reveals as before. Then once with Settings → Gameplay → "Allow Final Jeopardy! submission changes" on (Change wager / answer while open). A bot and a team in the game if possible.
   2. Settings on the iPad (landscape + portrait): swipe the content and the tab row up and down — the title and tabs must not move.
