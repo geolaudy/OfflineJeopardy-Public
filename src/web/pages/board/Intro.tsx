@@ -34,6 +34,25 @@ export function Intro({ g }: { g: GameView }) {
     if (fresh) playCue('boardIntro');
   }, [fresh]);
   const fill = fx.boardIntro && fresh && !reduced;
+  // R19-7: the host's preview shows the board fill on the board's own ground, as the TV does, and the
+  // panel surface only once the round title covers the picture (opaque, edge to edge there); the host
+  // is told when the title comes in, so its area around the picture turns blue with it.
+  const [titleUp, setTitleUp] = useState(!fill);
+  useEffect(() => {
+    const announce = () => window.dispatchEvent(new CustomEvent('oj-tv-intro', { detail: { surface: 'panel' } }));
+    if (!fill) {
+      // No fill: the title is up at once (said again shortly, for a host that starts listening late).
+      const ts = [0, 300, 1000].map((ms) => setTimeout(announce, ms));
+      return () => ts.forEach(clearTimeout);
+    }
+    const a = setTimeout(announce, titleAt * 1000);
+    const b = setTimeout(() => setTitleUp(true), (titleAt + T.fade * 1.4) * 1000);
+    return () => {
+      clearTimeout(a);
+      clearTimeout(b);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const dir = useSwipeDirection(`${intro.roundIndex}:${step}`, step);
   // The first step this screen shows: the title card (scale/fill as before) or, after a reconnect
   // mid-introduction, the current category without a swipe.
@@ -48,8 +67,8 @@ export function Intro({ g }: { g: GameView }) {
   const enter = reduced ? { opacity: 0 } : isFirst ? (step < 0 ? (fill ? { opacity: 1 } : { opacity: 0, transform: tf(0, 0.9) }) : { opacity: 0 }) : { transform: tf(dir > 0 ? 100 : -100) };
   return (
     // data-surface: the introduction on the clue panel's surface in the host's preview (board.css,
-    // R17-17) — R18-5: the round title too, not only the categories.
-    <motion.div className="bt-intro" exit={{ opacity: 0 }} transition={{ duration: T.fade }} data-testid="intro" data-step={step} data-dir={dir > 0 ? 'forward' : 'back'} data-surface="panel">
+    // R17-17) — R18-5: the round title too; R19-7: after its board fill.
+    <motion.div className="bt-intro" exit={{ opacity: 0 }} transition={{ duration: T.fade }} data-testid="intro" data-step={step} data-dir={dir > 0 ? 'forward' : 'back'} data-surface={cat || titleUp ? 'panel' : 'board'}>
       <AnimatePresence initial={true} custom={dir}>
         <motion.div
           key={`${intro.roundIndex}:${step}`}
@@ -77,7 +96,7 @@ export function Intro({ g }: { g: GameView }) {
                 <BoardReveal g={g} total={total} plan={plan} />
               </motion.div>
               <motion.div
-                className="bt-intro-card"
+                className="bt-intro-card bt-intro-title"
                 style={{ willChange: 'transform, opacity' }}
                 initial={{ opacity: 0, transform: `scale(${reduced ? 1 : 0.94})` }}
                 animate={{ opacity: 1, transform: 'scale(1)' }}
@@ -89,7 +108,7 @@ export function Intro({ g }: { g: GameView }) {
               </motion.div>
             </>
           ) : (
-            <div className="bt-intro-card">
+            <div className="bt-intro-card bt-intro-title">
               <FitText text={round.name} max={16} min={6} className="bt-round-title" boxClassName="max-h-[40vh] flex-1 min-h-0" />
               <div className="bt-rule" aria-hidden />
               <p className="bt-intro-kicker">{n} categories</p>

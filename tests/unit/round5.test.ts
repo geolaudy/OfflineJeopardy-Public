@@ -58,6 +58,9 @@ describe('Final Jeopardy! wagering opens only when the host opens it (R5-18)', (
     expect(attempt(s, { type: 'setFinalWager', competitorId: cid(s, 'alex'), amount: 100 }).ok).toBe(false);
     s = run(s, { type: 'finalNext' });
     s = finalWager(s, 'alex', 500);
+    // R19-1: a player may change it while open only when the game allows changes.
+    expect(attempt(s, { type: 'setFinalWager', competitorId: cid(s, 'alex'), amount: 600 }, 'profile:alex').ok).toBe(false);
+    s = { ...s, rules: { ...s.rules, finalChanges: true } };
     s = finalWager(s, 'alex', 600); // may change while open
     expect(s.final?.entries.find((e) => e.competitorId === cid(s, 'alex'))?.wager).toBe(600);
     expect(attempt(s, { type: 'setFinalWager', competitorId: cid(s, 'alex'), amount: 5000 }, 'profile:alex').ok).toBe(false); // over the limit
@@ -68,9 +71,11 @@ describe('Final Jeopardy! wagering opens only when the host opens it (R5-18)', (
 
 describe('Final Jeopardy! answers: submitted, changing, locked (R5-19)', () => {
   it('a draft is not submitted; Change answer keeps the last submitted answer until resubmitted', () => {
-    let s = run(toFinal(), { type: 'finalNext' });
+    // R19-1: Change answer exists only when the game allows changes; R19-4: the host unlocks answering.
+    const t = toFinal();
+    let s = run({ ...t, rules: { ...t.rules, finalChanges: true } }, { type: 'finalNext' });
     s = finalWager(s, 'alex', 100);
-    s = run(s, { type: 'finalNext' });
+    s = run(s, { type: 'finalNext' }, { type: 'finalStartThink' });
     s = finalAnswer(s, 'alex', 'Vien', false);
     const entry = () => s.final!.entries.find((e) => e.competitorId === cid(s, 'alex'))!;
     expect(projectState(s, 'public', {}).final?.entries.find((e) => e.competitorId === cid(s, 'alex'))?.submitted).toBe(false);
@@ -99,7 +104,7 @@ describe('Undo back into Final Jeopardy! answering restarts the think time (R5-1
     let s = run({ ...t, rules: { ...t.rules, finalClose: 'timer' } }, { type: 'finalNext' });
     s = finalWager(s, 'alex', 100);
     s = finalWager(s, 'jordan', 100);
-    s = run(s, { type: 'finalNext' });
+    s = run(s, { type: 'finalNext' }, { type: 'finalStartThink' });
     expect(s.timer).toMatchObject({ kind: 'final', running: true });
     const full = s.timer!.durationMs;
     s = finalAnswer(s, 'alex', 'Vienna');
@@ -121,7 +126,7 @@ describe('Undo back into Final Jeopardy! answering restarts the think time (R5-1
   });
 
   it('after the host closed the answers early: undo re-opens them with a fresh timer', () => {
-    let s = run(toFinal(), { type: 'finalNext' }, { type: 'finalNext' });
+    let s = run(toFinal(), { type: 'finalNext' }, { type: 'finalNext' }, { type: 'finalStartThink' });
     clock += 12_000;
     s = finalAnswer(s, 'jordan', 'Budapest');
     s = run(s, { type: 'finalNext' });

@@ -35,6 +35,7 @@ export const rulesSchema = z.object({
   dailyWagerEntry: z.enum(['host', 'player']).optional(),
   finalAllowNonPositive: z.boolean(),
   finalClose: z.enum(['host', 'timer']).optional(),
+  finalChanges: z.boolean().optional(),
   allowSelfJoin: z.boolean(),
   requireRoomCode: z.boolean().optional(),
   survivalLives: z.number().int().min(0).max(20).optional(),

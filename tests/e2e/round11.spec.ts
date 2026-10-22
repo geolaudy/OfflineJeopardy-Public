@@ -367,6 +367,7 @@ test('Final Jeopardy!: time up keeps answering open until the host closes it; ph
     await expect(p.getByTestId('phone-final-wager-done')).toBeVisible();
   }
   await ipad.getByTestId('final-next').click(); // lock wagers & show the clue
+  await ipad.getByTestId('final-unlock-answers').click(); // R19-4: answering opens, the think time starts
   await phones[0].getByTestId('phone-final-answer').fill('Budapest');
   await phones[0].getByTestId('phone-final-answer-submit').click();
   // Time runs out: answering stays open — the phones and the host say so.

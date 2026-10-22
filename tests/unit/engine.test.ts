@@ -253,6 +253,7 @@ describe('wagers', () => {
     expect(tryRun(s, { type: 'setFinalWager', competitorId: c, amount: 401 }).ok).toBe(false);
     s = run(s, { type: 'setFinalWager', competitorId: c, amount: 400 }, { type: 'setFinalWager', competitorId: a, amount: 0 }, { type: 'finalNext' });
     expect(s.final?.entries.find((e) => e.competitorId === b)?.wager).toBe(0); // never submitted
+    s = run(s, { type: 'finalStartThink' }); // R19-4: the host unlocks answering
     expect(s.timer?.kind).toBe('final');
     s = run(s, { type: 'setFinalAnswer', competitorId: c, answer: 'x' });
     clock += 31_000;

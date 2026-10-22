@@ -38,6 +38,7 @@ function toAnswering(rules: Partial<GameRules> = {}) {
   for (const p of ['alex', 'jordan']) s = act(s, { type: 'setFinalWager', competitorId: cid(s, p), amount: 100 }, `profile:${p}`);
   s = act(s, { type: 'finalNext' });
   expect(s.final?.stage).toBe('clue');
+  s = act(s, { type: 'finalStartThink' }); // R19-4: the host unlocks answering
   expect(s.timer).toMatchObject({ kind: 'final', running: true });
   return s;
 }
@@ -56,7 +57,8 @@ describe('Final Jeopardy! answering closed by the host (R11-9)', () => {
   });
 
   it('time up: the timer ends, answering stays open, a late answer and a changed answer still count', () => {
-    let s = answer(toAnswering(), 'alex', 'Vienna');
+    // (R19-1: changing a submitted answer needs the rule that allows it.)
+    let s = answer(toAnswering({ finalChanges: true }), 'alex', 'Vienna');
     s = timeUp(s);
     expect(s.final?.stage).toBe('clue');
     expect(s.timer).toMatchObject({ kind: 'final', expired: true, running: false });

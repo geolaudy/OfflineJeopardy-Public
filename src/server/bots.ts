@@ -299,7 +299,8 @@ export class BotDriver {
         if (f.stage === 'wagers' && e.wager == null)
           out.set(`fw:${s.id}:${b.id}`, { delay: 2000 + this.between([0, 1500], b), action: () => ({ type: 'setFinalWager', competitorId: b.id, amount: this.finalWager(s, b) }) });
         const knows = this.decide(`fknow:${s.id}:${b.id}`, Math.min(0.95, BOT_PARAMS[b.bot!].know * 0.85));
-        if (f.stage === 'clue' && !e.answer) {
+        // R19-4: only once the host has unlocked answering (the clue shows first, time stopped).
+        if (f.stage === 'clue' && f.thinking && !e.answer) {
           const key = `fa:${s.id}:${b.id}`;
           const ready = this.prepare(key, () => this.answerText(s, b, fc.id, knows, true));
           out.set(key, { delay: 4000 + this.between([0, 3000], b), action: async () => ({ type: 'setFinalAnswer', competitorId: b.id, answer: (await ready).text }) });

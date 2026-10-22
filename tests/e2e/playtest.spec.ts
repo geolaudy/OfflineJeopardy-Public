@@ -132,7 +132,9 @@ test('play-test: a full evening on an iPad in portrait, a 4:3 TV and three phone
   await pj.getByTestId('phone-final-wager-submit').click();
   await expect(pj.getByTestId('phone-final-wager-done')).toBeVisible();
   await expect(ipad.getByTestId('final-control')).not.toContainText(String(jonMax) + '\n');
-  await ipad.getByTestId('final-next').click(); // lock (confirm: Kai missing) → clue + think time
+  await ipad.getByTestId('final-next').click(); // lock (confirm: Kai missing) → the clue, answering locked
+  await expect(pj.getByTestId('phone-final-answer-wait')).toBeVisible();
+  await ipad.getByTestId('final-unlock-answers').click(); // R19-4: the host opens answering, the think time starts
   await expect(pj.getByLabel('Your answer')).toBeVisible();
   await pj.getByLabel('Your answer').fill('Buda');
   await pj.getByTestId('phone-final-answer-submit').click();
@@ -144,7 +146,7 @@ test('play-test: a full evening on an iPad in portrait, a 4:3 TV and three phone
   // TV: green border for Jon (submitted), gray for Kai.
   await expect(tv.getByTestId('tv-final-status').getByText('Jon Play')).toHaveAttribute('data-done', 'true');
   await expect(tv.getByTestId('tv-final-status').getByText('Kai Play')).toHaveAttribute('data-done', 'false');
-  // Jon's phone shows the read-only answer with Change answer.
+  // Jon's phone shows the read-only answer (locked in: no Change answer by default, R19-1).
   await expect(pj.getByTestId('phone-final-answer-done')).toContainText('Buda');
   await shot(ipad, 'ipad-portrait-final-answers');
   await ipad.getByTestId('final-next').click(); // close answers

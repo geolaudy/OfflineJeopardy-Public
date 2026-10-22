@@ -89,6 +89,7 @@ describe('soak play-test', () => {
       }
       await h.waitState((x) => x!.final!.entries.every((e) => e.hasWager));
       await h.act({ type: 'finalNext' });
+      await h.act({ type: 'finalStartThink' }); // R19-4: the host unlocks answering
       for (const e of f.entries) phones[phones.findIndex((p) => p.me?.competitorId === e.competitorId)].send({ t: 'finalAnswer', answer: 'Budapest' });
       await h.waitState((x) => x!.final!.entries.every((e) => e.hasAnswer));
       await h.act({ type: 'finalNext' }); // close answers

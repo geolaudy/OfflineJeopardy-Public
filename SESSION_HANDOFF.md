@@ -1,8 +1,33 @@
 # Session handoff
 
-Read this first, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 18". Ready-to-paste resume prompts: `CONTINUE_PROMPT_SAME_COMPUTER.txt` / `CONTINUE_PROMPT_OTHER_COMPUTER.txt`.
+Read this first, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 19". Ready-to-paste resume prompts: `CONTINUE_PROMPT_SAME_COMPUTER.txt` / `CONTINUE_PROMPT_OTHER_COMPUTER.txt`.
 
 **Before anything else: the development lock (`DEVELOPMENT_LOCK.md`).** `npm run dev:lock:status`, then `npm run dev:lock:acquire -- --task "…"`. Do not change files while another computer holds it.
+
+## Current state (session 22, 2026-10-22 — round 19 done; 0.17.0 RELEASE CANDIDATE 6 built, NOT published; on DESKTOP-6HN0OQ4 / geolaudy)
+
+- Started from `origin/main` ab754d1 (0.17.0-rc.5 = what the owner tested; no development after it). Development lock generation 10; **released at the end of session 22 (acquire it before you start)**.
+- **Git:** `main` = `origin/main` after the round-19 commit and this handoff; pushed. The working tree keeps one change that is **not** this session's: `.claude/agents/research-agent.md` (a `model: sonnet` line, uncommitted since before session 19) — ask the owner before committing or discarding it.
+- **Owner's verdict on rc.5** (USER_FEEDBACK "Round 19"): **iPad Wi-Fi fields while typing USER-VERIFIED FIXED** (do not regress; diagnostics off by default); iPhone fields, Daily Double! band, Final cue + Show Clue, introductions, Players & Bots working; Settings tabs moved, preview round-title fill broken, Home Screen status bar white, Safari's X over the hamburger. K48 not tested — **the owner approved final publication without it** (not a blocker).
+- **Round 19 (R19-1 … R19-11, plan milestone 33, D127–D132) — milestones A–F done** (root causes in PROGRESS session 22):
+  - A (highest priority) Final: submissions locked once sent (Settings → Gameplay → "Allow Final Jeopardy! submission changes", default off; server-enforced; the host can always correct); ding + wager timer stopped when every wager is in; Show Clue plays the Final ding and shows the clue with answering **locked**; green **Unlock Answering** starts the think time (phones: "waiting for the host to open answering"); ding + timer and think music stopped when every answer is in; reveals by the host.
+  - B: Settings header and tabs stationary (only the content scrolls); rules dialog tabs / buttons sticky.
+  - C: preview round title — the board fill as on the TV (dark ground), then the title opaque edge to edge on blue.
+  - D: TV Final card without "Before Final Jeopardy!", wager centred. E: host score cards in dollars, never clipped (12 entries).
+  - F (K55): status-bar meta removed (WebKit bug 317153); 3.75 rem for Safari's X in native full screen on Apple touch devices. **Re-add the Home Screen icon.** K55 open.
+- **Tests:** tsc clean; Vitest **444/444**; Playwright full 154/162, the 7 old-flow Final specs updated and re-run green, the 1 R18-2 one-off passed 3× on re-run (details in PROGRESS).
+- **Release candidate 0.17.0-rc.6:** __BUILD__
+- **Owner to check on real hardware before v0.17.0 is published:**
+  1. **Final (most important):** phones wager — after Submit there is no Change (locked in); the last wager → TV ding, wager timer gone, cue fades, host **Show Clue** → Final ding, the clue shows, phones say "waiting for the host to open answering"; green **Unlock Answering** → think music and timer; the last answer → ding, music and timer stop; Close Answer Submissions and the reveals as before. Then once with Settings → Gameplay → "Allow Final Jeopardy! submission changes" on (Change wager / answer while open). A bot and a team in the game if possible.
+  2. Settings on the iPad (landscape + portrait): swipe the content and the tab row up and down — the title and tabs must not move.
+  3. Start a game: in the preview the board fill lights up like the TV (dark gaps), then "Board 1" covers the picture edge to edge on blue with its full outline; then the categories.
+  4. TV Final card: only the wager, centred. Host score cards: "$0", "$1,400", "−$400" whole.
+  5. Status bar: **remove and re-add the Home Screen icon**, then the Home Screen app (full screen / embedded, portrait / landscape) and Safari full screen (navy expected; Safari's X left of the hamburger, not on it).
+  6. Keep checking: iPad Wi-Fi fields while typing (verified on rc.5), iPhone fields, Daily Double! band. Wi-Fi PC / hotspot only when possible (K48, not a blocker).
+
+### Single recommended next task (session 22)
+
+1. Acquire the development lock. Get the owner's verdict on 0.17.0-rc.6 (record it as USER_FEEDBACK "Round 20" and fix first if needed — the Final flow above all). **Only after explicit approval:** set package.json to 0.17.0, rename CHANGELOG [Unreleased] → [0.17.0] — date, build + verify, commit, push, tag v0.17.0 (the workflow publishes the public build without new_sfx); K48 is documented as unverified, not a blocker.
 
 ## Current state (session 21, 2026-10-22 — round 18 done; 0.17.0 RELEASE CANDIDATE 5 built, NOT published; on DESKTOP-6HN0OQ4 / geolaudy)
 

@@ -107,13 +107,15 @@ export default function Settings() {
   if (!s.data) return <div className="p-6">{s.error ?? 'Loading…'}</div>;
   const v = s.data;
   return (
-    <div className="mx-auto max-w-6xl space-y-3 p-4 lg:px-6 lg:py-4" data-testid="settings">
-      <div className="flex flex-wrap items-center gap-2">
+    // R19-6: the title and the tabs stay put; only the chosen tab's content scrolls (when it has to) —
+    // the page fills the shell's main area as a column instead of scrolling inside it as one piece.
+    <div className="mx-auto flex h-full max-w-6xl flex-col gap-3 p-4 lg:px-6 lg:py-4" data-testid="settings">
+      <div className="flex flex-none flex-wrap items-center gap-2">
         <h1 className="min-w-0 flex-1 text-2xl font-black lg:text-3xl">Settings</h1>
         <ShowSettingsOnTv size="md" />
       </div>
-      <TabBar tabs={TABS} value={tab} onChange={setTab} label="Settings" testId="settings-tab" />
-      <div role="tabpanel" id={`tabpanel-${tab}`} aria-labelledby={`tab-${tab}`} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200" data-testid={`settings-panel-${tab}`}>
+      <TabBar tabs={TABS} value={tab} onChange={setTab} label="Settings" testId="settings-tab" className="flex-none" />
+      <div role="tabpanel" id={`tabpanel-${tab}`} aria-labelledby={`tab-${tab}`} className="scroll-area min-h-0 flex-initial rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200" data-testid={`settings-panel-${tab}`}>
         {tab === 'gameplay' && <GameplayTab />}
         {tab === 'players' && (
           <div className="grid content-start gap-x-8 gap-y-6 lg:grid-cols-[2fr_3fr] lg:grid-rows-[auto_1fr]">

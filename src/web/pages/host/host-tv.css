@@ -132,6 +132,13 @@
   height: calc(var(--head) + var(--safe-top));
   padding: var(--safe-top) max(0.375rem, env(safe-area-inset-right)) 0 max(0.375rem, env(safe-area-inset-left));
 }
+/* R19-11: in Safari's real full screen on an iPad / iPhone, Safari draws its close button (✕) over the
+   page's top-left corner — no safe-area value reports it, so the header's left end steps aside by
+   its size (the menu stays whole and tappable, Safari's ✕ stays reachable). The Home Screen app and
+   the window-filling layout have no such button and keep their header. */
+.host-fullscreen[data-native-fs='apple'] .host-head {
+  padding-left: calc(max(0.375rem, env(safe-area-inset-left)) + 3.75rem);
+}
 .host-head-main {
   display: flex;
   min-width: 0;

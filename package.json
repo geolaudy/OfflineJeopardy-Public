@@ -1,7 +1,7 @@
 {
   "name": "offline-jeopardy",
   "productName": "OfflineJeopardy",
-  "version": "0.17.0-rc.5",
+  "version": "0.17.0-rc.6",
   "private": true,
   "description": "Fully offline, customizable Jeopardy-style game for Windows with LAN host controller and buzzers.",
   "type": "module",

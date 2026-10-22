@@ -14,7 +14,7 @@ import { finalEntryReveal, hasPlayable } from '../../../shared/game';
 import { plainText } from '../../../shared/richText';
 import { ActionButton, Avatar, Button, Modal, inputCls, cx, fmtScore } from '../../components/ui';
 import { competitorAvatar, competitorName, findCompetitor, profileName, useTimer } from '../../lib/view';
-import { Trophy, Check, X, ChevronRight, Image as ImageIcon, Music, Timer, Eye, EyeOff, Lock } from 'lucide-react';
+import { Trophy, Check, X, ChevronRight, Image as ImageIcon, Music, Eye, EyeOff, Lock, LockOpen } from 'lucide-react';
 import { AnswerBanner } from './AnswerBanner';
 import { RichText } from '../../components/RichText';
 import { FrameParts } from './GameFrame';
@@ -278,21 +278,27 @@ function FinalBar({ g, run, who }: { g: GameView; run: Run; who: string | null }
         Lock Wagers
       </ActionButton>
     );
+  } else if (f.stage === 'clue' && !f.thinking) {
+    // R19-4: the clue is on the TV with answering locked and no time running — the host reads it (and
+    // plays its sound or video), then unlocks answering: the think time starts.
+    const media = f.media.some((m) => m.kind !== 'image');
+    status = media ? "Play the clue's sound or video on the TV, read the clue, then unlock answering — players can't answer yet." : "Read the clue, then unlock answering — players can't answer yet.";
+    actions = (
+      <ActionButton size="lg" variant="success" className="host-btn host-btn-main" onAction={() => run({ type: 'finalStartThink' })} data-testid="final-unlock-answers">
+        <LockOpen size={22} aria-hidden /> Unlock Answering
+      </ActionButton>
+    );
   } else if (f.stage === 'clue') {
     // R11-9: in "host closes" mode the time running out leaves answering open until the host closes it.
     const timeUp = g.timer?.kind === 'final' && g.timer.expired;
-    status = !f.thinking
-      ? "Play the clue's sound or video on the TV — the think time starts when it finishes (or start it now)."
+    // R19-3: every answer in — the think time has stopped; the host closes answering and reveals.
+    status = answered === n
+      ? `${n === 1 ? 'The answer is in' : `All ${n} answers are in`} — close answering, then begin the reveals.`
       : timeUp
         ? `Time's up — answering stays open until you close it: ${answered} of ${n} in.`
         : `Players are writing their answers: ${answered} of ${n} in. Answers stay hidden until the reveal.`;
     actions = (
       <>
-        {!f.thinking && (
-          <ActionButton size="lg" variant="secondary" className="host-btn" onAction={() => run({ type: 'finalStartThink' })} data-testid="final-start-think">
-            <Timer size={20} aria-hidden /> Start think time
-          </ActionButton>
-        )}
         <ActionButton
           size="lg"
           variant={(n - answered || !f.thinking) && !timeUp ? 'secondary' : 'primary'}

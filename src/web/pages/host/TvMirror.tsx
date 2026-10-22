@@ -126,17 +126,24 @@ export function TvPreview({ game, scoreboard, band, frameless, title, size, test
     const relay = (e: Event) => {
       if (bandRef.current) window.dispatchEvent(new CustomEvent('oj-preview-zoom', { detail: (e as CustomEvent).detail }));
     };
+    // R19-7: the round title has come in over its board fill.
+    const relayIntro = (e: Event) => {
+      if (bandRef.current) window.dispatchEvent(new CustomEvent('oj-preview-intro', { detail: (e as CustomEvent).detail }));
+    };
     // On every 'ready' (a reloaded preview is a new window behind the same contentWindow proxy).
     const listenForZoom = () => {
       const w = ref.current?.contentWindow ?? null;
       zoomWin?.removeEventListener('oj-tv-zoom', relay);
+      zoomWin?.removeEventListener('oj-tv-intro', relayIntro);
       zoomWin = w;
       w?.addEventListener('oj-tv-zoom', relay);
+      w?.addEventListener('oj-tv-intro', relayIntro);
     };
     window.addEventListener('message', onMsg);
     return () => {
       window.removeEventListener('message', onMsg);
       zoomWin?.removeEventListener('oj-tv-zoom', relay);
+      zoomWin?.removeEventListener('oj-tv-intro', relayIntro);
     };
   }, []);
   const mirror = useMemo(() => forMirror(game), [game]);

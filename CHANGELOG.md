@@ -7,6 +7,8 @@ their notes come from the matching section below (`scripts/release-notes.mjs`).
 ## [Unreleased]
 
 ### New Features
+- **Final Jeopardy! answers are final**: once a player sends their Final wager or answer it is locked in (the host can still correct it). Settings → Gameplay → **Allow Final Jeopardy! submission changes** lets players change them while that step is open.
+- **The host opens Final Jeopardy! answering**: Show Clue now shows the clue with answering locked, so everyone can read it; the host presses the green **Unlock Answering**, which starts the think time. Phones say they are waiting for the host until then.
 - **Daily Double! run by the host**: by default the host types the player's wager straight into the control band (the phone says the host enters it; computer players still wager by themselves), then shows the clue with **Lock Wager & Show Clue**. The clue appears with the time stopped, so it can be read aloud; a large green **Start Timer** starts the answer time, and Correct / Incorrect follow. A new rule, **Daily Double! wager entry**, lets players enter their own wager on their phone instead: the green **Unlock Wager** button opens wagering and starts the wager timer, which stops as soon as a wager is in. **Preview Clue** shows the Daily Double! clue privately on the iPad, as it already did for Final Jeopardy!.
 - **The computer player's choice is shown**: the tile a computer opponent chose glows softly from behind (square, like the board) — two short blinks and a longer third — before the clue zooms open, on the TV and the host preview.
 - **Start-up screen on Windows**: OfflineJeopardy now shows its name and what it is doing ("Loading saved data…", "Starting local server…") from the first second, with a loading bar, until the host interface is ready — and says so if the start fails instead of waiting forever. The portable version starts about twice as fast (it unpacks a compressed copy) and shows a picture while it unpacks.
@@ -17,14 +19,18 @@ their notes come from the matching section below (`scripts/release-notes.mjs`).
 - **Game data location**: Settings → Data & Storage shows where OfflineJeopardy keeps its games, profiles and pictures, opens that folder, and can move everything to another folder (chosen with the Windows folder picker) or back to the default. The move happens when the app restarts: everything is copied, checked, and only then used — the old folder is kept, and a failed move changes nothing.
 
 ### Improvements
+- **Final Jeopardy! sounds and timers**: a ding when every wager is in (the wager timer stops), the Final ding when the host shows the clue, and a ding when every answer is in (the timer and the think music stop) — the reveals still wait for the host.
+- **Settings stay put**: the header and the tabs no longer move when you scroll — only the tab's content scrolls (also in the rules dialog).
+- **Host score cards in dollars**: $0, $200, $1,400, -$400 — never cut off, up to 12 players.
+- **Safari full screen on the iPad**: Safari's close button no longer covers the menu button.
 - **Typing on the iPad no longer makes the field jump**: the lobby's Wi-Fi name and password (and every other field) stay above the on-screen keyboard while you type, delete or switch fields — the app no longer argues with Safari about where the field should be.
 - **Daily Double! controls keep their size**: the host's control band stays one row at every step (wager, clue, Start Timer, Correct / Incorrect), so the TV preview never moves; on narrower screens Preview Clue shows as an eye and the main button reads "Show Clue".
 - **Final Jeopardy!: Show Clue when every wager is in**: once every player (and team or computer player) has a wager, "Enter your wagers now" fades from the TV and the host's Lock Wagers becomes **Show Clue** — the clue still waits for the host.
 - **Category introduction**: the round title ("Round 1") is on the same edge-to-edge blue as the categories in the host's preview; Auto Present and Skip Category Presentation sit at the left of the band, Previous and the main **Show First Category / Next Category** at the right.
 - **Settings → Players & Bots** fits the iPad screen with the AI limits and fallback always shown.
-- **iPad status bar**: the controller's header is now the colour Safari picks for the status bar, so in full screen it should turn navy on iPadOS 26 / 27 (remove and re-add the Home Screen icon once). Elsewhere it stays the plain white bar.
+- **iPad status bar**: the controller's header is the colour Safari picks for the status bar (navy in full screen), and the app no longer asks for the old white bar, so the Home Screen app can take the page's colour too (remove and re-add the Home Screen icon once).
 - **Settings in tabs**: Gameplay (the rules and timers of the game), Players & Bots, TV & Display, Sound, Network, Data & Storage and Advanced — each fits the iPad screen without scrolling. The rules dialog has three tabs (Timers & scoring, Clues & wagers, Players & buzzing).
-- **Final Jeopardy! answers on the TV look like the score cards**: the contestant being revealed is one large card with their answer inside, their score before the Final and their wager underneath; a correct or incorrect judgment shows as a green or red outline. The results are the same cards in tidy rows (up to 12), with room under the category for the correct response.
+- **Final Jeopardy! answers on the TV look like the score cards**: the contestant being revealed is one large card with their answer inside, their wager underneath; a correct or incorrect judgment shows as a green or red outline. The results are the same cards in tidy rows (up to 12), with room under the category for the correct response.
 - **Host preview**: the blue around the TV picture is now part of the clue itself — it grows out of the tile and fills the screen together with the clue, on exactly the same animation. The category introduction shows its categories on the same blue, edge to edge (no black border in full screen).
 - **Category introduction controls**: **Next Category** is the main button, **Previous** sits quietly right beside it, and **Auto Present** (a switch) and **Skip Category Presentation** are small at the end of the band. Tapping quickly never starts two swipes at once.
 - **Wager and answer buttons stay above the keyboard** on phones (Daily Double! wager, Final wager and answer — Submit sits beside or under the field), and fields in the iPad lobby stay in view even when Safari scrolls the column.
@@ -63,6 +69,8 @@ their notes come from the matching section below (`scripts/release-notes.mjs`).
 - **Buzzer check results in one line**: who has not pressed stays in view ("Everyone pressed ✓" when all did); the order and timings fold away under "Order" once the check ends.
 
 ### Bug Fixes
+- **Host preview: the round title** ("Round 1") has its full outline again and the opening board fill looks as it does on the TV (it plays on the board's dark ground; the blue around the picture comes with the title).
+- **TV Final Jeopardy! card**: the "Before Final Jeopardy!" line is gone and the wager sits centred.
 - Pinch-zooming on an iPad or phone made pages jump back and open sheets move on every pan, which looked like flickering; zoomed pages now stay where you move them.
 - The phone's Test Buzzer screen could appear under the page header (its close button hidden, the edge of a white button showing near the profile picture).
 - Computer opponents with an AI provider sometimes gave up on a clue with "The value of "delay" is out of range" (a fractional time limit); the time limit is now always a whole number of milliseconds within bounds.

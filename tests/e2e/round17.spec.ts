@@ -335,6 +335,7 @@ for (const [label, device, kbH] of [
     await keyboard(phone, 0);
     await h.act({ type: 'finalNext' });
     await h.until((x) => x.final?.stage === 'clue');
+    await h.act({ type: 'finalStartThink' }); // the host unlocks answering (R19-4)
     await check('phone-final-answer', 'phone-final-answer-submit', 'phone-final-answer');
     await phone.getByTestId('phone-final-answer').fill('What is Salzburg?');
     await phone.getByTestId('phone-final-answer-submit').click();
@@ -495,7 +496,7 @@ test("host preview: the introduction's categories fill the area edge to edge; th
   await h.act({ type: 'introNext' });
   await expect(ipad.getByTestId('host-stage-panel')).toHaveAttribute('data-on', 'true');
   await expect(preview().locator('.bt-intro[data-surface="panel"]')).toBeVisible();
-  expect(await preview().locator('.bt-intro-card').first().evaluate((e) => getComputedStyle(e).backgroundImage)).toBe('none');
+  expect(await preview().locator('.bt-intro-card:not(.bt-intro-title)').first().evaluate((e) => getComputedStyle(e).backgroundImage)).toBe('none');
   for (const full of [false, true]) {
     if (full) await ipad.getByTestId('fullscreen-toggle').click();
     await ipad.waitForTimeout(1200);

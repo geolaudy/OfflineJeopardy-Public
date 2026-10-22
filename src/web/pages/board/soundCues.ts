@@ -14,6 +14,15 @@ export function transitionCues(p: GameView, g: GameView): SoundCue[] {
   // R6-4: the Final moves roundIndex too, but it has its own cue — the new-round sound (which
   // plays with the board fill) must not sound for a split second underneath it.
   if (g.phase === 'final' && p.phase !== 'final') out.push('final');
+  // R19-2 / R19-3 / R19-5: the Final's steps — the buzz-in ding when the last wager and the last
+  // answer arrive (from the states themselves: once per phase, never again after a reconnect), and
+  // the Final category's ding when the host shows the clue.
+  if (g.final && p.final && g.phase === 'final') {
+    const all = (v: GameView, k: 'hasWager' | 'submitted') => !!v.final && v.final.entries.length > 0 && v.final.entries.every((e) => e[k]);
+    if (g.final.stage === 'wagers' && p.final.stage === 'wagers' && all(g, 'hasWager') && !all(p, 'hasWager')) out.push('buzz');
+    if (g.final.stage === 'clue' && p.final.stage === 'clue' && all(g, 'submitted') && !all(p, 'submitted')) out.push('buzz');
+    if (g.final.stage === 'clue' && p.final.stage === 'wagers') out.push('final');
+  }
   if (g.clue && g.clue.clueId !== p.clue?.clueId && !g.clue.isDailyWager) out.push('clueSelect');
   if (g.buzzer.status === 'open' && p.buzzer.status !== 'open' && g.phase === 'clue') out.push('unlock');
   if (g.buzzer.winner && g.buzzer.winner.at !== p.buzzer.winner?.at) out.push('buzz');

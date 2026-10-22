@@ -44,6 +44,8 @@ describe('wagering permissions (R5-18) and Final answers (R5-19, R5-15)', () => 
     const [alex, sam] = profiles;
     await h.act({ type: 'adjustScore', competitorId: cid(alex.id), delta: 1000, note: 'test' });
     await h.act({ type: 'adjustScore', competitorId: cid(sam.id), delta: 600, note: 'test' });
+    // R19-1: this game allows changing a submitted answer (Change answer); the default is final.
+    await h.act({ type: 'updateRules', rules: { ...h.state!.rules, finalChanges: true } });
     await h.act({ type: 'startFinal' });
     // A hand-written message before the host opens wagering is refused.
     let r = result(pa);
@@ -56,7 +58,8 @@ describe('wagering permissions (R5-18) and Final answers (R5-19, R5-15)', () => 
     expect(await r).toMatchObject({ ok: true });
     ps.send({ t: 'finalWager', amount: 600 });
     await h.waitState((g) => g!.final!.entries.every((e) => e.hasWager));
-    await h.act({ type: 'finalNext' }); // wagers locked, think time runs
+    await h.act({ type: 'finalNext' }); // wagers locked, the clue
+    await h.act({ type: 'finalStartThink' }); // R19-4: the host unlocks answering
     r = result(pa);
     pa.send({ t: 'finalWager', amount: 1 });
     expect(await r).toMatchObject({ ok: false });
@@ -71,9 +74,7 @@ describe('wagering permissions (R5-18) and Final answers (R5-19, R5-15)', () => 
     await pa.waitState((_g, me) => me?.final?.submitted === false && me.final.answer === 'Vienna');
     pa.send({ t: 'finalAnswer', answer: 'Salzburg', submit: true });
     await tv.waitState((g) => tvEntry(g)?.submitted === true);
-    ps.send({ t: 'finalAnswer', answer: 'Graz', submit: true });
-    await h.waitState((g) => g!.final!.entries.every((e) => e.submitted));
-
+    // (Sam has not answered yet: R19-3 stops the think time only once every answer is in.)
     await h.act({ type: 'finalNext' }); // close answers (the reveal waits for the host, R6-6)
     r = result(pa);
     pa.send({ t: 'finalAnswer', answer: 'too late', submit: true });

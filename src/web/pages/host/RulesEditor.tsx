@@ -7,10 +7,10 @@ import { Button, Field, Modal, TabBar, cx, inputCls, type TabItem } from '../../
 import { EarlyBuzzFields } from './EarlyBuzzRule';
 import { BUZZ_FAIRNESS_OPTIONS, type BuzzFairness } from '../../../shared/buzzTiming';
 
-function Toggle({ label, hint, checked, onChange }: { label: string; hint?: string; checked: boolean; onChange: (v: boolean) => void }) {
+function Toggle({ label, hint, checked, onChange, testId }: { label: string; hint?: string; checked: boolean; onChange: (v: boolean) => void; testId?: string }) {
   return (
     <label className="flex min-h-11 cursor-pointer items-center gap-3">
-      <input type="checkbox" className="h-6 w-6 shrink-0 accent-blue-700" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <input type="checkbox" className="h-6 w-6 shrink-0 accent-blue-700" checked={checked} onChange={(e) => onChange(e.target.checked)} data-testid={testId} />
       <span className="min-w-0">
         <span className="block leading-snug font-semibold">{label}</span>
         {hint && <span className="block text-xs text-slate-500">{hint}</span>}
@@ -110,6 +110,14 @@ export function RulesFields({ r, setR, section }: { r: GameRules; setR: (r: Game
             <option value="timer">Automatically when the think time ends</option>
           </select>
         </Field>
+        {/* R19-1: submissions are final unless this is on (you can always correct one). */}
+        <Toggle
+          label="Allow Final Jeopardy! submission changes"
+          hint="Players may change a submitted wager or answer while that step is open. Off: what they submit is final (you can still correct it)."
+          checked={r.finalChanges === true}
+          onChange={(v) => setR({ ...r, finalChanges: v })}
+          testId="rule-final-changes"
+        />
       </div>
     );
   return (
@@ -164,11 +172,13 @@ export default function RulesEditor({
     <Modal open={open} onClose={onClose} title="Rules & timers" wide>
       {/* R17-14: three tabs instead of one long scrolling list (and no hidden "Advanced rules"). */}
       <div className="space-y-4">
-        <TabBar tabs={RULES_SECTIONS} value={tab} onChange={setTab} label="Rule groups" testId="rules-tab" className="-mt-2" />
+        {/* R19-6: the tabs (and Save / Cancel) stay in place when a tab's fields need the dialog to
+            scroll — the dialog sizes to its content, so they stick to its edges instead. */}
+        <TabBar tabs={RULES_SECTIONS} value={tab} onChange={setTab} label="Rule groups" testId="rules-tab" className="sticky top-0 z-10 -mt-2 bg-white" />
         <div role="tabpanel" id={`tabpanel-${tab}`} aria-labelledby={`tab-${tab}`}>
           <RulesFields r={r} setR={setR} section={tab} />
         </div>
-        <div className="flex justify-end gap-2">
+        <div className="sticky bottom-0 z-10 flex justify-end gap-2 bg-white py-2">
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>

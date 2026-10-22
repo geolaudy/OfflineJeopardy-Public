@@ -210,3 +210,13 @@ Rollback point: tag v0.16.0 (0.17.0-rc.4 = commit 0812c70, tested by the owner).
 - **D — Introduction: round title edge to edge, band order:** R18-5, R18-6 (D124). **Done.**
 - **E — Settings → Players & Bots:** R18-7 (D125). **Done.**
 - **F — Status bar via the sampled header:** R18-8 (D126). **Done** — awaiting the iPad (K55 open).
+
+## Milestone 33 — User feedback round 19 → v0.17.0-rc.6 (started 2026-10-22, session 22)
+
+Rollback point: tag v0.16.0 (0.17.0-rc.5 = commit b97285c, tested by the owner). See USER_FEEDBACK.md "Round 19"; statuses in FEATURE_MATRIX.md.
+- **A — Final Jeopardy! flow:** R19-1 … R19-5 (D127, D128). **Done.**
+- **B — Settings header and tabs stationary:** R19-6 (D129). **Done.**
+- **C — Round title fill in the host preview:** R19-7 (D130). **Done.**
+- **D — Final card without "Before Final Jeopardy!":** R19-8 (D131). **Done.**
+- **E — Host score cards in dollars:** R19-9 (D131). **Done.**
+- **F — Status bar meta removed, Safari full-screen X:** R19-10, R19-11 (D132). **Done** — awaiting the iPad (K55 open).

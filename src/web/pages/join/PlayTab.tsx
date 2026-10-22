@@ -269,7 +269,11 @@ function FinalForm({ me }: { me: Me }) {
     if (f.stage === 'clue' && !answer && (mine?.draft || mine?.answer)) setAnswer(mine.draft ?? mine.answer ?? '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mine?.answer, mine?.draft, f.stage]);
-  const editing = f.stage === 'clue' && !mine?.submitted;
+  // R19-4: answering opens when the host unlocks it (the clue shows first). R19-1: a submitted wager
+  // or answer is final unless the game allows changes (the server refuses them too).
+  const open = f.stage === 'clue' && f.thinking;
+  const changes = g.rules.finalChanges === true;
+  const editing = open && !mine?.submitted;
   // While editing, the text is autosaved as a draft so nothing is lost when the think music ends
   // (it counts only if no answer was ever submitted, R5-19).
   const draftTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -325,9 +329,15 @@ function FinalForm({ me }: { me: Me }) {
         <div className="space-y-3 text-center" data-testid="phone-final-wager-done">
           <p className="text-sm text-slate-500">{team ? 'Your team’s wager' : 'Your wager'}</p>
           <p className="text-3xl font-black tabular-nums">{fmtScore(mine.wager)}</p>
-          <Button variant="secondary" className="w-full" onClick={() => setChangingWager(true)} data-testid="phone-final-wager-change">
-            Change wager
-          </Button>
+          {changes ? (
+            <Button variant="secondary" className="w-full" onClick={() => setChangingWager(true)} data-testid="phone-final-wager-change">
+              Change wager
+            </Button>
+          ) : (
+            <p className="text-sm text-slate-500" data-testid="phone-final-wager-locked">
+              Locked in — wait for the clue.
+            </p>
+          )}
         </div>
       )}
       {f.stage === 'clue' && (
@@ -338,10 +348,14 @@ function FinalForm({ me }: { me: Me }) {
           {/* R11-9: the think time is over, but answering stays open until the host closes it. */}
           {g.timer?.kind === 'final' && g.timer.expired && (
             <p className="rounded-xl bg-amber-50 p-3 text-center font-semibold text-amber-900 ring-1 ring-amber-300" data-testid="phone-final-timeup">
-              Time is up — waiting for the host to close answering.{editing ? ' You can still submit.' : ' You can still change your answer.'}
+              Time is up — waiting for the host to close answering.{editing ? ' You can still submit.' : changes ? ' You can still change your answer.' : ''}
             </p>
           )}
-          {editing ? (
+          {!open ? (
+            <p className="rounded-xl bg-slate-100 p-3 text-center font-semibold text-slate-700" data-testid="phone-final-answer-wait">
+              Read the clue — waiting for the host to open answering.
+            </p>
+          ) : editing ? (
             <>
               {/* R17-6: the answer and Submit come into view together above the keyboard (side by side
                   on a phone on its side, where the room above the keyboard is short). */}
@@ -359,18 +373,20 @@ function FinalForm({ me }: { me: Me }) {
                 <p className="text-sm font-semibold text-green-800">{team ? 'Your team’s answer is in' : 'Your answer is in'}</p>
                 <p className="mt-1 text-xl font-bold break-words">{mine?.answer}</p>
               </div>
-              <Button
-                variant="secondary"
-                size="lg"
-                className="w-full"
-                onClick={() => {
-                  setAnswer(mine?.answer ?? '');
-                  send({ t: 'finalAnswer', answer: mine?.answer ?? '', submit: false });
-                }}
-                data-testid="phone-final-answer-change"
-              >
-                Change answer
-              </Button>
+              {changes && (
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  className="w-full"
+                  onClick={() => {
+                    setAnswer(mine?.answer ?? '');
+                    send({ t: 'finalAnswer', answer: mine?.answer ?? '', submit: false });
+                  }}
+                  data-testid="phone-final-answer-change"
+                >
+                  Change answer
+                </Button>
+              )}
             </>
           )}
           <TimerLine />

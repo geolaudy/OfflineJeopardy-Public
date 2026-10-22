@@ -47,6 +47,9 @@ export interface EngineCtx {
   actor?: string;
 }
 
+/** R19-1: sent by the host (an action from the host controller, or a test / tool without an actor). */
+const byHost = (ctx: EngineCtx) => !ctx.actor || ctx.actor === 'host';
+
 /** Inputs players send themselves: never an undo step, so the host's Undo skips over them. */
 const PLAYER_INPUTS = new Set(['setFinalWager', 'setFinalAnswer']);
 
@@ -748,8 +751,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       if (!m || m.clueId !== a.clueId || m.status !== 'playing' || m.durationMs == null || mediaPosition(m, now) < m.durationMs - 50) return { ignored: true };
       s.media = { ...m, status: 'ended', positionMs: m.durationMs, startedAt: null };
       if (m.side === 'clue' && s.clue?.clueId === m.clueId && s.clue.unlockMode === 'mediaEnd') maybeAutoOpen(s, s.clue, now);
-      // R9-6.4: a Final clue's sound or video has played to the end: the think time begins.
-      if (m.side === 'clue' && s.phase === 'final' && s.final?.stage === 'clue' && !s.final.thinking) startThinking(s, now);
+      // R19-4: a Final clue's sound or video ending no longer opens answering — the host unlocks it.
       return;
     }
     case 'showJoinQr': {
@@ -1305,10 +1307,10 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
           emit(tx, { type: 'wager', result: 'final', clueId: clue.id, roundIndex: f.roundIndex, competitorId: e.competitorId, profileId: e.profileId, wager: e.wager });
         }
         f.stage = 'clue';
-        // R9-6.4: with sound or video the clue plays first; the think time follows it.
+        // R19-4: the clue shows with answering locked and no time running — the host reads it, then
+        // unlocks answering (finalStartThink). R9-6.4's sound or video plays in that time too.
         f.thinking = false;
         s.timer = null;
-        if (!hasPlayable(clue.media)) startThinking(s, now);
       } else if (f.stage === 'clue') {
         closeFinalAnswers(tx);
       } else if (f.stage === 'closed') {
@@ -1346,6 +1348,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       const f = finalState(s);
       if (f.stage !== 'clue') fail('The Final Jeopardy! clue is not showing');
       if (f.thinking) return { ignored: true };
+      // R19-4: Unlock Answering — answers may come in from now, and the think time starts.
       startThinking(s, now);
       return;
     }
@@ -1356,10 +1359,15 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       if (f.stage !== 'wagers') fail('Wagers are locked');
       const e = f.entries.find((x) => x.competitorId === a.competitorId);
       if (!e) fail('Not playing in the Final');
+      // R19-1: a submitted wager is final for players and bots unless the rule allows changes;
+      // the host can always correct it while wagering is open.
+      if (e!.wager != null && !byHost(ctx) && s.rules.finalChanges !== true) fail('Your wager is locked in');
       const score = scoresOf(s.events)[a.competitorId] ?? 0;
       const max = Math.max(score, 0);
       if (a.amount < 0 || a.amount > max) fail(`Wager must be between 0 and ${max}`);
       e!.wager = a.amount;
+      // R19-2: the last wager is in — the wager time stops (the TV plays the buzz-in ding).
+      if (f.entries.every((x) => x.wager != null) && s.timer?.kind === 'wager' && !s.timer.expired) s.timer = null;
       return;
     }
     case 'setFinalAnswer': {
@@ -1367,6 +1375,13 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       if (f.stage !== 'clue') fail('Answers are not open');
       const e = f.entries.find((x) => x.competitorId === a.competitorId);
       if (!e) fail('Not playing in the Final');
+      // R19-4: players and bots answer once the host has unlocked answering (the host may enter an
+      // answer for a player at any time while the clue shows). R19-1: a submitted answer is final
+      // unless the rule allows changes — no new draft, no new answer.
+      if (!byHost(ctx)) {
+        if (!f.thinking) fail('Answering opens when the host unlocks it');
+        if (e!.submitted && s.rules.finalChanges !== true) fail('Your answer is locked in');
+      }
       const text = a.answer.trim();
       if (a.submit === false) {
         // Typing / "Change answer": the last submitted answer stays until a new one is submitted.
@@ -1377,6 +1392,9 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
         e!.answer = text;
         e!.submitted = true;
         e!.draft = null;
+        // R19-3: the last answer is in — the think time stops (the TV plays the buzz-in ding); the
+        // host still closes answering and reveals.
+        if (f.entries.every((x) => x.submitted) && s.timer?.kind === 'final' && !s.timer.expired) s.timer = null;
       }
       return;
     }

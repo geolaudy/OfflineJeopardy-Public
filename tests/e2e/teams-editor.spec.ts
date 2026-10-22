@@ -158,6 +158,7 @@ test('import + edit a board, then a mixed-mode team game through the Final', asy
   await expect(tv.getByText('150')).toHaveCount(0); // hidden wager
   await ipad.getByTestId('final-next').click(); // lock wagers, show clue
   await expect(tv.getByText('Capital of Hungary.', { exact: false })).toBeVisible();
+  await ipad.getByTestId('final-unlock-answers').click(); // R19-4: the host opens answering
   await taylorPhone.getByLabel('Your answer').fill('Buda and Pest');
   await taylorPhone.getByRole('button', { name: 'Submit answer' }).click();
   await expect(ipad.getByTestId('final-status')).toContainText('Answered ✓');

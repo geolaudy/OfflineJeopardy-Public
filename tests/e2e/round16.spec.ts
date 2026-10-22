@@ -436,7 +436,8 @@ test("host preview: the blue around the clue continues the picture (no edge) and
 test('status bar: back to the plain default style, no painted strip (R16-15, K55)', async () => {
   const p = await (await wk.newContext({ ...devices['iPad Pro 11 landscape'] })).newPage();
   await p.goto(`${BASE}/host`);
-  await expect(p.locator('meta[name="apple-mobile-web-app-status-bar-style"]')).toHaveAttribute('content', 'default');
+  // R19-10: no status-bar style at all (WebKit: the bar then takes the page's colour); never black-translucent.
+  await expect(p.locator('meta[name="apple-mobile-web-app-status-bar-style"]')).toHaveCount(0);
   expect(await p.evaluate(() => getComputedStyle(document.body, '::before').content)).toMatch(/^(none|normal)$/);
 });
 

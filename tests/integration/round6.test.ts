@@ -84,6 +84,7 @@ describe('Final Jeopardy! waits for the host after the think time (R6-6)', () =>
     for (const p of phones) p.send({ t: 'finalWager', amount: 100 });
     await h.waitState((g) => !!g?.final?.entries.every((e) => e.hasWager));
     await h.act({ type: 'finalNext' });
+    await h.act({ type: 'finalStartThink' }); // R19-4: the host unlocks answering
     phones[0].send({ t: 'finalAnswer', answer: 'Budapest', submit: true });
     for (const c of [h, tv]) await c.waitState((g) => g?.final?.stage === 'closed', 5000);
     expect(h.state!.timer).toBeNull();

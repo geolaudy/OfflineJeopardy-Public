@@ -1147,20 +1147,20 @@
   color: rgba(255, 255, 255, 0.22);
 }
 /* A fixed height: the wager appearing must not grow the (centred) card — the name stays put (R8-5). */
+/* R19-8: the wager alone, centred in the card (whatever its length or sign). */
 .bt-final-stats {
   display: flex;
   box-sizing: content-box;
   height: 7vh;
   align-items: center;
-  justify-content: space-between;
-  gap: 3vw;
+  justify-content: center;
   padding: 0.6vh 3.2vh 1vh;
 }
 .bt-final-wager {
   display: flex;
   min-height: 5vh;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   font-size: 3.2vh;
 }
 .bt-final-wager b {
@@ -1177,17 +1177,6 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   opacity: 0.88;
-}
-.bt-final-pre {
-  font-size: 2.6vh;
-  text-align: left;
-}
-.bt-final-pre b {
-  margin-left: 0.4em;
-  font-family: var(--bt-money-font);
-  font-weight: var(--bt-heavy);
-  font-size: 1.25em;
-  letter-spacing: 0.01em;
 }
 /* R7-7: the Final clue is centred in the whole stage. The top band (kicker + category) is mirrored
    at the bottom (submission chips + timer), so the text never runs into either. */
@@ -1614,7 +1603,13 @@
   background: none;
   border-radius: 0;
 }
-/* R18-5: the round title's board fill lights its tiles on that surface (no black ground or frame). */
-.is-host-preview .bt-intro[data-surface="panel"] .bt-reveal-grid {
-  background: transparent;
+/* R19-7: the round title's board fill is the TV's own (its dark ground and gaps between the tiles —
+   R18-5 made that ground transparent, so the tiles lit up blue on blue and the board looked broken,
+   then showed only faintly through the title). The title itself comes in over the whole picture,
+   opaque on the panel surface (the ground switches to the panel under it once it is in). */
+.is-host-preview .bt-intro .bt-intro-card.bt-intro-title {
+  inset: 0;
+  border-radius: 0;
+  background: var(--bt-panel);
+  background-color: var(--bt-panel-color, transparent);
 }

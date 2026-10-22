@@ -647,3 +647,36 @@ The owner tested **0.17.0-rc.4** (commit 0812c70 / handoff 4ccfcd7 — nothing w
 | R18-6 | Introduction band: Auto Present and Skip Category Presentation on the **left** (least emphasis); Previous Category, then the main Show First Category / Next Category at the **far right**; no extra height, nothing hidden in a menu | D |
 | R18-7 | Settings → Players & Bots fits an iPad in landscape with Limits and Fallback shown; no setting removed or reset; graceful overflow on smaller screens | E |
 | R18-8 | Status bar (K55): investigate the Reddit workaround (sticky header, solid background, `padding-top: env(safe-area-inset-top)`, `default` style, matching manifest theme_color, menus below the header); only if safe — no gradient, no layout shift, no strip where it does not belong; keep the white fallback otherwise; K55 open until the owner confirms | F |
+
+# User Feedback — Round 19 (received 2026-10-22, session 22, after testing the 0.17.0-rc.5 release candidate on real hardware; DESKTOP-6HN0OQ4)
+
+The owner tested **0.17.0-rc.5** (commit b97285c / handoff ab754d1 — nothing was committed after it). The next candidate is **0.17.0-rc.6**. Rollback point: tag **v0.16.0** (published). Statuses: FEATURE_MATRIX.md → "User feedback round 19".
+
+## Real-hardware results of 0.17.0-rc.5 (reported by the owner — not automatic results)
+
+| Area | Feature | Owner's result |
+|---|---|---|
+| iPad host | Lobby Wi-Fi name / password stay above the keyboard while typing (R18-1) | **USER-VERIFIED FIXED** — do not regress; diagnostics stay off by default |
+| iPhone | Daily Double! wager, Final wager and answer, nickname with the keyboard | WORKING |
+| Daily Double! | The band keeps one height (R18-2) | FIXED |
+| Final | "Enter your wagers now" fades, Show Clue once every wager is in (R18-3, R18-4) | WORKING |
+| Introduction | Board / category introductions edge to edge, the band's layout (R18-5, R18-6) | FIXED — but the Board 1 outline is faded and the opening board fill looks broken in the host preview → R19-7 |
+| Settings | Players & Bots (R18-7) | WORKING — but the tabs / header move vertically when scrolling → R19-6 |
+| iPad | Status bar (K55, R18-8) | Safari full screen: **navy** (as wanted). Home Screen app: **still white**. Safari full screen's X overlaps the hamburger → R19-10, R19-11; K55 stays open |
+| Wi-Fi | Wi-Fi PC / Mobile Hotspot (K48) | NOT TESTED — the owner approved proceeding to final publication without this test; it stays documented as unverified and is **not a release blocker** |
+
+## New requests (the round-19 prompt)
+
+| ID | Requirement (summary) | Milestone |
+|---|---|---|
+| R19-1 | **Final: a submission is locked once sent** (wager and answer) — new setting **Allow Final Jeopardy Submission Changes**, default OFF; enforced by the server for players, teams, guests and bots; the host can always correct | A |
+| R19-2 | Final: when every wager is in, the buzz-in ding plays, the wager timer stops, the cue fades and the host gets Show Clue | A |
+| R19-3 | Final: Show Clue plays the Final category-reveal ding | A |
+| R19-4 | Final: the clue shows with answering **locked**; the host presses a green **Unlock Answering**, which starts the answer timer; phones say they are waiting for the host to open answering | A |
+| R19-5 | Final: when every answer is in, the ding plays, the timer (and the think music) stops, and the reveal waits for the host (never automatic) | A |
+| R19-6 | Settings: the header and tabs stay put; only the tab's content scrolls | B |
+| R19-7 | Host preview: the round title's outline not faded, the opening board fill as on the TV — keeping the edge-to-edge blue | C |
+| R19-8 | TV Final card: no "Before Final Jeopardy!" text; the wager centred | D |
+| R19-9 | Host score cards show dollars ($0, $200, $1,400, -$400), never clipped, up to 12 entries | E |
+| R19-10 | Status bar: why Safari full screen is navy and the Home Screen app white — no gradient, no shift | F |
+| R19-11 | Safari full screen: its X must not cover the hamburger | F |

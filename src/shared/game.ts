@@ -111,6 +111,9 @@ export interface GameRules {
   /** R11-9: how Final Jeopardy! answering ends — 'host': the host closes it (when the think time
    *  runs out, phones can still answer until then); 'timer': it closes when the think time ends. */
   finalClose: 'host' | 'timer';
+  /** R19-1: may a player (or bot) change a submitted Final Jeopardy! wager or answer while that
+   *  phase is open? Off by default: a submission is final. The host can always correct one. */
+  finalChanges: boolean;
   allowSelfJoin: boolean; // players joining from phones are added without host approval
   categoryIntro: boolean; // introduce the categories on the TV at the start of each round
   requireRoomCode: boolean; // phones must type the room code shown on the TV to join this game
@@ -141,6 +144,7 @@ export const DEFAULT_RULES: GameRules = {
   dailyWagerEntry: 'host',
   finalAllowNonPositive: false,
   finalClose: 'host',
+  finalChanges: false,
   allowSelfJoin: true,
   categoryIntro: true,
   requireRoomCode: false,
@@ -477,8 +481,9 @@ export interface FinalState {
   cursor: number;
   /** What is public for that contestant: who they are → their wager → their answer. */
   step: FinalRevealStep;
-  /** Think time has begun (timer + think music). A clue with sound or video shows first and the
-   *  think time starts when it finishes or the host starts it (R9-6.4); other clues start at once. */
+  /** Answering is open and the think time has begun (timer + think music). R19-4: never by itself —
+   *  the clue shows with answering locked and the host unlocks it (Unlock Answering, finalStartThink),
+   *  also after a clue's sound or video (R9-6.4). */
   thinking: boolean;
 }
 export type FinalRevealStep = 'contestant' | 'wager' | 'answer';

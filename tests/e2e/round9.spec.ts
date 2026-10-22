@@ -1,7 +1,7 @@
 // Round 9 — Final Jeopardy! pictures and sounds (R9-6) and the iPad Final in the game frame (R9-5):
 // - the board editor saves, reloads and removes Final clue / correct-response media;
 // - the TV shows the clue's picture with the clue and plays its sound under the host's control; the
-//   think time starts when the sound ends; nothing plays on the iPad; cleanup when the reveals start;
+//   think time starts when the host unlocks answering (R19-4); nothing plays on the iPad; cleanup when the reveals start;
 // - the correct response's picture and sound stay off the TV until the correct response is shown;
 // - the iPad Final keeps the game preview's size and position in every stage.
 import { test, expect, chromium, webkit, devices, request, type Browser, type Page, type APIRequestContext } from '@playwright/test';
@@ -184,7 +184,7 @@ test('Final Jeopardy! media: editor save + reload, TV picture and sound, correct
   const text = (await tv.getByTestId('tv-final-clue').getByTestId('clue-text').boundingBox())!;
   expect(text.y + text.height).toBeLessThanOrEqual(chips.y + 1); // nothing runs into the chips
   await expect(tv.getByTestId('tv-timer')).toHaveCount(0);
-  await expect(ipad.getByTestId('final-start-think')).toBeVisible();
+  await expect(ipad.getByTestId('final-unlock-answers')).toBeVisible();
   await expect(ipad.getByTestId('final-timer')).toHaveCount(0);
   await expect(tvImg(city.url)).toHaveCount(0);
   await tv.waitForTimeout(700);
@@ -205,10 +205,13 @@ test('Final Jeopardy! media: editor save + reload, TV picture and sound, correct
   await expect(tv.getByTestId('tv-final-clue').getByTestId('clue-audio')).toHaveAttribute('data-playing', 'false');
   expect(await tv.locator('audio').evaluate((a: HTMLAudioElement) => a.paused)).toBe(true);
   await expect(ipad.getByTestId('final-timer')).toHaveCount(0); // still no think time
-  await ipad.getByTestId('media-play').click(); // resume → ends → the think time starts
+  await ipad.getByTestId('media-play').click(); // resume → ends; answering stays locked (R19-4)
+  await expect(tv.getByTestId('tv-final-clue').getByTestId('clue-audio')).toHaveAttribute('data-playing', 'false', { timeout: 6000 });
+  await expect(ipad.getByTestId('final-timer')).toHaveCount(0);
+  await ipad.getByTestId('final-unlock-answers').click(); // the host opens answering: the think time starts
   await expect(ipad.getByTestId('final-timer')).toBeVisible({ timeout: 6000 });
   await expect(tv.getByTestId('tv-timer')).toBeVisible();
-  await expect(ipad.getByTestId('final-start-think')).toHaveCount(0);
+  await expect(ipad.getByTestId('final-unlock-answers')).toHaveCount(0);
   await expect(tv.locator('audio')).toHaveCount(1);
 
   // 5) Answers close; the reveals begin: the clue (and its sound) leave the TV.
@@ -282,7 +285,9 @@ test('Final Jeopardy! picture-only clue and picture-only correct response (R9-6.
   await expect.poll(async () => (await img.boundingBox())?.height ?? 0).toBeGreaterThan(1080 * 0.42);
   const b = (await img.boundingBox())!;
   expect(Math.abs(b.width / b.height - 2 / 3)).toBeLessThan(0.02);
-  // The think time started at once (no sound to wait for).
+  // No think time until the host unlocks answering (R19-4); then it starts at once.
+  await expect(tv.getByTestId('tv-timer')).toHaveCount(0);
+  await h.act({ type: 'finalStartThink' });
   await expect(tv.getByTestId('tv-timer')).toBeVisible();
   await h.act({ type: 'finalNext' });
   await h.act({ type: 'finalNext' });

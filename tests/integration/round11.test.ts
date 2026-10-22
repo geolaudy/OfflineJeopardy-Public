@@ -36,6 +36,7 @@ describe('Final Jeopardy! answering closed by the host (R11-9)', () => {
     for (const p of phones) p.send({ t: 'finalWager', amount: 100 });
     await h.waitState((g) => !!g?.final?.entries.every((e) => e.hasWager));
     await h.act({ type: 'finalNext' });
+    await h.act({ type: 'finalStartThink' }); // R19-4: the host unlocks answering
     phones[0].send({ t: 'finalAnswer', answer: 'Budapest', submit: true });
 
     // Time runs out: the timer is over on every screen, but answering stays open.

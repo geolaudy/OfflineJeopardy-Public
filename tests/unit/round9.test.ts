@@ -59,6 +59,7 @@ const answer = (s: GameState, p: string, text: string) => act(s, { type: 'setFin
 const toClue = (final: Partial<Clue>) => run(wager(wager(run(toFinal(final), { type: 'finalNext' }), 'alex', 100), 'jordan', 100), { type: 'finalNext' });
 /** … answers written and closed, every reveal step done and judged → the correct response. */
 function toDone(s: GameState) {
+  s = act(s, { type: 'finalStartThink' }); // R19-4: the host unlocks answering (ignored if open)
   s = answer(answer(s, 'alex', 'Budapest'), 'jordan', 'Vienna');
   s = run(s, { type: 'finalNext' }, { type: 'finalNext' });
   for (let i = 0; i < 2; i++) {
@@ -70,20 +71,23 @@ function toDone(s: GameState) {
 const playClue = (s: GameState) => act(s, { type: 'mediaPlay', clueId: 'final_1', side: 'clue', index: 0, durationMs: 4000 });
 
 describe('Final Jeopardy! clue media (R9-6.1, 6.2)', () => {
-  it('text-only clue: unchanged — the think time starts with the clue, no media anywhere', () => {
-    const s = toClue({});
-    expect(s.final).toMatchObject({ stage: 'clue', thinking: true });
+  it('text-only clue: no media anywhere; R19-4: answering locked until the host unlocks it, then the think time', () => {
+    let s = toClue({});
+    expect(s.final).toMatchObject({ stage: 'clue', thinking: false });
+    expect(s.timer).toBeNull();
+    s = act(s, { type: 'finalStartThink' });
     expect(s.timer).toMatchObject({ kind: 'final', running: true });
     expect(pub(s).final).toMatchObject({ clueId: 'final_1', media: [], answerMedia: [], thinking: true });
   });
 
-  it('image-only clue: hidden from the TV until the clue, then shown; the think time starts at once', () => {
+  it('image-only clue: hidden from the TV until the clue, then shown; the think time starts with Unlock Answering', () => {
     let s = run(toFinal({ question: '', media: [IMG] }), { type: 'finalNext' });
     expect(pub(s).final?.media).toEqual([]);
     expect(pub(s).final?.question).toBeNull();
     expect(host(s).final?.media).toEqual([IMG]); // the host may read ahead
     s = run(s, { type: 'finalNext' });
-    expect(pub(s).final).toMatchObject({ question: '', media: [IMG], thinking: true });
+    expect(pub(s).final).toMatchObject({ question: '', media: [IMG], thinking: false });
+    s = act(s, { type: 'finalStartThink' });
     expect(s.timer).toMatchObject({ kind: 'final', running: true });
     // An image is not something to play.
     expect(attempt(s, { type: 'mediaPlay', clueId: 'final_1', side: 'clue', index: 0 }).ok).toBe(false);
@@ -96,20 +100,23 @@ describe('Final Jeopardy! clue media (R9-6.1, 6.2)', () => {
 });
 
 describe('Final Jeopardy! clue sound (R9-6.4)', () => {
-  it('a sound clue plays first; the think time begins when it ends', () => {
+  it('a sound clue plays first; R19-4: answering waits for the host even after it ends', () => {
     let s = toClue({ question: '', media: [SND] });
     expect(s.final?.thinking).toBe(false);
     expect(s.timer).toBeNull();
     expect(pub(s).final?.thinking).toBe(false);
     s = playClue(s);
     expect(pub(s).media).toMatchObject({ clueId: 'final_1', side: 'clue', status: 'playing' });
-    // Answers may be written meanwhile.
-    s = answer(s, 'alex', 'Budapest');
+    // Players cannot answer yet.
+    expect(attempt(s, { type: 'setFinalAnswer', competitorId: cid(s, 'alex'), answer: 'Budapest' }, 'profile:alex').ok).toBe(false);
     clock += 4000;
     s = act(s, { type: 'mediaEnded', clueId: 'final_1' }, 'media');
     expect(s.media?.status).toBe('ended');
-    expect(s.final?.thinking).toBe(true);
+    expect(s.final?.thinking).toBe(false);
+    expect(s.timer).toBeNull();
+    s = act(s, { type: 'finalStartThink' });
     expect(s.timer).toMatchObject({ kind: 'final', running: true });
+    s = answer(s, 'alex', 'Budapest');
   });
 
   it('text and sound clue: the host can start the think time early; playing on is still allowed', () => {
@@ -164,6 +171,7 @@ describe('Final Jeopardy! correct-response media (R9-6.3, 6.5)', () => {
     let s = toClue({ answer: '', answerMedia: [ANS_IMG] });
     expect(pub(s).final).toMatchObject({ answer: null, answerMedia: [] });
     expect(host(s).final).toMatchObject({ answer: '', answerMedia: [ANS_IMG] });
+    s = act(s, { type: 'finalStartThink' });
     s = answer(answer(s, 'alex', 'Budapest'), 'jordan', 'Vienna');
     s = run(s, { type: 'finalNext' }, { type: 'finalNext' });
     // During the reveals the contestants' answers show, never the official one.

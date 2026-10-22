@@ -5,9 +5,10 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import type { CompetitorView, GameView } from '../../../shared/views';
 import type { HostAction } from '../../../shared/actions';
-import { ActionButton, Avatar, Button, Lives, Modal, inputCls, cx, fmtScore, toast } from '../../components/ui';
+import { ActionButton, Avatar, Button, Lives, Modal, inputCls, cx, toast } from '../../components/ui';
 import { hostApi } from '../../lib/api';
 import { attempt, useMediaQuery } from '../../lib/hooks';
+import { serverNow } from '../../lib/socket';
 import { HostNavFooter, HostNavList, HostNavTitle } from './AppShell';
 import { competitorAvatar, competitorColor, competitorHighlight, competitorName, findCompetitor } from '../../lib/view';
 import ControllersPanel, { AssignListener } from '../../components/ControllersPanel';
@@ -16,7 +17,8 @@ import { HOST_SHORTCUTS, useHostShortcuts } from './shortcuts';
 import { Undo2, Gamepad2, Play, Pause, ChevronLeft, ChevronRight, SlidersHorizontal, QrCode, Flag, Menu as MenuIcon, Save, ScrollText, Repeat, Power } from 'lucide-react';
 import { AnswerBanner } from './AnswerBanner';
 import { ClueStage } from './HostClue';
-import { HostBoardHits, TvPreview, type PreviewTile } from './TvMirror';
+import { HostBoardHits, TvPreview, useBoardLook, type PreviewTile } from './TvMirror';
+import { money, presentationFor } from '../board/common';
 import ScoreEditor from './ScoreEditor';
 import { FrameParts, FullscreenButton, GameFrame, HostFullscreenCtx, type FrameKind } from './GameFrame';
 import { RichText } from '../../components/RichText';
@@ -27,7 +29,33 @@ type Run = (a: HostAction) => Promise<{ ok: boolean }>;
 
 type FsElement = HTMLElement & { webkitRequestFullscreen?: () => Promise<void> | void };
 type FsDocument = Document & { webkitFullscreenElement?: Element | null; webkitExitFullscreen?: () => Promise<void> | void };
+/**
+ * R19-7: while a fresh round title's board fill plays in the preview, the host's area around the
+ * picture keeps the board's ground (as the TV shows the fill); it turns to the panel surface when the
+ * preview says the title has come in (TvMirror: 'oj-preview-intro') — or after the longest fill.
+ */
+function useRoundTitleFill(intro: GameView['intro']) {
+  const key = intro && intro.step < 0 ? `${intro.roundIndex}:${intro.at ?? ''}` : null;
+  // The preview's own rule (Intro.tsx): the fill plays only when the title was just started.
+  const fresh = useMemo(() => !!key && (intro!.at == null || serverNow() - intro!.at < 2500), [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [done, setDone] = useState<string | null>(null);
+  useEffect(() => {
+    if (!key || !fresh) return;
+    const onIntro = () => setDone(key);
+    window.addEventListener('oj-preview-intro', onIntro);
+    const t = setTimeout(onIntro, 7000);
+    return () => {
+      window.removeEventListener('oj-preview-intro', onIntro);
+      clearTimeout(t);
+    };
+  }, [key, fresh]);
+  return !!key && fresh && done !== key;
+}
+
 const fullscreenElement = () => document.fullscreenElement ?? (document as FsDocument).webkitFullscreenElement ?? null;
+/** R19-11: iPad / iPhone (iPadOS reports itself as a Mac with touch): Safari's real full screen draws
+ *  its own close button over the top-left corner of the page. */
+const appleTouch = () => typeof navigator !== 'undefined' && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1));
 
 /**
  * R11-3: the host controller full screen. The browser's Fullscreen API where it is available (the
@@ -38,10 +66,14 @@ const fullscreenElement = () => document.fullscreenElement ?? (document as FsDoc
 function useHostFullscreen(ref: RefObject<HTMLElement | null>) {
   const [on, setOn] = useState(false);
   const native = useRef(false);
+  // R19-11: the browser's real full screen is on (not the window-filling layout).
+  const [nativeOn, setNativeOn] = useState(false);
   useEffect(() => {
     const onChange = () => {
+      setNativeOn(!!fullscreenElement() && native.current);
       if (!fullscreenElement() && native.current) {
         native.current = false;
+        setNativeOn(false);
         setOn(false); // left with Esc or the system's own control
       }
     };
@@ -54,6 +86,7 @@ function useHostFullscreen(ref: RefObject<HTMLElement | null>) {
   }, []);
   const exitNative = () => {
     native.current = false;
+    setNativeOn(false);
     const d = document as FsDocument;
     if (!fullscreenElement()) return;
     void Promise.resolve((d.exitFullscreen ?? d.webkitExitFullscreen)?.call(d)).catch(() => undefined);
@@ -97,14 +130,17 @@ function useHostFullscreen(ref: RefObject<HTMLElement | null>) {
     if (!el || !req) return;
     try {
       void Promise.resolve(req.call(el)).then(
-        () => (native.current = true),
+        () => {
+          native.current = true;
+          setNativeOn(true);
+        },
         () => undefined, // refused: the window-filling layout stays
       );
     } catch {
       // not allowed here: the window-filling layout stays
     }
   }, [on, ref]);
-  return useMemo(() => ({ on, toggle }), [on, toggle]);
+  return useMemo(() => ({ on, native: on && nativeOn, toggle }), [on, nativeOn, toggle]);
 }
 
 /** The game menu's dialogs, which live on the host's home page (HostPage.tsx). */
@@ -125,6 +161,7 @@ export default function Live({ g, run, menu }: { g: GameView; run: Run; menu?: L
   useHostShortcuts(g, run);
   const rootRef = useRef<HTMLDivElement>(null);
   const full = useHostFullscreen(rootRef);
+  const titleFill = useRoundTitleFill(g.intro);
   // A short screen (a phone in landscape) gets the compact header, band and cards (R12-3).
   const compact = useMediaQuery('(max-height: 560px)');
   useEffect(() => {
@@ -143,6 +180,8 @@ export default function Live({ g, run, menu }: { g: GameView; run: Run; menu?: L
         className={cx('host-live flex h-full flex-col', fs.on ? 'host-fullscreen fixed inset-0 z-[45] overflow-hidden' : 'relative')}
         data-testid="host-live"
         data-fullscreen={fs.on ? 'true' : 'false'}
+        // R19-11: Safari's own close button sits over the header's left end in its real full screen.
+        data-native-fs={fs.native && appleTouch() ? 'apple' : undefined}
         // R17-3: typing in the band (a Daily Double! wager) lifts the frame above the keyboard instead
         // of shrinking it (lib/keyboard) — the TV picture keeps its size.
         data-kb-lift
@@ -151,8 +190,9 @@ export default function Live({ g, run, menu }: { g: GameView; run: Run; menu?: L
           kind={kind}
           timer={g.timer}
           // R17-17 / R18-5: the introduction (the round title and its categories) shows on the clue
-          // panel's surface, edge to edge; the playable board keeps its own frame.
-          panel={kind === 'clue' || kind === 'final' || kind === 'intro'}
+          // panel's surface, edge to edge; the playable board keeps its own frame. R19-7: the round
+          // title's board fill first, on the board's ground.
+          panel={kind === 'clue' || kind === 'final' || (kind === 'intro' && !titleFill)}
           clueId={g.clue?.clueId ?? null}
           scoreCount={g.competitors.length}
           // The one TV preview of the game (R13-13): the TV's own board, introduction, clue and Final.
@@ -210,7 +250,11 @@ function ScoreCards({ g, run, onAdjust, cardW, cardH, cardMin, rows, wide, pic }
   // allows — a tall card in a single row must not squeeze the name and score (R14-2).
   const unit = Math.min(cardH, cardW * 0.5);
   const first = useRef<HTMLSpanElement>(null);
-  const fs = useFitFontSize(first, scoreSample('', widestScore(g)), Math.max(16.8, Math.min(33.6, unit * 0.36)), 0.96);
+  // R19-9: scores as the TV writes them ("$1,400", "−$400": the theme's prefix); the size is fitted to
+  // the widest score with that prefix, so the currency sign never pushes a score out of its card.
+  const look = useBoardLook();
+  const prefix = presentationFor(look.theme, look.custom, true, 0).prefix;
+  const fs = useFitFontSize(first, scoreSample(prefix, widestScore(g)), Math.max(16.8, Math.min(33.6, unit * 0.36)), 0.96);
   // Exactly the planned number of cards per line (12 = 6 + 6, 9 = 5 + 4), however wide the cards are.
   const inRow = Math.max(1, Math.ceil(g.competitors.length / rows));
   // The picture leaves the name most of a narrow card (a tall single row must not squeeze it).
@@ -251,7 +295,7 @@ function ScoreCards({ g, run, onAdjust, cardW, cardH, cardMin, rows, wide, pic }
                   <span className="host-score-name">{competitorName(c, g)}</span>
                   {/* The first score is the one measured (its own heavy weight; every score has the same width). */}
                   <span ref={i === 0 ? first : undefined} className={cx('host-score-value', c.score < 0 && 'is-negative')}>
-                    {fmtScore(c.score)}
+                    {money(prefix, c.score)}
                   </span>
                   {c.lives !== undefined && (c.lives > 0 ? <Lives lives={c.lives} max={g.rules.survivalLives} size={13} /> : <span className="text-xs font-bold text-slate-500 uppercase">Out</span>)}
                 </span>

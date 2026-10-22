@@ -224,6 +224,7 @@ describe('computer opponents (O3, R3-9…R3-13)', () => {
     expect(entry().wager).not.toBeNull();
     ok({ type: 'setFinalWager', competitorId: human().id, amount: 100 });
     ok({ type: 'finalNext' }); // clue
+    ok({ type: 'finalStartThink' }); // R19-4: the host unlocks answering — then the bot answers
     await wait(8000);
     expect(entry().answer).toBeTruthy();
     ok({ type: 'finalNext' }); // reveal

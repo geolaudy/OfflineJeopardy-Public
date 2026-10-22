@@ -428,10 +428,17 @@ button {
 
 /* R17-14: tabs (Settings, Rules & timers): text on one hairline, the active tab blue with a short
    bar under it — no boxes; the row scrolls sideways on a narrow screen. */
+/* R19-6: the tab row scrolls sideways only. overflow-x: auto alone makes overflow-y auto as well, and
+   the selected tab's line (1 px below the row) made the row itself scroll vertically by a pixel — on an
+   iPad a vertical swipe over the tabs bounced every label up and down together. */
 .oj-tabs {
   display: flex;
+  flex: none;
   gap: 0.25rem;
   overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+  touch-action: pan-x;
   border-bottom: 1px solid rgb(203 213 225);
   scrollbar-width: none;
 }
@@ -464,7 +471,7 @@ button {
   content: '';
   position: absolute;
   right: 0.6rem;
-  bottom: -1px;
+  bottom: 0;
   left: 0.6rem;
   height: 3px;
   border-radius: 3px 3px 0 0;

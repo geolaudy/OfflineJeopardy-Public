@@ -215,3 +215,19 @@ Question: the owner found a community workaround (Reddit): `default` status-bar 
 - The host's case: the fixed `.app-screen` shell (light) was the first qualifying element — hence white; the game header's navy is a gradient (`background-image`) over a transparent background-color, so it could never be sampled, and the existing full-screen hook (R14-10) only recoloured `<html>`, which Safari never reaches when a fixed element qualifies.
 - Applied (D126): the header sticky with a solid background-color (no movement — the frame does not scroll), manifest theme_color = the header navy, `default` kept. `padding-top: env(safe-area-inset-top)` is already the header's in full screen (`--safe-top`) and is 0 with `default`. The slide-in menu and dialogs are narrower than 90 % or full-screen dims, so they do not take over the bar.
 - Not verifiable here: emulation shows no status bar; tests/e2e/round18.spec.ts applies the documented rule to the page (navy in full screen, red with the correct response, white embedded in landscape). The Home Screen icon should be removed and re-added once (the style is read when the app is installed / started from the icon). K55 stays open.
+
+## iPadOS status bar and Safari's full-screen X (round 19, R19-10, R19-11, K55, 2026-10-22)
+
+Owner's rc.5 result: Safari full screen navy (the sampled sticky header of D126 works), the Home Screen app still white.
+
+- WebKit bug 317153, answered by an Apple WebKit engineer: `black-translucent` is deprecated; "Please remove this key, and the status bar should automatically appear in the same color as the webpage"; Home Screen web apps do not support drawing arbitrary content below the status bar. So an explicit `default` can keep the classic white bar in a Home Screen app while Safari (which ignores the key) samples the page.
+- Applied (D132): the meta is removed; nothing else changes (no translucent style, no padding, no strip). The style is read when the Home Screen app is installed / started from the icon — re-add the icon.
+- Safari's full-screen X: Safari draws its close button over the top-left corner of the page in native full screen (`Element.requestFullscreen`); no `env(safe-area-inset-*)` reports it (insets are 0 there). Reserved 3.75 rem left of the header in native full screen on Apple touch devices only (iPad / iPhone user agents, or "Macintosh" with touch points — iPadOS's desktop UA).
+
+## Settings tab bar bouncing (round 19, R19-6, 2026-10-22)
+
+`overflow-x: auto` on the tab row makes `overflow-y` compute to `auto` as well (CSS overflow spec: visible becomes auto when the other axis is not visible). The active-tab indicator was positioned at `bottom: -1px`, so the row's content was 1 px taller than the row: vertically scrollable, and iOS rubber-bands any scroll container on a vertical swipe — the tabs "moved vertically". In addition the whole Settings page scrolled inside the host's main area, carrying the header and tabs with it. Fix: `overflow-y: hidden` + `touch-action: pan-x` + `overscroll-behavior: contain` on the row, the indicator inside it, and the page as a fixed-height column where only the tabpanel scrolls.
+
+## Round title board fill in the host preview (round 19, R19-7, 2026-10-22)
+
+R18 made the board fill's ground transparent in the preview so the host's blue surroundings showed through; the dimmed board (opacity 0.22) then showed the panel blue between and under the tiles, the title card had no ground of its own (its outline looked faded), and the opening fill looked unlike the TV's (blue gaps instead of dark ones). Fix: the fill keeps the board's own ground; the host's surroundings switch to the panel blue when the preview reports the title's arrival (a window event relayed out of the same-origin iframe, with a fallback timer in the host), and the title card is opaque edge to edge.

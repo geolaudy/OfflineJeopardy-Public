@@ -197,7 +197,6 @@ function Spotlight({ g }: { g: GameView }) {
   const e = f.entries.find((x) => x.competitorId === id);
   const c = findCompetitor(g, id);
   const shown = finalEntryReveal(f, id);
-  const pre = f.preScores[id] ?? 0;
   if (!e || !c) return <div className="flex-1" />;
   const color = competitorColor(c, g);
   const verdict = e.judged ? (e.correct ? 'correct' : 'incorrect') : undefined;
@@ -233,11 +232,9 @@ function Spotlight({ g }: { g: GameView }) {
             )}
           </AnimatePresence>
         </div>
+        {/* R19-8: only the wager, centred under the answer — the score before the Final is on the
+            score strip below (it changes only with the judgment), so its own line was redundant. */}
         <div className="bt-final-stats">
-          <div className="bt-final-pre">
-            <span className="bt-final-label">Before Final Jeopardy!</span>
-            <b className="tabular-nums">{money(ctx.prefix, pre)}</b>
-          </div>
           <div className="bt-final-wager">
             <AnimatePresence initial={false}>
               {shown !== 'none' && (

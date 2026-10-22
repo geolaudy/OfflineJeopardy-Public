@@ -72,7 +72,7 @@ export function FinalMediaControls({ g, run }: { g: GameView; run: Run }) {
   if (finalMediaLive(f.stage, 'answer')) sides.push({ side: 'answer', list: f.answerMedia });
   return (
     <MediaPanel g={g} run={run} clueId={f.clueId} sides={sides}>
-      {f.stage === 'clue' && !f.thinking && <p className="px-1 text-xs text-slate-500">The think time starts when the clue's sound or video finishes.</p>}
+      {f.stage === 'clue' && !f.thinking && <p className="px-1 text-xs text-slate-500">Players can answer once you unlock answering (the think time starts then).</p>}
     </MediaPanel>
   );
 }

@@ -75,7 +75,8 @@ describe('Final Jeopardy! (R4-2)', () => {
     await ps.waitState((_g, me) => me?.final?.wager === 0);
     expect(pa.me.final).toMatchObject({ wager: 1000, answer: null, submitted: false }); // own submission only
     expect(ps.me.final).toMatchObject({ wager: 0, answer: null });
-    await h.act({ type: 'finalNext' }); // lock wagers (Kim → 0), clue + think time
+    await h.act({ type: 'finalNext' }); // lock wagers (Kim → 0), the clue
+    await h.act({ type: 'finalStartThink' }); // R19-4: the host unlocks answering
     pa.send({ t: 'finalAnswer', answer: 'Alexs guess Budapesht' });
     ps.send({ t: 'finalAnswer', answer: 'Vienna' });
     await h.waitState((g) => g!.final!.entries.filter((e) => e.hasAnswer).length === 2);

@@ -83,6 +83,7 @@ export function publicSettings(r: GameRules, ctx: PublicSettingsContext): { titl
     { label: 'Daily Double!', value: `Bet at least ${r.dailyWagerMin}`, hint: 'Up to your score, or the round’s top value if that is higher.' },
     { label: 'Final Jeopardy!', value: r.finalAllowNonPositive ? 'Everyone plays' : 'Only players with a positive score' },
     { label: 'Final Jeopardy! answers', value: r.finalClose === 'timer' ? 'Close when the think time ends' : 'Stay open until the host closes them' },
+    { label: 'Final Jeopardy! submissions', value: r.finalChanges === true ? 'Can be changed while open' : 'Final once submitted' },
     ...(ctx.bots?.length ? [{ label: 'Computer opponents', value: ctx.bots.join(', ') }] : []),
   ];
   return [
