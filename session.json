@@ -1,18 +1,19 @@
 {
   "project": "OfflineJeopardy",
   "schema": 1,
-  "status": "active",
+  "status": "released",
   "sessionId": "bcdc3718-08eb-4801-83d1-34f61a74524a",
   "generation": 10,
   "computer": "DESKTOP-6HN0OQ4",
   "developer": "geolaudy",
   "branch": "main",
-  "commit": "69f6062",
+  "commit": "4ac0d77",
   "startedAt": "2026-10-22T17:16:21.000Z",
   "lastHeartbeat": "2026-10-22T18:44:46.000Z",
   "expiresAt": "2026-10-22T18:59:46.000Z",
   "clock": "GitHub server time",
   "heartbeatSeconds": 180,
   "ttlSeconds": 900,
-  "currentTask": "Round 19: RC.5 feedback (Final locking/unlock answering/sounds, settings tabs, board intro fill, Final card text, host $ scores, Safari fullscreen X, K55)"
+  "currentTask": "Round 19: RC.5 feedback (Final locking/unlock answering/sounds, settings tabs, board intro fill, Final card text, host $ scores, Safari fullscreen X, K55)",
+  "releasedAt": "2026-10-22T18:47:02.000Z"
 }
