@@ -145,6 +145,7 @@ describe('Daily Double! wager from the phone (R5-20)', () => {
     s = buzz(s, 'alex');
     s = run(s, { type: 'judge', result: 'correct' }, { type: 'closeClue' }); // Alex picks next
     // R16-7: the host unlocks the wager after announcing the Daily Double!.
+    s.rules.dailyWagerEntry = 'player'; // R17-2: this tests the phone entry (host entry is the default)
     return run(s, { type: 'selectClue', clueId: 'sci_4' }, { type: 'openDailyWager' });
   }
 
@@ -171,7 +172,7 @@ describe('Daily Double! wager from the phone (R5-20)', () => {
   });
 
   it('team: the first member to enter the wager owns it; teammates cannot overwrite it', () => {
-    let s = createGame({ id: 'g6', title: 'Teams', boardId: 'b1', board: SAMPLE_BOARD, mode: 'team', rules: { ...DEFAULT_RULES }, now: clock });
+    let s = createGame({ id: 'g6', title: 'Teams', boardId: 'b1', board: SAMPLE_BOARD, mode: 'team', rules: { ...DEFAULT_RULES, dailyWagerEntry: 'player' }, now: clock });
     s = run(
       s,
       { type: 'addTeam', name: 'Wizards', color: '#2563eb', buzzerMode: 'individual', memberIds: ['alex', 'jordan'], teamId: 'tw' },

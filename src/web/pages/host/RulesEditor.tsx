@@ -87,6 +87,16 @@ export default function RulesEditor({
             <option value="perClue">Follow each clue's own setting</option>
           </select>
         </Field>
+        {/* R17-2: who types a Daily Double! wager (decided when the clue opens). */}
+        <Field
+          label="Daily Double! wager entry"
+          hint={(r.dailyWagerEntry ?? 'host') === 'host' ? 'You type the wager in the band; computer players wager by themselves.' : 'You unlock the wager, the player sends it from their phone (you can still enter it for them).'}
+        >
+          <select className={inputCls} value={r.dailyWagerEntry ?? 'host'} onChange={(e) => setR({ ...r, dailyWagerEntry: e.target.value as GameRules['dailyWagerEntry'] })} data-testid="rule-dd-entry">
+            <option value="host">Host enters the wager (default)</option>
+            <option value="player">Player enters the wager on their device</option>
+          </select>
+        </Field>
         <div className="rounded-xl bg-slate-50 p-3">
           <h3 className="mb-2 font-bold">Early buzzing</h3>
           <EarlyBuzzFields rules={r} onChange={setR} />

@@ -14,7 +14,7 @@ import type { CompetitorView, GameView } from '../../../shared/views';
 import type { HostAction } from '../../../shared/actions';
 import { BOT_LEVELS } from '../../../shared/game';
 import { ActionButton, Avatar, Button, Field, Modal, cx, fmtScore, inputCls } from '../../components/ui';
-import { cluesLeft, competitorAvatar, competitorName, findCompetitor, nextStage, profileName, useTimer, useTimerSeconds, TIMER_LABELS } from '../../lib/view';
+import { cluesLeft, dailyAwaitsStart, competitorAvatar, competitorName, findCompetitor, nextStage, profileName, useTimer, useTimerSeconds, TIMER_LABELS } from '../../lib/view';
 import { EarlyBuzzQuick } from './EarlyBuzzRule';
 import { MediaControls } from './MediaControls';
 import { AnswerBanner } from './AnswerBanner';
@@ -169,6 +169,8 @@ function ClueFooter({ g, run, responder, who, setWho }: { g: GameView; run: Run;
   const id = clue.clueId;
   const winner = g.buzzer.winner;
   const wagerStage = clue.isDailyWager && clue.stage === 'wager';
+  // R17-1: a Daily Double!'s clue shows with the answer time stopped — Start Timer comes first.
+  const awaitsStart = dailyAwaitsStart(g);
   const judging = !!responder && !clue.resolved;
   const pendingJudgement = !!winner && !clue.resolved;
   const over = clue.answeringEnded || clue.resolved;
@@ -214,6 +216,12 @@ function ClueFooter({ g, run, responder, who, setWho }: { g: GameView; run: Run;
         <ArrowLeft size={22} aria-hidden /> Return to Board
       </ActionButton>
     );
+  else if (awaitsStart)
+    primary = (
+      <ActionButton size="lg" variant="success" className="host-btn host-btn-main" onAction={() => run({ type: 'startDailyAnswer' })} data-testid="host-dd-start-timer">
+        <Timer size={22} aria-hidden /> Start Timer
+      </ActionButton>
+    );
   else if (judging)
     primary = (
       <div className="grid grid-cols-2 gap-2">
@@ -244,8 +252,10 @@ function ClueFooter({ g, run, responder, who, setWho }: { g: GameView; run: Run;
   if (wagerStage)
     return (
       <div className="@container flex items-center" data-testid="clue-footer">
-        <div className="flex w-full flex-wrap items-center gap-2 @4xl:flex-nowrap">
-          <div className="min-w-0 basis-full px-1 @4xl:flex-1 @4xl:basis-auto">{status}</div>
+        {/* R17-2: the host's wager field makes the actions wider — the status keeps its own row until
+            the band has room for both on one (it is never squeezed to a few letters). */}
+        <div className={cx('flex w-full flex-wrap items-center gap-2', clue.wagerEntry === 'host' ? '@6xl:flex-nowrap' : '@4xl:flex-nowrap')}>
+          <div className={cx('min-w-0 basis-full px-1', clue.wagerEntry === 'host' ? '@6xl:flex-1 @6xl:basis-auto' : '@4xl:flex-1 @4xl:basis-auto')}>{status}</div>
           <div className="ml-auto flex shrink-0 items-center gap-2">{primary}</div>
         </div>
       </div>
@@ -607,6 +617,9 @@ function DailyWagerStatus({ g }: { g: GameView }) {
                 {fmtScore(amount)}
               </b>
             </>
+          ) : clue.wagerEntry === 'host' ? (
+            // R17-2: the host types the wager in the band (computer players send their own).
+            owner?.bot ? 'Choosing a wager…' : `Enter their wager (${g.rules.dailyWagerMin.toLocaleString()}–${ddMax(g, owner).toLocaleString()})`
           ) : !clue.wagerOpen ? (
             // R16-7: wagering is locked until the host has announced the Daily Double! and unlocks it.
             'Announce the Daily Double!, then unlock the wager'
@@ -635,16 +648,21 @@ function DailyWagerActions({ g, run }: { g: GameView; run: Run }) {
   const [preview, setPreview] = useState(false);
   const pending = clue.pendingWager;
   const ready = pending?.amount != null;
+  const byHost = clue.wagerEntry === 'host';
   // The secondary actions are plain (no box) beside the one primary action (R15-32).
   return (
     <div className="flex items-center gap-1">
       <button type="button" className="host-ghost-btn" onClick={() => setPreview(true)} data-testid="host-dd-preview">
         <Eye size={22} aria-hidden /> Preview Clue
       </button>
-      <button type="button" className="host-ghost-btn mr-1" onClick={() => setEntry(true)} data-testid="host-dd-enter">
-        <Pencil size={21} aria-hidden /> {ready ? 'Change Wager' : 'Enter Wager'}
-      </button>
-      {!clue.wagerOpen && !ready ? (
+      {byHost ? (
+        <DailyWagerField g={g} run={run} />
+      ) : (
+        <button type="button" className="host-ghost-btn mr-1" onClick={() => setEntry(true)} data-testid="host-dd-enter">
+          <Pencil size={21} aria-hidden /> {ready ? 'Change Wager' : 'Enter Wager'}
+        </button>
+      )}
+      {!byHost && !clue.wagerOpen && !ready ? (
         <ActionButton size="lg" variant="success" className="host-btn host-btn-main" onAction={() => run({ type: 'openDailyWager' })} data-testid="host-dd-unlock">
           <LockOpen size={22} aria-hidden /> Unlock Wager
         </ActionButton>
@@ -664,6 +682,57 @@ function DailyWagerActions({ g, run }: { g: GameView; run: Run }) {
       {entry && <DailyWagerEntry g={g} run={run} onClose={() => setEntry(false)} />}
       {preview && <CluePreview text={clue.question?.trim() ?? ''} label="Daily Double! clue (only you)" note="Only you see this — the TV still shows the Daily Double!" onClose={() => setPreview(false)} testId="host-dd-clue" />}
     </div>
+  );
+}
+
+/** R17-2: the largest Daily Double! wager for a competitor — the engine's limit (score or the round's
+ *  top value, whichever is higher). */
+function ddMax(g: GameView, c: CompetitorView | undefined) {
+  const round = g.rounds[g.roundIndex];
+  const roundMax = Math.max(0, ...(round?.categories.flatMap((x) => x.clues.map((q) => q.value)) ?? [0]));
+  return Math.max(c?.score ?? 0, roundMax);
+}
+
+/** R17-2: host entry (the default) — the wager is typed straight into the band: a number field and
+ *  Set (or Enter). The set amount shows in the status; Lock Wager & Show Clue then shows the clue. */
+function DailyWagerField({ g, run }: { g: GameView; run: Run }) {
+  const clue = g.clue!;
+  const owner = findCompetitor(g, clue.wagerBy ?? undefined);
+  const pending = clue.pendingWager?.amount ?? null;
+  const [amount, setAmount] = useState('');
+  const max = ddMax(g, owner);
+  const n = Number(amount);
+  const valid = amount !== '' && Number.isInteger(n) && n >= g.rules.dailyWagerMin && n <= max;
+  const dirty = amount !== '' && n !== pending;
+  const set = async () => {
+    if (!valid || !owner) return;
+    const r = await run({ type: 'enterDailyWager', competitorId: owner.id, amount: n });
+    if (r.ok) setAmount('');
+  };
+  return (
+    <form
+      className="host-dd-field mr-1"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void set();
+      }}
+      data-testid="host-dd-field"
+    >
+      <input
+        className={cx('host-dd-input', amount !== '' && !valid && 'host-dd-input-bad')}
+        inputMode="numeric"
+        enterKeyHint="done"
+        value={amount}
+        placeholder={pending != null ? pending.toLocaleString() : 'Wager'}
+        onChange={(e) => setAmount(e.target.value.replace(/\D/g, '').slice(0, 7))}
+        aria-label={`Daily Double! wager (${g.rules.dailyWagerMin}–${max})`}
+        aria-invalid={amount !== '' && !valid}
+        data-testid="host-dd-input"
+      />
+      <button type="submit" className="host-dd-set" disabled={!valid || !dirty} data-testid="host-dd-set">
+        {pending != null ? 'Change' : 'Set'}
+      </button>
+    </form>
   );
 }
 

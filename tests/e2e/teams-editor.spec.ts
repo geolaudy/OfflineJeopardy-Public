@@ -152,7 +152,7 @@ test('import + edit a board, then a mixed-mode team game through the Final', asy
   await ipad.getByTestId('final-next').click(); // open wagers
   await expect(ipad.getByTestId('final-status')).toHaveCount(1); // one bubble (the TV's), tappable
   await taylorPhone.getByLabel('Your wager').fill('150');
-  await taylorPhone.getByRole('button', { name: 'Submit wager' }).click();
+  await taylorPhone.getByTestId('phone-final-wager-submit').click();
   await expect(ipad.getByTestId('final-status')).toContainText('Wagered ✓');
   await expect(ipad.getByTestId('final-control')).not.toContainText('150'); // private from the host too
   await expect(tv.getByText('150')).toHaveCount(0); // hidden wager

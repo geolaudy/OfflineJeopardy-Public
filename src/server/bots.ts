@@ -267,6 +267,8 @@ export class BotDriver {
 
     // Daily Wager picked while a computer player has control: once the host unlocks the wager it
     // sends one (pending, like a phone — R16-9), the host locks it and shows the clue, then it answers.
+    // R17-2: with host entry (the default) nobody unlocks — the bot sends its wager by itself and the
+    // host sees it in the band. R17-1: it answers once the host has started the answer time.
     // R16-9: the tasks are keyed by this opening of the clue (game + its clue_open event): keyed by
     // the clue alone, a bot never wagered again on that clue — in a later game on the same board, or
     // after the host undid the pick.
@@ -274,15 +276,15 @@ export class BotDriver {
       const opening = `${s.id}:${s.events.findLast((e) => e.type === 'clue_open' && e.clueId === clue.clueId)?.id ?? clue.clueId}`;
       if (clue.stage === 'wager') {
         const owner = bots.find((b) => b.id === (clue.wagerBy ?? s.controlCompetitorId));
-        if (owner && clue.wagerOpen && !clue.pendingWager)
+        if (owner && (clue.wagerOpen || clue.wagerEntry === 'host') && !clue.pendingWager)
           out.set(`dw:${opening}`, { delay: 2500 * this.pace(owner), action: () => ({ type: 'submitDailyWager', competitorId: owner.id, profileId: null, amount: this.dailyWager(s, owner) }) });
-      } else if (clue.wager && !clue.submission) {
+      } else if (clue.wager && !clue.submission && clue.answerStarted !== false) {
         const owner = bots.find((b) => b.id === clue.wager!.competitorId);
         if (owner) {
           const knows = this.knows(s, owner, clue.clueId, clue.value);
           const key = `dwanswer:${opening}`;
           const ready = this.prepare(key, () => this.answerText(s, owner, clue.clueId, knows));
-          out.set(key, { delay: 2500 + this.thinkTime(s, owner), action: async () => this.submit(owner, await ready) });
+          out.set(key, { delay: (clue.answerStarted ? 0 : 2500) + this.thinkTime(s, owner), action: async () => this.submit(owner, await ready) });
         }
       }
     }

@@ -89,6 +89,7 @@ describe('wagering permissions (R5-18) and Final answers (R5-19, R5-15)', () => 
     const { h, tv, phones, profiles, cid } = await soloGame(['Alex', 'Sam']);
     const [pa, ps] = phones;
     const [alex] = profiles;
+    await h.act({ type: 'updateRules', rules: { ...h.state!.rules, dailyWagerEntry: 'player' } }); // R17-2: the phone entry
     await h.act({ type: 'setControl', competitorId: cid(alex.id) });
     await h.act({ type: 'selectClue', clueId: 'sci_4' }); // the sample board's Daily Double!
     await pa.waitState((_g, me) => !!me?.dailyWager);

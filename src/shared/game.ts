@@ -104,6 +104,9 @@ export interface GameRules {
   earlyBuzzPoints: number; // points lost for 'points'
   buzzDebounceMs: number;
   dailyWagerMin: number;
+  /** R17-2: who types a Daily Double! wager — 'host': the host in the band (default; computer
+   *  players still wager by themselves); 'player': the wagering player's phone after Unlock Wager. */
+  dailyWagerEntry: 'host' | 'player';
   finalAllowNonPositive: boolean;
   /** R11-9: how Final Jeopardy! answering ends — 'host': the host closes it (when the think time
    *  runs out, phones can still answer until then); 'timer': it closes when the think time ends. */
@@ -135,6 +138,7 @@ export const DEFAULT_RULES: GameRules = {
   earlyBuzzPoints: 100,
   buzzDebounceMs: 120,
   dailyWagerMin: 5,
+  dailyWagerEntry: 'host',
   finalAllowNonPositive: false,
   finalClose: 'host',
   allowSelfJoin: true,
@@ -374,6 +378,10 @@ export interface ActiveClue {
   wagerOpen?: boolean;
   /** Daily Double!: the wager sent from a phone, waiting for the host to lock it (R5-20). */
   pendingWager?: { competitorId: Id; amount: number; profileId: Id | null; at: number } | null;
+  /** R17-2: Daily Double!: how the wager is entered, fixed when the clue opens (the rule may change). */
+  wagerEntry?: 'host' | 'player';
+  /** R17-1: Daily Double!: the host has started the answer time (Start Timer) after the clue showed. */
+  answerStarted?: boolean;
   answerRevealed: boolean;
   resolved: boolean; // correct answer given or host closed scoring
   /** The answering opportunity is over (correct answer, time ran out, host ended it, or nobody

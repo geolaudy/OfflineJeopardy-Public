@@ -206,6 +206,7 @@ describe('computer opponents (O3, R3-9…R3-13)', () => {
     const pending = s().clue!.pendingWager!;
     expect(pending.competitorId).toBe(bot('Robo Rita').id);
     ok({ type: 'setDailyWager', competitorId: pending.competitorId, amount: pending.amount });
+    ok({ type: 'startDailyAnswer' }); // R17-1: the host starts the answer time; then the bot answers
     expect(s().clue?.wager?.competitorId).toBe(bot('Robo Rita').id);
     await wait(6000);
     expect(s().clue?.submission?.competitorId).toBe(bot('Robo Rita').id);

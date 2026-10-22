@@ -76,6 +76,10 @@ export interface ClueView {
   wagerOpen?: boolean;
   /** Daily Double!: wager sent from a phone, not locked yet. The amount is for the host only. */
   pendingWager?: { competitorId: Id; amount: number | null; profileId: Id | null } | null;
+  /** R17-2: Daily Double!: who enters the wager (host in the band, or the player's phone). */
+  wagerEntry?: 'host' | 'player';
+  /** R17-1: Daily Double!: the answer time was started by the host (Start Timer). */
+  answerStarted?: boolean;
   answerRevealed: boolean;
   resolved: boolean;
   answeringEnded: boolean;
@@ -199,5 +203,5 @@ export interface PlayerContext {
   buzzTiming?: { result: 'won' | 'late'; otherCompetitorId: Id | null; otherProfileId: Id | null; gapMs: number | null; confident: boolean; teammateWon: boolean } | null;
   /** Daily Double! wager stage for this player's competitor (R5-20). */
   /** `open`: the host has unlocked wagering (R16-7) — the phone shows the entry only then. */
-  dailyWager?: { min: number; max: number; pending: number | null; pendingBy: Id | null; mine: boolean; open: boolean } | null;
+  dailyWager?: { min: number; max: number; pending: number | null; pendingBy: Id | null; mine: boolean; open: boolean; byHost: boolean } | null;
 }

@@ -3,9 +3,10 @@
 import { useEffect, useRef } from 'react';
 import type { GameView } from '../../../shared/views';
 import type { HostAction } from '../../../shared/actions';
+import { dailyAwaitsStart } from '../../lib/view';
 
 export const HOST_SHORTCUTS: [string, string][] = [
-  ['Space', 'Unlock / lock buzzers'],
+  ['Space', 'Unlock / lock buzzers (Daily Double!: Start Timer)'],
   ['B', 'Buzz (single player)'],
   ['C', 'Correct'],
   ['X', 'Incorrect'],
@@ -26,9 +27,10 @@ export function shortcutAction(key: string, ctrl: boolean, g: GameView): HostAct
   if (g.phase === 'board' && g.intro && (k === 'p' || k === 'ArrowLeft')) return g.intro.step >= 0 ? { type: 'introPrev' } : null;
   const clue = g.clue;
   if (g.phase !== 'clue' || !clue) return null;
-  const judgeable = !clue.resolved && (clue.isDailyWager ? clue.stage === 'question' : !!g.buzzer.winner);
+  const judgeable = !clue.resolved && (clue.isDailyWager ? clue.stage === 'question' && !dailyAwaitsStart(g) : !!g.buzzer.winner);
   switch (k) {
     case ' ':
+      if (dailyAwaitsStart(g)) return { type: 'startDailyAnswer' };
       if (clue.isDailyWager || clue.resolved || clue.answerRevealed) return null;
       return g.buzzer.status === 'open' ? { type: 'lockBuzzers' } : g.buzzer.winner ? null : { type: 'unlockBuzzers' };
     case 'c':

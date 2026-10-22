@@ -201,6 +201,7 @@ test("Daily Double!: locked until the host unlocks it; Unlock Wager starts the t
   await ipad.goto(`${BASE}/host`);
   await expect(ipad.getByTestId('host-tile')).toHaveCount(30);
   const dd = dailyDoubleOf(g);
+  await h.act({ type: 'updateRules', rules: { ...g.rules, dailyWagerEntry: 'player' } }); // R17-2: the phone entry
   await h.act({ type: 'setControl', competitorId: g.competitors[0].id });
   await h.act({ type: 'selectClue', clueId: dd.id });
   let s = await h.until((x) => x.clue?.stage === 'wager');
@@ -251,6 +252,7 @@ test('Daily Double! for a computer player: it waits for Unlock Wager, then wager
   await ipad.goto(`${BASE}/host`);
   await expect(ipad.getByTestId('host-tile')).toHaveCount(30);
   const bot = g.competitors.find((c: { bot?: string }) => c.bot);
+  await h.act({ type: 'updateRules', rules: { ...g.rules, dailyWagerEntry: 'player' } }); // R17-2: the phone entry
   await h.act({ type: 'setControl', competitorId: bot.id });
   await h.act({ type: 'selectClue', clueId: dailyDoubleOf(g).id });
   await ipad.waitForTimeout(4000);

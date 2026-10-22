@@ -26,7 +26,7 @@ const attempt = (s: GameState, a: EngineAction, now = clock) => applyAction(s, a
 const cid = (s: GameState, p: string) => s.competitors.find((c) => c.memberIds.includes(p))!.id;
 
 function toDailyDouble(rules = {}) {
-  let s = createGame({ id: 'g16', title: 'T', boardId: 'b1', board: SAMPLE_BOARD, mode: 'solo', rules: { ...DEFAULT_RULES, ...rules }, now: clock });
+  let s = createGame({ id: 'g16', title: 'T', boardId: 'b1', board: SAMPLE_BOARD, mode: 'solo', rules: { ...DEFAULT_RULES, dailyWagerEntry: 'player', ...rules }, now: clock });
   for (const p of ['alex', 'jordan']) s = run(s, { type: 'addPlayer', profileId: p });
   s = run(s, { type: 'startGame' }, { type: 'introSkip' }, { type: 'setControl', competitorId: cid(s, 'alex') });
   return run(s, { type: 'selectClue', clueId: 'sci_4' }); // the sample board's Daily Wager
@@ -129,7 +129,7 @@ describe('computer players wager (R16-9)', () => {
     vi.useRealTimers();
   });
   function newGame(board = SAMPLE_BOARD) {
-    gm.create({ title: 'Bots', boardId: 'same-board', board, mode: 'solo', rules: { ...DEFAULT_RULES, categoryIntro: false }, practice: false });
+    gm.create({ title: 'Bots', boardId: 'same-board', board, mode: 'solo', rules: { ...DEFAULT_RULES, categoryIntro: false, dailyWagerEntry: 'player' }, practice: false });
     ok({ type: 'addPlayer', profileId: human });
     ok({ type: 'addBot', name: 'Robo Rita', level: 'expert' });
     ok({ type: 'startGame' });
@@ -157,6 +157,10 @@ describe('computer players wager (R16-9)', () => {
     expect(amount).toBeGreaterThanOrEqual(DEFAULT_RULES.dailyWagerMin);
     expect(amount).toBeLessThanOrEqual(1000);
     ok({ type: 'setDailyWager', competitorId: bot().id, amount });
+    // R17-1: the bot answers only once the host has started the answer time.
+    await wait(9000);
+    expect(s().clue?.submission ?? null).toBeNull();
+    ok({ type: 'startDailyAnswer' });
     await wait(9000);
     expect(s().clue?.submission?.competitorId).toBe(bot().id);
     expect(s().clue?.resolved).toBe(false); // the host judges

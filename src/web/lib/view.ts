@@ -97,6 +97,13 @@ export function phaseLabel(g: GameView) {
 }
 
 /** Unplayed clues left in the current round. */
+/** R17-1: a Daily Double!'s clue is showing and its answer time waits for the host's Start Timer
+ *  (only when the rules give answer time — without it the host judges straight away). */
+export function dailyAwaitsStart(g: GameView) {
+  const c = g.clue;
+  return !!c && c.isDailyWager && c.stage === 'question' && c.answerStarted === false && !c.resolved && !c.answerRevealed && g.rules.timers.answerSeconds > 0;
+}
+
 export function cluesLeft(g: GameView) {
   return g.rounds[g.roundIndex]?.categories.reduce((a, c) => a + c.clues.filter((q) => !q.used).length, 0) ?? 0;
 }

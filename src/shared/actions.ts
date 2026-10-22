@@ -32,6 +32,7 @@ export const rulesSchema = z.object({
   earlyBuzzPoints: z.number().int().min(0).max(100000).optional(),
   buzzDebounceMs: z.number().int().min(0).max(2000),
   dailyWagerMin: z.number().int().min(0).max(100000),
+  dailyWagerEntry: z.enum(['host', 'player']).optional(),
   finalAllowNonPositive: z.boolean(),
   finalClose: z.enum(['host', 'timer']).optional(),
   allowSelfJoin: z.boolean(),
@@ -97,6 +98,8 @@ export const hostActionSchema = z.discriminatedUnion('type', [
   // R15-21: the host enters a Daily Double! wager for a player without a device — the same pending
   // wager (and limits) as the phone's; the host still locks it (setDailyWager) to show the clue.
   z.object({ type: z.literal('enterDailyWager'), competitorId: id, amount: int, profileId: id.nullable().optional() }),
+  // R17-1: after Lock Wager & Show Clue the host starts the Daily Double! answer time (Start Timer).
+  z.object({ type: z.literal('startDailyAnswer') }),
   // clueId (optional) makes the action a no-op if a different clue is open (stale double taps).
   z.object({ type: z.literal('revealAnswer'), clueId: id.optional() }),
   z.object({ type: z.literal('hideAnswer') }),

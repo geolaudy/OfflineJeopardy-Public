@@ -142,6 +142,9 @@ export default function Live({ g, run, menu }: { g: GameView; run: Run; menu?: L
         className={cx('host-live flex h-full flex-col', fs.on ? 'host-fullscreen fixed inset-0 z-[45] overflow-hidden' : 'relative')}
         data-testid="host-live"
         data-fullscreen={fs.on ? 'true' : 'false'}
+        // R17-3: typing in the band (a Daily Double! wager) lifts the frame above the keyboard instead
+        // of shrinking it (lib/keyboard) — the TV picture keeps its size.
+        data-kb-lift
       >
         <GameFrame
           kind={kind}

@@ -841,3 +841,62 @@
 [data-compact='true'] .host-bot-answer-text {
   font-size: 1.1rem;
 }
+
+/* R17-2: host entry of a Daily Double! wager — a number field and Set, joined into one pill in the
+   band (no dialog over the preview). Large digits; the set amount shows in the status. */
+.host-dd-field {
+  display: flex;
+  flex: none;
+  align-items: stretch;
+  height: 3.5rem;
+  border-radius: 0.85rem;
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.15), 0 2px 0 rgb(0 0 0 / 0.3);
+  overflow: hidden;
+}
+.host-dd-input {
+  width: 8.5rem;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 0 0.85rem;
+  color: #0f172a;
+  font-size: 1.6rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  outline: none;
+}
+.host-dd-input::placeholder {
+  color: #94a3b8;
+  font-weight: 700;
+}
+.host-dd-input-bad {
+  color: #b91c1c;
+}
+.host-dd-field:focus-within {
+  box-shadow: inset 0 0 0 3px #fcd34d, 0 2px 0 rgb(0 0 0 / 0.3);
+}
+.host-dd-set {
+  flex: none;
+  min-width: 5.5rem;
+  padding: 0 1rem;
+  background: #1d4ed8;
+  color: #ffffff;
+  font-size: 1.15rem;
+  font-weight: 800;
+  -webkit-tap-highlight-color: transparent;
+}
+.host-dd-set:disabled {
+  background: #cbd5e1;
+  color: #64748b;
+}
+@container (max-width: 40rem) {
+  .host-dd-input {
+    width: 6.5rem;
+    font-size: 1.3rem;
+  }
+  .host-dd-set {
+    min-width: 4.25rem;
+  }
+}

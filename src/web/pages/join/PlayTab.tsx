@@ -302,20 +302,23 @@ function FinalForm({ me }: { me: Me }) {
           <p className="text-center text-slate-600">
             Wager between 0 and {max.toLocaleString()}. Nobody sees it — not even the host — until the reveal.{team ? ' Any team member can enter the team’s wager.' : ''}
           </p>
-          <input className={inputCls} inputMode="numeric" value={wager} onChange={(e) => setWager(e.target.value.replace(/\D/g, ''))} aria-label="Your wager" placeholder="Your wager" />
-          <Button
-            size="lg"
-            className="w-full"
-            disabled={wager === '' || Number(wager) > max}
-            onClick={() => {
+          {/* R17-6: the field and Submit share one row, brought into view together above the keyboard. */}
+          <form
+            className="flex gap-2"
+            data-keep-visible
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (wager === '' || Number(wager) > max) return;
               send({ t: 'finalWager', amount: Number(wager) });
               setWager('');
               setChangingWager(false);
             }}
-            data-testid="phone-final-wager-submit"
           >
-            Submit wager
-          </Button>
+            <input className={cx(inputCls, 'min-w-0 flex-1')} inputMode="numeric" enterKeyHint="send" value={wager} onChange={(e) => setWager(e.target.value.replace(/\D/g, ''))} aria-label="Your wager" placeholder="Your wager" data-testid="phone-final-wager-input" />
+            <Button type="submit" size="lg" className="shrink-0" disabled={wager === '' || Number(wager) > max} data-testid="phone-final-wager-submit">
+              Submit
+            </Button>
+          </form>
         </>
       )}
       {f.stage === 'wagers' && !showWagerInput && mine?.wager != null && (
@@ -340,10 +343,14 @@ function FinalForm({ me }: { me: Me }) {
           )}
           {editing ? (
             <>
-              <textarea className={inputCls} rows={2} value={answer} onChange={(e) => setAnswer(e.target.value)} aria-label="Your answer" placeholder="Your answer" maxLength={200} data-testid="phone-final-answer" data-draft-saved={!!answer.trim() && answer.trim() === (mine?.draft ?? '') ? 'true' : 'false'} />
-              <Button size="lg" className="w-full" disabled={!answer.trim()} onClick={submitAnswer} data-testid="phone-final-answer-submit">
-                Submit answer
-              </Button>
+              {/* R17-6: the answer and Submit come into view together above the keyboard (side by side
+                  on a phone on its side, where the room above the keyboard is short). */}
+              <div className="phone-answer-row" data-keep-visible>
+                <textarea className={cx(inputCls, 'min-w-0')} rows={2} value={answer} onChange={(e) => setAnswer(e.target.value)} aria-label="Your answer" placeholder="Your answer" maxLength={200} data-testid="phone-final-answer" data-draft-saved={!!answer.trim() && answer.trim() === (mine?.draft ?? '') ? 'true' : 'false'} />
+                <Button size="lg" className="shrink-0" disabled={!answer.trim()} onClick={submitAnswer} data-testid="phone-final-answer-submit">
+                  Submit answer
+                </Button>
+              </div>
               {mine?.answer && <p className="text-center text-sm text-slate-500">Not submitted yet — your last answer “{mine.answer}” counts until you submit again.</p>}
             </>
           ) : (
@@ -402,12 +409,17 @@ function DailyWagerForm() {
   const n = Number(amount);
   const valid = amount !== '' && Number.isInteger(n) && n >= dw.min && n <= dw.max;
   const by = dw.pendingBy ? profileName(g.profiles[dw.pendingBy]) : null;
-  const showInput = dw.mine && (dw.pending == null || changing);
+  const showInput = dw.mine && !dw.byHost && (dw.pending == null || changing);
   return (
     <div className="space-y-4 rounded-2xl bg-amber-50 p-4 shadow-sm ring-2 ring-amber-400" data-testid="phone-daily-wager">
       <p className="text-center text-2xl font-black text-amber-900">Daily Double!</p>
       <p className="text-center text-sm text-slate-600">{g.clue?.categoryName}</p>
-      {!dw.open && dw.pending == null ? (
+      {dw.byHost && dw.pending == null ? (
+        // R17-2: the host types the wager (the game's default) — the player tells it to them.
+        <p className="text-center text-lg font-semibold text-slate-700" data-testid="phone-dd-host">
+          It's your Daily Double! Tell the host your wager — they enter it for you.
+        </p>
+      ) : !dw.open && dw.pending == null ? (
         // R16-7: the host announces the Daily Double! first, then unlocks the wager.
         <p className="text-center text-lg font-semibold text-slate-700" data-testid="phone-dd-locked">
           It's your Daily Double! Wait for the host to unlock your wager…
@@ -417,7 +429,24 @@ function DailyWagerForm() {
           <p className="text-center text-slate-700">
             Wager between {dw.min.toLocaleString()} and {dw.max.toLocaleString()}.
           </p>
-          <input className={inputCls} inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/\D/g, ''))} aria-label="Daily Double wager" placeholder="Your wager" data-testid="phone-dd-input" />
+          {/* R17-6: the field and Submit share one row, brought into view together above the keyboard. */}
+          <form
+            className="flex gap-2"
+            data-keep-visible
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!valid) return;
+              setError(null);
+              send({ t: 'dailyWager', amount: n });
+              setChanging(false);
+              setAmount('');
+            }}
+          >
+            <input className={cx(inputCls, 'min-w-0 flex-1')} inputMode="numeric" enterKeyHint="send" value={amount} onChange={(e) => setAmount(e.target.value.replace(/\D/g, ''))} aria-label="Daily Double wager" placeholder="Your wager" data-testid="phone-dd-input" />
+            <Button type="submit" size="lg" className="shrink-0" disabled={!valid} data-testid="phone-dd-submit">
+              Submit
+            </Button>
+          </form>
           <div className="flex flex-wrap justify-center gap-2">
             {[...new Set([Math.round(dw.max / 2), dw.max])].filter((v) => v >= dw.min).map((v) => (
               <Button key={v} size="sm" variant="secondary" onClick={() => setAmount(String(v))}>
@@ -425,20 +454,6 @@ function DailyWagerForm() {
               </Button>
             ))}
           </div>
-          <Button
-            size="lg"
-            className="w-full"
-            disabled={!valid}
-            onClick={() => {
-              setError(null);
-              send({ t: 'dailyWager', amount: n });
-              setChanging(false);
-              setAmount('');
-            }}
-            data-testid="phone-dd-submit"
-          >
-            Submit wager
-          </Button>
           {error && (
             <p className="rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-800" role="alert">
               {error}
@@ -447,10 +462,10 @@ function DailyWagerForm() {
         </>
       ) : dw.pending != null ? (
         <div className="space-y-3 text-center" data-testid="phone-dd-done">
-          <p className="text-sm text-slate-600">{dw.mine ? 'Your wager' : `${by ?? 'A teammate'} wagered for your team`}</p>
+          <p className="text-sm text-slate-600">{dw.byHost ? 'The host entered your wager' : dw.mine ? 'Your wager' : `${by ?? 'A teammate'} wagered for your team`}</p>
           <p className="text-3xl font-black tabular-nums">{fmtScore(dw.pending)}</p>
           <p className="text-sm text-slate-600">Waiting for the host to show the clue…</p>
-          {dw.mine && (
+          {dw.mine && !dw.byHost && (
             <Button variant="secondary" className="w-full" onClick={() => setChanging(true)}>
               Change wager
             </Button>

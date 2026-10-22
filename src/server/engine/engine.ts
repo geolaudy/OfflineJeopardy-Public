@@ -59,6 +59,7 @@ const UNDOABLE = new Set([
   'selectClue',
   'setDailyWager',
   'openDailyWager',
+  'startDailyAnswer',
   'revealAnswer',
   'hideAnswer',
   'unlockBuzzers',
@@ -108,6 +109,12 @@ export function normalizeState(s: GameState): GameState {
   if (s.intro === undefined) s.intro = null;
   if (s.media === undefined) s.media = null;
   if (s.clue && !s.clue.unlockMode) s.clue.unlockMode = 'host';
+  // R17-1 / R17-2: a Daily Double! saved before 0.17.0-rc.4 used the phone entry and started its
+  // answer time with the clue.
+  if (s.clue?.isDailyWager && !s.clue.wagerEntry) {
+    s.clue.wagerEntry = 'player';
+    if (s.clue.stage === 'question' && s.clue.answerStarted === undefined) s.clue.answerStarted = true;
+  }
   if (typeof s.practice !== 'boolean') s.practice = false;
   if (typeof s.roomCode !== 'string') s.roomCode = ''; // filled with a random code on load
   if (!s.playerColors) s.playerColors = {};
@@ -323,6 +330,7 @@ export function undoLabel(type: string): string {
     selectClue: 'open clue',
     setDailyWager: 'Daily Double!',
     openDailyWager: 'Unlock Wager',
+    startDailyAnswer: 'Start Timer',
     revealAnswer: 'reveal answer',
     hideAnswer: 'hide answer',
     unlockBuzzers: 'unlock buzzers',
@@ -885,6 +893,7 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
         wagerBy: dw ? s.controlCompetitorId : null,
         wagerOpen: false,
         pendingWager: null,
+        ...(dw ? { wagerEntry: s.rules.dailyWagerEntry, answerStarted: false } : {}),
         answerRevealed: false,
         resolved: false,
         answeringEnded: false,
@@ -914,7 +923,10 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       clue.wager = { competitorId: c.id, amount: a.amount, profileId: pid };
       clue.pendingWager = null;
       clue.stage = 'question';
-      maybeAutoTimer(s, 'answer', now);
+      // R17-1: the clue shows with the answer time stopped — the host reads it, then Start Timer
+      // (startDailyAnswer). A wager timer still running ends here.
+      clue.answerStarted = false;
+      s.timer = null;
       emit(tx, {
         type: 'wager',
         result: 'daily',
@@ -935,6 +947,17 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       clue.wagerOpen = true;
       const secs = s.rules.timers.wagerSeconds;
       s.timer = secs > 0 ? makeTimer('wager', secs, now) : null;
+      return;
+    }
+    case 'startDailyAnswer': {
+      // R17-1: the Daily Double! answer time starts once, when the host says so (never by itself;
+      // independent of the wager timer). Without answer seconds in the rules it only opens judging.
+      const clue = activeClue(s);
+      if (!clue.isDailyWager || clue.stage !== 'question' || !clue.wager) fail('Show the clue first');
+      if (clue.answerStarted || clue.resolved) return { ignored: true };
+      clue.answerStarted = true;
+      const secs = s.rules.timers.answerSeconds;
+      s.timer = secs > 0 ? makeTimer('answer', secs, now) : null;
       return;
     }
     case 'enterDailyWager': {
@@ -958,8 +981,10 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
       if (!clue.isDailyWager || clue.stage !== 'wager') fail('Wagering is not open');
       const owner = clue.wagerBy ?? null;
       if (!owner || owner !== a.competitorId) fail('It is not your Daily Double!');
-      if (!clue.wagerOpen) fail('Wait for the host to unlock the wager');
       const c = competitorOf(s, a.competitorId);
+      // R17-2: with host entry the host types the wager — only a computer player sends its own.
+      if (clue.wagerEntry === 'host' && !c.bot) fail('The host enters your wager');
+      if (clue.wagerEntry !== 'host' && !clue.wagerOpen) fail('Wait for the host to unlock the wager');
       const prev = clue.pendingWager;
       if (prev && c.kind === 'team' && prev.profileId && a.profileId && prev.profileId !== a.profileId) fail('A teammate already entered your team’s wager');
       const score = scoresOf(s.events)[c.id] ?? 0;
@@ -1188,6 +1213,8 @@ function reduce(tx: Tx, a: EngineAction): ReduceExtra {
     // ----- timers -----
     case 'timerStart': {
       s.timer = makeTimer(a.kind, a.seconds, now);
+      // R17-1: an answer timer started from More counts as the Daily Double!'s Start Timer.
+      if (a.kind === 'answer' && s.phase === 'clue' && s.clue?.isDailyWager && s.clue.stage === 'question') s.clue.answerStarted = true;
       return;
     }
     case 'timerPause': {

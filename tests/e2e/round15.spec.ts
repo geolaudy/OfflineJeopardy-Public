@@ -206,6 +206,8 @@ test('board header: status centred on the whole header, no seams under the banne
 test('Daily Double!: no wager timer until the host starts it, Preview Clue over the picture only, host entry, Lock Wager & Show Clue in the main place (R15-18 … R15-21)', async () => {
   test.setTimeout(150_000);
   const { h } = await startGame(2);
+  // R17-2: this checks the phone-entry workflow (Unlock Wager); host entry is the default.
+  await h.act({ type: 'updateRules', rules: { ...(await h.until((x) => x.phase === 'board')).rules, dailyWagerEntry: 'player' } });
   const tv = await (await cr.newContext({ viewport: { width: 1920, height: 1080 } })).newPage();
   await tv.goto(`${BASE}/board`);
   for (const dev of ['iPad Pro 11 landscape', 'iPad Pro 11'] as const) {

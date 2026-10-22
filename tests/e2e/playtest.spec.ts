@@ -102,19 +102,21 @@ test('play-test: a full evening on an iPad in portrait, a 4:3 TV and three phone
   await ipad.getByTestId('correct').click();
   await ipad.getByTestId('back-to-board').click();
 
-  // Daily Double! for Kai (who now picks): Kai wagers 100 on the phone (R5-20), correct.
+  // Daily Double! for Kai (who now picks): Kai tells the host 100, the host types it (R17-2), locks it,
+  // reads the clue and starts the answer time (R17-1); correct.
   await ipad.getByRole('button', { name: /Science for 800/ }).click();
   await expect(tv.getByText('DAILY DOUBLE!')).toBeVisible();
   await expect(pj.getByTestId('phone-daily-wager')).toHaveCount(0); // not Jon's
-  await expect(pk.getByTestId('phone-dd-locked')).toBeVisible(); // R16-7: the host unlocks it first
-  await ipad.getByTestId('host-dd-unlock').click();
-  await pk.getByTestId('phone-dd-input').fill('100');
-  await pk.getByTestId('phone-dd-submit').click();
+  await expect(pk.getByTestId('phone-dd-host')).toBeVisible(); // the host enters Kai's wager
+  await ipad.getByTestId('host-dd-input').fill('100');
+  await ipad.getByTestId('host-dd-set').click();
   await expect(pk.getByTestId('phone-dd-done')).toBeVisible();
   await expect(ipad.getByTestId('host-dd-pending')).toContainText('100');
   await expect(tv.getByTestId('clue-text')).toHaveCount(0);
   await ipad.getByTestId('host-dd-lock').click();
   await expect(tv.getByTestId('clue-text')).toBeVisible();
+  await expect(ipad.getByTestId('correct')).toHaveCount(0);
+  await ipad.getByTestId('host-dd-start-timer').click();
   await ipad.getByTestId('correct').click();
   await ipad.getByTestId('back-to-board').click();
 

@@ -560,3 +560,51 @@ Previously verified and to be kept: TV score fitting, 12 entries, centred answer
 | R16-18 | Preview: no thin black lines between the picture and the blue around it | F |
 | R16-19 | Preview: the blue around the picture zooms with the clue (it filled in before the clue reached the edges) | F |
 | R16-20 | Keep everything verified so far (score cards, navy cards, K60, …) | all |
+
+# User Feedback — Round 17 (received 2026-10-21, session 20, after testing the 0.17.0-rc.3 release candidate on real hardware; DESKTOP-6HN0OQ4)
+
+The owner tested **0.17.0-rc.3** (commit 488c909; the prompt also mentions an earlier "0.17.1-rc.2" — no 0.17.1 exists, see round 16). The next candidate is **0.17.0-rc.4**. Rollback point: tag **v0.16.0** (published). Statuses: FEATURE_MATRIX.md → "User feedback round 17".
+
+## Real-hardware results of 0.17.0-rc.3 (reported by the owner — not automatic results)
+
+| Area | Feature | Owner's result |
+|---|---|---|
+| Phone (iPhone 17 Pro, iOS 26) | Nickname field and Save / Cancel above the keyboard — portrait, landscape, Safari, Home Screen app (R16-4) | FIXED — keep it |
+| Phone | Daily Double! wager Submit above the keyboard | BROKEN → R17-6 |
+| Phone | Final Jeopardy! wager Submit above the keyboard | BROKEN → R17-6 |
+| Phone | Final Jeopardy! answer Submit above the keyboard | BROKEN → R17-6 |
+| Phone | Test Buzzer back arrow (R15-8) | FIXED |
+| iPad host | Embedded / full screen, landscape / portrait; score-card sizing; navy cards; centred board status; no banner lines; value beside Options; sliding timer | WORKING / FIXED |
+| iPad host | Lobby Wi-Fi name / password above the keyboard (R16-5): with the left column scrolled a little, tapping the field makes the column jump to its top and the field sinks under the keyboard; other low fields too | NOT FIXED → R17-5 |
+| iPad host | Preview blue fill / zoom synchronisation (R16-17 … R16-19) | NOT FIXED → R17-17 |
+| iPad host | Preview edge / border during clues | reported fixed by the previous session; not explicitly confirmed by the owner |
+| iPad host | Status bar (K55): currently plain white | NOT FIXED (blue wanted) → R17-16 |
+| Daily Double! | Locked at first, phone told to wait, green Unlock Wager, wager timer, phone / host / bot wager stops it, Lock Wager & Show Clue, banner typography | WORKING / FIXED |
+| Daily Double! | Answer timer starting by itself when the clue shows | NEEDS CHANGE → R17-1 |
+| Bots | Daily Double! and Final wagering; selected-tile glow (two blinks + longer hold) | FIXED / WORKING — keep the timing |
+| Final | "Enter your wagers now" above the bubbles; full-width contestant swipe; heading elements stationary | FIXED / WORKING |
+| Final | TV answer / results screen styling | NEEDS REDESIGN → R17-11 |
+| TV lobby | Nickname cards, stable columns, no shuffling, test-buzz glow | WORKING / FIXED |
+| Zoom | iPad pinch zoom (K60) | FIXED — keep it |
+| Wi-Fi | Wi-Fi PC / Mobile Hotspot (K48) | NOT TESTED |
+
+## New requests (the round-17 prompt's parts 3 … 11)
+
+| ID | Requirement (summary) | Milestone |
+|---|---|---|
+| R17-1 | Daily Double!: Lock Wager & Show Clue shows the clue with the answer timer **stopped**; a large green **Start Timer** starts it (once); then Correct / Incorrect. Wager timer and answer timer are separate phases | A |
+| R17-2 | New game setting **Daily Double! wager entry**: **Host enters the wager (default)** / Player enters it on their device. Host entry: a wager field in the band (no dialog over the preview); the phone says the host enters it and cannot send one; bots still wager by themselves; the host reveals the clue. Player entry: the rc.3 workflow (Unlock Wager …) plus Start Timer. Not for the Final | A |
+| R17-3 | The band's wager field: touch-friendly, readable, stable, above the keyboard; no resizing of the TV preview, score cards not covered | A |
+| R17-5 | **Critical:** iPad lobby Wi-Fi fields (and other low fields) stay visible with the keyboard — find why the column jumps to its top; keep / restore the scroll position; reusable, no arbitrary padding | B |
+| R17-6 | iPhone: Daily Double! wager, Final wager and Final answer — field and Submit visible above the keyboard, portrait and landscape, without dismissing the keyboard | B |
+| R17-7 | Audit every text field (nickname, Wi-Fi, wagers, Final answer, board editor, profiles, settings, dialogs); keep the nickname fix and K60 | B |
+| R17-11 | Redesign the TV's Final Jeopardy! answer / results screen: less crowded, clear hierarchy, player answers in the score cards' visual language; keep the reveal order, swipes, stationary heading / category / bubbles, judgments, scoring, outlines, host entry; up to 12 entries | D |
+| R17-12 | TV: "[Player] is wagering…" vertically centred between the category's bottom and the clue area's bottom | E |
+| R17-13 | Host lobby: bot difficulty "Medium" clipped — every difficulty label whole, badge compact | E |
+| R17-14 | Host Settings in tabs (Gameplay, Players & Controllers, Presentation, Network, Data & Storage, Advanced — from the real settings); no setting lost; each tab without scrolling on an iPad in landscape; minimal, consistent design | C |
+| R17-15 | **Game Data Location** in Data & Storage: show the folder; Change Location (Windows folder picker, safe migration, restart when needed), Open Folder, Restore Default Location; bootstrap file outside the data folder; never delete data before a verified copy; missing / read-only / unplugged folders handled | C |
+| R17-16 | Status bar (K55): investigate `black-translucent` with safe-area handling for a real blue bar; keep the plain white fallback if unreliable; never the rejected gradient; document whether the Home Screen icon must be re-added; K55 stays open until the owner confirms | F |
+| R17-17 | Preview fill: one rendering approach instead of two timed animations (clue + bars); one background coordinate system | F |
+| R17-17.3–17.4 | Category introduction: the blue fill around it in the embedded preview; edge to edge (no black border) in full screen | F |
+| R17-17.5–17.6 | Category introduction controls: **Next Category** dominant, Previous Category secondary right beside it, Auto Present and **Skip Category Presentation** small but visible (not in a menu); no overlapping swipes | F |
+| R17-20 | Keep everything verified so far | all |

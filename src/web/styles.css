@@ -54,11 +54,35 @@ body {
 /* R16-4 … R16-6: while the on-screen keyboard is open for a field inside the shell, the shell covers
    only the visible area above the keyboard (lib/keyboard.ts sets the variables), so its scroll areas
    can bring the field into view whatever they were scrolled to. A field in a dialog lifts the dialog
-   instead (Modal); the shell behind it keeps its size. */
-html[data-keyboard="open"] .app-screen:has(:focus) {
+   instead (Modal); the shell behind it keeps its size. R17-6: the tracker marks the shell
+   ([data-kb-shell]) until the keyboard has closed — not only while the field has focus, which a tap
+   on Submit takes away first (the shell then grew back mid-tap and the tap missed the button). */
+html[data-keyboard="open"] .app-screen[data-kb-shell] {
   top: var(--vv-top, 0px);
   bottom: auto;
   height: var(--vv-height, 100%);
+}
+/* R17-6: a phone on its side has little room above the keyboard — the shell's title bar steps aside
+   while a field in it is being typed into, so the field and its Submit fit. */
+@media (orientation: landscape) and (max-height: 500px) {
+  html[data-keyboard="open"] .app-screen[data-kb-shell] > header {
+    display: none;
+  }
+}
+/* R17-6: the Final Jeopardy! answer and its Submit (one row on a phone on its side). */
+.phone-answer-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  .phone-answer-row {
+    flex-direction: row;
+    align-items: stretch;
+  }
+  .phone-answer-row > textarea {
+    flex: 1;
+  }
 }
 html:has(.app-screen),
 html:has(.app-screen) body {
