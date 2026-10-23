@@ -1,7 +1,7 @@
 {
   "project": "OfflineJeopardy",
   "schema": 1,
-  "status": "active",
+  "status": "released",
   "sessionId": "800ef306-a869-4efa-8159-7cb1a8b213f5",
   "generation": 11,
   "computer": "DESKTOP-6HN0OQ4",
@@ -14,5 +14,6 @@
   "clock": "GitHub server time",
   "heartbeatSeconds": 180,
   "ttlSeconds": 900,
-  "currentTask": "v1.0.0 release + main/development branch restructuring"
+  "currentTask": "v1.0.0 release + main/development branch restructuring",
+  "releasedAt": "2026-10-23T03:45:01.000Z"
 }
