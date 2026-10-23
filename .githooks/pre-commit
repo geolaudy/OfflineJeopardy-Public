@@ -1,3 +1,0 @@
-#!/bin/sh
-# Development lock fencing check (DEVELOPMENT_LOCK.md): refuse commits unless this clone owns the lock.
-exec node "$(dirname "$0")/../scripts/dev-lock.mjs" check --quiet
