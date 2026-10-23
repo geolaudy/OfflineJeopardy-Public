@@ -12,11 +12,13 @@ Windows builds:
 - `npm run release:local` = typecheck + Vitest + dist + verify.
 - Before ending a session, build the latest stable version and record artifact paths in `SESSION_HANDOFF.md`.
 
-GitHub Releases (major milestones only, never for small fixes):
+GitHub Releases (major milestones only, never for small fixes, and **only with the owner's explicit approval of that specific release**):
 
-1. Run Vitest and Playwright; bump `package.json` version (semver); write the `CHANGELOG.md` section (New Features / Improvements / Bug Fixes / Known Issues, plain language).
-2. Build + verify locally, commit, push.
-3. Create and push the tag `vX.Y.Z`. `.github/workflows/windows-build.yml` then tests, packages, verifies and publishes the release with the installer, portable exe and SHA256SUMS.txt.
-4. Verify the release and its assets exist; record the version in `PROGRESS.md`.
+Releases go from `development` to the stable `main` branch as a snapshot — follow `BRANCH_WORKFLOW.md` → "Release workflow" step by step:
+
+1. On development: run Vitest and Playwright; bump `package.json` version (semver); write the `CHANGELOG.md` section (written for players; New Features / Improvements / Bug Fixes / Known Issues); build + verify locally; commit, push.
+2. `node scripts/release-export.mjs --source <that commit> --version X.Y.Z` → verify the release worktree like a fresh clone (npm ci, typecheck, test, dist, dist:verify).
+3. With approval: `OJ_RELEASE_APPROVED=vX.Y.Z git push origin release/vX.Y.Z:main` (fast-forward), tag `vX.Y.Z` on that commit and push it. `.github/workflows/windows-build.yml` then tests, packages, verifies and publishes the release with the installer, portable exe and SHA256SUMS.txt (public build, no personal sounds).
+4. Verify the release and its assets exist; record it in `RELEASES.md` and `PROGRESS.md` on development.
 
 Never move or delete published tags, overwrite releases, force-push, or attach unverified binaries, API keys or player databases.

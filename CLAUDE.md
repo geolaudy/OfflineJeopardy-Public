@@ -1,5 +1,26 @@
 # OfflineJeopardy — Claude Code Development Instructions
 
+## 0. OFFLINEJEOPARDY BRANCH POLICY (permanent — read first)
+
+**Stable release branch:** `main` (GitHub's default branch: public README, release snapshots only).
+**Active development branch:** `development` (all code, tests, tools and these internal documents).
+
+- All ordinary development and all Claude Code session work happen on `development`. A fresh clone
+  checks out `main`, which has no CLAUDE.md: run `git fetch origin` and `git switch development`
+  (never discarding local changes) before anything else. `START_CLAUDE_SESSION.md` is the paste-in
+  startup prompt.
+- Internal development documents (this file, SESSION_HANDOFF.md, PROGRESS.md, KNOWN_ISSUES.md,
+  USER_FEEDBACK.md, FEATURE_MATRIX.md, …) stay on `development` and are never copied to `main`.
+- **Never commit, push, merge, cherry-pick, rebase, reset or replace `main`, push a `v*` tag or
+  publish a GitHub release without the owner's explicit authorization for that specific release or
+  operation.** Approval of one release never carries over to the next. The pre-push hook refuses
+  `main` and `v*` tags unless `OJ_RELEASE_APPROVED=vX.Y.Z` is set for that push.
+- Releases follow `BRANCH_WORKFLOW.md` (snapshot of an approved `development` commit made by
+  `scripts/release-export.mjs`; never a merge of `development` into `main`, never a force-push).
+- Check and acquire the development lock (§36) before changing anything; maintain SESSION_HANDOFF.md;
+  commit and push verified milestones to `development`; never force-push; never overwrite another
+  developer's work; preserve the full history; keep `main` clean and buildable from a fresh clone.
+
 ## 1. PROJECT MISSION
 
 Build OfflineJeopardy, a polished, fully offline, customizable Jeopardy-style game for Windows.
@@ -307,11 +328,11 @@ Continue working toward these requirements within authorized session limits.
 The primary goal is a polished, reliable, fully offline game with minimal unnecessary user involvement.
 ## 35. WINDOWS BUILDS AND RELEASES (permanent)
 
-Every stable milestone: run tests, build, update docs, commit and push to `origin/main`.
+Every stable milestone: run tests, build, update docs, commit and push to `origin/development` (never `main`, §0).
 
 Before ending a session, build the latest stable version (`npm run release:local`) and record artifact paths in `SESSION_HANDOFF.md`.
 
-GitHub Releases are for major milestones only, never for small fixes. Build commands and the release procedure are in the `windows-release` skill (`.claude/skills/windows-release/SKILL.md`).
+GitHub Releases are for major milestones only, never for small fixes, and only with the owner's explicit approval of that release. Build commands are in the `windows-release` skill (`.claude/skills/windows-release/SKILL.md`); the release procedure (development → main) is `BRANCH_WORKFLOW.md`.
 
 Never move or delete published tags, overwrite releases, force-push, or attach unverified binaries, API keys or player databases.
 

@@ -20,7 +20,8 @@ npm run dev:lock:release                      # when finished (after pushing)
 | Atomic acquisition | Every change is a push of a new commit whose parent is the lock commit just read, with `--force-with-lease=refs/heads/dev-lock:<that commit>` (or "must not exist" for the first one). GitHub updates the ref only if it still points at the expected commit, so of two simultaneous attempts exactly one wins. The script then **reads the ref back** — a lock counts as held only when the remote shows our commit. |
 | Fencing token | `generation` goes up on every acquisition / recovery. A clone keeps its `sessionId` + `generation` in `.git/oj-dev-lock.json` (never committed). Ownership = the remote record is `active`, unexpired and has the same session and generation. |
 | Heartbeat | `acquire` starts a small detached Node process (`dev-lock.mjs heartbeat`) that renews the lock every **3 min**; the lock **expires 15 min** after the last heartbeat. Times come from GitHub's server clock (`Date` header of api.github.com), so wrong PC clocks don't matter. The heartbeat stops by itself when it sees it lost the lock, when the lock was released, or after **60 min without Claude Code activity** (so a crashed or abandoned session never holds the lock forever). Log: `.git/oj-dev-lock.log`. |
-| Git hooks | `acquire` sets `core.hooksPath=.githooks`. `pre-commit` and `pre-push` run `dev-lock.mjs check` — a commit or push is refused unless this clone owns the unexpired lock (and refused when GitHub can't be reached). Lock pushes themselves bypass the hooks. |
+| Git hooks | `acquire` sets `core.hooksPath=.githooks`. `pre-commit` and `pre-push` run `dev-lock.mjs check` — a commit or push is refused unless this clone owns the unexpired lock (and refused when GitHub can't be reached). Lock pushes themselves bypass the hooks. `pre-push` also refuses pushes to `main` and `v*` tags unless `OJ_RELEASE_APPROVED=vX.Y.Z` is set (approved releases only, BRANCH_WORKFLOW.md). |
+| Branches | The lock is independent of the code branches: it guards the whole repository, whichever branch you are on (normally `development`). `main` carries no lock files, hooks or heartbeat commits. |
 | Claude Code hooks | `.claude/settings.json`: **SessionStart** prints the lock state into the session; **PreToolUse** on Edit/Write/NotebookEdit runs `dev-lock.mjs guard`, which blocks edits to files inside the project unless this clone holds a lock confirmed within the last 15 min (files outside the project — scratchpad, memory — are not affected); Bash/PowerShell calls record activity for the idle timer. Bash can still write files; the git hooks are the hard gate. |
 
 ## Commands
@@ -40,7 +41,7 @@ Exit codes: `0` ok, `1` refused (locked by another session, not the owner, …),
 
 ## Setting up a computer
 
-1. `git pull` (gets `scripts/dev-lock.mjs`, `.githooks/`, `.claude/settings.json`).
+1. `git switch development && git pull --ff-only` (gets `scripts/dev-lock.mjs`, `.githooks/`, `.claude/settings.json` — they exist only on `development`).
 2. GitHub push access must already work (`git push` without prompts — Git Credential Manager). Nothing is stored in the repository.
 3. Optional names shown to others: `git config oj.computerName "Office-PC"` and `git config oj.developerName "George"` (defaults: host name and `user.name`).
 4. `npm run dev:lock:acquire -- --task "…"` — this also sets `core.hooksPath` for the clone.
@@ -50,7 +51,7 @@ The lock system initialises itself: the first `acquire` creates the `dev-lock` b
 ## Normal hand-over between computers
 
 1. Computer A: finish or pause the task, run tests, update `SESSION_HANDOFF.md`, commit, push, verify the push, `npm run dev:lock:release`.
-2. Computer B: `git pull`, `npm run dev:lock:acquire -- --task "…"`, continue from `SESSION_HANDOFF.md`.
+2. Computer B: `git switch development && git pull --ff-only`, `npm run dev:lock:acquire -- --task "…"`, continue from `SESSION_HANDOFF.md`.
 
 ## When something goes wrong
 

@@ -219,7 +219,7 @@ describe('development lock', { timeout: 60_000 }, () => {
     git(a.dir, 'add', '.');
     const env1 = lockEnv(a);
     execFileSync('git', ['commit', '-qm', 'owner commit'], { cwd: a.dir, env: env1 });
-    execFileSync('git', ['push', '-q', 'origin', 'HEAD:main'], { cwd: a.dir, env: env1 });
+    execFileSync('git', ['push', '-q', 'origin', 'HEAD:development'], { cwd: a.dir, env: env1 });
 
     // B takes over after expiry; A's next commit and push are refused
     expect(lock(b, ['recover', '--confirm', '--no-heartbeat'], LATER).code).toBe(0);
@@ -228,8 +228,31 @@ describe('development lock', { timeout: 60_000 }, () => {
     const commit = spawnSync('git', ['commit', '-qm', 'stale commit'], { cwd: a.dir, env: env1, encoding: 'utf8' });
     expect(commit.status).not.toBe(0);
     expect(commit.stderr).toContain('DEVELOPMENT LOCK');
-    const push = spawnSync('git', ['push', 'origin', 'HEAD:main'], { cwd: a.dir, env: env1, encoding: 'utf8' });
+    const push = spawnSync('git', ['push', 'origin', 'HEAD:development'], { cwd: a.dir, env: env1, encoding: 'utf8' });
     expect(push.status).not.toBe(0);
+    expect(git(a.dir, 'ls-remote', 'origin', 'refs/heads/development').split('\t')[0]).toBe(git(a.dir, 'rev-parse', 'HEAD'));
+  });
+
+  it('the pre-push hook keeps main and v* tags for approved releases (BRANCH_WORKFLOW.md)', () => {
+    const { a } = env;
+    git(a.dir, 'config', 'core.hooksPath', HOOKS);
+    expect(lock(a, ['acquire', '--no-heartbeat']).code).toBe(0);
+    fs.writeFileSync(path.join(a.dir, 'r.txt'), 'r');
+    git(a.dir, 'add', '.');
+    const env1 = lockEnv(a);
+    execFileSync('git', ['commit', '-qm', 'release candidate'], { cwd: a.dir, env: env1 });
+    git(a.dir, 'tag', 'v9.9.9');
+    const before = git(a.dir, 'ls-remote', 'origin', 'refs/heads/main').split('\t')[0];
+    for (const ref of ['HEAD:main', 'refs/tags/v9.9.9']) {
+      const refused = spawnSync('git', ['push', 'origin', ref], { cwd: a.dir, env: env1, encoding: 'utf8' });
+      expect(refused.status, ref).not.toBe(0);
+      expect(refused.stderr).toContain('owner approved');
+    }
+    expect(git(a.dir, 'ls-remote', 'origin', 'refs/heads/main').split('\t')[0]).toBe(before);
+    expect(git(a.dir, 'ls-remote', 'origin', 'refs/tags/v9.9.9')).toBe('');
+    // Other branches push freely; an approved release passes.
+    execFileSync('git', ['push', '-q', 'origin', 'HEAD:development'], { cwd: a.dir, env: env1 });
+    execFileSync('git', ['push', '-q', 'origin', 'HEAD:main', 'refs/tags/v9.9.9'], { cwd: a.dir, env: { ...env1, OJ_RELEASE_APPROVED: 'v9.9.9' } });
     expect(git(a.dir, 'ls-remote', 'origin', 'refs/heads/main').split('\t')[0]).toBe(git(a.dir, 'rev-parse', 'HEAD'));
   });
 

@@ -6,6 +6,68 @@ their notes come from the matching section below (`scripts/release-notes.mjs`).
 
 ## [Unreleased]
 
+## [1.0.0] — 2026-10-22
+
+**The first stable release of OfflineJeopardy**, a locally hosted, multiplayer Jeopardy-style game for
+Windows. The PC shows the board on the TV, the host runs the game from an iPad (or any tablet or computer
+with a browser), and players buzz in with their phones, Nintendo Switch Joy-Cons or the keyboard, all
+over your own network with no internet needed. This version was played and checked on real hardware
+(Windows PC with a TV, iPad, iPhones and Joy-Cons) before release.
+
+### Highlights
+- **Local multiplayer**: the app starts its own server. The TV, the host and every phone stay in sync
+  live, and the server decides who buzzed first, the scores and the timers. Interrupted games resume
+  where they left off.
+- **Host controller**: run the game from Safari on an iPad, embedded or full screen, in landscape or
+  portrait, or as a Home Screen app. You get a live copy of the TV, the correct responses (visible only
+  to you), buzzer control, judging, score editing, undo and timers.
+- **Public TV presentation**: category introductions, clues that zoom out of their tiles, buzz-in
+  and timer display, scoreboards, Daily Double! and Final Jeopardy! screens with sounds, and eight
+  customisable themes.
+- **Phone buzzers**: one QR code on the TV, no app to install. Phones also take wagers and Final answers.
+  An optional room code keeps the game to the people in the room.
+- **Bluetooth controllers**: Nintendo Switch Joy-Cons (original Switch models) and keyboard keys as
+  buzzers, through the same fair buzzer engine as the phones, with network-delay correction.
+- **Custom boards**: a board editor with autosave and version history, any number of rounds and
+  categories, Daily Doubles and Final Jeopardy!, and CSV/JSON/package import and export.
+- **Media clues**: pictures, sounds and videos in clues and responses, played on the TV and controlled
+  by the host. Board packages carry their media.
+- **Player profiles**: names, colours, avatars or photos, 4-digit PINs, nicknames for a game, guests,
+  statistics, leaderboards and a clue-by-clue game history that edits never rewrite.
+- **Teams and bots**: team games where each team chooses its own buzzer mode (everyone buzzes or one shared
+  buzzer) and individual contributions are tracked separately; computer opponents from Easy to Expert,
+  also for practice alone.
+- **Daily Doubles**: the host enters or approves the wager, then shows the clue with the timer stopped
+  and starts the answer time when ready.
+- **Final Jeopardy!**: wagers and answers on the phones, locked once sent (configurable), the host
+  unlocks answering, then reveals each response and wager on the TV and shows the winner.
+- **Offline hosting**: everything works without the internet, and all data stays on the PC in a folder
+  you can choose, with full backups as one `.zip`. Optional extras (AI answers for computer opponents
+  through Anthropic or Google Gemini, importing boards from a web link) use the internet only when you
+  turn them on.
+- **Windows installation**: an installer (Start menu and desktop shortcuts, firewall rule for private
+  networks) and a portable exe that keeps its data next to itself, both with a start-up screen.
+
+### Upgrading
+- Boards, profiles, statistics, history and settings from 0.x versions are kept. The installer updates an
+  existing installation; the portable exe uses the `OfflineJeopardyData` folder next to it, or the folder
+  chosen in Settings → Data & Storage.
+- If you use the host as a Home Screen app on the iPad, remove the icon and add it again from Safari once.
+
+### Known Issues
+- The executables are not code-signed: Windows SmartScreen may warn the first time (More info → Run anyway).
+- Using the game PC's Mobile Hotspot or Wi-Fi for the automatic network details has not been tested on
+  real hardware yet. "Network name and password" in the lobby can always be typed by hand.
+- In the iPad's Home Screen app, iPadOS may draw the status bar in white instead of the app's navy. This
+  is a WebKit limitation that pages cannot change.
+- Nintendo Switch 2 Joy-Cons are not supported yet. Joy-Con vibration has not been confirmed on real
+  controllers.
+- The portable exe unpacks itself at every start, so the installer starts faster.
+
+## 0.17.0 release candidates (rc.1 … rc.6, included in 1.0.0)
+
+The detailed changes since 0.16.0, tested by the owner build by build before 1.0.0.
+
 ### New Features
 - **Final Jeopardy! answers are final**: once a player sends their Final wager or answer it is locked in (the host can still correct it). Settings → Gameplay → **Allow Final Jeopardy! submission changes** lets players change them while that step is open.
 - **The host opens Final Jeopardy! answering**: Show Clue now shows the clue with answering locked, so everyone can read it; the host presses the green **Unlock Answering**, which starts the think time. Phones say they are waiting for the host until then.

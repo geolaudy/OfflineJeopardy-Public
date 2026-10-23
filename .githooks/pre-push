@@ -1,3 +1,18 @@
 #!/bin/sh
-# Development lock fencing check (DEVELOPMENT_LOCK.md): refuse pushes unless this clone owns the lock.
-exec node "$(dirname "$0")/../scripts/dev-lock.mjs" check --quiet
+# 1. Development lock fencing check (DEVELOPMENT_LOCK.md): refuse pushes unless this clone owns the lock.
+# 2. main is the stable release branch and v* tags publish releases (BRANCH_WORKFLOW.md): a push that
+#    updates or deletes main or a v* tag needs OJ_RELEASE_APPROVED=<that version, e.g. v1.1.0>, set
+#    only after the owner approved that specific release.
+refs=$(cat)
+node "$(dirname "$0")/../scripts/dev-lock.mjs" check --quiet || exit $?
+echo "$refs" | while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$remote_ref" in
+    refs/heads/main|refs/tags/v[0-9]*)
+      if [ -z "$OJ_RELEASE_APPROVED" ]; then
+        echo "Refusing to push $remote_ref: main and release tags change only for a release the owner approved." >&2
+        echo "See BRANCH_WORKFLOW.md (release workflow); set OJ_RELEASE_APPROVED=vX.Y.Z for that push only." >&2
+        exit 1
+      fi
+      ;;
+  esac
+done

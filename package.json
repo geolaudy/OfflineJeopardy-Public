@@ -1,7 +1,7 @@
 {
   "name": "offline-jeopardy",
   "productName": "OfflineJeopardy",
-  "version": "0.17.0-rc.6",
+  "version": "1.0.0",
   "private": true,
   "description": "Fully offline, customizable Jeopardy-style game for Windows with LAN host controller and buzzers.",
   "type": "module",
@@ -78,6 +78,7 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:all": "npm run typecheck && npm test && npm run build && npm run test:e2e",
+    "screenshots": "npm run build:web && playwright test -c playwright.screenshots.config.ts",
     "dist": "npm run build && electron-builder --win nsis portable --publish never",
     "dist:verify": "node scripts/verify-dist.mjs",
     "release:local": "npm run typecheck && npm test && npm run dist && npm run dist:verify",

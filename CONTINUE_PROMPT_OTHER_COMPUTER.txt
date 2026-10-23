@@ -3,8 +3,12 @@ OFFLINEJEOPARDY — PICK UP ON THE ORIGINAL COMPUTER (geolaudy machine, DESKTOP-
 Continue the existing OfflineJeopardy project (https://github.com/geolaudy/OfflineJeopardy). Do not
 restart or rewrite anything. Sessions 15 (round 12), 16 (round 13), 17 (round 14, 0.17.0-rc.1), 18 (round 15, 0.17.0-rc.2), 19 (round 16, 0.17.0-rc.3), 20 (round 17, 0.17.0-rc.4), 21 (round 18, 0.17.0-rc.5) and 22 (round 19, 0.17.0-rc.6) ran on this machine.
 
+BRANCHES (since 1.0.0, CLAUDE.md §0, BRANCH_WORKFLOW.md): all work happens on `development`; `main`
+is the stable release branch — never commit, push, merge or tag there without the owner's explicit
+approval of that release. The general startup prompt is START_CLAUDE_SESSION.md.
+
 0. DEVELOPMENT LOCK FIRST (DEVELOPMENT_LOCK.md, CLAUDE.md §36):
-     git fetch origin && git status -sb && git pull --ff-only
+     git fetch origin && git status -sb && git switch development && git pull --ff-only
      npm run dev:lock:status
    - LOCKED by another computer → tell the user who and since when; read-only work only; never take
      over an active lock. EXPIRED and the user confirms that session stopped →
@@ -18,8 +22,8 @@ restart or rewrite anything. Sessions 15 (round 12), 16 (round 13), 17 (round 14
    FEATURE_MATRIX.md "User feedback round 19".
 3. npm install, then npx tsc -p . and npx vitest run for a baseline. Before ANY Playwright run:
    npm run build:web (the e2e server serves dist/ — an old build here once looked like a WebKit crash).
-4. Next task: SESSION_HANDOFF.md "Single recommended next task" (the owner's verdict on 0.17.0-rc.6
-   (release/OfflineJeopardy-*-0.17.0-rc.6.exe); publish v0.17.0 only after explicit approval). Drive C: is nearly full — old
+4. Next task: SESSION_HANDOFF.md "Single recommended next task" (v1.0.0 is the current stable release;
+   any further release only after the owner's explicit approval, BRANCH_WORKFLOW.md). Drive C: is nearly full — old
    local builds were moved to D:\OfflineJeopardy-old-builds\; never run two Playwright runs at once.
 5. references/ (owner's mock-ups, git-ignored) and new_sfx/ (personal sounds — never commit or upload)
    stay on this machine. Round 12's four reference images are listed in USER_FEEDBACK.md "Round 12";
