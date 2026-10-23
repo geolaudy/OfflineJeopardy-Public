@@ -1,8 +1,28 @@
 # Session handoff
 
-Read this first, then `PROGRESS.md` (top section) and `FEATURE_MATRIX.md` → "User feedback round 19". Ready-to-paste resume prompts: `CONTINUE_PROMPT_SAME_COMPUTER.txt` / `CONTINUE_PROMPT_OTHER_COMPUTER.txt`.
+Read this first, then `PROGRESS.md` (top section) and `BRANCH_WORKFLOW.md`. Ready-to-paste startup prompt: `START_CLAUDE_SESSION.md` (machine-specific ones: `CONTINUE_PROMPT_SAME_COMPUTER.txt` / `CONTINUE_PROMPT_OTHER_COMPUTER.txt`).
 
-**Before anything else: the development lock (`DEVELOPMENT_LOCK.md`).** `npm run dev:lock:status`, then `npm run dev:lock:acquire -- --task "…"`. Do not change files while another computer holds it.
+**Before anything else: be on `development`** (`git fetch origin && git switch development && git pull --ff-only`; never discard local changes) **and take the development lock (`DEVELOPMENT_LOCK.md`).** `npm run dev:lock:status`, then `npm run dev:lock:acquire -- --task "…"`. Do not change files while another computer holds it. **Never change `main`, push a `v*` tag or publish a release without the owner's explicit approval of that specific release** (CLAUDE.md §0).
+
+## Current state (session 23, 2026-10-22 — v1.0.0 stable release and main/development split; on DESKTOP-6HN0OQ4 / geolaudy)
+
+- **Stable release: v1.0.0 — PUBLISHED** (owner-authorized for this release only): https://github.com/geolaudy/OfflineJeopardy/releases/tag/v1.0.0 — "OfflineJeopardy v1.0.0", stable, Latest, published 2026-10-23T03:41:52Z by Actions run 39895749820 (success). Assets downloaded and checked against SHA256SUMS.txt:
+  - `OfflineJeopardy-Setup-1.0.0.exe` (113,218,861 bytes) — SHA-256 2487e6e6ac039bd0b14ce9ae1c002356b4094d0dbeba21cba72e1e4c483ecae5
+  - `OfflineJeopardy-Portable-1.0.0.exe` (161,501,061 bytes) — SHA-256 f9ab33c03849b9ae9cc9a608feecd05d74fed70a4be2b41a3b54ec9e27fda69b
+  - The downloaded portable passed `--smoke-test` (version 1.0.0, server, web, user guide, image pipeline; 0 personal sound cues).
+- **Branches (new structure, BRANCH_WORKFLOW.md):** `main` = fcc7433 "Release v1.0.0" (snapshot of development 4e45a06, fast-forward from 4ac0d77; public README with 12 screenshots, CONTRIBUTING, docs, all source/tests/build files; no internal files). Tag `v1.0.0` (annotated cc09087) → fcc7433. `development` = full history + all development files (this handoff commit on top of 4e45a06). Rollback anchor tag `pre-restructure-main` → 4ac0d77. All v0.x tags and releases unchanged. No force-push anywhere.
+- **GitHub settings:** default branch `main` (verified). **Branch protection is not possible** while the repository is private on the Free plan (HTTP 403, K69); visibility left private — making it public (which would also allow protection) is the owner's decision. Until then: the approval rule (CLAUDE.md §0) + the pre-push hook (`main` / `v*` tags need `OJ_RELEASE_APPROVED`). GitHub CLI is now installed and logged in on this computer (`C:\Program Files\GitHub CLI\gh.exe`, account geolaudy).
+- **Release audit:** passed; K48 (hotspot / Wi-Fi details) unverified by owner approval, K55 cosmetic platform limitation; no data-loss / security / start-up / gameplay defects open.
+- **Tests this session:** development: tsc clean, Vitest 444/444, devLock 13/13 (new main-guard test), Playwright full **161/162** — the 1 failure (round5-lobby team rename, TV listed a player twice for a moment, K68) passed 3/3 on its own. Fresh clone of the release branch (D:\OJ-verify-1.0.0): npm ci, tsc, Vitest (one load-dependent socket test per run while Playwright ran — K67; both files 14/14 ×3 alone), `npm run dist`, `dist:verify` 15/15; a copy of the owner's existing data opened in 1.0.0 (4 boards, 2 profiles, 3 games, history). Simulated future session: fresh clone → main → README "git switch development" → CLAUDE.md §0 → lock status works.
+- **Working tree:** clean except the pre-existing `.claude/agents/research-agent.md` (`model: sonnet`, not this session's — ask the owner before committing or discarding).
+- **Owner to clean up by hand (a safety check blocks deletions at the root of D:):** `D:\OJ-datacheck` (a COPY of the game database — personal data), `D:\OJ-verify-1.0.0` (fresh-clone build + downloaded release files), `D:\OJ-future-session` (simulation clone), `D:\vitest-verify-1.log`, `D:\vitest-verify-2.log`, `D:\dist-verify.log`. Old rc builds in `release/` (0.17.0-rc.1 … rc.6, personal builds) can go too; C: has ~3 GB free.
+- **Lock:** generation 11, released at the end of session 23 (acquire it before you start).
+
+### Single recommended next task (session 23)
+
+1. On `development`: wait for the owner's next feedback on v1.0.0 and record it in USER_FEEDBACK.md (new round); fix on `development`, build `1.0.1-rc.N` / `1.1.0-rc.N` locally for real-hardware checks. **Do not touch `main`, push `v*` tags or publish without the owner's explicit approval of that release** — then follow BRANCH_WORKFLOW.md "Release workflow" (`scripts/release-export.mjs`).
+2. Optional, owner's decision: make the repository public (or GitHub Pro) and then configure `main` protection as in BRANCH_WORKFLOW.md "GitHub settings".
+3. Small test-hardening candidates: K67 (integration helpers wait for state after an action), K68 (TV lobby team matching by id).
 
 ## Current state (session 22, 2026-10-22 — round 19 done; 0.17.0 RELEASE CANDIDATE 6 built, NOT published; on DESKTOP-6HN0OQ4 / geolaudy)
 

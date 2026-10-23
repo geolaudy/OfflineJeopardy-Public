@@ -132,10 +132,21 @@ without approval.
 
 ## GitHub settings
 
-- Default branch: `main`.
-- `main` protection: see RELEASES.md ("GitHub settings") for what is configured. If it requires pull
-  requests, use the pull-request variant of step 5. No automation merges into `main`: tests passing
-  is never a reason to release.
+- Default branch: `main` (verified 2026-10-22).
+- Branch protection: **not available** while the repository is private on GitHub's Free plan (the API
+  answers HTTP 403 "Upgrade to GitHub Pro or make this repository public"; KNOWN_ISSUES K69). Until
+  then, `main` is protected by the owner-approval rule and the local pre-push hook only.
+- If the repository becomes public (the owner's decision) or the account gets GitHub Pro, protect
+  `main` with: no force pushes, no deletion, changes through a pull request, required status check
+  **Checks / test** (`.github/workflows/checks.yml`), with administrators allowed to bypass so an
+  approved release can still be completed. Then use the pull-request variant of step 5. With `gh`:
+  ```bash
+  gh api -X PUT repos/geolaudy/OfflineJeopardy/branches/main/protection --input protection.json
+  # protection.json: {"required_status_checks":{"strict":true,"contexts":["test"]},
+  #   "enforce_admins":false,"required_pull_request_reviews":{"required_approving_review_count":0},
+  #   "restrictions":null,"allow_force_pushes":false,"allow_deletions":false}
+  ```
+- No automation merges into `main`: tests passing is never a reason to release.
 
 ## Rollback
 

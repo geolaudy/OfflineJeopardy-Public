@@ -1,5 +1,22 @@
 # Progress
 
+## Session 23 — 2026-10-22 (original computer DESKTOP-6HN0OQ4, geolaudy; v1.0.0 stable release, main/development split)
+
+- **Restore:** `main` = `origin/main` = 4ac0d77 (session 22 handoff, 0.17.0-rc.6). The owner tested rc.6 on real hardware: everything requested works and there are no new bugs. They asked for 1.0.0, a public `main` and a permanent `development` branch, and authorized the restructuring and the v1.0.0 release (this release only). Lock generation 11. The pre-existing uncommitted `.claude/agents/research-agent.md` edit is still left uncommitted.
+- **Release audit:** no data-loss, security, start-up or gameplay defect is open. K48 (hotspot / Wi-Fi details untested on hardware) is approved by the owner and stays a documented Known Issue. K55 (Home Screen status bar) is a cosmetic WebKit limitation. The rest is emulation-only coverage and unsigned builds. Verdict: **1.0.0**.
+- **History preserved:** `development` pushed at 4ac0d77 before any change; rollback tag `pre-restructure-main` → 4ac0d77; tags v0.2.0 … v0.16.0 and their releases untouched; no force-push.
+- **Development commits:** 1d3dfe8 (1.0.0 version + CHANGELOG [1.0.0], README, CONTRIBUTING, docs/BUILDING, screenshots + `npm run screenshots`, CLAUDE.md §0 branch policy, BRANCH_WORKFLOW.md, START_CLAUDE_SESSION.md, RELEASES.md, scripts/release-export.mjs, pre-push main/tag guard + test, Checks workflow), 4e45a06 (release-export fix: force-remove staged paths). 4e45a06 is the **release source**.
+- **Strategy:** `main` keeps its shared history and gets snapshot commits only (no orphan branch: that would have needed a force-push or deleting the default branch). The reasons and procedure are in BRANCH_WORKFLOW.md.
+- **Release snapshot:** `node scripts/release-export.mjs --source 4e45a06 --version 1.0.0` → `release/v1.0.0` = fcc7433 (parent 4ac0d77; 32 development-only files removed; package.json without dev:lock scripts).
+- **Verification from a fresh clone of the release branch (D:\OJ-verify-1.0.0):** npm ci; tsc clean; Vitest 432 tests, with one socket-timing test failing per run while Playwright loaded the PC (soak, round4 → K67; both files 14/14 three times on their own); `npm run dist` → OfflineJeopardy-Setup-1.0.0.exe (109 MB) + OfflineJeopardy-Portable-1.0.0.exe (154 MB); `dist:verify` 15/15 (both exes start headlessly, version 1.0.0, no personal sound files). A copy of the owner's existing game data opened in 1.0.0 (4 boards, 2 profiles, 3 games, history), checked through the API with the server started from the fresh clone; the original was not touched. A safety check refused deleting folders at the root of D:, so the owner deletes the copy `D:\OJ-datacheck` by hand.
+- **Development checkout:** tsc clean; Vitest 444/444 (idle PC, rc.6 code); devLock 13/13 including the new main-guard test.
+
+- **Playwright full run on development (4e45a06): 161/162** (33.8 min). round5-lobby "team lobby…" failed once (TV lobby listed a player under two team sections right after a rename) and passed 3/3 on its own → K68, display-only, not a blocker.
+- **Published:** `main` fast-forwarded 4ac0d77 → fcc7433 (approved push, `OJ_RELEASE_APPROVED=v1.0.0`); annotated tag `v1.0.0` → fcc7433; Actions run 39895749820 succeeded; release "OfflineJeopardy v1.0.0" is stable and Latest, with the installer, portable and SHA256SUMS.txt (downloaded, checksums OK, downloaded portable smoke test OK). GitHub's Markdown API renders all 12 README screenshots, and the root of `main` contains only public/build files.
+- **GitHub settings:** default branch `main` ✓; branch protection / rulesets refused (private repo, Free plan, HTTP 403) → K69; repository left private.
+- **Future-session simulation:** fresh clone from GitHub → `main` (no CLAUDE.md) → README/CONTRIBUTING `git switch development` → CLAUDE.md §0 → `dev-lock status` reports this session's lock → read-only, as documented.
+- **Next:** SESSION_HANDOFF.md "Single recommended next task (session 23)".
+
 ## Session 22 — 2026-10-22 (original computer DESKTOP-6HN0OQ4, geolaudy; round 19 → 0.17.0 release candidate 6)
 
 - **Restore:** `main` = `origin/main` = ab754d1 (session 21 handoff, 0.17.0-rc.5 built, not published; no development after rc.5); only the pre-existing uncommitted edit of `.claude/agents/research-agent.md` (`model: sonnet` — not this session's, left uncommitted). Development lock acquired (generation 10), heartbeat running.

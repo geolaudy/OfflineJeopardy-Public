@@ -4,6 +4,20 @@ Statuses: NOT STARTED · IN PROGRESS · IMPLEMENTED (code exists, no automated t
 Test keys: **U** = `tests/unit/engine.test.ts` · **I** = `tests/integration/server.test.ts` · **E** = `tests/e2e/game.spec.ts`, **E2** = `tests/e2e/teams-editor.spec.ts` (Playwright: Chromium TV/desktop/Android, WebKit iPad/iPhone).
 Last full run: 2026-10-12 (session 3) — Vitest 73/73, Playwright 12/12 passing. **L** = tests/e2e/library.spec.ts, **T** = tests/e2e/themes.spec.ts, **P** = tests/e2e/practice.spec.ts, **R** = tests/e2e/roomcode.spec.ts.
 
+## Version 1.0.0 and repository structure (session 23, 2026-10-22)
+
+| ID | Feature | Pri | Status | Source | Tests | Limitations |
+|---|---|---|---|---|---|---|
+| V1-1 | Release-readiness audit of 0.17.0-rc.6 (owner's real-hardware verdict: no new bugs) | P0 | TESTED | KNOWN_ISSUES.md, SESSION_HANDOFF session 23 | tsc; Vitest 444/444 (development, idle PC); fresh-clone Vitest 432 (+2 timing-flaky files re-run green 3×, K67); Playwright 161/162 + the 1 failure green 3× alone (K68) | K48 unverified (owner-approved), K55 cosmetic platform limitation |
+| V1-2 | `development` branch = full original history + all development files | P0 | TESTED | origin/development (from 4ac0d77) | `git ls-remote`; history and tags reachable | — |
+| V1-3 | Clean, buildable `main` (release snapshot, no internal files) | P0 | TESTED | scripts/release-export.mjs | Fresh clone of the release branch on D:: npm ci, tsc, Vitest, `npm run dist`, `dist:verify` 15/15 (both exes start, version 1.0.0, no personal sounds); existing owner data (copy) opens in 1.0.0 | main's history still contains old development files (by design, BRANCH_WORKFLOW.md) |
+| V1-4 | Public README with genuine screenshots, CONTRIBUTING.md, docs/BUILDING.md | P0 | TESTED | README.md, CONTRIBUTING.md, docs/BUILDING.md, docs/screenshots | `npm run screenshots` (tests/screenshots/readme.spec.ts) captured from the real app; on `main`, rendered by GitHub's Markdown API with all 12 images resolving | Download links work only for people with access while the repository is private |
+| V1-5 | Release promotion workflow (development → main snapshot, approval-gated) | P0 | TESTED | scripts/release-export.mjs, BRANCH_WORKFLOW.md, RELEASES.md | Used for v1.0.0 (checks: required files, no development-only path, only package.json differs) | — |
+| V1-6 | Local guard: pre-push refuses `main` / `v*` tags without OJ_RELEASE_APPROVED | P1 | TESTED | .githooks/pre-push | tests/integration/devLock.test.ts (13/13) | Only in clones that ran dev:lock:acquire; `--no-verify` bypasses it |
+| V1-7 | Checks workflow for pull requests into main | P2 | IMPLEMENTED | .github/workflows/checks.yml | Not run yet (no pull request so far) | — |
+| V1-8 | GitHub: default branch `main`, v1.0.0 release | P0 | TESTED | GitHub settings, .github/workflows/windows-build.yml | Default branch = main (`gh repo view`); run 39895749820 success; release stable + Latest, 3 assets downloaded, SHA-256 OK, downloaded portable smoke test OK | — |
+| V1-9 | GitHub branch protection on `main` | P1 | BLOCKED | — | API: HTTP 403 (private repo on the Free plan) | K69 — needs a public repository or GitHub Pro (owner's decision) |
+
 ## Core architecture & desktop
 
 | ID | Feature | Pri | Status | Source | Tests | Limitations |
