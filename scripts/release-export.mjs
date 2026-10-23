@@ -75,6 +75,7 @@ const repo = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: '
 const git = (cwd, ...a) => execFileSync('git', a, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 const fail = (msg) => {
   console.error(`release-export: ${msg}`);
+  if (fs.existsSync(dir)) console.error(`Remove the unfinished worktree: git worktree remove --force "${dir}" && git branch -D ${branch}`);
   process.exit(1);
 };
 
@@ -96,7 +97,7 @@ git(repo, 'worktree', 'add', '-q', '-b', branch, dir, baseSha);
 // Replace the whole tree by the source's tree, then drop the development-only paths.
 git(dir, 'rm', '-r', '-q', '--ignore-unmatch', '.');
 git(dir, 'checkout', sourceSha, '--', '.');
-for (const p of DEVELOPMENT_ONLY) git(dir, 'rm', '-r', '-q', '--ignore-unmatch', '--', p);
+for (const p of DEVELOPMENT_ONLY) git(dir, 'rm', '-r', '-q', '-f', '--ignore-unmatch', '--', p); // -f: staged by the checkout above
 const pkgPath = path.join(dir, 'package.json');
 const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
 for (const k of Object.keys(pkg.scripts)) if (k.startsWith('dev:lock:')) delete pkg.scripts[k];
